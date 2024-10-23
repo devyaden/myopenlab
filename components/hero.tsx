@@ -1,44 +1,23 @@
-import NextLogo from "./next-logo";
-import SupabaseLogo from "./supabase-logo";
+import Link from "next/link";
 
 export default function Header() {
   return (
-    <div className="flex flex-col gap-16 items-center">
-      <div className="flex gap-8 justify-center items-center">
-        <a
-          href="https://supabase.com/?utm_source=create-next-app&utm_medium=template&utm_term=nextjs"
-          target="_blank"
-          rel="noreferrer"
-        >
-          <SupabaseLogo />
-        </a>
-        <span className="border-l rotate-45 h-6" />
-        <a href="https://nextjs.org/" target="_blank" rel="noreferrer">
-          <NextLogo />
-        </a>
-      </div>
-      <h1 className="sr-only">Supabase and Next.js Starter Template</h1>
-      <p className="text-3xl lg:text-4xl !leading-tight mx-auto max-w-xl text-center">
-        The fastest way to build apps with{" "}
-        <a
-          href="https://supabase.com/?utm_source=create-next-app&utm_medium=template&utm_term=nextjs"
-          target="_blank"
-          className="font-bold hover:underline"
-          rel="noreferrer"
-        >
-          Supabase
-        </a>{" "}
-        and{" "}
-        <a
-          href="https://nextjs.org/"
-          target="_blank"
-          className="font-bold hover:underline"
-          rel="noreferrer"
-        >
-          Next.js
-        </a>
+    <header className="flex flex-col items-center gap-12 py-16 bg-gradient-to-r from-blue-50 to-white shadow-lg">
+      <h1 className="text-5xl font-extrabold text-gray-800 text-center tracking-tight leading-snug">
+        YADN - Your Advanced Diagramming Notation
+      </h1>
+      <p className="text-xl lg:text-2xl max-w-2xl text-center text-gray-600 leading-relaxed">
+        YADN is an intuitive diagramming tool that allows you to create, save,
+        and export diagrams seamlessly. Edit your diagrams as tables or directly
+        on the canvas for ultimate flexibility and control.
       </p>
-      <div className="w-full p-[1px] bg-gradient-to-r from-transparent via-foreground/10 to-transparent my-8" />
-    </div>
+      <div className="w-24 h-1 bg-gradient-to-r from-blue-400 to-indigo-600 my-4"></div>
+      <Link
+        href="/sign-in"
+        className="text-white bg-blue-600 hover:bg-blue-700 transition-colors font-medium py-3 px-8 rounded-full shadow-md"
+      >
+        Login
+      </Link>
+    </header>
   );
 }

@@ -1,37 +1,60 @@
-import FetchDataSteps from "@/components/tutorial/fetch-data-steps";
-import { createClient } from "@/utils/supabase/server";
-import { InfoIcon } from "lucide-react";
-import { redirect } from "next/navigation";
+"use client";
 
-export default async function ProtectedPage() {
-  const supabase = createClient();
+import { HeaderSidebar } from "@/components/header-dashboard";
+import { SidebarDashboard } from "@/components/sidebar-dashboard";
+import { Button } from "@/components/ui/button";
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+import { Plus } from "lucide-react";
 
-  if (!user) {
-    return redirect("/sign-in");
-  }
-
+export default function Dashboard() {
   return (
-    <div className="flex-1 w-full flex flex-col gap-12">
-      <div className="w-full">
-        <div className="bg-accent text-sm p-3 px-5 rounded-md text-foreground flex gap-3 items-center">
-          <InfoIcon size="16" strokeWidth={2} />
-          This is a protected page that you can only see as an authenticated
-          user
-        </div>
-      </div>
-      <div className="flex flex-col gap-2 items-start">
-        <h2 className="font-bold text-2xl mb-4">Your user details</h2>
-        <pre className="text-xs font-mono p-3 rounded border max-h-32 overflow-auto">
-          {JSON.stringify(user, null, 2)}
-        </pre>
-      </div>
-      <div>
-        <h2 className="font-bold text-2xl mb-4">Next steps</h2>
-        <FetchDataSteps />
+    <div className="flex flex-col h-screen  w-screen">
+      <HeaderSidebar />
+
+      <div className="flex flex-1 overflow-hidden">
+        <SidebarDashboard />
+
+        {/* Main area */}
+        <main className="flex-grow overflow-auto">
+          <div className=" p-4 sm:p-8 border-b border-gray-200 pb-8">
+            <h2 className="text-xl sm:text-3xl mb-4 sm:mb-6">فتح مستند جديد</h2>
+            <div className="flex flex-col sm:flex-row space-y-4 sm:space-y-0 sm:space-x-4 sm:space-x-reverse">
+              <div className="flex flex-col items-center">
+                <Button
+                  variant="default"
+                  className="py-16 w-32 h-32 bg-dark_background"
+                >
+                  <Plus className="text-6xl" />
+                </Button>
+                <p className="mt-2">مستند فارغ</p>{" "}
+              </div>
+              <div className="flex flex-col items-center">
+                <Button variant="outline" className="py-16 text-lg w-32 h-32" />
+                <p className="mt-2">قوالب</p>{" "}
+              </div>
+            </div>
+          </div>
+          <div className="pb-8">
+            <h2 className="text-xl sm:text-3xl sm:mb-6 m-4 sm:m-8">
+              فتح حديثًا
+            </h2>
+            <div>
+              {[6, 5, 4, 3, 2, 1].map((num, index) => (
+                <div
+                  key={num}
+                  className={`flex justify-between items-center py-2 px-4 sm:px-16 ${index % 2 === 0 ? "white" : "bg-light_background"}`}
+                >
+                  <span className="font-semibold text-sm sm:text-base ">
+                    مستند {num}
+                  </span>
+                  <span className="text-gray-500 text-sm sm:text-base">
+                    2024 jul {21 + num}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </main>
       </div>
     </div>
   );
