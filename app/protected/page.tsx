@@ -5,6 +5,7 @@ import { SidebarDashboard } from "@/components/sidebar-dashboard";
 import { Button } from "@/components/ui/button";
 
 import { Plus } from "lucide-react";
+import Link from "next/link";
 
 export default function Dashboard() {
   return (
@@ -19,7 +20,10 @@ export default function Dashboard() {
           <div className=" p-4 sm:p-8 border-b border-gray-200 pb-8">
             <h2 className="text-xl sm:text-3xl mb-4 sm:mb-6">فتح مستند جديد</h2>
             <div className="flex flex-col sm:flex-row space-y-4 sm:space-y-0 sm:space-x-4 sm:space-x-reverse">
-              <div className="flex flex-col items-center">
+              <Link
+                className="flex flex-col items-center"
+                href="/protected/canvas/new"
+              >
                 <Button
                   variant="default"
                   className="py-16 w-32 h-32 bg-dark_background"
@@ -27,7 +31,7 @@ export default function Dashboard() {
                   <Plus className="text-6xl" />
                 </Button>
                 <p className="mt-2">مستند فارغ</p>{" "}
-              </div>
+              </Link>
               <div className="flex flex-col items-center">
                 <Button variant="outline" className="py-16 text-lg w-32 h-32" />
                 <p className="mt-2">قوالب</p>{" "}
