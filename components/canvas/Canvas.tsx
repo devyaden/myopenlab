@@ -15,15 +15,16 @@ import ReactFlow, {
   Node,
   NodeChange,
   Panel,
+  useOnSelectionChange,
+  useReactFlow,
 } from "reactflow";
 import "reactflow/dist/style.css";
 
-import ShapeSidebar from "./Sidebar";
-import CustomNode from "./shapes/CustomNode";
-import { Table } from "../ui/table";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
 import FlowTable from "./FlowTable";
 import { NodeData } from "./FlowTable/types";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
+import ShapeSidebar from "./Sidebar";
+import CustomNode from "./shapes/CustomNode";
 
 const nodeTypes = {
   custom: CustomNode,
@@ -33,8 +34,9 @@ const Canvas: React.FC = () => {
   const [nodes, setNodes] = useState<Node[]>([]);
   const [edges, setEdges] = useState<Edge[]>([]);
 
-  const reactFlowWrapper = useRef(null);
-  const [reactFlowInstance, setReactFlowInstance] = React.useState(null);
+  const reactFlowWrapper = useRef<HTMLDivElement>(null);
+
+  const { screenToFlowPosition } = useReactFlow();
 
   const onNodesChange = useCallback(
     (changes: NodeChange[]) => setNodes((ns) => applyNodeChanges(changes, ns)),
@@ -65,17 +67,17 @@ const Canvas: React.FC = () => {
 
   const onDrop = useCallback(
     (event: React.DragEvent) => {
-      console.log("🚀 ~ event:", event);
       event.preventDefault();
 
-      if (!reactFlowWrapper?.current || !reactFlowInstance) return;
+      if (!reactFlowWrapper?.current) return;
 
-      const reactFlowBounds = reactFlowWrapper.current.getBoundingClientRect();
+      const reactFlowBounds =
+        reactFlowWrapper?.current?.getBoundingClientRect();
       const shapeType = event.dataTransfer.getData("application/reactflow");
 
       // Only create new node if we have a shape type (meaning it came from the sidebar)
       if (shapeType) {
-        const position = reactFlowInstance?.project({
+        const position = screenToFlowPosition({
           x: event.clientX - reactFlowBounds.left,
           y: event.clientY - reactFlowBounds.top,
         });
@@ -96,7 +98,7 @@ const Canvas: React.FC = () => {
         setNodes([...nodes, newNode]);
       }
     },
-    [nodes, reactFlowInstance, setNodes]
+    [nodes, setNodes]
   );
 
   const onNodesDelete = useCallback(
@@ -222,6 +224,12 @@ const Canvas: React.FC = () => {
     setEdges((prevEdges) => [...prevEdges, newEdge]);
   }, []);
 
+  useOnSelectionChange({
+    onChange: useCallback(({ nodes, edges }) => {
+      console.log("🚀 ~ onChange:useCallback ~ nodes, edges:", nodes, edges);
+    }, []),
+  });
+
   return (
     <>
       <main className="flex-1 overflow-hidden">
@@ -250,7 +258,6 @@ const Canvas: React.FC = () => {
                     nodesConnectable={true}
                     snapToGrid={true}
                     snapGrid={[15, 15]}
-                    onInit={setReactFlowInstance}
                     fitView
                     defaultEdgeOptions={{
                       type: "smoothstep",
@@ -268,10 +275,10 @@ const Canvas: React.FC = () => {
 
                     <Panel
                       position="top-right"
-                      className="h-full w-1/6 items-center justify-center flex"
+                      className="w-1/6 items-center justify-center flex"
                     >
-                      <div className="w-full bg-gray-300 p-4 overflow-y-auto h-[90%] rounded-md">
-                        <h2 className="text-xl mb-4">Nodes</h2>
+                      <div className="w-64 bg-white p-4 rounded-lg shadow-lg">
+                        <h2 className="mb-6 text-lg font-semibold">Nodes</h2>
                         <ul className="space-y-2">
                           {nodes.map((node) => (
                             <li

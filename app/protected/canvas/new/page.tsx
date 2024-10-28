@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { ArrowRight, Check, Edit2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { ReactFlowProvider } from "reactflow";
 
 export default function Page() {
   const [isEditing, setIsEditing] = useState(false);
@@ -68,8 +69,9 @@ export default function Page() {
           </div>
         </div>
       </header>
-
-      <Canvas />
+      <ReactFlowProvider>
+        <Canvas />
+      </ReactFlowProvider>
     </div>
   );
 }

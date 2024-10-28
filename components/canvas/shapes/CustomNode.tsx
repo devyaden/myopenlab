@@ -1,97 +1,6 @@
 import { memo, useCallback, useState } from "react";
 import { Handle, NodeResizer, Position } from "reactflow";
-
-// Shape components remain unchanged since they use SVG attributes
-export const shapeComponents: Record<string, React.FC<ShapeProps>> = {
-  circle: ({ width, height }) => (
-    <ellipse
-      cx={width / 2}
-      cy={height / 2}
-      rx={width / 2.2}
-      ry={height / 2.2}
-    />
-  ),
-  square: ({ width, height }) => {
-    const padding = Math.min(width, height) * 0.1;
-    return (
-      <rect
-        x={padding}
-        y={padding}
-        width={width - padding * 2}
-        height={height - padding * 2}
-      />
-    );
-  },
-  diamond: ({ width, height }) => {
-    const points = [
-      `${width / 2},${height * 0.1}`,
-      `${width * 0.9},${height / 2}`,
-      `${width / 2},${height * 0.9}`,
-      `${width * 0.1},${height / 2}`,
-    ].join(" ");
-    return <polygon points={points} />;
-  },
-  cylinder: ({ width, height }) => {
-    const padding = Math.min(width, height) * 0.1;
-    const w = width - padding * 2;
-    const h = height - padding * 2;
-    const x = padding;
-    const y = padding;
-    const ellipseHeight = Math.min(h * 0.15, w * 0.3);
-
-    return (
-      <g>
-        <path
-          d={`
-            M${x},${y + ellipseHeight}
-            v${h - ellipseHeight * 2}
-            q0,${ellipseHeight} ${w},${ellipseHeight}
-            v-${h - ellipseHeight * 2}
-            q0,-${ellipseHeight} -${w},-${ellipseHeight}
-            Z
-          `}
-        />
-        <ellipse
-          cx={x + w / 2}
-          cy={y + ellipseHeight}
-          rx={w / 2}
-          ry={ellipseHeight}
-        />
-      </g>
-    );
-  },
-  triangle: ({ width, height }) => {
-    const points = [
-      `${width / 2},${height * 0.1}`,
-      `${width * 0.9},${height * 0.9}`,
-      `${width * 0.1},${height * 0.9}`,
-    ].join(" ");
-    return <polygon points={points} />;
-  },
-  parallelogram: ({ width, height }) => {
-    const skew = width * 0.15;
-    const points = [
-      `${skew},${height * 0.1}`,
-      `${width - 0},${height * 0.1}`,
-      `${width - skew},${height * 0.9}`,
-      `${0},${height * 0.9}`,
-    ].join(" ");
-    return <polygon points={points} />;
-  },
-  task: ({ width, height }) => {
-    const padding = Math.min(width, height) * 0.1;
-    return (
-      <rect
-        x={padding}
-        y={padding}
-        width={width - padding * 2}
-        height={height - padding * 2}
-        rx={10}
-        ry={10}
-      />
-    );
-  },
-};
+import ShapeComponents from "./Shapes";
 
 interface NodeData {
   shape: string;
@@ -99,6 +8,8 @@ interface NodeData {
   backgroundColor?: string;
   borderColor?: string;
   onLabelChange?: (newLabel: string) => void;
+  borderStyle?: string;
+  borderWidth?: string;
 }
 
 interface CustomNodeProps {
@@ -145,9 +56,11 @@ const CustomNode = memo(
     };
 
     const ShapeComponent =
-      shapeComponents[data.shape] || shapeComponents.circle;
+      ShapeComponents[data.shape] || ShapeComponents.circle;
     const backgroundColor = data.backgroundColor || "white";
     const borderColor = data.borderColor || "#1a192b";
+    const borderStyle = data.borderStyle || "solid";
+    const borderWidth = data.borderWidth || "2px";
 
     return (
       <div
@@ -174,7 +87,18 @@ const CustomNode = memo(
             viewBox={`0 0 ${dimensions.width} ${dimensions.height}`}
             style={{ cursor: "move" }}
           >
-            <g fill={backgroundColor} stroke={borderColor} strokeWidth="2">
+            <g
+              fill={backgroundColor}
+              stroke={borderColor}
+              strokeWidth={borderWidth}
+              strokeDasharray={
+                borderStyle === "dashed"
+                  ? "5,5"
+                  : borderStyle === "dotted"
+                    ? "2,2"
+                    : "none"
+              }
+            >
               <ShapeComponent
                 width={dimensions.width}
                 height={dimensions.height}
