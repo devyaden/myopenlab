@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useCallback, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import ReactFlow, {
   addEdge,
   applyEdgeChanges,
@@ -15,28 +15,41 @@ import ReactFlow, {
   Node,
   NodeChange,
   Panel,
-  useOnSelectionChange,
   useReactFlow,
 } from "reactflow";
 import "reactflow/dist/style.css";
-
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
 import FlowTable from "./FlowTable";
 import { NodeData } from "./FlowTable/types";
 import ShapeSidebar from "./Sidebar";
 import CustomNode from "./shapes/CustomNode";
+import { createClient } from "@/utils/supabase/client";
+import { useToast } from "@/hooks/use-toast";
 
 const nodeTypes = {
   custom: CustomNode,
 };
 
-const Canvas: React.FC = () => {
+const flowKey: string = "example-flow";
+
+interface CanvasProps {
+  userId: string | null;
+  title: string;
+  onCanvasCreated: (id: string) => void;
+}
+
+const Canvas: React.FC<CanvasProps> = ({ userId, title, onCanvasCreated }) => {
   const [nodes, setNodes] = useState<Node[]>([]);
   const [edges, setEdges] = useState<Edge[]>([]);
-
+  const [rfInstance, setRfInstance] = useState(null);
+  const [canvasId, setCanvasId] = useState<string | null>(null);
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
 
-  const { screenToFlowPosition } = useReactFlow();
+  const supabase = createClient();
+  const { toast } = useToast();
+
+  const { screenToFlowPosition, setViewport, setCenter, getZoom } =
+    useReactFlow();
 
   const onNodesChange = useCallback(
     (changes: NodeChange[]) => setNodes((ns) => applyNodeChanges(changes, ns)),
@@ -224,11 +237,91 @@ const Canvas: React.FC = () => {
     setEdges((prevEdges) => [...prevEdges, newEdge]);
   }, []);
 
-  useOnSelectionChange({
-    onChange: useCallback(({ nodes, edges }) => {
-      console.log("🚀 ~ onChange:useCallback ~ nodes, edges:", nodes, edges);
-    }, []),
-  });
+  const onSave = useCallback(() => {
+    if (rfInstance) {
+      const flow = rfInstance.toObject();
+      console.log("🚀 ~ onSave ~ flow:", flow);
+      localStorage.setItem(flowKey, JSON.stringify(flow));
+    }
+  }, [rfInstance]);
+
+  const onRestore = useCallback(() => {
+    const restoreFlow = async () => {
+      const flow = JSON.parse(localStorage.getItem(flowKey));
+
+      if (flow) {
+        const { x = 0, y = 0, zoom = 1 } = flow.viewport;
+        setNodes(flow.nodes || []);
+        setEdges(flow.edges || []);
+        setViewport({ x, y, zoom });
+      }
+    };
+
+    restoreFlow();
+  }, [setNodes, setViewport]);
+
+  const handleTransform = useCallback(
+    (x: number, y: number) => {
+      const currentZoom = getZoom();
+      setCenter(x, y, { duration: 800, zoom: currentZoom });
+    },
+    [setViewport]
+  );
+
+  useEffect(() => {
+    const createCanvas = async () => {
+      if (!userId) return;
+
+      try {
+        // Create initial flow data object
+        const initialFlowData = {
+          nodes: [],
+          edges: [],
+          viewport: { x: 0, y: 0, zoom: 1 },
+        };
+
+        // Insert new canvas with proper casing for the table name
+        const { data, error } = await supabase
+          .from("Canvas") // Use lowercase 'canvas' to match your schema
+          .insert({
+            name: title,
+            user_id: userId,
+            description: "", // Add empty description to avoid null
+            flow_data: initialFlowData,
+            version: 1,
+            is_published: false,
+            workspace_id: null, // Set to null explicitly
+            parent_id: null, // Set to null explicitly
+          })
+          .select()
+          .single();
+
+        if (error) {
+          console.error("Canvas creation error:", error);
+          toast({
+            title: "Error",
+            description: `Failed to create canvas: ${error.message}`,
+            variant: "destructive",
+          });
+          return;
+        }
+
+        if (data) {
+          setCanvasId(data.id);
+          onCanvasCreated(data.id);
+        }
+      } catch (err) {
+        console.error("Unexpected error:", err);
+        toast({
+          title: "Error",
+          description: "An unexpected error occurred while creating the canvas",
+          variant: "destructive",
+        });
+      }
+    };
+
+    createCanvas();
+  }, [userId]);
 
   return (
     <>
@@ -265,12 +358,19 @@ const Canvas: React.FC = () => {
                     }}
                     proOptions={{ hideAttribution: true }}
                     deleteKeyCode={["Backspace", "Delete"]}
+                    onInit={setRfInstance}
                   >
                     <Background variant={BackgroundVariant.Dots} />
                     <Controls />
 
                     <Panel position="top-left" className="w-1/6">
                       <ShapeSidebar />
+                    </Panel>
+
+                    <Panel position="top-center">
+                      <button onClick={onSave}>save</button>
+                      <button onClick={onRestore}>restore</button>
+                      {/* <button onClick={onAdd}>add node</button> */}
                     </Panel>
 
                     <Panel
@@ -283,16 +383,19 @@ const Canvas: React.FC = () => {
                           {nodes.map((node) => (
                             <li
                               key={node.id}
-                              className="bg-white p-2 rounded shadow"
+                              className="bg-white p-2 rounded shadow cursor-pointer"
+                              onClick={() =>
+                                handleTransform(
+                                  node.position.x,
+                                  node.position.y
+                                )
+                              }
                             >
                               <h3 className="font-semibold">
                                 {node.data.label}
                               </h3>
                               <p className="text-sm text-gray-600">
                                 ID: {node.id}
-                              </p>
-                              <p className="text-sm text-gray-600">
-                                Title: {node.data.title}
                               </p>
                             </li>
                           ))}

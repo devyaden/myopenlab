@@ -1,0 +1,166 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id             String               @id @default(cuid())
+  email          String               @unique
+  auth_id        String               @unique
+  name           String?
+  created_at     DateTime             @default(now())
+  updated_at     DateTime             @updatedAt
+  canvases       Canvas[]
+  collaborations CanvasCollaborator[]
+}
+
+model Canvas {
+  id           String   @id @default(cuid())
+  name         String
+  description  String?
+  created_at   DateTime @default(now())
+  updated_at   DateTime @updatedAt
+  last_edited  DateTime @default(now())
+  flow_data    Json
+  version      Int      @default(1)
+  is_published Boolean  @default(false)
+
+  // Workspace organization
+  workspace_id String?
+  parent_id    String? // For hierarchical organization
+  parent       Canvas?  @relation("CanvasHierarchy", fields: [parent_id], references: [id], onDelete: SetNull)
+  children     Canvas[] @relation("CanvasHierarchy")
+
+  // Relationships
+  user          User                 @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  user_id       String
+  snapshots     CanvasSnapshot[]
+  collaborators CanvasCollaborator[]
+
+  // Canvas linking relationships
+  sourceLinks CanvasLink[] @relation("SourceCanvas")
+  targetLinks CanvasLink[] @relation("TargetCanvas")
+
+  // Node references between canvases
+  nodeReferences NodeReference[] @relation("HostCanvas")
+  referencedIn   NodeReference[] @relation("ReferencedCanvas")
+
+  @@index([user_id])
+  @@index([workspace_id])
+  @@index([parent_id])
+  @@index([created_at])
+}
+
+model CanvasLink {
+  id          String   @id @default(cuid())
+  name        String?
+  description String?
+  created_at  DateTime @default(now())
+  updated_at  DateTime @updatedAt
+
+  // Link type and metadata
+  link_type LinkType @default(REFERENCE)
+  metadata  Json? // Store additional link properties
+
+  // Relationships
+  source_canvas Canvas @relation("SourceCanvas", fields: [source_id], references: [id], onDelete: Cascade)
+  source_id     String
+  target_canvas Canvas @relation("TargetCanvas", fields: [target_id], references: [id], onDelete: Cascade)
+  target_id     String
+
+  // Source and target nodes within the canvases
+  source_node_id String
+  target_node_id String
+
+  @@unique([source_id, target_id, source_node_id, target_node_id])
+  @@index([source_id])
+  @@index([target_id])
+}
+
+model NodeReference {
+  id         String   @id @default(cuid())
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  // Node identifiers
+  host_node_id String // ID of the node in the host canvas
+  ref_node_id  String // ID of the node being referenced
+
+  // Reference type and metadata
+  ref_type ReferenceType @default(EMBED)
+  metadata Json? // Store additional reference properties
+
+  // Relationships
+  host_canvas    Canvas @relation("HostCanvas", fields: [host_canvas_id], references: [id], onDelete: Cascade)
+  host_canvas_id String
+  ref_canvas     Canvas @relation("ReferencedCanvas", fields: [ref_canvas_id], references: [id], onDelete: Cascade)
+  ref_canvas_id  String
+
+  @@unique([host_canvas_id, host_node_id, ref_canvas_id, ref_node_id])
+  @@index([host_canvas_id])
+  @@index([ref_canvas_id])
+}
+
+model CanvasSnapshot {
+  id          String   @id @default(cuid())
+  name        String?
+  description String?
+  created_at  DateTime @default(now())
+  flow_data   Json
+  version     Int
+
+  // Relationships
+  canvas    Canvas @relation(fields: [canvas_id], references: [id], onDelete: Cascade)
+  canvas_id String
+
+  @@index([canvas_id])
+  @@index([created_at])
+}
+
+model CanvasCollaborator {
+  id         String           @id @default(cuid())
+  role       CollaboratorRole
+  created_at DateTime         @default(now())
+  updated_at DateTime         @updatedAt
+
+  // Relationships
+  user      User   @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  user_id   String
+  canvas    Canvas @relation(fields: [canvas_id], references: [id], onDelete: Cascade)
+  canvas_id String
+
+  @@unique([user_id, canvas_id])
+  @@index([canvas_id])
+  @@index([user_id])
+}
+
+enum CollaboratorRole {
+  VIEWER
+  EDITOR
+  ADMIN
+}
+
+enum LinkType {
+  REFERENCE // Simple reference to another diagram
+  EMBED // Embed one diagram within another
+  DEPENDENCY // Represents a dependency relationship
+  HIERARCHY // Parent-child relationship
+  CUSTOM // Custom relationship type
+}
+
+enum ReferenceType {
+  EMBED // Embed the referenced node
+  LINK // Link to the referenced node
+  SYNC // Keep nodes synchronized
+  MIRROR // Mirror the referenced node
+}
