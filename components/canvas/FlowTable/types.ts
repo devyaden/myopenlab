@@ -30,3 +30,9 @@ export interface NewEdgeData {
 export interface EditingNodeData extends NodeData {
   id: string;
 }
+
+export interface InitialCanvasData {
+  nodes: Node[];
+  edges: Edge[];
+  viewport: { x: number; y: number; zoom: number };
+}

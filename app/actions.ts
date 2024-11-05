@@ -23,10 +23,13 @@ export const signUpAction = async (formData: FormData) => {
     },
   });
 
+  debugger;
   if (error) {
     console.error(error.code + " " + error.message);
     return encodedRedirect("error", "/sign-up", error.message);
   } else {
+    // create user in supabase database base don the prisma schema
+
     return encodedRedirect(
       "success",
       "/sign-up",

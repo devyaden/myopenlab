@@ -1,10 +1,16 @@
+"use client";
+
 import { SidebarProvider } from "@/components/ui/sidebar";
-import { ReactFlowProvider } from "@xyflow/react";
+import { UserProvider } from "@/lib/contexts/userContext";
 
 export default function RootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  return <SidebarProvider suppressHydrationWarning>{children}</SidebarProvider>;
+  return (
+    <UserProvider>
+      <SidebarProvider suppressHydrationWarning>{children}</SidebarProvider>
+    </UserProvider>
+  );
 }

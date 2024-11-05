@@ -3,45 +3,24 @@
 import Canvas from "@/components/canvas";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
+import { useUser } from "@/lib/contexts/userContext";
 import { createClient } from "@/utils/supabase/client";
+
 import { ArrowRight, Check, Edit2 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { ReactFlowProvider } from "reactflow";
 
 export default function Page() {
   const [isEditing, setIsEditing] = useState(false);
   const [title, setTitle] = useState("My Canvas");
-  const [userId, setUserId] = useState<string | null>(null);
-  console.log("🚀 ~ Page ~ userId:", userId);
   const [canvasId, setCanvasId] = useState<string | null>(null);
 
+  const { user } = useUser();
   const supabase = createClient();
   const router = useRouter();
 
   const { toast } = useToast();
-
-  useEffect(() => {
-    const getCurrentUser = async () => {
-      const {
-        data: { user },
-        error,
-      } = await supabase.auth.getUser();
-      if (error) {
-        toast({
-          title: "Error",
-          description: "Failed to get user information",
-          variant: "destructive",
-        });
-
-        await supabase.auth.signOut();
-        return;
-      }
-      setUserId(user?.id || null);
-    };
-
-    getCurrentUser();
-  }, []);
 
   const handleTitleChange = async (newTitle: string) => {
     setTitle(newTitle);
@@ -63,6 +42,44 @@ export default function Page() {
       }
     }
   };
+
+  const createNewCanvas = async () => {
+    const initialFlowData = {
+      nodes: [],
+      edges: [],
+      viewport: { x: 0, y: 0, zoom: 1 },
+    };
+
+    const { data, error } = await supabase.from("canvas").insert([
+      {
+        name: title,
+        user_id: user?.id,
+        description: "",
+        flow_data: initialFlowData,
+        version: 1,
+        is_published: false,
+        workspace_id: null,
+        parent_id: null,
+        last_edited: new Date(),
+      },
+    ]);
+
+    if (error) {
+      toast({
+        title: "Error",
+        description: "Failed to create new canvas",
+        variant: "destructive",
+      });
+    } else {
+      setCanvasId(data?.[0].id);
+    }
+  };
+
+  // useEffect(() => {
+  //   if (!canvasId) {
+  //     createNewCanvas();
+  //   }
+  // }, []);
 
   return (
     <div className="flex flex-col h-screen w-screen">
@@ -122,11 +139,7 @@ export default function Page() {
         </div>
       </header>
       <ReactFlowProvider>
-        <Canvas
-          userId={userId}
-          title={title}
-          onCanvasCreated={(id) => setCanvasId(id)}
-        />
+        <Canvas title={title} onCanvasCreated={(id) => setCanvasId(id)} />
       </ReactFlowProvider>
     </div>
   );

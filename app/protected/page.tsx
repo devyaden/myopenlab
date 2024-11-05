@@ -1,7 +1,7 @@
 "use client";
 
+import { SidebarDashboard } from "@/components/dashboard-sidebar";
 import { HeaderSidebar } from "@/components/header-dashboard";
-import { SidebarDashboard } from "@/components/sidebar-dashboard";
 import { Button } from "@/components/ui/button";
 
 import { Plus } from "lucide-react";

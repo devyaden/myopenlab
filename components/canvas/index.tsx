@@ -20,11 +20,13 @@ import ReactFlow, {
 import "reactflow/dist/style.css";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
 import FlowTable from "./FlowTable";
-import { NodeData } from "./FlowTable/types";
+import { InitialCanvasData, NodeData } from "./FlowTable/types";
 import ShapeSidebar from "./Sidebar";
 import CustomNode from "./shapes/CustomNode";
 import { createClient } from "@/utils/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { useUser } from "@/lib/contexts/userContext";
+import { Button } from "../ui/button";
 
 const nodeTypes = {
   custom: CustomNode,
@@ -33,20 +35,15 @@ const nodeTypes = {
 const flowKey: string = "example-flow";
 
 interface CanvasProps {
-  userId: string | null;
-  title: string;
-  onCanvasCreated: (id: string) => void;
+  initialData: InitialCanvasData;
+  onCanvasSave: (data: InitialCanvasData) => void;
 }
 
-const Canvas: React.FC<CanvasProps> = ({ userId, title, onCanvasCreated }) => {
-  const [nodes, setNodes] = useState<Node[]>([]);
-  const [edges, setEdges] = useState<Edge[]>([]);
-  const [rfInstance, setRfInstance] = useState(null);
-  const [canvasId, setCanvasId] = useState<string | null>(null);
+const Canvas: React.FC<CanvasProps> = ({ initialData, onCanvasSave }) => {
+  const [nodes, setNodes] = useState<Node[]>(initialData.nodes);
+  const [edges, setEdges] = useState<Edge[]>(initialData.edges);
+  const [rfInstance, setRfInstance] = useState<any>(null);
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
-
-  const supabase = createClient();
-  const { toast } = useToast();
 
   const { screenToFlowPosition, setViewport, setCenter, getZoom } =
     useReactFlow();
@@ -239,9 +236,12 @@ const Canvas: React.FC<CanvasProps> = ({ userId, title, onCanvasCreated }) => {
 
   const onSave = useCallback(() => {
     if (rfInstance) {
-      const flow = rfInstance.toObject();
+      const flow = rfInstance?.toObject();
       console.log("🚀 ~ onSave ~ flow:", flow);
-      localStorage.setItem(flowKey, JSON.stringify(flow));
+
+      onCanvasSave(flow);
+
+      // localStorage.setItem(flowKey, JSON.stringify(flow));
     }
   }, [rfInstance]);
 
@@ -269,59 +269,12 @@ const Canvas: React.FC<CanvasProps> = ({ userId, title, onCanvasCreated }) => {
   );
 
   useEffect(() => {
-    const createCanvas = async () => {
-      if (!userId) return;
+    if (initialData.viewport) {
+      const { x, y, zoom } = initialData.viewport;
 
-      try {
-        // Create initial flow data object
-        const initialFlowData = {
-          nodes: [],
-          edges: [],
-          viewport: { x: 0, y: 0, zoom: 1 },
-        };
-
-        // Insert new canvas with proper casing for the table name
-        const { data, error } = await supabase
-          .from("Canvas") // Use lowercase 'canvas' to match your schema
-          .insert({
-            name: title,
-            user_id: userId,
-            description: "", // Add empty description to avoid null
-            flow_data: initialFlowData,
-            version: 1,
-            is_published: false,
-            workspace_id: null, // Set to null explicitly
-            parent_id: null, // Set to null explicitly
-          })
-          .select()
-          .single();
-
-        if (error) {
-          console.error("Canvas creation error:", error);
-          toast({
-            title: "Error",
-            description: `Failed to create canvas: ${error.message}`,
-            variant: "destructive",
-          });
-          return;
-        }
-
-        if (data) {
-          setCanvasId(data.id);
-          onCanvasCreated(data.id);
-        }
-      } catch (err) {
-        console.error("Unexpected error:", err);
-        toast({
-          title: "Error",
-          description: "An unexpected error occurred while creating the canvas",
-          variant: "destructive",
-        });
-      }
-    };
-
-    createCanvas();
-  }, [userId]);
+      setCenter(x, y, { duration: 800, zoom });
+    }
+  }, [initialData]);
 
   return (
     <>
@@ -368,9 +321,8 @@ const Canvas: React.FC<CanvasProps> = ({ userId, title, onCanvasCreated }) => {
                     </Panel>
 
                     <Panel position="top-center">
-                      <button onClick={onSave}>save</button>
-                      <button onClick={onRestore}>restore</button>
-                      {/* <button onClick={onAdd}>add node</button> */}
+                      <Button onClick={onSave}>save</Button>
+                      {/* <button onClick={onRestore}>restore</button> */}
                     </Panel>
 
                     <Panel
@@ -380,7 +332,7 @@ const Canvas: React.FC<CanvasProps> = ({ userId, title, onCanvasCreated }) => {
                       <div className="w-64 bg-white p-4 rounded-lg shadow-lg">
                         <h2 className="mb-6 text-lg font-semibold">Nodes</h2>
                         <ul className="space-y-2">
-                          {nodes.map((node) => (
+                          {nodes?.map((node) => (
                             <li
                               key={node.id}
                               className="bg-white p-2 rounded shadow cursor-pointer"

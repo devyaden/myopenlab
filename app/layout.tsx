@@ -1,8 +1,8 @@
 import { ThemeProvider } from "next-themes";
 import localFont from "next/font/local";
 
-import "./globals.css";
 import { Toaster } from "@/components/ui/toaster";
+import "./globals.css";
 
 const defaultUrl = process.env.VERCEL_URL
   ? `https://${process.env.VERCEL_URL}`
