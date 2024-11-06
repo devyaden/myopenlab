@@ -1,4 +1,6 @@
-import { signInAction } from "@/app/actions";
+"use client";
+
+import { signInAction, signInWithGoogleAction } from "@/app/actions";
 import { FormMessage, Message } from "@/components/form-message";
 import AuthHeader from "@/components/header-auth";
 import { SubmitButton } from "@/components/submit-button";
@@ -52,7 +54,10 @@ export default function Login({ searchParams }: { searchParams: Message }) {
               تسجيل الدخول
             </SubmitButton>
 
-            <Button className="bg-black hover:bg-gray-800 text-white font-bold py-3 px-4 focus:outline-none focus:shadow-outline w-full mb-2">
+            <Button
+              className="bg-black hover:bg-gray-800 text-white font-bold py-3 px-4 focus:outline-none focus:shadow-outline w-full mb-2"
+              onClick={() => signInWithGoogleAction()}
+            >
               <div className="h-4 w-4 ml-2">
                 <svg role="img" viewBox="0 0 24 24">
                   <path
