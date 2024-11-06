@@ -10,7 +10,6 @@ import {
 } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
 import { createClient } from "@/utils/supabase/client";
-import { CustomColumn } from "@prisma/client";
 import { Edit2, PlusCircle, Save, Trash2, XCircle } from "lucide-react";
 import React, { useEffect, useState } from "react";
 import { Node } from "reactflow";
@@ -214,9 +213,7 @@ const FlowTable: React.FC<FlowTableEditorProps> = ({
 
       if (error) throw error;
 
-      setCustomColumns(
-        customColumns.filter((col: CustomColumn) => col.id !== Number(columnId))
-      );
+      setCustomColumns(customColumns.filter((col: any) => col.id !== columnId));
     } catch (error) {
       toast({
         title: "Error",

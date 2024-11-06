@@ -16,7 +16,6 @@ import {
 } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
 import { createClient } from "@/utils/supabase/client";
-import { Canvas } from "@prisma/client";
 import { PlusCircle } from "lucide-react";
 import React, { useEffect, useState } from "react";
 import { NodeRelationModalProps } from "../FlowTable/types";
@@ -27,8 +26,8 @@ const NodeRelationModal: React.FC<NodeRelationModalProps> = ({
   folderId,
   onCreateRelation,
 }) => {
-  const [canvases, setCanvases] = useState<Canvas[]>([]);
-  const [selectedCanvas, setSelectedCanvas] = useState<Canvas | null>(null);
+  const [canvases, setCanvases] = useState<any[]>([]);
+  const [selectedCanvas, setSelectedCanvas] = useState<any | null>(null);
   const [targetNodes, setTargetNodes] = useState<any[]>([]);
   const [isOpen, setIsOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -54,7 +53,7 @@ const NodeRelationModal: React.FC<NodeRelationModalProps> = ({
             description: error.message,
           });
         }
-        if (data) setCanvases(data as Canvas[]);
+        if (data) setCanvases(data);
       } catch (error) {
         console.error("Error fetching canvases:", error);
       } finally {
