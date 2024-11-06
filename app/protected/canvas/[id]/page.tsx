@@ -94,6 +94,28 @@ export default function Page({ params }: { params: { id: string } }) {
     }
   };
 
+  const handleCreateNewConnection = async (data: any) => {
+    console.log("handleCreateNewConnection", data);
+    const { error } = await supabase
+      .from("node_connections")
+      .insert([data])
+      .select()
+      .single();
+
+    if (error) {
+      toast({
+        title: "Error",
+        description: "Failed to create new connection",
+        variant: "destructive",
+      });
+    }
+
+    toast({
+      title: "نجاح",
+      description: "تم إنشاء الملف بنجاح",
+    });
+  };
+
   // fetch canvas data
   useEffect(() => {
     fetchCanvasDetails();
@@ -162,7 +184,11 @@ export default function Page({ params }: { params: { id: string } }) {
         ) : (
           <Canvas
             onCanvasSave={handleFlowDataChange}
+            // @ts-ignore
             initialData={canvasDetails?.flow_data || {}}
+            canvasId={Number(canvasId)}
+            folderId={Number(canvasDetails?.folder_id)}
+            onCreateRelation={handleCreateNewConnection}
           />
         )}
       </ReactFlowProvider>

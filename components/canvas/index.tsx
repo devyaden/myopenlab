@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, { useCallback, useRef, useState } from "react";
 import ReactFlow, {
   addEdge,
   applyEdgeChanges,
@@ -18,28 +18,32 @@ import ReactFlow, {
   useReactFlow,
 } from "reactflow";
 import "reactflow/dist/style.css";
+import { Button } from "../ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
 import FlowTable from "./FlowTable";
 import { InitialCanvasData, NodeData } from "./FlowTable/types";
 import ShapeSidebar from "./Sidebar";
 import CustomNode from "./shapes/CustomNode";
-import { createClient } from "@/utils/supabase/client";
-import { useToast } from "@/hooks/use-toast";
-import { useUser } from "@/lib/contexts/userContext";
-import { Button } from "../ui/button";
 
 const nodeTypes = {
   custom: CustomNode,
 };
 
-const flowKey: string = "example-flow";
-
 interface CanvasProps {
   initialData: InitialCanvasData;
   onCanvasSave: (data: InitialCanvasData) => void;
+  canvasId: number;
+  folderId: number;
+  onCreateRelation: (data: any) => void;
 }
 
-const Canvas: React.FC<CanvasProps> = ({ initialData, onCanvasSave }) => {
+const Canvas: React.FC<CanvasProps> = ({
+  initialData,
+  onCanvasSave,
+  canvasId,
+  folderId,
+  onCreateRelation,
+}) => {
   const [nodes, setNodes] = useState<Node[]>(initialData.nodes);
   const [edges, setEdges] = useState<Edge[]>(initialData.edges);
   const [rfInstance, setRfInstance] = useState<any>(null);
@@ -245,21 +249,6 @@ const Canvas: React.FC<CanvasProps> = ({ initialData, onCanvasSave }) => {
     }
   }, [rfInstance]);
 
-  const onRestore = useCallback(() => {
-    const restoreFlow = async () => {
-      const flow = JSON.parse(localStorage.getItem(flowKey));
-
-      if (flow) {
-        const { x = 0, y = 0, zoom = 1 } = flow.viewport;
-        setNodes(flow.nodes || []);
-        setEdges(flow.edges || []);
-        setViewport({ x, y, zoom });
-      }
-    };
-
-    restoreFlow();
-  }, [setNodes, setViewport]);
-
   const handleTransform = useCallback(
     (x: number, y: number) => {
       const currentZoom = getZoom();
@@ -268,13 +257,13 @@ const Canvas: React.FC<CanvasProps> = ({ initialData, onCanvasSave }) => {
     [setViewport]
   );
 
-  useEffect(() => {
-    if (initialData.viewport) {
-      const { x, y, zoom } = initialData.viewport;
+  // useEffect(() => {
+  //   if (initialData.viewport) {
+  //     const { x, y, zoom } = initialData.viewport;
 
-      setCenter(x, y, { duration: 800, zoom });
-    }
-  }, [initialData]);
+  //     setCenter(x, y, { duration: 800, zoom });
+  //   }
+  // }, [initialData]);
 
   return (
     <>
@@ -302,7 +291,7 @@ const Canvas: React.FC<CanvasProps> = ({ initialData, onCanvasSave }) => {
                     onDrop={onDrop}
                     nodesDraggable={true}
                     nodesConnectable={true}
-                    snapToGrid={true}
+                    snapToGrid
                     snapGrid={[15, 15]}
                     fitView
                     defaultEdgeOptions={{
@@ -369,6 +358,9 @@ const Canvas: React.FC<CanvasProps> = ({ initialData, onCanvasSave }) => {
               onUpdateEdge={onUpdateEdge}
               onDeleteEdge={onDeleteEdge}
               onAddEdge={onAddEdge}
+              canvasId={canvasId}
+              folderId={folderId}
+              onCreateRelation={onCreateRelation}
             />
           </TabsContent>
         </Tabs>

@@ -172,7 +172,7 @@ export const SidebarDashboard = () => {
         {folders.map((folder) => (
           <Collapsible
             key={folder.id}
-            defaultOpen
+            // defaultOpen
             className="group/collapsible"
           >
             <SidebarGroup>

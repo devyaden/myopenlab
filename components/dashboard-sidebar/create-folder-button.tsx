@@ -17,7 +17,7 @@ import { Input } from "../ui/input";
 import { Label } from "../ui/label";
 
 interface CreateFolderButtonProps {
-  userId: string;
+  userId: string | undefined;
   onFolderCreated?: () => void;
 }
 

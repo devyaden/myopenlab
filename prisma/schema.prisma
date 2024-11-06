@@ -7,6 +7,7 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// Existing models remain the same...
 model User {
   id         Int      @id @default(autoincrement())
   email      String   @unique
@@ -27,14 +28,10 @@ model Folder {
   created_at  DateTime @default(now())
   updated_at  DateTime @default(now()) @updatedAt
 
-  // Relationships
   user    User @relation(fields: [user_id], references: [id], onDelete: Cascade)
   user_id Int
 
-  // Folder can contain multiple canvases
-  canvases Canvas[]
-
-  // Node connections within this folder
+  canvases        Canvas[]
   nodeConnections NodeConnection[]
 
   @@index([user_id])
@@ -51,15 +48,17 @@ model Canvas {
   flow_data    Json // nodes, edges and viewport
   is_published Boolean  @default(false)
 
-  // Relationships
   user      User   @relation(fields: [user_id], references: [id], onDelete: Cascade)
   user_id   Int
   folder    Folder @relation(fields: [folder_id], references: [id], onDelete: Cascade)
   folder_id Int
 
-  // Canvas linking relationships (for node connections)
   sourceNodes NodeConnection[] @relation("SourceCanvas")
   targetNodes NodeConnection[] @relation("TargetCanvas")
+
+  // New relations for custom columns
+  customColumns  CustomColumn[]
+  nodeCustomData NodeCustomData[]
 
   @@index([user_id])
   @@index([folder_id])
@@ -71,21 +70,17 @@ model NodeConnection {
   created_at DateTime @default(now())
   updated_at DateTime @default(now()) @updatedAt
 
-  // Node identifiers
-  source_node_id String // ID of the source node (from ReactFlow)
-  target_node_id String // ID of the target node (from ReactFlow)
+  source_node_id String
+  target_node_id String
 
-  // Connection metadata
   label    String?
-  metadata Json? // Additional connection properties
+  metadata Json?
 
-  // Relationships
   source_canvas    Canvas @relation("SourceCanvas", fields: [source_canvas_id], references: [id], onDelete: Cascade)
   source_canvas_id Int
   target_canvas    Canvas @relation("TargetCanvas", fields: [target_canvas_id], references: [id], onDelete: Cascade)
   target_canvas_id Int
 
-  // Folder relationship to ensure connections stay within the same folder
   folder    Folder @relation(fields: [folder_id], references: [id], onDelete: Cascade)
   folder_id Int
 
@@ -94,4 +89,47 @@ model NodeConnection {
   @@index([target_canvas_id])
   @@index([folder_id])
   @@map("node_connections")
+}
+
+// New model for custom columns
+model CustomColumn {
+  id         Int      @id @default(autoincrement())
+  name       String
+  type       String // 'text', 'number', 'date', 'select', etc.
+  options    Json? // For select type, store options as array
+  required   Boolean  @default(false)
+  validation Json? // Store validation rules (min, max, pattern, etc.)
+  order      Int // To maintain column order in the UI
+  created_at DateTime @default(now())
+  updated_at DateTime @default(now()) @updatedAt
+
+  // Relationship to Canvas
+  canvas    Canvas @relation(fields: [canvas_id], references: [id], onDelete: Cascade)
+  canvas_id Int
+
+  // Relationship to values
+  values NodeCustomData[]
+
+  @@index([canvas_id])
+  @@map("custom_columns")
+}
+
+// New model for storing custom column values for each node
+model NodeCustomData {
+  id         Int      @id @default(autoincrement())
+  node_id    String // ReactFlow node ID
+  value      Json // Store the actual value
+  created_at DateTime @default(now())
+  updated_at DateTime @default(now()) @updatedAt
+
+  // Relationships
+  canvas       Canvas       @relation(fields: [canvas_id], references: [id], onDelete: Cascade)
+  canvas_id    Int
+  customColumn CustomColumn @relation(fields: [column_id], references: [id], onDelete: Cascade)
+  column_id    Int
+
+  @@unique([node_id, column_id]) // Each node can have only one value per column
+  @@index([canvas_id])
+  @@index([column_id])
+  @@map("node_custom_data")
 }
