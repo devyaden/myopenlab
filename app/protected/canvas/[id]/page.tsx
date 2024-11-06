@@ -6,8 +6,6 @@ import { LoadingSpinner } from "@/components/loading-spinner";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { createClient } from "@/utils/supabase/client";
-import { Canvas as CanvasType } from "@prisma/client";
-
 import { ArrowRight, Check, Edit2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -17,7 +15,7 @@ export default function Page({ params }: { params: { id: string } }) {
   const [isEditing, setIsEditing] = useState(false);
   const [title, setTitle] = useState("My Canvas");
   const [canvasId, setCanvasId] = useState<string | null>(null);
-  const [canvasDetails, setCanvasDetails] = useState<CanvasType | null>(null);
+  const [canvasDetails, setCanvasDetails] = useState<any>(null);
   const [loading, setLoading] = useState(false);
 
   const supabase = createClient();
