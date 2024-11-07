@@ -47,6 +47,7 @@ const FlowTable: React.FC<FlowTableEditorProps> = ({
   const [relations, setRelations] = useState<NodeRelation[]>([]);
 
   const [customColumns, setCustomColumns] = useState<any>([]);
+  console.log("🚀 ~ customColumns:", customColumns);
   const [newColumn, setNewColumn] = useState({
     name: "",
     type: "",
@@ -231,12 +232,19 @@ const FlowTable: React.FC<FlowTableEditorProps> = ({
     try {
       const { data, error } = await supabase
         .from("node_custom_data")
-        .upsert({
-          node_id: nodeId,
-          column_id: columnId,
-          canvas_id: canvasId,
-          value: value,
-        })
+        .upsert(
+          [
+            {
+              node_id: nodeId,
+              column_id: columnId,
+              canvas_id: canvasId,
+              value: value,
+            },
+          ],
+          {
+            onConflict: "node_id, column_id",
+          }
+        )
         .select()
         .single();
 
@@ -256,7 +264,14 @@ const FlowTable: React.FC<FlowTableEditorProps> = ({
     const fetchCustomColumns = async () => {
       const { data, error } = await supabase
         .from("custom_columns")
-        .select("*")
+        .select(
+          `
+    *,
+    node_custom_data (
+      value
+    )
+  `
+        )
         .eq("canvas_id", canvasId)
         .order("order");
 
@@ -282,7 +297,7 @@ const FlowTable: React.FC<FlowTableEditorProps> = ({
   // Modified table body to include custom columns
   const renderTableBody = () => (
     <TableBody>
-      {nodes.map((node) => (
+      {nodes.map((node, nodeIndex) => (
         <TableRow key={node.id}>
           <TableCell>{node.id}</TableCell>
           <TableCell>
@@ -349,6 +364,7 @@ const FlowTable: React.FC<FlowTableEditorProps> = ({
               <input
                 type={column.type === "number" ? "number" : "text"}
                 placeholder={`Enter ${column.name}`}
+                defaultValue={column.node_custom_data?.[nodeIndex]?.value ?? ""}
                 onChange={(e) =>
                   handleCustomValueChange(node.id, column.id, e.target.value)
                 }

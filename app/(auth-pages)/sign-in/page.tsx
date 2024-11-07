@@ -6,7 +6,6 @@ import AuthHeader from "@/components/header-auth";
 import { SubmitButton } from "@/components/submit-button";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { LockIcon, MailIcon } from "lucide-react";
 import Link from "next/link";
 

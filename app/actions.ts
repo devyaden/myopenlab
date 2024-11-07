@@ -23,7 +23,6 @@ export const signUpAction = async (formData: FormData) => {
     },
   });
 
-  debugger;
   if (error) {
     console.error(error.code + " " + error.message);
     return encodedRedirect("error", "/sign-up", error.message);
@@ -134,13 +133,14 @@ export const signOutAction = async () => {
 
 export const signInWithGoogleAction = async () => {
   const supabase = createClient();
-  const { error } = await supabase.auth.signInWithOAuth({
+  const { error, data } = await supabase.auth.signInWithOAuth({
     provider: "google",
+    options: {
+      redirectTo: "http://localhost:3000/auth/callback",
+    },
   });
 
-  if (error) {
-    return encodedRedirect("error", "/sign-in", error.message);
+  if (data.url) {
+    redirect(data.url); // use the redirect API for your server framework
   }
-
-  return redirect("/protected");
 };
