@@ -27,4 +27,10 @@ export const COLUMN_TYPES = {
     label: "URL",
     validation: { type: "url", pattern: "https?://.+" },
   },
+
+  RELATION: {
+    id: "relation",
+    label: "Relation",
+    validation: { type: "relation" },
+  },
 };

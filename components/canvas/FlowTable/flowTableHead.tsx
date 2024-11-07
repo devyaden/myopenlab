@@ -1,3 +1,4 @@
+import { LoadingSpinner } from "@/components/loading-spinner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -13,7 +14,10 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { useToast } from "@/hooks/use-toast";
+import { createClient } from "@/utils/supabase/client";
 import { PlusCircle, XCircle } from "lucide-react";
+import { useEffect, useState } from "react";
 import { COLUMN_TYPES } from "./columns";
 
 interface FlowTableHeaderProps {
@@ -22,6 +26,8 @@ interface FlowTableHeaderProps {
   setNewColumn: (newColumn: any) => void;
   newColumn: any;
   handleAddColumn: () => void;
+  folderId: number;
+  canvasId: number;
 }
 
 const FlowTableHeader = ({
@@ -30,7 +36,79 @@ const FlowTableHeader = ({
   setNewColumn,
   newColumn,
   handleAddColumn,
+  folderId,
+  canvasId,
 }: FlowTableHeaderProps) => {
+  const [canvases, setCanvases] = useState<{ id: number; name: string }[]>([]);
+  const [columns, setColumns] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [formValid, setFormValid] = useState(false);
+
+  const supabase = createClient();
+  const { toast } = useToast();
+
+  const fetchFolderCanvases = async () => {
+    setLoading(true);
+    const { error, data } = await supabase
+      .from("canvas")
+      .select("*")
+      .eq("folder_id", folderId);
+
+    if (error) {
+      return toast({
+        title: "Error",
+        description: error.message || "Failed to fetch canvases",
+        variant: "destructive",
+      });
+    }
+
+    const filteredCanvases = data.filter(
+      (canvas: any) => canvas.id !== canvasId
+    );
+    setCanvases(filteredCanvases);
+    setLoading(false);
+  };
+
+  const fetchColumns = async () => {
+    if (!newColumn.relatedCanvasId) return;
+    const { data, error } = await supabase
+      .from("custom_columns")
+      .select("*")
+      .eq("canvas_id", newColumn.relatedCanvasId);
+
+    if (error) {
+      return toast({
+        title: "Error",
+        description: error.message || "Failed to fetch columns",
+        variant: "destructive",
+      });
+    }
+
+    setColumns(data);
+  };
+
+  useEffect(() => {
+    if (newColumn.relatedCanvasId) {
+      fetchColumns();
+    }
+  }, [newColumn.relatedCanvasId]);
+
+  useEffect(() => {
+    if (newColumn.type === "relation") {
+      fetchFolderCanvases();
+    }
+  }, [newColumn.type]);
+
+  useEffect(() => {
+    setFormValid(
+      newColumn.name.trim() !== "" &&
+        newColumn.type !== "" &&
+        (newColumn.type !== "relation" ||
+          (newColumn.relatedCanvasId !== null &&
+            newColumn.relatedColumnId !== null))
+    );
+  }, [newColumn]);
+
   return (
     <TableHeader className="bg-gray-100">
       <TableRow>
@@ -38,7 +116,7 @@ const FlowTableHeader = ({
         <TableHead>Label</TableHead>
         <TableHead>Shape</TableHead>
         <TableHead>Relations</TableHead>
-        <TableHead>Actions</TableHead>
+
         {customColumns.map((column) => (
           <TableHead key={column.id} className="relative">
             {column.name}
@@ -52,6 +130,8 @@ const FlowTableHeader = ({
             </Button>
           </TableHead>
         ))}
+
+        <TableHead>Actions</TableHead>
 
         <TableHead>
           <Popover>
@@ -72,11 +152,15 @@ const FlowTableHeader = ({
                         name: e.target.value,
                       }))
                     }
+                    required
                   />
                   <Select
                     value={newColumn.type}
                     onValueChange={(value) =>
-                      setNewColumn((prev: any) => ({ ...prev, type: value }))
+                      setNewColumn((prev: any) => ({
+                        ...prev,
+                        type: value,
+                      }))
                     }
                   >
                     <SelectTrigger>
@@ -90,8 +174,67 @@ const FlowTableHeader = ({
                       ))}
                     </SelectContent>
                   </Select>
+
+                  {newColumn.type === "relation" &&
+                    (loading ? (
+                      <LoadingSpinner />
+                    ) : (
+                      <>
+                        <Select
+                          value={newColumn.relatedCanvasId?.toString() || ""}
+                          onValueChange={(value) =>
+                            setNewColumn((prev: any) => ({
+                              ...prev,
+                              relatedCanvasId: value ? parseInt(value) : null,
+                            }))
+                          }
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select canvas to relate to" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {canvases.map((canvas) => (
+                              <SelectItem
+                                key={canvas.id}
+                                value={canvas.id.toString()}
+                              >
+                                {canvas.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+
+                        <Select
+                          value={newColumn.relatedColumnId?.toString() || ""}
+                          onValueChange={(value) =>
+                            setNewColumn((prev: any) => ({
+                              ...prev,
+                              relatedColumnId: value ? parseInt(value) : null,
+                            }))
+                          }
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select column to relate to" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {columns.map((column) => (
+                              <SelectItem
+                                key={column.id}
+                                value={column.id.toString()}
+                              >
+                                {column.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </>
+                    ))}
                 </div>
-                <Button onClick={handleAddColumn} className="w-full">
+                <Button
+                  onClick={handleAddColumn}
+                  disabled={!formValid}
+                  className={`${!formValid ? "opacity-50 cursor-not-allowed" : ""}`}
+                >
                   Add Column
                 </Button>
               </div>

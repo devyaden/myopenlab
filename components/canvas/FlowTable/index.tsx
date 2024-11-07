@@ -1,3 +1,5 @@
+import React, { useEffect, useState } from "react";
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -11,7 +13,6 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { createClient } from "@/utils/supabase/client";
 import { Edit2, PlusCircle, Save, Trash2, XCircle } from "lucide-react";
-import React, { useEffect, useState } from "react";
 import { Node } from "reactflow";
 import NodeRelationModal from "../NodeRelationModal";
 import { COLUMN_TYPES } from "./columns";
@@ -45,9 +46,7 @@ const FlowTable: React.FC<FlowTableEditorProps> = ({
   const [editingNode, setEditingNode] = useState<EditingNodeData | null>(null);
   const [showEdges, setShowEdges] = useState<boolean>(false);
   const [relations, setRelations] = useState<NodeRelation[]>([]);
-
   const [customColumns, setCustomColumns] = useState<any>([]);
-  console.log("🚀 ~ customColumns:", customColumns);
   const [newColumn, setNewColumn] = useState({
     name: "",
     type: "",
@@ -204,7 +203,6 @@ const FlowTable: React.FC<FlowTableEditorProps> = ({
     }
   };
 
-  // Function to delete a custom column
   const handleDeleteColumn = async (columnId: string) => {
     try {
       const { error } = await supabase
@@ -294,7 +292,6 @@ const FlowTable: React.FC<FlowTableEditorProps> = ({
     fetchRelations();
   }, []);
 
-  // Modified table body to include custom columns
   const renderTableBody = () => (
     <TableBody>
       {nodes.map((node, nodeIndex) => (
@@ -331,6 +328,21 @@ const FlowTable: React.FC<FlowTableEditorProps> = ({
                 </div>
               ))}
           </TableCell>
+
+          {customColumns.map((column: any) => (
+            <TableCell key={column.id}>
+              <input
+                type={column.type === "number" ? "number" : "text"}
+                placeholder={`Enter ${column.name}`}
+                defaultValue={column.node_custom_data?.[nodeIndex]?.value ?? ""}
+                onChange={(e) =>
+                  handleCustomValueChange(node.id, column.id, e.target.value)
+                }
+                className="w-full px-2 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              />
+            </TableCell>
+          ))}
+
           <TableCell>
             <div className="flex gap-2">
               {editingNodeId === node.id ? (
@@ -358,155 +370,153 @@ const FlowTable: React.FC<FlowTableEditorProps> = ({
               />
             </div>
           </TableCell>
-
-          {customColumns.map((column: any) => (
-            <TableCell key={column.id}>
-              <input
-                type={column.type === "number" ? "number" : "text"}
-                placeholder={`Enter ${column.name}`}
-                defaultValue={column.node_custom_data?.[nodeIndex]?.value ?? ""}
-                onChange={(e) =>
-                  handleCustomValueChange(node.id, column.id, e.target.value)
-                }
-              />
-            </TableCell>
-          ))}
         </TableRow>
       ))}
     </TableBody>
   );
 
   return (
-    <div className="p-4 space-y-4">
-      <div className="flex gap-4 mb-4">
-        <Button variant="outline" onClick={() => setShowEdges(!showEdges)}>
-          {showEdges ? "Show Nodes" : "Show Connections"}
-        </Button>
-      </div>
+    <Card className="p-4 space-y-4">
+      <CardHeader>
+        <CardTitle>Flow Table Editor</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <div className="flex justify-end mb-4">
+          <Button
+            variant={showEdges ? "default" : "outline"}
+            onClick={() => setShowEdges(!showEdges)}
+            className="text-sm"
+          >
+            {showEdges ? "Show Nodes" : "Show Connections"}
+          </Button>
+        </div>
 
-      {!showEdges ? (
-        <>
-          <div className="bg-white p-4 rounded-md shadow">
-            <h3 className="font-semibold mb-2">Add New Node</h3>
-            <div className="flex gap-2">
-              <Input
-                placeholder="Node Label"
-                value={newNodeData.label}
-                onChange={(e) =>
-                  setNewNodeData({
-                    ...newNodeData,
-                    label: e.target.value,
-                  })
-                }
-                className="flex-1"
+        {!showEdges ? (
+          <>
+            <div className="bg-white p-4 rounded-md shadow">
+              <h3 className="font-semibold mb-2">Add New Node</h3>
+              <div className="flex gap-2">
+                <Input
+                  placeholder="Node Label"
+                  value={newNodeData.label}
+                  onChange={(e) =>
+                    setNewNodeData({
+                      ...newNodeData,
+                      label: e.target.value,
+                    })
+                  }
+                  className="flex-1"
+                />
+                <select
+                  value={newNodeData.shape}
+                  onChange={(e) =>
+                    setNewNodeData({
+                      ...newNodeData,
+                      shape: e.target.value as NodeData["shape"],
+                    })
+                  }
+                  className="border rounded px-2"
+                >
+                  <option value="rectangle">Rectangle</option>
+                  <option value="circle">Circle</option>
+                  <option value="diamond">Diamond</option>
+                </select>
+                <Button onClick={handleAddNode} size="sm">
+                  <PlusCircle className="w-4 h-4 mr-2" />
+                  Add
+                </Button>
+              </div>
+            </div>
+
+            <Table>
+              <FlowTableHeader
+                customColumns={customColumns}
+                handleDeleteColumn={handleDeleteColumn}
+                setNewColumn={setNewColumn}
+                newColumn={newColumn}
+                handleAddColumn={handleAddColumn}
+                folderId={folderId}
+                canvasId={canvasId}
               />
-              <select
-                value={newNodeData.shape}
-                onChange={(e) =>
-                  setNewNodeData({
-                    ...newNodeData,
-                    shape: e.target.value as NodeData["shape"],
-                  })
-                }
-                className="border rounded px-2"
-              >
-                <option value="rectangle">Rectangle</option>
-                <option value="circle">Circle</option>
-                <option value="diamond">Diamond</option>
-              </select>
-              <Button onClick={handleAddNode}>
-                <PlusCircle className="w-4 h-4 mr-2" />
-                Add
-              </Button>
+              {renderTableBody()}
+            </Table>
+          </>
+        ) : (
+          <>
+            <div className="bg-white p-4 rounded-md shadow">
+              <h3 className="font-semibold mb-2">Add New Connection</h3>
+              <div className="flex gap-2">
+                <select
+                  value={newEdge.source}
+                  onChange={(e) =>
+                    setNewEdge({
+                      ...newEdge,
+                      source: e.target.value,
+                    })
+                  }
+                  className="border rounded px-2"
+                >
+                  <option value="">Select Source Node</option>
+                  {nodes.map((node) => (
+                    <option key={node.id} value={node.id}>
+                      {node.data.label}
+                    </option>
+                  ))}
+                </select>
+                <select
+                  value={newEdge.target}
+                  onChange={(e) =>
+                    setNewEdge({
+                      ...newEdge,
+                      target: e.target.value,
+                    })
+                  }
+                  className="border rounded px-2"
+                >
+                  <option value="">Select Target Node</option>
+                  {nodes.map((node) => (
+                    <option key={node.id} value={node.id}>
+                      {node.data.label}
+                    </option>
+                  ))}
+                </select>
+                <Button onClick={handleAddEdge} size="sm">
+                  <PlusCircle className="w-4 h-4 mr-2" />
+                  Add
+                </Button>
+              </div>
             </div>
-          </div>
 
-          <Table>
-            <FlowTableHeader
-              customColumns={customColumns}
-              handleDeleteColumn={handleDeleteColumn}
-              setNewColumn={setNewColumn}
-              newColumn={newColumn}
-              handleAddColumn={handleAddColumn}
-            />
-            {renderTableBody()}
-          </Table>
-        </>
-      ) : (
-        <>
-          <div className="bg-white p-4 rounded-md shadow">
-            <h3 className="font-semibold mb-2">Add New Connection</h3>
-            <div className="flex gap-2">
-              <select
-                value={newEdge.source}
-                onChange={(e) =>
-                  setNewEdge({
-                    ...newEdge,
-                    source: e.target.value,
-                  })
-                }
-                className="border rounded px-2"
-              >
-                <option value="">Select Source Node</option>
-                {nodes.map((node) => (
-                  <option key={node.id} value={node.id}>
-                    {node.data.label}
-                  </option>
-                ))}
-              </select>
-              <select
-                value={newEdge.target}
-                onChange={(e) =>
-                  setNewEdge({
-                    ...newEdge,
-                    target: e.target.value,
-                  })
-                }
-                className="border rounded px-2"
-              >
-                <option value="">Select Target Node</option>
-                {nodes.map((node) => (
-                  <option key={node.id} value={node.id}>
-                    {node.data.label}
-                  </option>
-                ))}
-              </select>
-              <Button onClick={handleAddEdge}>
-                <PlusCircle className="w-4 h-4 mr-2" />
-                Add
-              </Button>
-            </div>
-          </div>
-
-          <Table>
-            <TableHeader className="bg-gray-100">
-              <TableRow>
-                <TableHead>Source</TableHead>
-                <TableHead>Target</TableHead>
-                <TableHead>Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {edges.map((edge) => (
-                <TableRow key={edge.id}>
-                  <TableCell>{edge.source}</TableCell>
-                  <TableCell>{edge.target}</TableCell>
-                  <TableCell>
-                    <Button
-                      size="sm"
-                      variant="destructive"
-                      onClick={() => onDeleteEdge(edge.id)}
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </Button>
-                  </TableCell>
+            <Table>
+              <TableHeader className="bg-gray-100">
+                <TableRow>
+                  <TableHead>Source</TableHead>
+                  <TableHead>Target</TableHead>
+                  <TableHead>Actions</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </>
-      )}
-    </div>
+              </TableHeader>
+              <TableBody>
+                {edges.map((edge) => (
+                  <TableRow key={edge.id}>
+                    <TableCell>{edge.source}</TableCell>
+                    <TableCell>{edge.target}</TableCell>
+                    <TableCell>
+                      <Button
+                        size="sm"
+                        variant="destructive"
+                        onClick={() => onDeleteEdge(edge.id)}
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </>
+        )}
+      </CardContent>
+    </Card>
   );
 };
 

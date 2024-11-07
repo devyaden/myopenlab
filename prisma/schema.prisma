@@ -60,6 +60,8 @@ model Canvas {
   customColumns  CustomColumn[]
   nodeCustomData NodeCustomData[]
 
+  referencedBy CustomColumn[] @relation("RelatedCanvas")
+
   @@index([user_id])
   @@index([folder_id])
   @@map("canvas")
@@ -106,6 +108,11 @@ model CustomColumn {
   // Relationship to Canvas
   canvas    Canvas @relation(fields: [canvas_id], references: [id], onDelete: Cascade)
   canvas_id Int
+
+  relatedCanvas     Canvas? @relation("RelatedCanvas", fields: [related_canvas_id], references: [id])
+  related_canvas_id Int?
+
+  related_column_id Int? // For select type, store the related column ID
 
   // Relationship to values
   values NodeCustomData[]

@@ -2,7 +2,7 @@ import { useReactFlow } from "reactflow";
 import ShapeComponents from "../shapes/Shapes";
 
 const categories = {
-  "Flow Objects": [
+  "الكائنات التدفقية": [
     "circle",
     "square",
     "diamond",
@@ -85,7 +85,7 @@ const ShapeSidebar = () => {
 
   return (
     <aside className="w-64 bg-white p-4 rounded-lg shadow-lg">
-      <div className="mb-6 text-lg font-semibold">Flow Shapes</div>
+      <div className="mb-6 text-lg font-semibold">أشكال التدفق</div>
 
       {Object.entries(categories).map(([category, shapes]) => (
         <div key={category} className="mb-8">
@@ -99,12 +99,12 @@ const ShapeSidebar = () => {
       ))}
 
       <div className="mb-6">
-        <h3 className="text-lg font-semibold mb-4">Theme</h3>
+        <h3 className="text-lg font-semibold mb-4">النمط</h3>
         <div className="space-y-4">
-          {/* Background Color */}
+          {/* لون الخلفية */}
           <div>
             <label className="block text-sm font-medium mb-1">
-              Background Color
+              لون الخلفية
             </label>
             <input
               type="color"
@@ -116,11 +116,9 @@ const ShapeSidebar = () => {
             />
           </div>
 
-          {/* Border Color */}
+          {/* لون الحدود */}
           <div>
-            <label className="block text-sm font-medium mb-1">
-              Border Color
-            </label>
+            <label className="block text-sm font-medium mb-1">لون الحدود</label>
             <input
               type="color"
               className="w-full h-8 rounded cursor-pointer"
@@ -131,11 +129,9 @@ const ShapeSidebar = () => {
             />
           </div>
 
-          {/* Border Style */}
+          {/* نمط الحدود */}
           <div>
-            <label className="block text-sm font-medium mb-1">
-              Border Style
-            </label>
+            <label className="block text-sm font-medium mb-1">نمط الحدود</label>
             <select
               className="w-full p-2 border rounded"
               onChange={(e) =>
@@ -151,11 +147,9 @@ const ShapeSidebar = () => {
             </select>
           </div>
 
-          {/* Border Width */}
+          {/* عرض الحدود */}
           <div>
-            <label className="block text-sm font-medium mb-1">
-              Border Width
-            </label>
+            <label className="block text-sm font-medium mb-1">عرض الحدود</label>
             <input
               type="range"
               min="1"

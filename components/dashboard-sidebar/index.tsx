@@ -19,40 +19,11 @@ import {
   CollapsibleTrigger,
 } from "@radix-ui/react-collapsible";
 import { ChevronDown, FileText, Folder } from "lucide-react";
-import { useEffect, useState } from "react";
-import { cn } from "@/lib/utils";
-import CreateFolderButton from "./create-folder-button";
-import CreateCanvasButton from "./create-canvas-button";
 import { useRouter } from "next/navigation";
-
-interface ISVGProps extends React.SVGProps<SVGSVGElement> {
-  size?: number;
-  className?: string;
-}
-
-export const LoadingSpinner = ({
-  size = 24,
-  className,
-  ...props
-}: ISVGProps) => {
-  return (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      width={size}
-      height={size}
-      {...props}
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className={cn("animate-spin", className)}
-    >
-      <path d="M21 12a9 9 0 1 1-6.219-8.56" />
-    </svg>
-  );
-};
+import { useEffect, useState } from "react";
+import { LoadingSpinner } from "../loading-spinner";
+import CreateCanvasButton from "./create-canvas-button";
+import CreateFolderButton from "./create-folder-button";
 
 interface Folder {
   id: number;
@@ -149,6 +120,30 @@ export const SidebarDashboard = () => {
     }
   };
 
+  const handleCanvasClick = (canvas: Canvas) => {
+    const recentlyOpenedCanvases = JSON.parse(
+      localStorage.getItem("recentlyOpenedCanvases") || "[]"
+    );
+
+    const newEntry = {
+      id: canvas.id,
+      name: canvas.name,
+      openedAt: new Date().toISOString(),
+    };
+
+    const updatedCanvases = [
+      newEntry,
+      ...recentlyOpenedCanvases.filter((item: any) => item.id !== canvas.id),
+    ].slice(0, 10); // Keep only the latest 10 entries
+
+    localStorage.setItem(
+      "recentlyOpenedCanvases",
+      JSON.stringify(updatedCanvases)
+    );
+
+    router.push(`/protected/canvas/${canvas.id}`);
+  };
+
   useEffect(() => {
     if (userId) {
       fetchFolders();
@@ -170,11 +165,7 @@ export const SidebarDashboard = () => {
       <SidebarHeader className="pt-4 md:pt-24">
         <CreateFolderButton userId={userId} onFolderCreated={fetchFolders} />
         {folders.map((folder) => (
-          <Collapsible
-            key={folder.id}
-            // defaultOpen
-            className="group/collapsible"
-          >
+          <Collapsible key={folder.id} className="group/collapsible">
             <SidebarGroup>
               <SidebarGroupLabel asChild>
                 <CollapsibleTrigger className="w-full">
@@ -202,9 +193,7 @@ export const SidebarDashboard = () => {
                         <SidebarMenuSubItem
                           key={canvas.id}
                           className=" cursor-pointer"
-                          onClick={() =>
-                            router.push(`/protected/canvas/${canvas.id}`)
-                          }
+                          onClick={() => handleCanvasClick(canvas)}
                         >
                           <SidebarMenuSubButton>
                             <FileText className="ml-2 h-4 w-4" />
