@@ -1,6 +1,5 @@
-import React, { useEffect, useState } from "react";
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import {
   Table,
@@ -10,424 +9,275 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { useToast } from "@/hooks/use-toast";
-import { createClient } from "@/utils/supabase/client";
-import { Edit2, PlusCircle, Save, Trash2, XCircle } from "lucide-react";
-import { Node } from "reactflow";
-import NodeRelationModal from "../NodeRelationModal";
-import { COLUMN_TYPES } from "./columns";
-import FlowTableHeader from "./flowTableHead";
+import { useTableState } from "@/hooks/useFlowTableState";
 import {
-  EditingNodeData,
-  FlowTableEditorProps,
-  NewEdgeData,
-  NewNodeData,
-  NodeData,
-  NodeRelation,
-} from "./types";
+  ChevronDown,
+  ChevronUp,
+  PlusCircle,
+  Save,
+  Trash2,
+  Users,
+} from "lucide-react";
+import { FC, useState } from "react";
+import FlowTableHeader from "./flowTableHead";
+import { FlowTableEditorProps, NodeData } from "./types";
 
-const FlowTable: React.FC<FlowTableEditorProps> = ({
+const FlowTable: FC<FlowTableEditorProps> = ({
   nodes,
-  edges,
   onUpdateNode,
   onDeleteNode,
   onAddNode,
-  onUpdateEdge,
-  onDeleteEdge,
-  onAddEdge,
   canvasId,
   folderId,
 }) => {
-  const [newNodeData, setNewNodeData] = useState<NewNodeData>({
-    label: "",
-    shape: "rectangle",
-  });
-  const [editingNodeId, setEditingNodeId] = useState<string | null>(null);
-  const [editingNode, setEditingNode] = useState<EditingNodeData | null>(null);
-  const [showEdges, setShowEdges] = useState<boolean>(false);
-  const [relations, setRelations] = useState<NodeRelation[]>([]);
-  const [customColumns, setCustomColumns] = useState<any>([]);
-  const [newColumn, setNewColumn] = useState({
-    name: "",
-    type: "",
-  });
+  const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
+  const [editableValues, setEditableValues] = useState<{ [key: string]: any }>(
+    {}
+  );
 
-  const supabase = createClient();
-  const { toast } = useToast();
+  const {
+    newNodeData,
+    formattedData,
+    customColumns,
+    newColumn,
+    newSubNode,
+    setNewNodeData,
+    handleAddNode,
+    handleAddColumn,
+    handleDeleteColumn,
+    handleDeleteSubNode,
+    handleAddSubNode,
+    setNewColumn,
+    setNewSubNode,
+    handleCustomValueChange,
+  } = useTableState(nodes, canvasId, onUpdateNode, onDeleteNode, onAddNode);
 
-  const [newEdge, setNewEdge] = useState<NewEdgeData>({
-    source: "",
-    target: "",
-  });
-
-  const handleAddNode = (): void => {
-    if (!newNodeData.label) return;
-
-    onAddNode({
-      type: "custom",
-      data: {
-        ...newNodeData,
-        label: newNodeData.label,
-      },
-      position: { x: 0, y: 0 },
-    });
-
-    setNewNodeData({
-      label: "",
-      shape: "rectangle",
-    });
-  };
-
-  const handleEditNode = (node: Node<NodeData>): void => {
-    setEditingNodeId(node.id);
-    setEditingNode({
-      ...node.data,
-      id: node.id,
-    });
-  };
-
-  const handleSaveEdit = (): void => {
-    if (!editingNode) return;
-
-    onUpdateNode(editingNode.id, {
-      label: editingNode.label,
-      shape: editingNode.shape,
-    });
-
-    setEditingNodeId(null);
-    setEditingNode(null);
-  };
-
-  const handleAddEdge = (): void => {
-    if (!newEdge.source || !newEdge.target) return;
-
-    onAddEdge({
-      source: newEdge.source,
-      target: newEdge.target,
-    });
-
-    setNewEdge({
-      source: "",
-      target: "",
-    });
-  };
-
-  const fetchRelations = async () => {
-    const { data, error } = await supabase
-      .from("node_connections")
-      .select(
-        `
-        *,
-        target_canvas:canvas!node_connections_target_canvas_id_fkey (
-          name,
-          flow_data
-        )
-      `
-      )
-      .eq("source_canvas_id", canvasId);
-
-    if (error) {
-      console.error("Error fetching relations:", error);
-      return;
-    }
-
-    setRelations(data || []);
-  };
-
-  const handleDeleteRelation = async (relationId: number) => {
-    const { error } = await supabase
-      .from("node_connections")
-      .delete()
-      .eq("id", relationId);
-
-    if (error) {
-      toast({
-        title: "Error",
-        description: "Failed to delete relation",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    fetchRelations();
-  };
-
-  const handleNewRelation = async (data: any) => {
-    const { error } = await supabase.from("node_connections").insert([data]);
-    if (error) {
-      console.error("Error creating relation:", error);
-      return;
-    }
-
-    fetchRelations();
-  };
-
-  const handleAddColumn = async () => {
-    if (!newColumn.name || !newColumn.type) return;
-
-    const column = {
-      id: Date.now(), // Temporary ID until saved to DB
-      name: newColumn.name,
-      type: newColumn.type,
-      // @ts-ignore
-      validation: COLUMN_TYPES[newColumn.type.toUpperCase()].validation,
-      order: customColumns.length,
-    };
-
-    try {
-      // Add to database
-      const { data, error } = await supabase
-        .from("custom_columns")
-        .insert([
-          {
-            name: column.name,
-            type: column.type,
-            validation: column.validation,
-            order: column.order,
-            canvas_id: canvasId,
-          },
-        ])
-        .select()
-        .single();
-
-      if (error) throw error;
-      // @ts-ignore
-      setCustomColumns([...customColumns, data]);
-      setNewColumn({ name: "", type: "" });
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to add column",
-        variant: "destructive",
+  const saveChanges = async (nodeId: string) => {
+    const updatedData = editableValues[nodeId];
+    if (updatedData) {
+      onUpdateNode(nodeId, updatedData);
+      setEditableValues((prev) => {
+        const newValues = { ...prev };
+        delete newValues[nodeId];
+        return newValues;
       });
     }
   };
 
-  const handleDeleteColumn = async (columnId: string) => {
-    try {
-      const { error } = await supabase
-        .from("custom_columns")
-        .delete()
-        .eq("id", columnId);
-
-      if (error) throw error;
-
-      setCustomColumns(customColumns.filter((col: any) => col.id !== columnId));
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to delete column",
-        variant: "destructive",
-      });
-    }
+  const toggleSubnodes = (nodeId: string) => {
+    setSelectedNodeId(selectedNodeId === nodeId ? null : nodeId);
   };
 
-  const handleCustomValueChange = async (
-    nodeId: string,
-    columnId: number,
-    value: string
-  ) => {
-    try {
-      const { data, error } = await supabase
-        .from("node_custom_data")
-        .upsert(
-          [
-            {
-              node_id: nodeId,
-              column_id: columnId,
-              canvas_id: canvasId,
-              value: value,
-            },
-          ],
-          {
-            onConflict: "node_id, column_id",
-          }
-        )
-        .select()
-        .single();
+  const renderSubnodes = (node: any) => {
+    return (
+      <div className="flex-1 flex flex-col min-h-0 space-y-4 ">
+        <div className="bg-gray-50 p-4 rounded-lg flex-none">
+          <h3 className="text-sm font-medium mb-2">إضافة عقدة فرعية جديدة</h3>
+          <div className="flex gap-2 items-center">
+            <Input
+              placeholder="اسم العقدة الفرعية"
+              value={newSubNode.label}
+              onChange={(e) =>
+                setNewSubNode((prev: any) => ({
+                  ...prev,
+                  label: e.target.value,
+                  parentId: node?.id,
+                }))
+              }
+              className="w-48"
+            />
+            <select
+              value={newSubNode.shape}
+              onChange={(e) =>
+                setNewSubNode((prev: any) => ({
+                  ...prev,
+                  shape: e.target.value,
+                }))
+              }
+              className="border rounded px-2 py-1"
+            >
+              <option value="rectangle">مستطيل</option>
+              <option value="circle">دائرة</option>
+              <option value="diamond">معين</option>
+              <option value="group">مجموعة</option>
+            </select>
+            <Button
+              size="sm"
+              onClick={() => {
+                handleAddSubNode(node?.id);
+                // onClose();
+              }}
+            >
+              <PlusCircle className="w-4 h-4 mr-2" />
+              إضافة عقدة فرعية
+            </Button>
+          </div>
+        </div>
 
-      if (error) throw error;
-
-      // Update local state if needed
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to update value",
-        variant: "destructive",
-      });
-    }
+        <div className="border rounded-lg flex-1 flex flex-col min-h-0">
+          <div className="overflow-auto">
+            <Table>
+              <TableHeader className="sticky top-0 bg-white">
+                <TableRow>
+                  <TableHead>الاسم</TableHead>
+                  <TableHead>الشكل</TableHead>
+                  <TableHead>إجراءات</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {node?.children?.map((subNode: any) => (
+                  <TableRow key={subNode.id} className="hover:bg-gray-50">
+                    <TableCell className="max-w-0">
+                      <div className="truncate">{subNode.data.label}</div>
+                    </TableCell>
+                    <TableCell>{subNode.data.shape}</TableCell>
+                    <TableCell>
+                      <Button
+                        size="sm"
+                        variant="destructive"
+                        onClick={() => {
+                          handleDeleteSubNode(subNode.id, subNode.id);
+                          // onClose();
+                        }}
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        </div>
+      </div>
+    );
   };
-
-  useEffect(() => {
-    const fetchCustomColumns = async () => {
-      const { data, error } = await supabase
-        .from("custom_columns")
-        .select(
-          `
-    *,
-    node_custom_data (
-      value
-    )
-  `
-        )
-        .eq("canvas_id", canvasId)
-        .order("order");
-
-      if (error) {
-        toast({
-          title: "Error",
-          description: "Failed to fetch columns",
-          variant: "destructive",
-        });
-        return;
-      }
-
-      setCustomColumns(data || []);
-    };
-
-    fetchCustomColumns();
-  }, [canvasId]);
-
-  useEffect(() => {
-    fetchRelations();
-  }, []);
 
   const renderTableBody = () => (
     <TableBody>
-      {nodes.map((node, nodeIndex) => (
-        <TableRow key={node.id}>
-          <TableCell>{node.id}</TableCell>
-          <TableCell>
-            {editingNodeId === node.id ? (
+      {formattedData.map((node: any, nodeIndex: number) => (
+        <>
+          <TableRow key={node.id} className="group hover:bg-gray-50">
+            <TableCell>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => toggleSubnodes(node.id)}
+              >
+                {selectedNodeId === node.id ? (
+                  <ChevronDown className="w-4 h-4" />
+                ) : (
+                  <ChevronUp className="w-4 h-4" />
+                )}
+              </Button>
+            </TableCell>
+            <TableCell>{node.id}</TableCell>
+            <TableCell>
               <Input
-                value={editingNode?.label}
-                onChange={(e) =>
-                  setEditingNode((prev) =>
-                    prev ? { ...prev, label: e.target.value } : null
-                  )
-                }
-              />
-            ) : (
-              node.data.label
-            )}
-          </TableCell>
-          <TableCell>{node.data.shape}</TableCell>
-          <TableCell>
-            {relations
-              .filter((relation) => relation.source_node_id === node.id)
-              .map((relation) => (
-                <div key={relation.id} className="flex items-center">
-                  <span>
-                    {relation.target_canvas?.name}--{">"}
-                    {relation.target_node_id}{" "}
-                  </span>
-                  <XCircle
-                    className="w-4 h-4 text-red-500 ml-2 cursor-pointer"
-                    onClick={() => handleDeleteRelation(relation.id)}
-                  />
-                </div>
-              ))}
-          </TableCell>
-
-          {customColumns.map((column: any) => (
-            <TableCell key={column.id}>
-              <input
-                type={column.type === "number" ? "number" : "text"}
-                placeholder={`Enter ${column.name}`}
-                defaultValue={column.node_custom_data?.[nodeIndex]?.value ?? ""}
-                onChange={(e) =>
-                  handleCustomValueChange(node.id, column.id, e.target.value)
-                }
-                className="w-full px-2 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                value={editableValues[node.id]?.label || node.data.label}
+                onChange={(e) => {
+                  setEditableValues((prev) => ({
+                    ...prev,
+                    [node.id]: {
+                      ...prev[node.id],
+                      label: e.target.value,
+                    },
+                  }));
+                }}
               />
             </TableCell>
-          ))}
-
-          <TableCell>
-            <div className="flex gap-2">
-              {editingNodeId === node.id ? (
-                <Button size="sm" onClick={handleSaveEdit}>
+            <TableCell>
+              <Input
+                value={editableValues[node.id]?.shape || node.data.shape}
+                onChange={(e) => {
+                  setEditableValues((prev) => ({
+                    ...prev,
+                    [node.id]: {
+                      ...prev[node.id],
+                      shape: e.target.value,
+                    },
+                  }));
+                }}
+              />
+            </TableCell>
+            <TableCell>
+              <div className="invisible group-hover:visible flex gap-2">
+                <Button size="sm" onClick={() => saveChanges(node.id)}>
                   <Save className="w-4 h-4" />
                 </Button>
-              ) : (
-                <Button size="sm" onClick={() => handleEditNode(node)}>
-                  <Edit2 className="w-4 h-4" />
+                <Button
+                  size="sm"
+                  variant="destructive"
+                  onClick={() => onDeleteNode(node.id)}
+                >
+                  <Trash2 className="w-4 h-4" />
                 </Button>
-              )}
-              <Button
-                size="sm"
-                variant="destructive"
-                onClick={() => onDeleteNode(node.id)}
-              >
-                <Trash2 className="w-4 h-4" />
-              </Button>
-
-              <NodeRelationModal
-                nodeId={node.id}
-                canvasId={canvasId}
-                folderId={folderId}
-                onCreateRelation={handleNewRelation}
-              />
-            </div>
-          </TableCell>
-        </TableRow>
+              </div>
+            </TableCell>
+            {customColumns.map((column: any) => (
+              <TableCell key={column.id}>
+                <input
+                  type={column.type === "number" ? "number" : "text"}
+                  placeholder={`Enter ${column.name}`}
+                  defaultValue={
+                    column.node_custom_data?.[nodeIndex]?.value ?? ""
+                  }
+                  onChange={(e) =>
+                    handleCustomValueChange(node.id, column.id, e.target.value)
+                  }
+                  className="w-full px-2 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                />
+              </TableCell>
+            ))}
+          </TableRow>
+          {selectedNodeId === node.id && renderSubnodes(node || [])}
+        </>
       ))}
     </TableBody>
   );
 
+  console.log("🚀 ~ formattedData:", formattedData);
+
   return (
-    <Card className="p-4 space-y-4">
-      <CardHeader>
-        <CardTitle>Flow Table Editor</CardTitle>
-      </CardHeader>
+    <Card className="p-4 space-y-2">
       <CardContent>
-        <div className="flex justify-end mb-4">
-          <Button
-            variant={showEdges ? "default" : "outline"}
-            onClick={() => setShowEdges(!showEdges)}
-            className="text-sm"
-          >
-            {showEdges ? "Show Nodes" : "Show Connections"}
-          </Button>
+        <div className="bg-white p-4 rounded-md shadow">
+          <h3 className="font-semibold mb-2">Add New Node</h3>
+          <div className="flex gap-2">
+            <Input
+              placeholder="Node Label"
+              value={newNodeData.label}
+              onChange={(e) =>
+                setNewNodeData({
+                  ...newNodeData,
+                  label: e.target.value,
+                })
+              }
+              className="flex-1"
+            />
+            <select
+              value={newNodeData.shape}
+              onChange={(e) =>
+                setNewNodeData({
+                  ...newNodeData,
+                  shape: e.target.value as NodeData["shape"],
+                })
+              }
+              className="border rounded px-2"
+            >
+              <option value="rectangle">Rectangle</option>
+              <option value="circle">Circle</option>
+              <option value="diamond">Diamond</option>
+              <option value="group">Group</option>
+            </select>
+            <Button onClick={handleAddNode} size="sm">
+              <PlusCircle className="w-4 h-4 mr-2" />
+              Add
+            </Button>
+          </div>
         </div>
-
-        {!showEdges ? (
-          <>
-            <div className="bg-white p-4 rounded-md shadow">
-              <h3 className="font-semibold mb-2">Add New Node</h3>
-              <div className="flex gap-2">
-                <Input
-                  placeholder="Node Label"
-                  value={newNodeData.label}
-                  onChange={(e) =>
-                    setNewNodeData({
-                      ...newNodeData,
-                      label: e.target.value,
-                    })
-                  }
-                  className="flex-1"
-                />
-                <select
-                  value={newNodeData.shape}
-                  onChange={(e) =>
-                    setNewNodeData({
-                      ...newNodeData,
-                      shape: e.target.value as NodeData["shape"],
-                    })
-                  }
-                  className="border rounded px-2"
-                >
-                  <option value="rectangle">Rectangle</option>
-                  <option value="circle">Circle</option>
-                  <option value="diamond">Diamond</option>
-                </select>
-                <Button onClick={handleAddNode} size="sm">
-                  <PlusCircle className="w-4 h-4 mr-2" />
-                  Add
-                </Button>
-              </div>
-            </div>
-
+        <div className="relative">
+          <div className="overflow-y-auto max-h-[450px] border rounded-lg">
             <Table>
               <FlowTableHeader
                 customColumns={customColumns}
@@ -440,81 +290,8 @@ const FlowTable: React.FC<FlowTableEditorProps> = ({
               />
               {renderTableBody()}
             </Table>
-          </>
-        ) : (
-          <>
-            <div className="bg-white p-4 rounded-md shadow">
-              <h3 className="font-semibold mb-2">Add New Connection</h3>
-              <div className="flex gap-2">
-                <select
-                  value={newEdge.source}
-                  onChange={(e) =>
-                    setNewEdge({
-                      ...newEdge,
-                      source: e.target.value,
-                    })
-                  }
-                  className="border rounded px-2"
-                >
-                  <option value="">Select Source Node</option>
-                  {nodes.map((node) => (
-                    <option key={node.id} value={node.id}>
-                      {node.data.label}
-                    </option>
-                  ))}
-                </select>
-                <select
-                  value={newEdge.target}
-                  onChange={(e) =>
-                    setNewEdge({
-                      ...newEdge,
-                      target: e.target.value,
-                    })
-                  }
-                  className="border rounded px-2"
-                >
-                  <option value="">Select Target Node</option>
-                  {nodes.map((node) => (
-                    <option key={node.id} value={node.id}>
-                      {node.data.label}
-                    </option>
-                  ))}
-                </select>
-                <Button onClick={handleAddEdge} size="sm">
-                  <PlusCircle className="w-4 h-4 mr-2" />
-                  Add
-                </Button>
-              </div>
-            </div>
-
-            <Table>
-              <TableHeader className="bg-gray-100">
-                <TableRow>
-                  <TableHead>Source</TableHead>
-                  <TableHead>Target</TableHead>
-                  <TableHead>Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {edges.map((edge) => (
-                  <TableRow key={edge.id}>
-                    <TableCell>{edge.source}</TableCell>
-                    <TableCell>{edge.target}</TableCell>
-                    <TableCell>
-                      <Button
-                        size="sm"
-                        variant="destructive"
-                        onClick={() => onDeleteEdge(edge.id)}
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </>
-        )}
+          </div>
+        </div>
       </CardContent>
     </Card>
   );

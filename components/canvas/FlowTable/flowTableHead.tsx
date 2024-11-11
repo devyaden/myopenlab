@@ -87,6 +87,11 @@ const FlowTableHeader = ({
     setColumns(data);
   };
 
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    handleAddColumn();
+  };
+
   useEffect(() => {
     if (newColumn.relatedCanvasId) {
       fetchColumns();
@@ -112,11 +117,13 @@ const FlowTableHeader = ({
   return (
     <TableHeader className="bg-gray-100">
       <TableRow>
+        <TableHead></TableHead>
         <TableHead>ID</TableHead>
         <TableHead>Label</TableHead>
         <TableHead>Shape</TableHead>
-        <TableHead>Relations</TableHead>
+        {/* <TableHead>Relations</TableHead> */}
 
+        <TableHead>Actions</TableHead>
         {customColumns.map((column) => (
           <TableHead key={column.id} className="relative">
             {column.name}
@@ -130,8 +137,6 @@ const FlowTableHeader = ({
             </Button>
           </TableHead>
         ))}
-
-        <TableHead>Actions</TableHead>
 
         <TableHead>
           <Popover>
@@ -231,7 +236,7 @@ const FlowTableHeader = ({
                     ))}
                 </div>
                 <Button
-                  onClick={handleAddColumn}
+                  onClick={handleSubmit}
                   disabled={!formValid}
                   className={`${!formValid ? "opacity-50 cursor-not-allowed" : ""}`}
                 >

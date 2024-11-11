@@ -24,6 +24,7 @@ import FlowTable from "./FlowTable";
 import { InitialCanvasData, NodeData } from "./FlowTable/types";
 import ShapeSidebar from "./Sidebar";
 import CustomNode from "./shapes/CustomNode";
+import { nanoid } from "nanoid";
 
 const nodeTypes = {
   custom: CustomNode,
@@ -169,6 +170,8 @@ const Canvas: React.FC<CanvasProps> = ({
   // Handler for deleting nodes
   const onDeleteNode = useCallback(
     (nodeId: string) => {
+      // remove childresn and their edges
+
       // First remove any connected edges
       const newEdges = edges.filter(
         (edge) => edge.source !== nodeId && edge.target !== nodeId
@@ -176,7 +179,11 @@ const Canvas: React.FC<CanvasProps> = ({
       setEdges(newEdges);
 
       // Then remove the node
-      setNodes((prevNodes) => prevNodes.filter((node) => node.id !== nodeId));
+      setNodes((prevNodes) =>
+        prevNodes.filter(
+          (node) => node.id !== nodeId || node.parentId === nodeId
+        )
+      );
     },
     [edges]
   );
@@ -185,7 +192,7 @@ const Canvas: React.FC<CanvasProps> = ({
   const onAddNode = useCallback(
     (nodeData: Partial<Node<NodeData>>) => {
       const newNode: Node = {
-        id: `node-${nodes.length + 1}`,
+        id: nanoid(),
         type: "custom",
         position: { x: 0, y: 0 }, // Default position
         draggable: true,

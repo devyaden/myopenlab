@@ -62,6 +62,14 @@ const CustomNode = memo(
     const borderStyle = data.borderStyle || "solid";
     const borderWidth = data.borderWidth || "2px";
 
+    // Common handle styles
+    const handleStyle = {
+      width: "8px",
+      height: "8px",
+      background: "#fff",
+      border: "1px solid #1a192b",
+    };
+
     return (
       <div
         style={{
@@ -69,7 +77,7 @@ const CustomNode = memo(
           height: dimensions.height,
         }}
       >
-        <div style={{ touchAction: "none" }}>
+        <div style={{ touchAction: "none", position: "relative" }}>
           {selected && (
             <NodeResizer
               isVisible={selected}
@@ -80,6 +88,70 @@ const CustomNode = memo(
               handleStyle={{ width: "8px", height: "8px" }}
             />
           )}
+
+          {/* Top Handles */}
+          <Handle
+            type="target"
+            position={Position.Top}
+            id="top-target"
+            style={{ ...handleStyle, left: "50%" }}
+            isConnectable={isConnectable}
+          />
+          <Handle
+            type="source"
+            position={Position.Top}
+            id="top-source"
+            style={{ ...handleStyle, left: "50%" }}
+            isConnectable={isConnectable}
+          />
+
+          {/* Bottom Handles */}
+          <Handle
+            type="target"
+            position={Position.Bottom}
+            id="bottom-target"
+            style={{ ...handleStyle, left: "50%" }}
+            isConnectable={isConnectable}
+          />
+          <Handle
+            type="source"
+            position={Position.Bottom}
+            id="bottom-source"
+            style={{ ...handleStyle, left: "50%" }}
+            isConnectable={isConnectable}
+          />
+
+          {/* Left Handles */}
+          <Handle
+            type="target"
+            position={Position.Left}
+            id="left-target"
+            style={{ ...handleStyle, top: "50%" }}
+            isConnectable={isConnectable}
+          />
+          <Handle
+            type="source"
+            position={Position.Left}
+            id="left-source"
+            style={{ ...handleStyle, top: "50%" }}
+            isConnectable={isConnectable}
+          />
+
+          {/* Right Handles */}
+          <Handle
+            type="target"
+            position={Position.Right}
+            id="right-target"
+            style={{ ...handleStyle, top: "50%" }}
+            isConnectable={isConnectable}
+          />
+          <Handle
+            type="source"
+            position={Position.Right}
+            id="right-source"
+            style={{ ...handleStyle, top: "50%" }}
+            isConnectable={isConnectable}
+          />
 
           <svg
             width="100%"
@@ -143,19 +215,6 @@ const CustomNode = memo(
               </span>
             )}
           </div>
-
-          <Handle
-            type="target"
-            position={Position.Left}
-            isConnectable={isConnectable}
-            style={{ width: "8px", height: "8px" }}
-          />
-          <Handle
-            type="source"
-            position={Position.Right}
-            isConnectable={isConnectable}
-            style={{ width: "8px", height: "8px" }}
-          />
         </div>
       </div>
     );

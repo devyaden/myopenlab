@@ -3,7 +3,7 @@ import { Node, Edge } from "reactflow";
 
 export interface NodeData {
   label: string;
-  shape: "rectangle" | "circle" | "diamond";
+  shape: string;
 }
 
 export interface FlowTableEditorProps {
