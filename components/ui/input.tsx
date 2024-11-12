@@ -9,12 +9,11 @@ export interface InputProps
 const Input = React.forwardRef<HTMLInputElement, InputProps>(
   ({ className, type, icon, ...props }, ref) => {
     return (
-      <div className="relative">
+      <div className={cn("relative", className)}>
         <input
           type={type}
           className={cn(
-            "flex h-12 w-full rounded-lg border border-white bg-dark_background text-white placeholder:text-white px-4 py-2 shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium  focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-gray-400 focus-visible:ring-offset-1 disabled:cursor-not-allowed disabled:opacity-50 rtl:text-right rtl:pr-10",
-            className
+            "flex h-12 w-full rounded-lg border border-white bg-dark_background text-white placeholder:text-white px-4 py-2 shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium  focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-gray-400 focus-visible:ring-offset-1 disabled:cursor-not-allowed disabled:opacity-50 rtl:text-right rtl:pr-10"
           )}
           ref={ref}
           {...props}

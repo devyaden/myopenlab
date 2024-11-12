@@ -1,0 +1,8 @@
+export enum COLUMN_TYPES {
+  STRING = "STRING",
+  NUMBER = "NUMBER",
+  BOOLEAN = "BOOLEAN",
+  DATE = "DATE",
+  RELATION = "RELATION",
+  ROLLUP = "ROLLUP",
+}

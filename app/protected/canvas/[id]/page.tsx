@@ -6,21 +6,16 @@ import { Input } from "@/components/ui/input";
 import useCanvas from "@/hooks/use-canvas";
 import { ArrowRight, Check, Edit2 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { ReactFlowProvider } from "reactflow";
 
 export default function Page({ params }: { params: { id: string } }) {
   const {
     handleTitleChange,
-    canvasDetails,
-    handleFlowDataChange,
     loading,
     canvasTitle,
     setCanvasTitle,
     isEditing,
     setIsEditing,
-  } = useCanvas({
-    canvasId: params.id,
-  });
+  } = useCanvas();
 
   const router = useRouter();
 
@@ -81,22 +76,8 @@ export default function Page({ params }: { params: { id: string } }) {
           </div>
         </div>
       </header>
-      <ReactFlowProvider>
-        {loading ? (
-          <LoadingSpinner />
-        ) : (
-          <Canvas
-            onCanvasSave={handleFlowDataChange}
-            // @ts-ignore
-            initialData={canvasDetails?.flow_data || {}}
-            canvasId={Number(canvasDetails?.id)}
-            folderId={Number(canvasDetails?.folder_id)}
-            onCreateRelation={(data) => {
-              console.log("🚀 ~ Page ~ data:", data);
-            }}
-          />
-        )}
-      </ReactFlowProvider>
+
+      {loading ? <LoadingSpinner /> : <Canvas />}
     </div>
   );
 }

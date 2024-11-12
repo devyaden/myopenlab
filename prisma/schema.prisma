@@ -59,7 +59,6 @@ model Node {
   canvas_id   Int
   node_id     String
   canvas      Canvas   @relation(fields: [canvas_id], references: [id], onDelete: Cascade)
-  position    Json
   flow_data   Json
   custom_data Json
   created_at  DateTime @default(now())
@@ -72,6 +71,7 @@ model Node {
 model Column {
   id          Int        @id @default(autoincrement())
   name        String
+  key         String
   canvas_id   Int
   canvas      Canvas     @relation(fields: [canvas_id], references: [id], onDelete: Cascade)
   data_type   ColumnType

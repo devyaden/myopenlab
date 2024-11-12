@@ -1,6 +1,30 @@
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
+
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet";
+import { Switch } from "@/components/ui/switch";
 import {
   Table,
   TableBody,
@@ -9,291 +33,471 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { useTableState } from "@/hooks/useFlowTableState";
+import useCanvas from "@/hooks/use-canvas";
+import { COLUMN_TYPES } from "@/types/column-types.enum";
 import {
-  ChevronDown,
-  ChevronUp,
+  ArrowDownUp,
+  ArrowUpDown,
+  Copy,
+  Edit,
+  Eye,
+  Filter,
+  Lock,
+  Plus,
   PlusCircle,
-  Save,
+  Sparkles,
   Trash2,
-  Users,
 } from "lucide-react";
-import { FC, useState } from "react";
-import FlowTableHeader from "./flowTableHead";
-import { FlowTableEditorProps, NodeData } from "./types";
+import { useMemo, useState } from "react";
 
-const FlowTable: FC<FlowTableEditorProps> = ({
-  nodes,
-  onUpdateNode,
-  onDeleteNode,
-  onAddNode,
-  canvasId,
-  folderId,
-}) => {
-  const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
-  const [editableValues, setEditableValues] = useState<{ [key: string]: any }>(
-    {}
-  );
+interface User {
+  id: string;
+  name: string;
+  email: string;
+  phone: string;
+  [key: string]: string;
+}
 
+interface Column {
+  key: string;
+  label: string;
+  hidden?: boolean;
+  validationType?: string;
+}
+
+const defaultColumns: Column[] = [
+  { key: "name", label: "Name", validationType: "text" },
+  { key: "id", label: "ID", validationType: "text" },
+];
+
+const FlowTable = ({}) => {
   const {
-    newNodeData,
-    formattedData,
-    customColumns,
-    newColumn,
-    newSubNode,
-    setNewNodeData,
-    handleAddNode,
-    handleAddColumn,
-    handleDeleteColumn,
-    handleDeleteSubNode,
-    handleAddSubNode,
-    setNewColumn,
-    setNewSubNode,
-    handleCustomValueChange,
-  } = useTableState(nodes, canvasId, onUpdateNode, onDeleteNode, onAddNode);
+    canvasDetails,
+    nodes,
+    handleNewColumnCreation,
+    handleNodeCustomDataChange,
+  } = useCanvas();
+  const [formattedNodes, setFormattedNodes] = useState<any[]>([]);
 
-  const saveChanges = async (nodeId: string) => {
-    const updatedData = editableValues[nodeId];
-    if (updatedData) {
-      onUpdateNode(nodeId, updatedData);
-      setEditableValues((prev) => {
-        const newValues = { ...prev };
-        delete newValues[nodeId];
-        return newValues;
-      });
-    }
+  const [users, setUsers] = useState<User[]>([
+    {
+      id: "001",
+      name: "John Doe",
+      email: "john.doe@email.com",
+      phone: "+1-555-123-4567",
+    },
+    {
+      id: "002",
+      name: "Jane Smith",
+      email: "jane.smith@email.com",
+      phone: "+1-555-987-6543",
+    },
+    {
+      id: "003",
+      name: "Alex Johnson",
+      email: "alex.johnson@email.com",
+      phone: "+1-555-456-7890",
+    },
+    {
+      id: "004",
+      name: "Emily Brown",
+      email: "emily.brown@email.com",
+      phone: "+1-555-234-5678",
+    },
+    {
+      id: "005",
+      name: "Michael Lee",
+      email: "michael.lee@email.com",
+      phone: "+1-555-876-5432",
+    },
+  ]);
+
+  const [columns, setColumns] = useState<Column[]>(defaultColumns);
+
+  const [editingCell, setEditingCell] = useState<{
+    userId: string;
+    field: string | null;
+  }>({ userId: "", field: null });
+
+  const [newColumn, setNewColumn] = useState<{
+    name: string;
+    validationType?: COLUMN_TYPES;
+  }>({
+    name: "",
+    validationType: undefined,
+  });
+
+  const [selectedUser, setSelectedUser] = useState<User | null>(null);
+
+  const handleEdit = async (nodeId: string, field: string, value: string) => {
+    console.log(
+      "🚀 ~ handleEdit ~ userId: string, field: string, value: string:",
+      nodeId,
+      field,
+      value
+    );
+    // updated formatted nodes
+    const updatedNodes = formattedNodes.map((node) => {
+      if (node.id === nodeId) {
+        return {
+          ...node,
+          [field]: value,
+        };
+      }
+      return node;
+    });
+
+    setFormattedNodes(updatedNodes);
+
+    // update node custom data
+    await handleNodeCustomDataChange(nodeId, {
+      [field]: value,
+    });
   };
 
-  const toggleSubnodes = (nodeId: string) => {
-    setSelectedNodeId(selectedNodeId === nodeId ? null : nodeId);
+  const addNewUser = () => {
+    const newId = String(users.length + 1).padStart(3, "0");
+    setUsers([
+      ...users,
+      {
+        id: newId,
+        name: "New User",
+        email: "new.user@email.com",
+        phone: "+1-555-000-0000",
+      },
+    ]);
   };
 
-  const renderSubnodes = (node: any) => {
-    return (
-      <div className="flex-1 flex flex-col min-h-0 space-y-4 w-full">
-        <div className="bg-gray-50 p-4 rounded-lg flex-none w-full">
-          <h3 className="text-sm font-medium mb-2">إضافة عقدة فرعية جديدة</h3>
-          <div className="flex gap-2 items-center">
-            <Input
-              placeholder="اسم العقدة الفرعية"
-              value={newSubNode.label}
-              onChange={(e) =>
-                setNewSubNode((prev: any) => ({
-                  ...prev,
-                  label: e.target.value,
-                  parentId: node?.id,
-                }))
-              }
-              className="w-48"
-            />
-            <select
-              value={newSubNode.shape}
-              onChange={(e) =>
-                setNewSubNode((prev: any) => ({
-                  ...prev,
-                  shape: e.target.value,
-                }))
-              }
-              className="border rounded px-2 py-1"
-            >
-              <option value="rectangle">مستطيل</option>
-              <option value="circle">دائرة</option>
-              <option value="diamond">معين</option>
-              <option value="group">مجموعة</option>
-            </select>
-            <Button
-              size="sm"
-              onClick={() => {
-                handleAddSubNode(node?.id);
-                // onClose();
-              }}
-            >
-              <PlusCircle className="w-4 h-4 mr-2" />
-              إضافة عقدة فرعية
-            </Button>
-          </div>
-        </div>
+  const sortColumn = (key: string, direction: "asc" | "desc") => {
+    const sorted = [...users].sort((a, b) => {
+      if (direction === "asc") {
+        return a[key] > b[key] ? 1 : -1;
+      }
+      return a[key] < b[key] ? 1 : -1;
+    });
+    setUsers(sorted);
+  };
 
-        <div className="border rounded-lg flex-1 flex flex-col min-h-0 w-full">
-          <div className="overflow-auto w-full">
-            <Table className="w-full">
-              <TableHeader className="sticky top-0 bg-white w-full">
-                <TableRow>
-                  <TableHead className="w-1/3">الاسم</TableHead>
-                  <TableHead className="w-1/3">الشكل</TableHead>
-                  <TableHead className="w-1/3">إجراءات</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {node?.children?.map((subNode: any) => (
-                  <TableRow key={subNode.id} className="hover:bg-gray-50">
-                    <TableCell className="max-w-0 w-1/3">
-                      <div className="truncate">{subNode.data.label}</div>
-                    </TableCell>
-                    <TableCell className="w-1/3">
-                      {subNode.data.shape}
-                    </TableCell>
-                    <TableCell className="w-1/3">
-                      <Button
-                        size="sm"
-                        variant="destructive"
-                        onClick={() => {
-                          handleDeleteSubNode(subNode.id, subNode.id);
-                          // onClose();
-                        }}
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
-        </div>
-      </div>
+  const toggleColumnVisibility = (key: string) => {
+    setColumns(
+      columns.map((col) =>
+        col.key === key ? { ...col, hidden: !col.hidden } : col
+      )
     );
   };
 
-  const renderTableBody = () => (
-    <TableBody>
-      {formattedData.map((node: any, nodeIndex: number) => (
-        <>
-          <TableRow key={node.id} className="group hover:bg-gray-50">
-            <TableCell>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => toggleSubnodes(node.id)}
-              >
-                {selectedNodeId === node.id ? (
-                  <ChevronDown className="w-4 h-4" />
-                ) : (
-                  <ChevronUp className="w-4 h-4" />
-                )}
-              </Button>
-            </TableCell>
-            <TableCell>{node.id}</TableCell>
-            <TableCell>
-              <Input
-                value={editableValues[node.id]?.label || node.data.label}
-                onChange={(e) => {
-                  setEditableValues((prev) => ({
-                    ...prev,
-                    [node.id]: {
-                      ...prev[node.id],
-                      label: e.target.value,
-                    },
-                  }));
-                }}
-              />
-            </TableCell>
-            <TableCell>
-              <Input
-                value={editableValues[node.id]?.shape || node.data.shape}
-                onChange={(e) => {
-                  setEditableValues((prev) => ({
-                    ...prev,
-                    [node.id]: {
-                      ...prev[node.id],
-                      shape: e.target.value,
-                    },
-                  }));
-                }}
-              />
-            </TableCell>
-            <TableCell>
-              <div className="invisible group-hover:visible flex gap-2">
-                <Button size="sm" onClick={() => saveChanges(node.id)}>
-                  <Save className="w-4 h-4" />
-                </Button>
-                <Button
-                  size="sm"
-                  variant="destructive"
-                  onClick={() => onDeleteNode(node.id)}
-                >
-                  <Trash2 className="w-4 h-4" />
-                </Button>
-              </div>
-            </TableCell>
-            {customColumns.map((column: any) => (
-              <TableCell key={column.id}>
-                <input
-                  type={column.type === "number" ? "number" : "text"}
-                  placeholder={`Enter ${column.name}`}
-                  defaultValue={
-                    column.node_custom_data?.[nodeIndex]?.value ?? ""
-                  }
-                  onChange={(e) =>
-                    handleCustomValueChange(node.id, column.id, e.target.value)
-                  }
-                  className="w-full px-2 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                />
-              </TableCell>
-            ))}
-          </TableRow>
-          {selectedNodeId === node.id && renderSubnodes(node || [])}
-        </>
-      ))}
-    </TableBody>
-  );
+  const updateColumnTitle = (key: string, newTitle: string) => {
+    setColumns(
+      columns.map((col) =>
+        col.key === key ? { ...col, label: newTitle } : col
+      )
+    );
+  };
+
+  const addNewColumn = async () => {
+    if (newColumn.name && newColumn.validationType) {
+      const key = newColumn.name.toLowerCase().replace(" ", "_");
+
+      await handleNewColumnCreation({
+        name: newColumn.name,
+        data_type: newColumn.validationType,
+        order: columns.length + 1,
+        key,
+      });
+
+      setColumns([
+        ...columns,
+        {
+          key,
+          label: newColumn.name,
+          validationType: newColumn.validationType,
+        },
+      ]);
+
+      // close the sheet
+    }
+  };
+
+  useMemo(() => {
+    const fNodes = canvasDetails?.nodes?.map((node: any) => {
+      return {
+        id: node.node_id,
+        title: node?.flow_data?.data?.label,
+        ...node.custom_data,
+      };
+    });
+
+    setFormattedNodes(fNodes);
+  }, [canvasDetails?.nodes]);
+
+  useMemo(() => {
+    if (canvasDetails?.columns) {
+      const newColumns = canvasDetails.columns.map((column: any) => ({
+        key: column.key,
+        label: column.name,
+        validationType: column.data_type,
+      }));
+
+      const mergedColumns = [
+        ...columns.filter(
+          (existingColumn) =>
+            !newColumns.some(
+              (newColumn: Column) => newColumn.key === existingColumn.key
+            )
+        ),
+        ...newColumns,
+      ];
+
+      setColumns(mergedColumns);
+    }
+  }, [canvasDetails?.columns]);
 
   return (
-    <Card className="p-4 space-y-2">
-      <CardContent>
-        <div className="bg-white p-4 rounded-md shadow">
-          <h3 className="font-semibold mb-2">Add New Node</h3>
-          <div className="flex gap-2">
-            <Input
-              placeholder="Node Label"
-              value={newNodeData.label}
-              onChange={(e) =>
-                setNewNodeData({
-                  ...newNodeData,
-                  label: e.target.value,
-                })
-              }
-              className="flex-1"
-            />
-            <select
-              value={newNodeData.shape}
-              onChange={(e) =>
-                setNewNodeData({
-                  ...newNodeData,
-                  shape: e.target.value as NodeData["shape"],
-                })
-              }
-              className="border rounded px-2"
-            >
-              <option value="rectangle">Rectangle</option>
-              <option value="circle">Circle</option>
-              <option value="diamond">Diamond</option>
-              <option value="group">Group</option>
-            </select>
-            <Button onClick={handleAddNode} size="sm">
-              <PlusCircle className="w-4 h-4 mr-2" />
-              Add
-            </Button>
-          </div>
-        </div>
-        <div className="relative">
-          <div className="overflow-y-auto max-h-[450px] border rounded-lg">
-            <Table>
-              <FlowTableHeader
-                customColumns={customColumns}
-                handleDeleteColumn={handleDeleteColumn}
-                setNewColumn={setNewColumn}
-                newColumn={newColumn}
-                handleAddColumn={handleAddColumn}
-                folderId={folderId}
-                canvasId={canvasId}
-              />
-              {renderTableBody()}
-            </Table>
-          </div>
-        </div>
-      </CardContent>
-    </Card>
+    <div className="p-4 space-y-4 bg-background text-foreground">
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-bold">Users</h1>
+      </div>
+      <Table>
+        <TableHeader>
+          <TableRow>
+            {columns
+              .filter((column) => !column.hidden)
+              .map((column) => (
+                <TableHead key={column.key}>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger className="flex items-center gap-2">
+                      {column.label}
+                      <ArrowUpDown className="w-4 h-4" />
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="start" className="w-56">
+                      <div className="p-2">
+                        <Input
+                          defaultValue={column.label}
+                          onBlur={(e) =>
+                            updateColumnTitle(column.key, e.target.value)
+                          }
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") {
+                              updateColumnTitle(
+                                column.key,
+                                e.currentTarget.value
+                              );
+                              e.currentTarget.blur();
+                            }
+                          }}
+                        />
+                      </div>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem className="gap-2">
+                        <Edit className="w-4 h-4" />
+                        Edit property
+                      </DropdownMenuItem>
+                      <DropdownMenuItem className="gap-2">
+                        <Sparkles className="w-4 h-4" />
+                        Set up AI autofill
+                        <span className="ml-2 text-xs bg-blue-500 text-white px-1.5 py-0.5 rounded">
+                          New
+                        </span>
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem
+                        onClick={() => sortColumn(column.key, "asc")}
+                        className="gap-2"
+                      >
+                        <ArrowDownUp className="w-4 h-4" />
+                        Sort ascending
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        onClick={() => sortColumn(column.key, "desc")}
+                        className="gap-2"
+                      >
+                        <ArrowDownUp className="w-4 h-4 rotate-180" />
+                        Sort descending
+                      </DropdownMenuItem>
+                      <DropdownMenuItem className="gap-2">
+                        <Filter className="w-4 h-4" />
+                        Filter
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem
+                        onClick={() => toggleColumnVisibility(column.key)}
+                        className="gap-2"
+                      >
+                        <Eye className="w-4 h-4" />
+                        Hide in view
+                      </DropdownMenuItem>
+                      <DropdownMenuItem className="gap-2">
+                        <Lock className="w-4 h-4" />
+                        Freeze up to column
+                      </DropdownMenuItem>
+                      <DropdownMenuItem className="gap-2">
+                        <Copy className="w-4 h-4" />
+                        Duplicate property
+                      </DropdownMenuItem>
+                      <DropdownMenuItem className="gap-2 text-red-500">
+                        <Trash2 className="w-4 h-4" />
+                        Delete property
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                      <div className="flex items-center justify-between px-2 py-1.5">
+                        <span className="text-sm">Wrap column</span>
+                        <Switch />
+                      </div>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </TableHead>
+              ))}
+            <TableHead>
+              <Sheet>
+                <SheetTrigger asChild>
+                  <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                    <Plus className="h-4 w-4" />
+                    <span className="sr-only">Add new column</span>
+                  </Button>
+                </SheetTrigger>
+                <SheetContent>
+                  <SheetHeader>
+                    <SheetTitle>Add New Column</SheetTitle>
+                    <SheetDescription>
+                      Enter the details for the new column.
+                    </SheetDescription>
+                  </SheetHeader>
+                  <div className="grid gap-4 py-4">
+                    <div className="grid grid-cols-4 items-center gap-4 ">
+                      <Label htmlFor="name">Name</Label>
+                      <Input
+                        id="name"
+                        value={newColumn.name}
+                        onChange={(e) =>
+                          setNewColumn({ ...newColumn, name: e.target.value })
+                        }
+                        className="col-span-3 "
+                      />
+                    </div>
+                    <div className="grid grid-cols-4 items-center gap-4">
+                      <Label htmlFor="validationType">Type</Label>
+                      <Select
+                        value={newColumn.validationType}
+                        onValueChange={(value) =>
+                          setNewColumn({
+                            ...newColumn,
+                            validationType: value as COLUMN_TYPES,
+                          })
+                        }
+                      >
+                        <SelectTrigger className="col-span-3">
+                          <SelectValue placeholder="Select a type" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value={COLUMN_TYPES.STRING}>
+                            Text
+                          </SelectItem>
+                          <SelectItem value={COLUMN_TYPES.NUMBER}>
+                            Number
+                          </SelectItem>
+                          <SelectItem value={COLUMN_TYPES.DATE}>
+                            Date
+                          </SelectItem>
+                          <SelectItem value={COLUMN_TYPES.BOOLEAN}>
+                            Boolean
+                          </SelectItem>
+                          <SelectItem value={COLUMN_TYPES.RELATION}>
+                            Relation
+                          </SelectItem>
+                          <SelectItem value={COLUMN_TYPES.ROLLUP}>
+                            Rollup
+                          </SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                  <Button onClick={addNewColumn}>Add Column</Button>
+                </SheetContent>
+              </Sheet>
+            </TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {formattedNodes?.map((user) => (
+            <TableRow key={user.id} onClick={() => setSelectedUser(user)}>
+              {columns
+                .filter((column) => !column.hidden)
+                .map((column) => (
+                  <TableCell
+                    key={column.key}
+                    className="cursor-pointer"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setEditingCell({ userId: user.id, field: column.key });
+                    }}
+                  >
+                    {editingCell.userId === user.id &&
+                    editingCell.field === column.key ? (
+                      <Input
+                        autoFocus
+                        defaultValue={user[column.key]}
+                        onBlur={(e) => {
+                          handleEdit(user.id, column.key, e.target.value);
+                          setEditingCell({ userId: "", field: null });
+                        }}
+                        type={
+                          column.validationType === COLUMN_TYPES.NUMBER
+                            ? "number"
+                            : "text"
+                        }
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            handleEdit(
+                              user.id,
+                              column.key,
+                              e.currentTarget.value
+                            );
+                            setEditingCell({ userId: "", field: null });
+                          }
+                        }}
+                      />
+                    ) : (
+                      <span className="block min-h-[20px]">
+                        {user[column.key]}
+                      </span>
+                    )}
+                  </TableCell>
+                ))}
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+      <Button onClick={addNewUser} variant="outline" className="gap-2">
+        <PlusCircle className="w-4 h-4" />
+        New page
+      </Button>
+      <Sheet open={!!selectedUser} onOpenChange={() => setSelectedUser(null)}>
+        <SheetContent>
+          <SheetHeader>
+            <SheetTitle>User Details</SheetTitle>
+            <SheetDescription>
+              Information about the selected user.
+            </SheetDescription>
+          </SheetHeader>
+          {selectedUser && (
+            <div className="py-4">
+              {columns.map((column) => (
+                <div key={column.key} className="mb-4">
+                  <Label htmlFor={column.key}>{column.label}</Label>
+                  <Input
+                    id={column.key}
+                    value={selectedUser[column.key]}
+                    onChange={(e) =>
+                      handleEdit(selectedUser.id, column.key, e.target.value)
+                    }
+                  />
+                </div>
+              ))}
+            </div>
+          )}
+        </SheetContent>
+      </Sheet>
+    </div>
   );
 };
 
