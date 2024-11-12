@@ -61,7 +61,7 @@ const CreateCanvasButton = ({
       };
 
       const { data: canvas, error } = await supabase
-        .from("canvas")
+        .from("canvases")
         .insert([
           {
             name: formData.name,

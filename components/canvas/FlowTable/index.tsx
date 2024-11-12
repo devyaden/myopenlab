@@ -70,8 +70,8 @@ const FlowTable: FC<FlowTableEditorProps> = ({
 
   const renderSubnodes = (node: any) => {
     return (
-      <div className="flex-1 flex flex-col min-h-0 space-y-4 ">
-        <div className="bg-gray-50 p-4 rounded-lg flex-none">
+      <div className="flex-1 flex flex-col min-h-0 space-y-4 w-full">
+        <div className="bg-gray-50 p-4 rounded-lg flex-none w-full">
           <h3 className="text-sm font-medium mb-2">إضافة عقدة فرعية جديدة</h3>
           <div className="flex gap-2 items-center">
             <Input
@@ -114,24 +114,26 @@ const FlowTable: FC<FlowTableEditorProps> = ({
           </div>
         </div>
 
-        <div className="border rounded-lg flex-1 flex flex-col min-h-0">
-          <div className="overflow-auto">
-            <Table>
-              <TableHeader className="sticky top-0 bg-white">
+        <div className="border rounded-lg flex-1 flex flex-col min-h-0 w-full">
+          <div className="overflow-auto w-full">
+            <Table className="w-full">
+              <TableHeader className="sticky top-0 bg-white w-full">
                 <TableRow>
-                  <TableHead>الاسم</TableHead>
-                  <TableHead>الشكل</TableHead>
-                  <TableHead>إجراءات</TableHead>
+                  <TableHead className="w-1/3">الاسم</TableHead>
+                  <TableHead className="w-1/3">الشكل</TableHead>
+                  <TableHead className="w-1/3">إجراءات</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {node?.children?.map((subNode: any) => (
                   <TableRow key={subNode.id} className="hover:bg-gray-50">
-                    <TableCell className="max-w-0">
+                    <TableCell className="max-w-0 w-1/3">
                       <div className="truncate">{subNode.data.label}</div>
                     </TableCell>
-                    <TableCell>{subNode.data.shape}</TableCell>
-                    <TableCell>
+                    <TableCell className="w-1/3">
+                      {subNode.data.shape}
+                    </TableCell>
+                    <TableCell className="w-1/3">
                       <Button
                         size="sm"
                         variant="destructive"
@@ -235,8 +237,6 @@ const FlowTable: FC<FlowTableEditorProps> = ({
       ))}
     </TableBody>
   );
-
-  console.log("🚀 ~ formattedData:", formattedData);
 
   return (
     <Card className="p-4 space-y-2">

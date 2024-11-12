@@ -67,7 +67,7 @@ const CustomNode = memo(
       width: "8px",
       height: "8px",
       background: "#fff",
-      border: "1px solid #1a192b",
+      backgroundColor: "#1a192b",
     };
 
     return (

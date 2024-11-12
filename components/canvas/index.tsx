@@ -97,8 +97,10 @@ const Canvas: React.FC<CanvasProps> = ({
           y: event.clientY - reactFlowBounds.top,
         });
 
+        const id = nanoid();
+
         const newNode: Node = {
-          id: `${shapeType}-${nodes.length + 1}`,
+          id,
           type: "custom",
           position,
           draggable: true,
@@ -106,7 +108,7 @@ const Canvas: React.FC<CanvasProps> = ({
             shape: shapeType,
             label: `New ${shapeType}`,
             onLabelChange: (newLabel: string) =>
-              handleLabelChange(`${shapeType}-${nodes.length + 1}`, newLabel),
+              handleLabelChange(id, newLabel),
           },
         };
 
@@ -151,6 +153,7 @@ const Canvas: React.FC<CanvasProps> = ({
   );
 
   const handleLabelChange = useCallback((nodeId: string, newLabel: string) => {
+    console.log("🚀 ~ handleLabelChange ~ nodeId:", nodeId, newLabel);
     setNodes((nds) =>
       nds.map((node) => {
         if (node.id === nodeId) {
@@ -191,18 +194,22 @@ const Canvas: React.FC<CanvasProps> = ({
   // Handler for adding new nodes
   const onAddNode = useCallback(
     (nodeData: Partial<Node<NodeData>>) => {
+      console.log("🚀 ~ nodeData:", nodeData);
+      const id = nanoid();
       const newNode: Node = {
-        id: nanoid(),
-        type: "custom",
+        id,
+        type: nodeData.type || "custom",
         position: { x: 0, y: 0 }, // Default position
         draggable: true,
-
+        style: nodeData.style || {},
+        parentId: nodeData.parentId,
+        extent: nodeData.extent,
         data: {
           shape: nodeData.data?.shape || "rectangle",
           label: nodeData.data?.label || `New Node ${nodes.length + 1}`,
+          onLabelChange: (newLabel: string) => handleLabelChange(id, newLabel),
           ...nodeData.data,
         },
-        ...nodeData,
       };
       setNodes((prevNodes) => [...prevNodes, newNode]);
     },
@@ -259,18 +266,11 @@ const Canvas: React.FC<CanvasProps> = ({
   const handleTransform = useCallback(
     (x: number, y: number) => {
       const currentZoom = getZoom();
-      setCenter(x, y, { duration: 800, zoom: currentZoom });
+
+      setCenter(x, y, { duration: 800, zoom: 1 });
     },
     [setViewport]
   );
-
-  // useEffect(() => {
-  //   if (initialData.viewport) {
-  //     const { x, y, zoom } = initialData.viewport;
-
-  //     setCenter(x, y, { duration: 800, zoom });
-  //   }
-  // }, [initialData]);
 
   return (
     <>

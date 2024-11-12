@@ -50,7 +50,7 @@ const FlowTableHeader = ({
   const fetchFolderCanvases = async () => {
     setLoading(true);
     const { error, data } = await supabase
-      .from("canvas")
+      .from("canvases")
       .select("*")
       .eq("folder_id", folderId);
 

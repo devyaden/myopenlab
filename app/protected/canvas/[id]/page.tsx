@@ -1,123 +1,28 @@
 "use client";
 
 import Canvas from "@/components/canvas";
-import { InitialCanvasData } from "@/components/canvas/FlowTable/types";
 import { LoadingSpinner } from "@/components/loading-spinner";
 import { Input } from "@/components/ui/input";
-import { useToast } from "@/hooks/use-toast";
-import { createClient } from "@/utils/supabase/client";
+import useCanvas from "@/hooks/use-canvas";
 import { ArrowRight, Check, Edit2 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
 import { ReactFlowProvider } from "reactflow";
 
 export default function Page({ params }: { params: { id: string } }) {
-  const [isEditing, setIsEditing] = useState(false);
-  const [title, setTitle] = useState("My Canvas");
-  const [canvasId, setCanvasId] = useState<string | null>(null);
-  const [canvasDetails, setCanvasDetails] = useState<any>(null);
-  const [loading, setLoading] = useState(false);
+  const {
+    handleTitleChange,
+    canvasDetails,
+    handleFlowDataChange,
+    loading,
+    canvasTitle,
+    setCanvasTitle,
+    isEditing,
+    setIsEditing,
+  } = useCanvas({
+    canvasId: params.id,
+  });
 
-  const supabase = createClient();
   const router = useRouter();
-
-  const { toast } = useToast();
-
-  const handleTitleChange = async (newTitle: string) => {
-    setTitle(newTitle);
-    setIsEditing(false);
-
-    if (canvasId) {
-      // Update existing canvas title
-      const { error } = await supabase
-        .from("canvas")
-        .update({ name: newTitle })
-        .eq("id", params.id);
-
-      if (error) {
-        toast({
-          title: "Error",
-          description: "Failed to update canvas title",
-          variant: "destructive",
-        });
-      }
-    }
-  };
-
-  const fetchCanvasDetails = async () => {
-    setLoading(true);
-    const { data, error } = await supabase
-      .from("canvas")
-      .select("*")
-      .eq("id", params.id)
-      .single();
-    console.log("🚀 ~ fetchCanvasDetails ~ data:", data);
-
-    if (error) {
-      toast({
-        title: "Error",
-        description: "Failed to fetch canvas data",
-        variant: "destructive",
-      });
-      router.back();
-    }
-
-    if (data) {
-      setTitle(data.name);
-      setCanvasId(data.id);
-      setCanvasDetails(data);
-    }
-    setLoading(false);
-  };
-
-  const handleFlowDataChange = async (data: InitialCanvasData) => {
-    const { error } = await supabase
-      .from("canvas")
-      .update({
-        flow_data: data,
-      })
-      .eq("id", params.id);
-
-    if (error) {
-      toast({
-        title: "Error",
-        description: "Failed to save the changes",
-        variant: "destructive",
-      });
-    } else {
-      toast({
-        title: "success",
-        description: "Changes saved successfully",
-      });
-    }
-  };
-
-  const handleCreateNewConnection = async (data: any) => {
-    console.log("handleCreateNewConnection", data);
-    const { error } = await supabase
-      .from("node_connections")
-      .insert([data])
-      .select()
-      .single();
-
-    if (error) {
-      toast({
-        title: "Error",
-        description: "Failed to create new connection",
-        variant: "destructive",
-      });
-    }
-
-    toast({
-      title: "نجاح",
-      description: "تم إنشاء الملف بنجاح",
-    });
-  };
-
-  // fetch canvas data
-  useEffect(() => {
-    fetchCanvasDetails();
-  }, [params.id]);
 
   return (
     <div className="flex flex-col h-screen w-screen">
@@ -141,19 +46,19 @@ export default function Page({ params }: { params: { id: string } }) {
               {isEditing ? (
                 <div className="flex items-center space-x-2">
                   <Input
-                    value={title}
-                    onChange={(e) => setTitle(e.target.value)}
+                    value={canvasTitle}
+                    onChange={(e) => setCanvasTitle(e.target.value)}
                     className="h-8 w-48"
                     autoFocus
-                    onBlur={() => handleTitleChange(title)}
+                    onBlur={() => handleTitleChange(canvasTitle)}
                     onKeyDown={(e) => {
                       if (e.key === "Enter") {
-                        handleTitleChange(title);
+                        handleTitleChange(canvasTitle);
                       }
                     }}
                   />
                   <button
-                    onClick={() => handleTitleChange(title)}
+                    onClick={() => handleTitleChange(canvasTitle)}
                     className="hover:bg-gray-100 p-2 rounded-full"
                   >
                     <Check className="h-4 w-4 text-gray-600" />
@@ -162,7 +67,7 @@ export default function Page({ params }: { params: { id: string } }) {
               ) : (
                 <div className="flex items-center space-x-2">
                   <h1 className="text-lg font-semibold text-gray-900">
-                    {title}
+                    {canvasTitle}
                   </h1>
                   <button
                     onClick={() => setIsEditing(true)}
@@ -184,9 +89,11 @@ export default function Page({ params }: { params: { id: string } }) {
             onCanvasSave={handleFlowDataChange}
             // @ts-ignore
             initialData={canvasDetails?.flow_data || {}}
-            canvasId={Number(canvasId)}
+            canvasId={Number(canvasDetails?.id)}
             folderId={Number(canvasDetails?.folder_id)}
-            onCreateRelation={handleCreateNewConnection}
+            onCreateRelation={(data) => {
+              console.log("🚀 ~ Page ~ data:", data);
+            }}
           />
         )}
       </ReactFlowProvider>

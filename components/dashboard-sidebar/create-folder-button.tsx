@@ -52,13 +52,12 @@ const CreateFolderButton = ({
     };
 
     const { data: canvas, error: canvasError } = await supabase
-      .from("canvas")
+      .from("canvases")
       .insert([
         {
           name: "Untitled",
           description: "Blank canvas",
           flow_data: defaultFlowData,
-          user_id: userId,
           folder_id: folderId,
         },
       ])
@@ -91,7 +90,14 @@ const CreateFolderButton = ({
         .select()
         .single();
 
-      if (folderError) throw folderError;
+      if (folderError) {
+        console.error("Error creating folder:", folderError);
+        return toast({
+          title: "Error",
+          description: "Failed to create folder",
+          variant: "destructive",
+        });
+      }
 
       // Create blank canvas in the new folder
       await createBlankCanvas(folder.id);

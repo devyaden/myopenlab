@@ -102,7 +102,7 @@ export const SidebarDashboard = () => {
     setCanvasesLoading((prev) => ({ ...prev, [folderId]: true }));
     try {
       const { data, error } = await supabase
-        .from("canvas")
+        .from("canvases")
         .select("*")
         .eq("folder_id", folderId)
         .order("created_at", { ascending: false });
