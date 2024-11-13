@@ -300,9 +300,7 @@ const FlowTableHeader = ({
                           filteredCanvases.map((canvas: any) => (
                             <button
                               key={canvas.id}
-                              onClick={() =>
-                                handleRelationSelect(canvas.id, canvas.name)
-                              }
+                              onClick={() => handleRelationSelect(canvas.id)}
                               className={`w-full px-4 py-3 text-left hover:bg-gray-100 transition-colors
                                 ${newColumn.target_canvas_id === canvas.id ? "bg-gray-100 font-medium" : ""}
                                 ${filteredCanvases.length === 1 ? "" : "border-b border-gray-100"}
