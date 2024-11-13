@@ -20,16 +20,17 @@ import {
 import useCanvasParams from "./use-canvas-params";
 import { useToast } from "./use-toast";
 import { ICreateColumn } from "@/types/flow-table.types";
+import { COLUMN_TYPES } from "@/types/column-types.enum";
 
 const useCanvas = () => {
   const [nodes, setNodes] = useState<Node<NodeData>[]>([]);
-
   const [edges, setEdges] = useState<Edge[]>([]);
   const [canvasDetails, setCanvasDetails] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const [rfInstance, setRfInstance] = useState<any>(null);
   const [canvasTitle, setCanvasTitle] = useState<string>("My Canvas");
   const [isEditing, setIsEditing] = useState(false);
+  const [relations, setRelations] = useState<any[]>([]);
 
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
 
@@ -68,7 +69,7 @@ const useCanvas = () => {
           canvas_id: canvasDetails?.id,
           node_id: id,
           flow_data: newNode,
-          custom_data: {},
+          custom_data: nodeData?.data?.customData ?? {},
         },
       ]);
 
@@ -80,7 +81,7 @@ const useCanvas = () => {
         });
       }
 
-      onSave();
+      await onSave();
     },
     [nodes]
   );
@@ -399,11 +400,11 @@ const useCanvas = () => {
     setEdges((prevEdges) => [...prevEdges, newEdge]);
   }, []);
 
-  const onSave = useCallback(() => {
+  const onSave = useCallback(async () => {
     if (rfInstance) {
       const flow = rfInstance?.toObject();
 
-      handleFlowDataChange(flow);
+      await handleFlowDataChange(flow);
 
       // localStorage.setItem(flowKey, JSON.stringify(flow));
     }
@@ -421,24 +422,45 @@ const useCanvas = () => {
   // flowtable functions
 
   const handleNewColumnCreation = async (newColumn: ICreateColumn) => {
-    const { data, error } = await supabase
-      .from("columns")
-      .insert([
-        {
-          canvas_id: canvasDetails?.id,
-          ...newColumn,
-        },
-      ])
-      .select();
+    if (newColumn.data_type === COLUMN_TYPES.RELATION) {
+      const { data, error } = await supabase
+        .from("relations")
+        .insert([
+          {
+            source_canvas_id: canvasDetails?.id,
+            name: newColumn.name,
+            target_canvas_id: newColumn.target_canvas_id,
+          },
+        ])
+        .select();
+      if (error) {
+        toast({
+          title: "Error",
+          description: error.message || "Failed to create new relation",
+          variant: "destructive",
+        });
 
-    if (error) {
-      toast({
-        title: "Error",
-        description: error.message || "Failed to create new column",
-        variant: "destructive",
-      });
+        throw error;
+      }
+    } else {
+      const { data, error } = await supabase
+        .from("columns")
+        .insert([
+          {
+            canvas_id: canvasDetails?.id,
+            ...newColumn,
+          },
+        ])
+        .select();
+      if (error) {
+        toast({
+          title: "Error",
+          description: error.message || "Failed to create new column",
+          variant: "destructive",
+        });
 
-      throw error;
+        throw error;
+      }
     }
   };
 
@@ -477,12 +499,69 @@ const useCanvas = () => {
     }
   };
 
+  const fetchFolderCanvases = async () => {
+    const { data, error } = await supabase
+      .from("canvases")
+      .select("*")
+      .eq("folder_id", canvasDetails?.folder_id)
+      .neq("id", canvasDetails?.id);
+
+    if (error) {
+      toast({
+        title: "Error",
+        description: "Failed to fetch folder canvases",
+        variant: "destructive",
+      });
+    }
+
+    return { data, error };
+  };
+
+  const fetchCanvasRelations = async () => {
+    const { data, error } = await supabase
+      .from("relations")
+      .select(
+        `
+      *,
+      source_canvas:source_canvas_id (
+        id, 
+        name, 
+        columns (id, name, data_type, validation, order, key)
+      ),
+      target_canvas:target_canvas_id (
+        id, 
+        name, 
+        columns (id, name, data_type, validation, order, key)
+      )
+    `
+      )
+      .eq("source_canvas_id", canvasDetails?.id);
+
+    if (error) {
+      toast({
+        title: "Error",
+        description: "Failed to fetch relations",
+        variant: "destructive",
+      });
+    }
+
+    if (!error) {
+      setRelations(data);
+    }
+  };
+
   // flowtable functions end here
 
   // fetch canvas data
   useEffect(() => {
     fetchCanvasDetails();
-  }, [canvasId]);
+  }, [canvasId, nodes.length]);
+
+  useEffect(() => {
+    if (canvasDetails) {
+      fetchCanvasRelations();
+    }
+  }, [canvasDetails]);
 
   return {
     nodes,
@@ -521,6 +600,8 @@ const useCanvas = () => {
     // flow table
     handleNewColumnCreation,
     handleNodeCustomDataChange,
+    fetchFolderCanvases,
+    relations,
   };
 };
 

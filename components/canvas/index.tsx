@@ -34,6 +34,12 @@ const Canvas: React.FC<{}> = () => {
     handleTransform,
     onSave,
     setRfInstance,
+    canvasDetails,
+    handleNewColumnCreation,
+    handleNodeCustomDataChange,
+    onAddNode,
+    fetchFolderCanvases,
+    relations,
   } = useCanvas();
 
   return (
@@ -120,7 +126,14 @@ const Canvas: React.FC<{}> = () => {
             </div>
           </TabsContent>
           <TabsContent value="password">
-            <FlowTable />
+            <FlowTable
+              canvasDetails={canvasDetails}
+              handleNewColumnCreation={handleNewColumnCreation}
+              handleNodeCustomDataChange={handleNodeCustomDataChange}
+              onAddNode={onAddNode}
+              fetchFolderCanvases={fetchFolderCanvases}
+              relations={relations}
+            />
           </TabsContent>
         </Tabs>
       </main>

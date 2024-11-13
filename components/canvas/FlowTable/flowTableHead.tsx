@@ -1,11 +1,13 @@
-import { LoadingSpinner } from "@/components/loading-spinner";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -13,238 +15,326 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetFooter,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet";
 import { TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { useToast } from "@/hooks/use-toast";
-import { createClient } from "@/utils/supabase/client";
-import { PlusCircle, XCircle } from "lucide-react";
+import { COLUMN_TYPES } from "@/types/column-types.enum";
+import { ArrowUpDown, Eye, Plus, Search, Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
-import { COLUMN_TYPES } from "./columns";
+
+const typeTranslations = {
+  [COLUMN_TYPES.STRING]: {
+    en: "Text",
+    ar: "نص",
+    description: {
+      en: "Store text values",
+      ar: "تخزين القيم النصية",
+    },
+  },
+  [COLUMN_TYPES.NUMBER]: {
+    en: "Number",
+    ar: "رقم",
+    description: {
+      en: "Store numeric values",
+      ar: "تخزين القيم الرقمية",
+    },
+  },
+  [COLUMN_TYPES.DATE]: {
+    en: "Date",
+    ar: "تاريخ",
+    description: {
+      en: "Store date values",
+      ar: "تخزين قيم التاريخ",
+    },
+  },
+  [COLUMN_TYPES.BOOLEAN]: {
+    en: "Boolean",
+    ar: "منطقي",
+    description: {
+      en: "True/False values",
+      ar: "قيم صح/خطأ",
+    },
+  },
+  [COLUMN_TYPES.RELATION]: {
+    en: "Relation",
+    ar: "علاقة",
+    description: {
+      en: "Link to other canvas",
+      ar: "ربط مع لوحة أخرى",
+    },
+  },
+  [COLUMN_TYPES.ROLLUP]: {
+    en: "Rollup",
+    ar: "تجميع",
+    description: {
+      en: "Aggregate related data",
+      ar: "تجميع البيانات المرتبطة",
+    },
+  },
+};
 
 interface FlowTableHeaderProps {
-  customColumns: any[];
-  handleDeleteColumn: (id: string) => void;
+  columns: any[];
+  updateColumnTitle: (key: string, title: string) => void;
+  toggleColumnVisibility: (key: string) => void;
   setNewColumn: (newColumn: any) => void;
+  addNewColumn: () => void;
   newColumn: any;
-  handleAddColumn: () => void;
-  folderId: number;
-  canvasId: number;
+  fetchFolderCanvases: () => Promise<any>;
 }
 
 const FlowTableHeader = ({
-  customColumns,
-  handleDeleteColumn,
+  columns,
+  updateColumnTitle,
+  toggleColumnVisibility,
   setNewColumn,
+  addNewColumn,
   newColumn,
-  handleAddColumn,
-  folderId,
-  canvasId,
+  fetchFolderCanvases,
 }: FlowTableHeaderProps) => {
-  const [canvases, setCanvases] = useState<{ id: number; name: string }[]>([]);
-  const [columns, setColumns] = useState<any[]>([]);
+  console.log("🚀 ~ newColumn:", newColumn);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [canvases, setCanvases] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [formValid, setFormValid] = useState(false);
 
-  const supabase = createClient();
-  const { toast } = useToast();
+  const filteredCanvases = canvases.filter((option: any) =>
+    option.name.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
-  const fetchFolderCanvases = async () => {
-    setLoading(true);
-    const { error, data } = await supabase
-      .from("canvases")
-      .select("*")
-      .eq("folder_id", folderId);
-
-    if (error) {
-      return toast({
-        title: "Error",
-        description: error.message || "Failed to fetch canvases",
-        variant: "destructive",
-      });
+  const isFormValid = () => {
+    if (!newColumn.name.trim()) return false;
+    if (newColumn.validationType === COLUMN_TYPES.RELATION) {
+      return Boolean(newColumn.target_canvas_id);
     }
+    return true;
+  };
 
-    const filteredCanvases = data.filter(
-      (canvas: any) => canvas.id !== canvasId
-    );
-    setCanvases(filteredCanvases);
+  const handleRelationSelect = (relationId: number) => {
+    setNewColumn({
+      ...newColumn,
+      target_canvas_id: relationId,
+    });
+  };
+
+  const handleFolderCanvases = async () => {
+    setLoading(true);
+    const { data } = await fetchFolderCanvases();
+    setCanvases(data);
     setLoading(false);
   };
 
-  const fetchColumns = async () => {
-    if (!newColumn.relatedCanvasId) return;
-    const { data, error } = await supabase
-      .from("custom_columns")
-      .select("*")
-      .eq("canvas_id", newColumn.relatedCanvasId);
-
-    if (error) {
-      return toast({
-        title: "Error",
-        description: error.message || "Failed to fetch columns",
-        variant: "destructive",
-      });
-    }
-
-    setColumns(data);
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    handleAddColumn();
-  };
-
   useEffect(() => {
-    if (newColumn.relatedCanvasId) {
-      fetchColumns();
+    if (newColumn.validationType === COLUMN_TYPES.RELATION) {
+      handleFolderCanvases();
     }
-  }, [newColumn.relatedCanvasId]);
-
-  useEffect(() => {
-    if (newColumn.type === "relation") {
-      fetchFolderCanvases();
-    }
-  }, [newColumn.type]);
-
-  useEffect(() => {
-    setFormValid(
-      newColumn.name.trim() !== "" &&
-        newColumn.type !== "" &&
-        (newColumn.type !== "relation" ||
-          (newColumn.relatedCanvasId !== null &&
-            newColumn.relatedColumnId !== null))
-    );
-  }, [newColumn]);
+  }, [newColumn.validationType]);
 
   return (
-    <TableHeader className="bg-gray-100">
+    <TableHeader>
       <TableRow>
-        <TableHead></TableHead>
-        <TableHead>ID</TableHead>
-        <TableHead>Label</TableHead>
-        <TableHead>Shape</TableHead>
-        {/* <TableHead>Relations</TableHead> */}
+        {columns
+          .filter((column) => !column.hidden)
+          .map((column) => (
+            <TableHead key={column.key}>
+              <DropdownMenu>
+                <DropdownMenuTrigger className="flex items-center gap-2">
+                  {column.label}
+                  <ArrowUpDown className="w-4 h-4" />
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start" className="w-56">
+                  <div className="p-2">
+                    <Input
+                      defaultValue={column.label}
+                      onBlur={(e) =>
+                        updateColumnTitle(column.key, e.target.value)
+                      }
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          updateColumnTitle(column.key, e.currentTarget.value);
+                          e.currentTarget.blur();
+                        }
+                      }}
+                    />
+                  </div>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    onClick={() => toggleColumnVisibility(column.key)}
+                    className="gap-2"
+                  >
+                    <Eye className="w-4 h-4" />
 
-        <TableHead>Actions</TableHead>
-        {customColumns.map((column) => (
-          <TableHead key={column.id} className="relative">
-            {column.name}
-            <Button
-              size="sm"
-              variant="ghost"
-              className="absolute right-0 top-1/2 -translate-y-1/2"
-              onClick={() => handleDeleteColumn(column.id)}
-            >
-              <XCircle className="w-4 h-4 text-red-500" />
-            </Button>
-          </TableHead>
-        ))}
+                    <span className="mr-2 text-gray-500 text-sm">
+                      إخفاء في العرض
+                    </span>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem className="gap-2 text-red-500">
+                    <Trash2 className="w-4 h-4" />
 
+                    <span className="mr-2 text-gray-500 text-sm">
+                      حذف الخاصية
+                    </span>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </TableHead>
+          ))}
         <TableHead>
-          <Popover>
-            <PopoverTrigger asChild>
-              <Button size="sm" variant="ghost">
-                <PlusCircle className="w-4 h-4" />
+          <Sheet>
+            <SheetTrigger asChild>
+              <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                <Plus className="h-4 w-4" />
+                <span className="sr-only mt-4">إضافة عمود جديد</span>
               </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-80">
-              <div className="space-y-4">
+            </SheetTrigger>
+
+            <SheetContent className="sm:max-w-[500px]">
+              <SheetHeader className="space-y-2 mb-6">
+                <SheetTitle>
+                  <div className="flex justify-between items-center mt-4">
+                    <span className="text-gray-500">إضافة عمود جديد</span>
+                  </div>
+                </SheetTitle>
+                <SheetDescription>
+                  <div className="space-y-1">
+                    <p className="text-right text-gray-500">
+                      قم بتكوين خصائص العمود الجديد. جميع الحقول المميزة بـ *
+                      مطلوبة.
+                    </p>
+                  </div>
+                </SheetDescription>
+              </SheetHeader>
+
+              <div className="space-y-6">
                 <div className="space-y-2">
+                  <Label
+                    htmlFor="name"
+                    className="flex justify-between text-sm font-medium"
+                  >
+                    <span className="text-gray-500">اسم العمود *</span>
+                  </Label>
                   <Input
-                    placeholder="Column Name"
+                    id="name"
                     value={newColumn.name}
                     onChange={(e) =>
-                      setNewColumn((prev: any) => ({
-                        ...prev,
-                        name: e.target.value,
-                      }))
+                      setNewColumn({ ...newColumn, name: e.target.value })
                     }
-                    required
+                    placeholder="أدخل اسم العمود"
+                    className="w-full"
                   />
+                </div>
+
+                <div className="space-y-2">
+                  <Label
+                    htmlFor="validationType"
+                    className="flex justify-between text-sm font-medium"
+                  >
+                    <span className="text-gray-500">نوع العمود *</span>
+                  </Label>
                   <Select
-                    value={newColumn.type}
+                    value={newColumn.validationType}
                     onValueChange={(value) =>
-                      setNewColumn((prev: any) => ({
-                        ...prev,
-                        type: value,
-                      }))
+                      setNewColumn({
+                        ...newColumn,
+                        validationType: value as COLUMN_TYPES,
+                      })
                     }
                   >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select column type" />
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder=" اختر نوع العمود" />
                     </SelectTrigger>
                     <SelectContent>
-                      {Object.values(COLUMN_TYPES).map((type) => (
-                        <SelectItem key={type.id} value={type.id}>
-                          {type.label}
-                        </SelectItem>
-                      ))}
+                      {Object.entries(typeTranslations).map(
+                        ([type, translation]) => (
+                          <SelectItem key={type} value={type}>
+                            <div className="flex items-center justify-between gap-2">
+                              <div className="text-gray-500 text-sm text-right">
+                                <span>{translation.ar}</span>
+                                <span className="mr-1">
+                                  - {translation.description.ar}
+                                </span>
+                              </div>
+                            </div>
+                          </SelectItem>
+                        )
+                      )}
                     </SelectContent>
                   </Select>
-
-                  {newColumn.type === "relation" &&
-                    (loading ? (
-                      <LoadingSpinner />
-                    ) : (
-                      <>
-                        <Select
-                          value={newColumn.relatedCanvasId?.toString() || ""}
-                          onValueChange={(value) =>
-                            setNewColumn((prev: any) => ({
-                              ...prev,
-                              relatedCanvasId: value ? parseInt(value) : null,
-                            }))
-                          }
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select canvas to relate to" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {canvases.map((canvas) => (
-                              <SelectItem
-                                key={canvas.id}
-                                value={canvas.id.toString()}
-                              >
-                                {canvas.name}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-
-                        <Select
-                          value={newColumn.relatedColumnId?.toString() || ""}
-                          onValueChange={(value) =>
-                            setNewColumn((prev: any) => ({
-                              ...prev,
-                              relatedColumnId: value ? parseInt(value) : null,
-                            }))
-                          }
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select column to relate to" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {columns.map((column) => (
-                              <SelectItem
-                                key={column.id}
-                                value={column.id.toString()}
-                              >
-                                {column.name}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </>
-                    ))}
                 </div>
-                <Button
-                  onClick={handleSubmit}
-                  disabled={!formValid}
-                  className={`${!formValid ? "opacity-50 cursor-not-allowed" : ""}`}
-                >
-                  Add Column
-                </Button>
+
+                {newColumn.validationType === COLUMN_TYPES.RELATION && (
+                  <div className="space-y-4 border rounded-lg p-4 bg-gray-50">
+                    <div className="space-y-2">
+                      <Label className="flex justify-between text-sm font-medium">
+                        <span className="text-gray-500">
+                          اختر اللوحة للربط *
+                        </span>
+                      </Label>
+                      <div className="relative">
+                        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-500" />
+                        <Input
+                          placeholder=" البحث في اللوحات..."
+                          value={searchTerm}
+                          onChange={(e) => setSearchTerm(e.target.value)}
+                          className="pl-9"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label className="flex justify-between text-sm text-gray-500">
+                        <span>اللوحات المتاحة</span>
+                      </Label>
+                      <div className="max-h-48 overflow-y-auto border rounded-md bg-white">
+                        {loading ? (
+                          <div className="px-4 py-3 text-gray-500 text-center">
+                            جارِ التحميل...
+                          </div>
+                        ) : filteredCanvases.length > 0 ? (
+                          filteredCanvases.map((canvas: any) => (
+                            <button
+                              key={canvas.id}
+                              onClick={() =>
+                                handleRelationSelect(canvas.id, canvas.name)
+                              }
+                              className={`w-full px-4 py-3 text-left hover:bg-gray-100 transition-colors
+                                ${newColumn.target_canvas_id === canvas.id ? "bg-gray-100 font-medium" : ""}
+                                ${filteredCanvases.length === 1 ? "" : "border-b border-gray-100"}
+                              `}
+                            >
+                              {canvas.name}
+                            </button>
+                          ))
+                        ) : (
+                          <div className="px-4 py-3 text-gray-500 text-center">
+                            <p className="text-sm">
+                              لم يتم العثور على لوحة مطابقة
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
-            </PopoverContent>
-          </Popover>
+
+              <SheetFooter className="mt-6">
+                <Button
+                  onClick={addNewColumn}
+                  disabled={!isFormValid()}
+                  className="w-full"
+                >
+                  <span className="mr-2 text-sm">إضافة عمود</span>
+                </Button>
+              </SheetFooter>
+            </SheetContent>
+          </Sheet>
         </TableHead>
       </TableRow>
     </TableHeader>

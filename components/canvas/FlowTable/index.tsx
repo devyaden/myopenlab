@@ -1,54 +1,12 @@
 import { Button } from "@/components/ui/button";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
-
-import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetHeader,
-  SheetTitle,
-  SheetTrigger,
-} from "@/components/ui/sheet";
-import { Switch } from "@/components/ui/switch";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import useCanvas from "@/hooks/use-canvas";
+import { Table, TableBody, TableCell, TableRow } from "@/components/ui/table";
 import { COLUMN_TYPES } from "@/types/column-types.enum";
-import {
-  ArrowDownUp,
-  ArrowUpDown,
-  Copy,
-  Edit,
-  Eye,
-  Filter,
-  Lock,
-  Plus,
-  PlusCircle,
-  Sparkles,
-  Trash2,
-} from "lucide-react";
+import { Check, PlusCircle, X } from "lucide-react";
+import { nanoid } from "nanoid";
 import { useMemo, useState } from "react";
+import AddNodeSheet from "./add-node-sheet";
+import FlowTableHeader from "./flowTableHead";
 
 interface User {
   id: string;
@@ -66,53 +24,32 @@ interface Column {
 }
 
 const defaultColumns: Column[] = [
-  { key: "name", label: "Name", validationType: "text" },
   { key: "id", label: "ID", validationType: "text" },
+  { key: "title", label: "Title", validationType: "text" },
 ];
 
-const FlowTable = ({}) => {
-  const {
-    canvasDetails,
-    nodes,
-    handleNewColumnCreation,
-    handleNodeCustomDataChange,
-  } = useCanvas();
+interface FlowTableProps {
+  canvasDetails: any;
+  handleNewColumnCreation: (column: any) => void;
+  handleNodeCustomDataChange: (nodeId: string, data: any) => void;
+  onAddNode: (node: any) => void;
+  relations: any[];
+  fetchFolderCanvases: () => Promise<any>;
+}
+
+const FlowTable = ({
+  canvasDetails,
+  handleNewColumnCreation,
+  handleNodeCustomDataChange,
+  onAddNode,
+  relations,
+  fetchFolderCanvases,
+}: FlowTableProps) => {
+  console.log("🚀 ~ relations:", relations);
   const [formattedNodes, setFormattedNodes] = useState<any[]>([]);
-
-  const [users, setUsers] = useState<User[]>([
-    {
-      id: "001",
-      name: "John Doe",
-      email: "john.doe@email.com",
-      phone: "+1-555-123-4567",
-    },
-    {
-      id: "002",
-      name: "Jane Smith",
-      email: "jane.smith@email.com",
-      phone: "+1-555-987-6543",
-    },
-    {
-      id: "003",
-      name: "Alex Johnson",
-      email: "alex.johnson@email.com",
-      phone: "+1-555-456-7890",
-    },
-    {
-      id: "004",
-      name: "Emily Brown",
-      email: "emily.brown@email.com",
-      phone: "+1-555-234-5678",
-    },
-    {
-      id: "005",
-      name: "Michael Lee",
-      email: "michael.lee@email.com",
-      phone: "+1-555-876-5432",
-    },
-  ]);
-
   const [columns, setColumns] = useState<Column[]>(defaultColumns);
+  const [isAddingRow, setIsAddingRow] = useState(false);
+  const [newRowData, setNewRowData] = useState<{ [key: string]: string }>({});
 
   const [editingCell, setEditingCell] = useState<{
     userId: string;
@@ -122,21 +59,16 @@ const FlowTable = ({}) => {
   const [newColumn, setNewColumn] = useState<{
     name: string;
     validationType?: COLUMN_TYPES;
+    target_canvas_id?: number;
   }>({
     name: "",
     validationType: undefined,
+    target_canvas_id: undefined,
   });
 
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
 
   const handleEdit = async (nodeId: string, field: string, value: string) => {
-    console.log(
-      "🚀 ~ handleEdit ~ userId: string, field: string, value: string:",
-      nodeId,
-      field,
-      value
-    );
-    // updated formatted nodes
     const updatedNodes = formattedNodes.map((node) => {
       if (node.id === nodeId) {
         return {
@@ -155,27 +87,36 @@ const FlowTable = ({}) => {
     });
   };
 
-  const addNewUser = () => {
-    const newId = String(users.length + 1).padStart(3, "0");
-    setUsers([
-      ...users,
-      {
-        id: newId,
-        name: "New User",
-        email: "new.user@email.com",
-        phone: "+1-555-000-0000",
-      },
-    ]);
+  const addNewNode = () => {
+    setIsAddingRow(true);
+    const initialData: { [key: string]: string } = {};
+    columns.forEach((col) => {
+      if (col.key === "id") {
+        initialData[col.key] = nanoid();
+      } else {
+        initialData[col.key] = "";
+      }
+    });
+    setNewRowData(initialData);
   };
 
-  const sortColumn = (key: string, direction: "asc" | "desc") => {
-    const sorted = [...users].sort((a, b) => {
-      if (direction === "asc") {
-        return a[key] > b[key] ? 1 : -1;
-      }
-      return a[key] < b[key] ? 1 : -1;
+  const handleSaveNewRow = async () => {
+    setFormattedNodes([...formattedNodes, newRowData]);
+    setIsAddingRow(false);
+    setNewRowData({});
+
+    await onAddNode({
+      data: {
+        label: newRowData.title,
+        customData: newRowData,
+        shape: "rectangle",
+      },
     });
-    setUsers(sorted);
+  };
+
+  const handleCancelNewRow = () => {
+    setIsAddingRow(false);
+    setNewRowData({});
   };
 
   const toggleColumnVisibility = (key: string) => {
@@ -203,6 +144,7 @@ const FlowTable = ({}) => {
         data_type: newColumn.validationType,
         order: columns.length + 1,
         key,
+        target_canvas_id: newColumn.target_canvas_id,
       });
 
       setColumns([
@@ -214,8 +156,17 @@ const FlowTable = ({}) => {
         },
       ]);
 
+      setNewColumn({
+        name: "",
+        validationType: undefined,
+      });
+
       // close the sheet
     }
+  };
+
+  const deleteRow = (id: string) => {
+    // setFormattedNodes(formattedNodes.filter((node) => node.id !== id));
   };
 
   useMemo(() => {
@@ -248,255 +199,162 @@ const FlowTable = ({}) => {
         ...newColumns,
       ];
 
+      // add relation columns to the table
+      relations.forEach((relation) => {
+        const relationColumn = {
+          key: relation.target_canvas?.name,
+          label: relation.target_canvas?.name,
+          validationType: COLUMN_TYPES.RELATION,
+        };
+
+        if (!mergedColumns.some((col) => col.key === relation.key)) {
+          mergedColumns.push(relationColumn);
+        }
+      });
+
+      console.log("🚀 ~ useMemo ~ mergedColumns:", mergedColumns);
+
       setColumns(mergedColumns);
     }
-  }, [canvasDetails?.columns]);
+  }, [canvasDetails?.columns, relations]);
 
   return (
     <div className="p-4 space-y-4 bg-background text-foreground">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">Users</h1>
+      <div className="">
+        <h1 className="text-2xl font-bold">{canvasDetails?.name}</h1>
+        <p className="">{canvasDetails?.description}</p>
       </div>
-      <Table>
-        <TableHeader>
-          <TableRow>
-            {columns
-              .filter((column) => !column.hidden)
-              .map((column) => (
-                <TableHead key={column.key}>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger className="flex items-center gap-2">
-                      {column.label}
-                      <ArrowUpDown className="w-4 h-4" />
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="start" className="w-56">
-                      <div className="p-2">
+      <div className=" max-h-[450px] overflow-y-auto">
+        <Table>
+          <FlowTableHeader
+            columns={columns}
+            updateColumnTitle={updateColumnTitle}
+            toggleColumnVisibility={toggleColumnVisibility}
+            addNewColumn={addNewColumn}
+            newColumn={newColumn}
+            setNewColumn={setNewColumn}
+            fetchFolderCanvases={fetchFolderCanvases}
+          />
+          <TableBody>
+            {formattedNodes?.map((user) => (
+              <TableRow key={user.id}>
+                {columns
+                  .filter((column) => !column.hidden)
+                  .map((column, index) => (
+                    <TableCell
+                      key={column.key}
+                      className="cursor-pointer"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (index === 0) {
+                          setSelectedUser(user);
+                        } else {
+                          setEditingCell({
+                            userId: user.id,
+                            field: column.key,
+                          });
+                        }
+                      }}
+                    >
+                      {index !== 0 &&
+                      editingCell.userId === user.id &&
+                      editingCell.field === column.key ? (
                         <Input
-                          defaultValue={column.label}
-                          onBlur={(e) =>
-                            updateColumnTitle(column.key, e.target.value)
+                          autoFocus
+                          defaultValue={user[column.key]}
+                          onBlur={(e) => {
+                            handleEdit(user.id, column.key, e.target.value);
+                            setEditingCell({ userId: "", field: null });
+                          }}
+                          type={
+                            column.validationType === COLUMN_TYPES.NUMBER
+                              ? "number"
+                              : "text"
                           }
                           onKeyDown={(e) => {
                             if (e.key === "Enter") {
-                              updateColumnTitle(
+                              handleEdit(
+                                user.id,
                                 column.key,
                                 e.currentTarget.value
                               );
-                              e.currentTarget.blur();
+                              setEditingCell({ userId: "", field: null });
                             }
                           }}
                         />
-                      </div>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem className="gap-2">
-                        <Edit className="w-4 h-4" />
-                        Edit property
-                      </DropdownMenuItem>
-                      <DropdownMenuItem className="gap-2">
-                        <Sparkles className="w-4 h-4" />
-                        Set up AI autofill
-                        <span className="ml-2 text-xs bg-blue-500 text-white px-1.5 py-0.5 rounded">
-                          New
+                      ) : (
+                        <span className="block min-h-[20px]">
+                          {user[column.key]}
                         </span>
-                      </DropdownMenuItem>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem
-                        onClick={() => sortColumn(column.key, "asc")}
-                        className="gap-2"
-                      >
-                        <ArrowDownUp className="w-4 h-4" />
-                        Sort ascending
-                      </DropdownMenuItem>
-                      <DropdownMenuItem
-                        onClick={() => sortColumn(column.key, "desc")}
-                        className="gap-2"
-                      >
-                        <ArrowDownUp className="w-4 h-4 rotate-180" />
-                        Sort descending
-                      </DropdownMenuItem>
-                      <DropdownMenuItem className="gap-2">
-                        <Filter className="w-4 h-4" />
-                        Filter
-                      </DropdownMenuItem>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem
-                        onClick={() => toggleColumnVisibility(column.key)}
-                        className="gap-2"
-                      >
-                        <Eye className="w-4 h-4" />
-                        Hide in view
-                      </DropdownMenuItem>
-                      <DropdownMenuItem className="gap-2">
-                        <Lock className="w-4 h-4" />
-                        Freeze up to column
-                      </DropdownMenuItem>
-                      <DropdownMenuItem className="gap-2">
-                        <Copy className="w-4 h-4" />
-                        Duplicate property
-                      </DropdownMenuItem>
-                      <DropdownMenuItem className="gap-2 text-red-500">
-                        <Trash2 className="w-4 h-4" />
-                        Delete property
-                      </DropdownMenuItem>
-                      <DropdownMenuSeparator />
-                      <div className="flex items-center justify-between px-2 py-1.5">
-                        <span className="text-sm">Wrap column</span>
-                        <Switch />
-                      </div>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </TableHead>
-              ))}
-            <TableHead>
-              <Sheet>
-                <SheetTrigger asChild>
-                  <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-                    <Plus className="h-4 w-4" />
-                    <span className="sr-only">Add new column</span>
+                      )}
+                    </TableCell>
+                  ))}
+
+                {/* <TableCell className=" flex items-center justify-center ">
+                  <Button
+                    onClick={() => deleteRow(user.id)}
+                    variant="ghost"
+                    className="p-4 text-red-500 hover:text-red-700"
+                    aria-label="Delete Row"
+                  >
+                    <Trash2 className="w-5 h-5" />
                   </Button>
-                </SheetTrigger>
-                <SheetContent>
-                  <SheetHeader>
-                    <SheetTitle>Add New Column</SheetTitle>
-                    <SheetDescription>
-                      Enter the details for the new column.
-                    </SheetDescription>
-                  </SheetHeader>
-                  <div className="grid gap-4 py-4">
-                    <div className="grid grid-cols-4 items-center gap-4 ">
-                      <Label htmlFor="name">Name</Label>
+                </TableCell> */}
+              </TableRow>
+            ))}
+
+            {isAddingRow && (
+              <TableRow>
+                {columns.map((column) => (
+                  <TableCell key={column.key}>
+                    {column.key === "id" ? (
+                      <span>{newRowData[column.key]}</span>
+                    ) : (
                       <Input
-                        id="name"
-                        value={newColumn.name}
+                        value={newRowData[column.key]}
                         onChange={(e) =>
-                          setNewColumn({ ...newColumn, name: e.target.value })
-                        }
-                        className="col-span-3 "
-                      />
-                    </div>
-                    <div className="grid grid-cols-4 items-center gap-4">
-                      <Label htmlFor="validationType">Type</Label>
-                      <Select
-                        value={newColumn.validationType}
-                        onValueChange={(value) =>
-                          setNewColumn({
-                            ...newColumn,
-                            validationType: value as COLUMN_TYPES,
+                          setNewRowData({
+                            ...newRowData,
+                            [column.key]: e.target.value,
                           })
                         }
-                      >
-                        <SelectTrigger className="col-span-3">
-                          <SelectValue placeholder="Select a type" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value={COLUMN_TYPES.STRING}>
-                            Text
-                          </SelectItem>
-                          <SelectItem value={COLUMN_TYPES.NUMBER}>
-                            Number
-                          </SelectItem>
-                          <SelectItem value={COLUMN_TYPES.DATE}>
-                            Date
-                          </SelectItem>
-                          <SelectItem value={COLUMN_TYPES.BOOLEAN}>
-                            Boolean
-                          </SelectItem>
-                          <SelectItem value={COLUMN_TYPES.RELATION}>
-                            Relation
-                          </SelectItem>
-                          <SelectItem value={COLUMN_TYPES.ROLLUP}>
-                            Rollup
-                          </SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-                  <Button onClick={addNewColumn}>Add Column</Button>
-                </SheetContent>
-              </Sheet>
-            </TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {formattedNodes?.map((user) => (
-            <TableRow key={user.id} onClick={() => setSelectedUser(user)}>
-              {columns
-                .filter((column) => !column.hidden)
-                .map((column) => (
-                  <TableCell
-                    key={column.key}
-                    className="cursor-pointer"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setEditingCell({ userId: user.id, field: column.key });
-                    }}
-                  >
-                    {editingCell.userId === user.id &&
-                    editingCell.field === column.key ? (
-                      <Input
-                        autoFocus
-                        defaultValue={user[column.key]}
-                        onBlur={(e) => {
-                          handleEdit(user.id, column.key, e.target.value);
-                          setEditingCell({ userId: "", field: null });
-                        }}
-                        type={
-                          column.validationType === COLUMN_TYPES.NUMBER
-                            ? "number"
-                            : "text"
-                        }
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter") {
-                            handleEdit(
-                              user.id,
-                              column.key,
-                              e.currentTarget.value
-                            );
-                            setEditingCell({ userId: "", field: null });
-                          }
-                        }}
                       />
-                    ) : (
-                      <span className="block min-h-[20px]">
-                        {user[column.key]}
-                      </span>
                     )}
                   </TableCell>
                 ))}
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
-      <Button onClick={addNewUser} variant="outline" className="gap-2">
+                <TableCell className="flex gap-2 justify-center">
+                  <Button
+                    onClick={handleSaveNewRow}
+                    className="bg-green-500 hover:bg-green-600 text-white rounded p-4"
+                    aria-label="Save Row"
+                  >
+                    <Check className="w-4 h-4" />
+                  </Button>
+                  <Button
+                    onClick={handleCancelNewRow}
+                    className="bg-red-500 hover:bg-red-600 text-white rounded p-4"
+                    aria-label="Cancel Row"
+                  >
+                    <X className="w-4 h-4" />
+                  </Button>
+                </TableCell>
+              </TableRow>
+            )}
+          </TableBody>
+        </Table>
+      </div>
+
+      <Button onClick={addNewNode} variant="outline" className="gap-2">
         <PlusCircle className="w-4 h-4" />
-        New page
+        New Row
       </Button>
-      <Sheet open={!!selectedUser} onOpenChange={() => setSelectedUser(null)}>
-        <SheetContent>
-          <SheetHeader>
-            <SheetTitle>User Details</SheetTitle>
-            <SheetDescription>
-              Information about the selected user.
-            </SheetDescription>
-          </SheetHeader>
-          {selectedUser && (
-            <div className="py-4">
-              {columns.map((column) => (
-                <div key={column.key} className="mb-4">
-                  <Label htmlFor={column.key}>{column.label}</Label>
-                  <Input
-                    id={column.key}
-                    value={selectedUser[column.key]}
-                    onChange={(e) =>
-                      handleEdit(selectedUser.id, column.key, e.target.value)
-                    }
-                  />
-                </div>
-              ))}
-            </div>
-          )}
-        </SheetContent>
-      </Sheet>
+
+      <AddNodeSheet
+        selectedNode={selectedUser}
+        onClose={() => setSelectedUser(null)}
+        handleEdit={handleEdit}
+        columns={columns}
+      />
     </div>
   );
 };

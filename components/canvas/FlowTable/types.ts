@@ -48,8 +48,11 @@ export interface InitialCanvasData {
 
 export interface NodeData {
   label: string;
-  shape: "rectangle" | "circle" | "diamond";
+  shape: string;
   onLabelChange?: (label: string) => void;
+  customData?: {
+    [key: string]: any;
+  };
 }
 
 export interface NodeRelation {

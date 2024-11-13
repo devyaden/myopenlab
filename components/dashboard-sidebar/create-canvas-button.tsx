@@ -67,7 +67,7 @@ const CreateCanvasButton = ({
             name: formData.name,
             description: formData.description,
             flow_data: defaultFlowData,
-            user_id: userId,
+            // user_id: userId,
             folder_id: folderId,
           },
         ])

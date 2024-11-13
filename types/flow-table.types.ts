@@ -6,6 +6,7 @@ interface ICreateColumn {
   validation?: any;
   order: number;
   key: string;
+  target_canvas_id?: number;
 }
 
 export type { ICreateColumn };
