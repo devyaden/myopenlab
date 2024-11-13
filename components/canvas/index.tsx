@@ -41,6 +41,7 @@ const Canvas: React.FC<{}> = () => {
     fetchFolderCanvases,
     relations,
   } = useCanvas();
+  console.log("🚀 ~ relations:", relations);
 
   return (
     <>
