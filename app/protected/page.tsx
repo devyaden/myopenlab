@@ -30,7 +30,7 @@ export default function Dashboard() {
         <SidebarDashboard />
 
         <main className="flex-grow overflow-auto">
-          <div className=" p-4 sm:p-8 border-b border-gray-200 pb-8">
+          {/* <div className=" p-4 sm:p-8 border-b border-gray-200 pb-8">
             <h2 className="text-xl sm:text-3xl mb-4 sm:mb-6">فتح مستند جديد</h2>
             <div className="flex flex-col sm:flex-row space-y-4 sm:space-y-0 sm:space-x-4 sm:space-x-reverse">
               <Link
@@ -50,7 +50,7 @@ export default function Dashboard() {
                 <p className="mt-2">قوالب</p>{" "}
               </div>
             </div>
-          </div>
+          </div> */}
           <div className="pb-8">
             <h2 className="text-xl sm:text-3xl sm:mb-6 m-4 sm:m-8">
               فتح حديثًا

@@ -531,7 +531,8 @@ const useCanvas = () => {
       target_canvas:target_canvas_id (
         id, 
         name, 
-        columns (id, name, data_type, validation, order, key)
+        columns (id, name, data_type, validation, order, key),
+        nodes (id, node_id, flow_data, custom_data)
       )
     `
       )
@@ -550,6 +551,19 @@ const useCanvas = () => {
     }
   };
 
+  const handleDeleteColumn = async (columnId: number) => {
+    const { error } = await supabase
+      .from("columns")
+      .delete()
+      .eq("id", columnId);
+    if (error) {
+      toast({
+        title: "Error",
+        description: "Failed to delete column",
+        variant: "destructive",
+      });
+    }
+  };
   // flowtable functions end here
 
   // fetch canvas data
@@ -602,6 +616,7 @@ const useCanvas = () => {
     handleNodeCustomDataChange,
     fetchFolderCanvases,
     relations,
+    handleDeleteColumn,
   };
 };
 

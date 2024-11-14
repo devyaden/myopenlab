@@ -99,7 +99,6 @@ const FlowTableHeader = ({
   newColumn,
   fetchFolderCanvases,
 }: FlowTableHeaderProps) => {
-  console.log("🚀 ~ newColumn:", newColumn);
   const [searchTerm, setSearchTerm] = useState("");
   const [canvases, setCanvases] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -141,8 +140,8 @@ const FlowTableHeader = ({
       <TableRow>
         {columns
           .filter((column) => !column.hidden)
-          .map((column) => (
-            <TableHead key={column.key}>
+          .map((column, index) => (
+            <TableHead key={index.toString()}>
               <DropdownMenu>
                 <DropdownMenuTrigger className="flex items-center gap-2">
                   {column.label}

@@ -136,7 +136,7 @@ export const signInWithGoogleAction = async () => {
   const { error, data } = await supabase.auth.signInWithOAuth({
     provider: "google",
     options: {
-      redirectTo: "https://yadn-diagrams.vercel.app/auth/callback",
+      redirectTo: "http://localhost:3000/auth/callback",
     },
   });
 
