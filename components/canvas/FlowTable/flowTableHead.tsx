@@ -27,7 +27,7 @@ import {
 import { TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { COLUMN_TYPES } from "@/types/column-types.enum";
 import { ArrowUpDown, Eye, Plus, Search, Trash2 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 const typeTranslations = {
   [COLUMN_TYPES.STRING]: {
@@ -88,6 +88,8 @@ interface FlowTableHeaderProps {
   addNewColumn: () => void;
   newColumn: any;
   fetchFolderCanvases: () => Promise<any>;
+  relations: any[];
+  canvasDetails: any;
 }
 
 const FlowTableHeader = ({
@@ -98,10 +100,15 @@ const FlowTableHeader = ({
   addNewColumn,
   newColumn,
   fetchFolderCanvases,
+  relations,
+  canvasDetails,
 }: FlowTableHeaderProps) => {
   const [searchTerm, setSearchTerm] = useState("");
   const [canvases, setCanvases] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [selectedRelation, setSelectedRelation] = useState<any>(null);
+
+  const [selectedField, setSelectedField] = useState<any>(null);
 
   const filteredCanvases = canvases.filter((option: any) =>
     option.name.toLowerCase().includes(searchTerm.toLowerCase())
@@ -111,6 +118,10 @@ const FlowTableHeader = ({
     if (!newColumn.name.trim()) return false;
     if (newColumn.validationType === COLUMN_TYPES.RELATION) {
       return Boolean(newColumn.target_canvas_id);
+    }
+
+    if (newColumn.validationType === COLUMN_TYPES.ROLLUP) {
+      return Boolean(selectedRelation) && Boolean(selectedField);
     }
     return true;
   };
@@ -122,11 +133,53 @@ const FlowTableHeader = ({
     });
   };
 
+  const handleRollupRelationSelect = (relation: any) => {
+    setSelectedRelation(relation);
+    setNewColumn({
+      ...newColumn,
+      relation_id: relation.id,
+    });
+  };
+
+  const handleRollupFieldSelect = (field: any) => {
+    setSelectedField(field);
+    setNewColumn({
+      ...newColumn,
+      target_column: field?.key,
+    });
+  };
+
   const handleFolderCanvases = async () => {
     setLoading(true);
     const { data } = await fetchFolderCanvases();
     setCanvases(data);
     setLoading(false);
+  };
+
+  const canvasesWithRelations = useMemo(() => {
+    return relations?.map((relation) => ({
+      id: relation.id,
+      targetCanvas: relation?.target_canvas,
+      columns: [
+        {
+          name: "Id",
+          key: "id",
+        },
+        {
+          name: "Key",
+          key: "key",
+        },
+
+        ...relation?.target_canvas?.columns?.map?.((column: any) => ({
+          name: column?.name,
+          key: column?.key,
+        })),
+      ],
+    }));
+  }, [relations]);
+
+  const handleFormSubmission = async () => {
+    addNewColumn();
   };
 
   useEffect(() => {
@@ -228,7 +281,6 @@ const FlowTableHeader = ({
                     className="w-full"
                   />
                 </div>
-
                 <div className="space-y-2">
                   <Label
                     htmlFor="validationType"
@@ -266,7 +318,6 @@ const FlowTableHeader = ({
                     </SelectContent>
                   </Select>
                 </div>
-
                 {newColumn.validationType === COLUMN_TYPES.RELATION && (
                   <div className="space-y-4 border rounded-lg p-4 bg-gray-50">
                     <div className="space-y-2">
@@ -319,11 +370,88 @@ const FlowTableHeader = ({
                     </div>
                   </div>
                 )}
+                {newColumn.validationType === COLUMN_TYPES.ROLLUP && (
+                  <div className="space-y-4 border rounded-lg p-4 bg-gray-50">
+                    <div className="space-y-2">
+                      <Label className="flex justify-between text-sm text-gray-500">
+                        <span>Select a relation</span>
+                      </Label>
+                      <Select
+                        value={selectedRelation?.id || ""}
+                        onValueChange={(value) => {
+                          const relation = canvasesWithRelations.find(
+                            (r) => r.id === value
+                          );
+
+                          handleRollupRelationSelect(relation);
+                        }}
+                      >
+                        <SelectTrigger className="w-full bg-white">
+                          <SelectValue placeholder="Select a relation" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {canvasesWithRelations.length > 0 ? (
+                            canvasesWithRelations.map((relation: any) => (
+                              <SelectItem
+                                key={relation.id}
+                                value={relation.id}
+                                className="cursor-pointer"
+                              >
+                                {relation?.targetCanvas?.name}
+                              </SelectItem>
+                            ))
+                          ) : (
+                            <SelectItem value="none" disabled>
+                              No available relations found
+                            </SelectItem>
+                          )}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label className="flex justify-between text-sm text-gray-500">
+                        <span>Select field</span>
+                      </Label>
+                      <Select
+                        value={selectedField?.name || ""}
+                        onValueChange={(value) => {
+                          const column = selectedRelation?.columns.find(
+                            (c: any) => c.key === value
+                          );
+                          handleRollupFieldSelect(column);
+                        }}
+                        disabled={!selectedRelation}
+                      >
+                        <SelectTrigger className="w-full bg-white">
+                          <SelectValue placeholder="Select a field" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {selectedRelation ? (
+                            selectedRelation.columns.map((column: any) => (
+                              <SelectItem
+                                key={column.key}
+                                value={column.key}
+                                className="cursor-pointer"
+                              >
+                                {column.name}
+                              </SelectItem>
+                            ))
+                          ) : (
+                            <SelectItem value="none" disabled>
+                              Select a relation to select field
+                            </SelectItem>
+                          )}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                )}
               </div>
 
               <SheetFooter className="mt-6">
                 <Button
-                  onClick={addNewColumn}
+                  onClick={() => handleFormSubmission()}
                   disabled={!isFormValid()}
                   className="w-full"
                 >

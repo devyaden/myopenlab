@@ -7,6 +7,8 @@ interface ICreateColumn {
   order: number;
   key: string;
   target_canvas_id?: number;
+  relation_id?: number;
+  target_column?: string;
 }
 
 export type { ICreateColumn };

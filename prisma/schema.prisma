@@ -86,16 +86,17 @@ model Column {
 }
 
 model Rollup {
-  id               Int        @id @default(autoincrement())
+  id               Int         @id @default(autoincrement())
   name             String
   canvas_id        Int
-  canvas           Canvas     @relation(fields: [canvas_id], references: [id], onDelete: Cascade)
+  canvas           Canvas      @relation(fields: [canvas_id], references: [id], onDelete: Cascade)
   relation_id      Int
-  relation         Relation   @relation(fields: [relation_id], references: [id], onDelete: Cascade)
-  target_column_id Int
-  aggregation      RollupType
-  created_at       DateTime   @default(now())
-  updated_at       DateTime   @default(now()) @updatedAt
+  relation         Relation    @relation(fields: [relation_id], references: [id], onDelete: Cascade)
+  target_column_id Int?
+  target_column    String
+  aggregation      RollupType?
+  created_at       DateTime    @default(now())
+  updated_at       DateTime    @default(now()) @updatedAt
 
   @@index([canvas_id])
   @@index([relation_id])

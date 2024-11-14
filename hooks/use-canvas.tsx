@@ -21,6 +21,7 @@ import useCanvasParams from "./use-canvas-params";
 import { useToast } from "./use-toast";
 import { ICreateColumn } from "@/types/flow-table.types";
 import { COLUMN_TYPES } from "@/types/column-types.enum";
+import { useRouter } from "next/navigation";
 
 const useCanvas = () => {
   const [nodes, setNodes] = useState<Node<NodeData>[]>([]);
@@ -39,14 +40,15 @@ const useCanvas = () => {
   const supabase = createClient();
   const { toast } = useToast();
   const { screenToFlowPosition, setViewport, setCenter } = useReactFlow();
+  const router = useRouter();
 
   const onAddNode = useCallback(
     async (nodeData: Partial<Node<NodeData>>) => {
-      const id = nanoid();
+      const id = nodeData?.id ?? nanoid();
       const newNode: Node = {
         id,
         type: nodeData.type || "custom",
-        position: { x: 0, y: 0 },
+        position: nodeData.position ?? { x: 0, y: 0 },
         draggable: true,
         style: nodeData.style || {},
         parentId: nodeData.parentId,
@@ -73,6 +75,10 @@ const useCanvas = () => {
         },
       ]);
 
+      await onSave();
+
+      await fetchCanvasDetails();
+
       if (error) {
         toast({
           title: "Error",
@@ -80,8 +86,6 @@ const useCanvas = () => {
           variant: "destructive",
         });
       }
-
-      await onSave();
     },
     [nodes]
   );
@@ -180,11 +184,14 @@ const useCanvas = () => {
         `
     *,
     nodes (id, node_id, flow_data, custom_data),
-    columns (id, name, data_type, validation, order, key)
+    columns (id, name, data_type, validation, order, key),
+    rollups (id, name, relation_id, target_column)
   `
       )
       .eq("id", canvasId)
       .single();
+
+    console.log("🚀 ~ fetchCanvasDetails ~ data:", data);
 
     if (error) {
       toast({
@@ -192,7 +199,7 @@ const useCanvas = () => {
         description: "Failed to fetch canvas data",
         variant: "destructive",
       });
-      //   router.back();
+      router.replace("/protected");
     }
 
     if (data) {
@@ -339,6 +346,8 @@ const useCanvas = () => {
           variant: "destructive",
         });
       }
+
+      onSave();
     },
     [edges, setEdges]
   );
@@ -422,7 +431,6 @@ const useCanvas = () => {
   // flowtable functions
 
   const handleNewColumnCreation = async (newColumn: ICreateColumn) => {
-    console.log("🚀 ~ handleNewColumnCreation ~ newColumn:", newColumn);
     if (newColumn.data_type === COLUMN_TYPES.RELATION) {
       const { data, error } = await supabase
         .from("relations")
@@ -438,6 +446,27 @@ const useCanvas = () => {
         toast({
           title: "Error",
           description: error.message || "Failed to create new relation",
+          variant: "destructive",
+        });
+
+        throw error;
+      }
+    } else if (newColumn.data_type === COLUMN_TYPES.ROLLUP) {
+      const { data, error } = await supabase
+        .from("rollups")
+        .insert([
+          {
+            canvas_id: canvasDetails?.id,
+            name: newColumn.name,
+            relation_id: newColumn.relation_id,
+            target_column: newColumn.target_column,
+          },
+        ])
+        .select();
+      if (error) {
+        toast({
+          title: "Error",
+          description: error.message || "Failed to create new rollup",
           variant: "destructive",
         });
 
@@ -469,6 +498,7 @@ const useCanvas = () => {
   };
 
   const handleNodeCustomDataChange = async (nodeId: string, newData: any) => {
+    console.log("🚀 ~ handleNodeCustomDataChange ~ nodeId:", nodeId);
     const { data: existingNode, error } = await supabase
       .from("nodes")
       .select("custom_data")
@@ -478,7 +508,7 @@ const useCanvas = () => {
     if (error) {
       toast({
         title: "Error",
-        description: "Failed to update node dat",
+        description: "Failed to update node data",
         variant: "destructive",
       });
       return;
@@ -572,8 +602,8 @@ const useCanvas = () => {
 
   // fetch canvas data
   useEffect(() => {
-    fetchCanvasDetails();
-  }, [canvasId, nodes.length]);
+    if (canvasId) fetchCanvasDetails();
+  }, [canvasId]);
 
   useEffect(() => {
     if (canvasDetails) {

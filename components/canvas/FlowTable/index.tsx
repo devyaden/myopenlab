@@ -61,6 +61,8 @@ const FlowTable = ({
     name: string;
     validationType?: COLUMN_TYPES;
     target_canvas_id?: number;
+    relation_id?: number;
+    target_column?: string;
   }>({
     name: "",
     validationType: undefined,
@@ -92,9 +94,13 @@ const FlowTable = ({
     setIsAddingRow(true);
     const initialData: { [key: string]: string } = {};
     columns.forEach((col) => {
+      console.log("🚀 ~ columns.forEach ~ col:", col);
       if (col.key === "id") {
         initialData[col.key] = nanoid();
-      } else {
+      } else if (
+        col.validationType !== COLUMN_TYPES.RELATION &&
+        col.validationType !== COLUMN_TYPES.ROLLUP
+      ) {
         initialData[col.key] = "";
       }
     });
@@ -107,6 +113,7 @@ const FlowTable = ({
     setNewRowData({});
 
     await onAddNode({
+      id: newRowData.id,
       data: {
         label: newRowData.title,
         customData: newRowData,
@@ -146,6 +153,8 @@ const FlowTable = ({
         order: columns.length + 1,
         key,
         target_canvas_id: newColumn.target_canvas_id,
+        relation_id: newColumn.relation_id,
+        target_column: newColumn?.target_column,
       });
 
       setColumns([
@@ -177,7 +186,7 @@ const FlowTable = ({
 
     const columns = targetRelation?.target_canvas?.nodes?.map((node: any) => ({
       id: node.node_id,
-      title: node?.custom_data?.title,
+      title: node?.flow_data?.data?.label,
     }));
 
     return columns;
@@ -204,7 +213,7 @@ const FlowTable = ({
       }));
 
       const mergedColumns = [
-        ...columns.filter(
+        ...columns?.filter(
           (existingColumn) =>
             !newColumns.some(
               (newColumn: Column) => newColumn.key === existingColumn.key
@@ -227,9 +236,68 @@ const FlowTable = ({
         }
       });
 
+      // add rollup columns to the table
+      const rollups = canvasDetails?.rollups;
+
+      rollups?.forEach((rollup: any) => {
+        const rollupColumn = {
+          key: rollup.target_column,
+          label: rollup?.name,
+          validationType: COLUMN_TYPES.ROLLUP,
+          relationId: rollup.relationId,
+        };
+
+        if (!mergedColumns.some((col) => col.key === rollup.key)) {
+          mergedColumns.push(rollupColumn);
+        }
+      });
+
       setColumns(mergedColumns);
     }
   }, [canvasDetails?.columns, relations]);
+
+  const rollupNodeValues = useMemo(() => {
+    const rollups = canvasDetails?.rollups;
+
+    return rollups?.map((rollup: any) => {
+      const relation = relations.find(
+        (relation) => relation.id === rollup.relation_id
+      );
+
+      const targetCanvas = relation?.target_canvas;
+
+      const nodeValues = targetCanvas?.nodes?.map((node: any) => {
+        if (rollup.target_column === "id") {
+          return {
+            id: node.id,
+            value: node.id,
+          };
+        } else if (rollup.target_column === "name") {
+          return {
+            id: node.id,
+            value: node.flow_data?.data?.label,
+          };
+        } else {
+          return {
+            id: node.id,
+            value: node.custom_data[rollup.target_column],
+          };
+        }
+      });
+
+      return {
+        [rollup.target_column]: nodeValues,
+      };
+    });
+  }, [canvasDetails]);
+
+  const getRollupColumnValue = (column: Column, node: any, index: number) => {
+    const value = rollupNodeValues?.find(
+      (rollupValues: any) => rollupValues[column.key]
+    );
+
+    return value[column.key]?.[index]?.value;
+  };
 
   return (
     <div className="p-4 space-y-4 bg-background text-foreground">
@@ -247,10 +315,12 @@ const FlowTable = ({
             newColumn={newColumn}
             setNewColumn={setNewColumn}
             fetchFolderCanvases={fetchFolderCanvases}
+            relations={relations}
+            canvasDetails={canvasDetails}
           />
           <TableBody>
-            {formattedNodes?.map((user, index) => (
-              <TableRow key={index.toString()}>
+            {formattedNodes?.map((user, nodeIndex) => (
+              <TableRow key={nodeIndex.toString()}>
                 {columns
                   .filter((column) => !column.hidden)
                   .map((column, index) => (
@@ -279,6 +349,10 @@ const FlowTable = ({
                               handleEdit(user.id, column.key, value);
                             }}
                           />
+                        ) : column.validationType === COLUMN_TYPES.ROLLUP ? (
+                          <span className="block min-h-[20px]">
+                            {getRollupColumnValue(column, user, nodeIndex)}
+                          </span>
                         ) : (
                           <>
                             {index !== 0 &&
@@ -331,15 +405,18 @@ const FlowTable = ({
                     {column.key === "id" ? (
                       <span>{newRowData[column.key]}</span>
                     ) : (
-                      <Input
-                        value={newRowData[column.key]}
-                        onChange={(e) =>
-                          setNewRowData({
-                            ...newRowData,
-                            [column.key]: e.target.value,
-                          })
-                        }
-                      />
+                      column.validationType !== COLUMN_TYPES.RELATION &&
+                      column.validationType !== COLUMN_TYPES.ROLLUP && (
+                        <Input
+                          value={newRowData[column.key]}
+                          onChange={(e) =>
+                            setNewRowData({
+                              ...newRowData,
+                              [column.key]: e.target.value,
+                            })
+                          }
+                        />
+                      )
                     )}
                   </TableCell>
                 ))}

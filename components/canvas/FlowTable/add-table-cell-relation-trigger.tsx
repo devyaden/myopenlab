@@ -1,3 +1,4 @@
+import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -5,7 +6,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { File, Minus } from "lucide-react";
+import { File, Minus, Plus } from "lucide-react";
 import { useMemo } from "react";
 
 interface AddTableCellTriggerProps {
@@ -28,7 +29,7 @@ const AddTableCellTrigger = ({
   };
 
   const dropdownValues = useMemo(() => {
-    return columns.filter(
+    return columns?.filter(
       (column) => !value.some((val) => val.id === column.id)
     );
   }, [value, columns]);
@@ -36,12 +37,20 @@ const AddTableCellTrigger = ({
   return (
     <DropdownMenu>
       <DropdownMenuTrigger className="flex items-center gap-2">
-        {value?.map((val) => (
+        {value?.length ? (
+          value?.map((val) => (
+            <>
+              <File className="w-4 h-4" />
+              <p className="mr-2">{val?.title ?? "No Title"}</p>
+            </>
+          ))
+        ) : (
           <>
-            <File className="w-4 h-4" />
-            <p className="mr-2">{val?.title ?? "No Title"}</p>
+            <Button variant="ghost">
+              <Plus /> Add
+            </Button>
           </>
-        ))}
+        )}
       </DropdownMenuTrigger>
 
       <DropdownMenuContent align="start" className="w-56">
