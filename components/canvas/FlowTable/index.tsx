@@ -276,7 +276,6 @@ const FlowTable = ({
                             value={user[column.key]}
                             columns={getTargetColumns(column)}
                             onSelectValue={(value) => {
-                              console.log(value);
                               handleEdit(user.id, column.key, value);
                             }}
                           />

@@ -209,7 +209,6 @@ export const useTableState = (
 
   // Add subnode to a parent node
   const handleAddSubNode = async (parentId: string) => {
-    console.log("🚀 ~ handleAddSubNode ~ parentId:", parentId);
     if (!newSubNode.label) return;
 
     const subNode: SubNode = {
@@ -234,14 +233,6 @@ export const useTableState = (
       shape: "rectangle",
     });
 
-    // Update local formattedData state
-    // setFormattedData((prev: any) => {
-    //   const parentIndex = prev.findIndex((node: any) => node.id === parentId);
-    //   const parent = prev[parentIndex];
-    //   parent.children.push(subNode);
-    //   return [...prev];
-    // });
-
     toast({
       title: "Success",
       description: "Subnode added successfully",
@@ -252,15 +243,6 @@ export const useTableState = (
   const handleDeleteSubNode = async (nodeId: string, parentId: string) => {
     try {
       // Update local state
-      // setSubflowState((prev) => ({
-      //   ...prev,
-      //   subNodes: {
-      //     ...prev.subNodes,
-      //     [parentId]: prev.subNodes[parentId].filter(
-      //       (node) => node.id !== nodeId
-      //     ),
-      //   },
-      // }));
 
       // Remove from flow
       onDeleteNode(nodeId);
@@ -381,7 +363,6 @@ export const useTableState = (
   }, [canvasId]);
 
   useEffect(() => {
-    console.log("🚀 ~ nodes.length:", nodes.length);
     formatData();
   }, [nodes.length]);
 

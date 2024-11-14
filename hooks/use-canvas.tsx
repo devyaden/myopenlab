@@ -422,6 +422,7 @@ const useCanvas = () => {
   // flowtable functions
 
   const handleNewColumnCreation = async (newColumn: ICreateColumn) => {
+    console.log("🚀 ~ handleNewColumnCreation ~ newColumn:", newColumn);
     if (newColumn.data_type === COLUMN_TYPES.RELATION) {
       const { data, error } = await supabase
         .from("relations")
@@ -448,7 +449,10 @@ const useCanvas = () => {
         .insert([
           {
             canvas_id: canvasDetails?.id,
-            ...newColumn,
+            data_type: newColumn.data_type,
+            name: newColumn.name,
+            order: newColumn.order,
+            key: newColumn.key,
           },
         ])
         .select();
