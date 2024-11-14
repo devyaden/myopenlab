@@ -195,9 +195,9 @@ const FlowTable = ({
   useMemo(() => {
     const fNodes = canvasDetails?.nodes?.map((node: any) => {
       return {
-        id: node.node_id,
         title: node?.flow_data?.data?.label,
-        ...node.custom_data,
+        ...node.custom_data, // DONT CHANGE ORDER
+        id: node.node_id,
       };
     });
 

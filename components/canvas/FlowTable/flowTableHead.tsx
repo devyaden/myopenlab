@@ -110,7 +110,7 @@ const FlowTableHeader = ({
 
   const [selectedField, setSelectedField] = useState<any>(null);
 
-  const filteredCanvases = canvases.filter((option: any) =>
+  const filteredCanvases = canvases?.filter((option: any) =>
     option.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
 

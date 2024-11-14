@@ -495,10 +495,11 @@ const useCanvas = () => {
         throw error;
       }
     }
+
+    await fetchCanvasDetails();
   };
 
   const handleNodeCustomDataChange = async (nodeId: string, newData: any) => {
-    console.log("🚀 ~ handleNodeCustomDataChange ~ nodeId:", nodeId);
     const { data: existingNode, error } = await supabase
       .from("nodes")
       .select("custom_data")
@@ -531,6 +532,8 @@ const useCanvas = () => {
         variant: "destructive",
       });
     }
+
+    await fetchCanvasDetails();
   };
 
   const fetchFolderCanvases = async () => {
@@ -597,6 +600,8 @@ const useCanvas = () => {
         variant: "destructive",
       });
     }
+
+    fetchCanvasDetails();
   };
   // flowtable functions end here
 
