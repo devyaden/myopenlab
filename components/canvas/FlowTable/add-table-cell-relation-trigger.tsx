@@ -28,6 +28,10 @@ const AddTableCellTrigger = ({
     onSelectValue([...value, column]);
   };
 
+  const handleRemoveValue = (column: { [key: string]: string }) => {
+    onSelectValue(value.filter((val) => val.id !== column.id));
+  };
+
   const dropdownValues = useMemo(() => {
     return columns?.filter(
       (column) => !value.some((val) => val.id === column.id)
@@ -53,7 +57,7 @@ const AddTableCellTrigger = ({
         )}
       </DropdownMenuTrigger>
 
-      <DropdownMenuContent align="start" className="w-56">
+      <DropdownMenuContent align="start" className="w-64">
         <div className="p-2">
           <span className="mr-2 text-gray-500 text-sm">
             {value.length} Linked Pages
@@ -72,7 +76,9 @@ const AddTableCellTrigger = ({
               <p className="mr-2 text-gray-500 text-xs">{column?.id}</p>
             </div>
 
-            <Minus className="w-4 h-4" />
+            <Button variant="ghost" onClick={() => handleRemoveValue(column)}>
+              <Minus className="w-4 h-4" />
+            </Button>
           </DropdownMenuItem>
         ))}
 

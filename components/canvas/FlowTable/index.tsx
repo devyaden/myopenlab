@@ -48,6 +48,7 @@ const FlowTable = ({
 }: FlowTableProps) => {
   const [formattedNodes, setFormattedNodes] = useState<any[]>([]);
   const [columns, setColumns] = useState<Column[]>(defaultColumns);
+  console.log("🚀 ~ columns:", columns);
 
   const [isAddingRow, setIsAddingRow] = useState(false);
   const [newRowData, setNewRowData] = useState<{ [key: string]: string }>({});
@@ -157,14 +158,14 @@ const FlowTable = ({
         target_column: newColumn?.target_column,
       });
 
-      setColumns([
-        ...columns,
-        {
-          key,
-          label: newColumn.name,
-          validationType: newColumn.validationType,
-        },
-      ]);
+      // setColumns([
+      //   ...columns,
+      //   {
+      //     key,
+      //     label: newColumn.name,
+      //     validationType: newColumn.validationType,
+      //   },
+      // ]);
 
       setNewColumn({
         name: "",
@@ -212,47 +213,34 @@ const FlowTable = ({
         validationType: column.data_type,
       }));
 
-      const mergedColumns = [
-        ...columns?.filter(
-          (existingColumn) =>
-            !newColumns.some(
-              (newColumn: Column) => newColumn.key === existingColumn.key
-            )
-        ),
-        ...newColumns,
-      ];
+      const relationColumns = relations.map((relation) => ({
+        key: relation.target_canvas?.name,
+        label: relation.target_canvas?.name,
+        validationType: COLUMN_TYPES.RELATION,
+        relationId: relation.id,
+      }));
 
-      // add relation columns to the table
-      relations.forEach((relation) => {
-        const relationColumn = {
-          key: relation.target_canvas?.name,
-          label: relation.target_canvas?.name,
-          validationType: COLUMN_TYPES.RELATION,
-          relationId: relation.id,
-        };
-
-        if (!mergedColumns.some((col) => col.key === relation.key)) {
-          mergedColumns.push(relationColumn);
-        }
-      });
-
-      // add rollup columns to the table
-      const rollups = canvasDetails?.rollups;
-
-      rollups?.forEach((rollup: any) => {
-        const rollupColumn = {
+      const rollupColumns =
+        canvasDetails?.rollups?.map((rollup: any) => ({
           key: rollup.target_column,
           label: rollup?.name,
           validationType: COLUMN_TYPES.ROLLUP,
           relationId: rollup.relationId,
-        };
+        })) || [];
 
-        if (!mergedColumns.some((col) => col.key === rollup.key)) {
-          mergedColumns.push(rollupColumn);
-        }
-      });
+      // Combine columns and remove duplicates by key
+      const combinedColumns = [
+        ...columns,
+        ...newColumns,
+        ...relationColumns,
+        ...rollupColumns,
+      ];
 
-      setColumns(mergedColumns);
+      const uniqueColumns = Array.from(
+        new Map(combinedColumns.map((col) => [col.key, col])).values()
+      );
+
+      setColumns(uniqueColumns);
     }
   }, [canvasDetails?.columns, relations]);
 
