@@ -4,7 +4,7 @@ import { Table, TableBody, TableCell, TableRow } from "@/components/ui/table";
 import { COLUMN_TYPES } from "@/types/column-types.enum";
 import { Check, PlusCircle, X } from "lucide-react";
 import { nanoid } from "nanoid";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import AddNodeSheet from "./add-node-sheet";
 import AddTableCellTrigger from "./add-table-cell-relation-trigger";
 import FlowTableHeader from "./flowTableHead";
@@ -25,8 +25,8 @@ interface Column {
 }
 
 const defaultColumns: Column[] = [
-  { key: "id", label: "ID", validationType: "text" },
-  { key: "title", label: "Title", validationType: "text" },
+  { key: "id", label: "ID", validationType: COLUMN_TYPES.STRING },
+  { key: "title", label: "Title", validationType: COLUMN_TYPES.STRING },
 ];
 
 interface FlowTableProps {
@@ -36,6 +36,8 @@ interface FlowTableProps {
   onAddNode: (node: any) => void;
   relations: any[];
   fetchFolderCanvases: () => Promise<any>;
+  fetchCanvasDetails: () => Promise<any>;
+  handleDeleteColumn: (columnId: number) => Promise<any>;
 }
 
 const FlowTable = ({
@@ -45,10 +47,11 @@ const FlowTable = ({
   onAddNode,
   relations,
   fetchFolderCanvases,
+  fetchCanvasDetails,
+  handleDeleteColumn,
 }: FlowTableProps) => {
   const [formattedNodes, setFormattedNodes] = useState<any[]>([]);
   const [columns, setColumns] = useState<Column[]>(defaultColumns);
-  console.log("🚀 ~ columns:", columns);
 
   const [isAddingRow, setIsAddingRow] = useState(false);
   const [newRowData, setNewRowData] = useState<{ [key: string]: string }>({});
@@ -95,7 +98,6 @@ const FlowTable = ({
     setIsAddingRow(true);
     const initialData: { [key: string]: string } = {};
     columns.forEach((col) => {
-      console.log("🚀 ~ columns.forEach ~ col:", col);
       if (col.key === "id") {
         initialData[col.key] = nanoid();
       } else if (
@@ -111,16 +113,17 @@ const FlowTable = ({
   const handleSaveNewRow = async () => {
     setFormattedNodes([...formattedNodes, newRowData]);
     setIsAddingRow(false);
-    setNewRowData({});
 
     await onAddNode({
       id: newRowData.id,
+      type: "custom",
       data: {
         label: newRowData.title,
         customData: newRowData,
-        shape: "rectangle",
+        shape: "square",
       },
     });
+    setNewRowData({});
   };
 
   const handleCancelNewRow = () => {
@@ -158,15 +161,6 @@ const FlowTable = ({
         target_column: newColumn?.target_column,
       });
 
-      // setColumns([
-      //   ...columns,
-      //   {
-      //     key,
-      //     label: newColumn.name,
-      //     validationType: newColumn.validationType,
-      //   },
-      // ]);
-
       setNewColumn({
         name: "",
         validationType: undefined,
@@ -176,22 +170,23 @@ const FlowTable = ({
     }
   };
 
-  const deleteRow = (id: string) => {
-    // setFormattedNodes(formattedNodes.filter((node) => node.id !== id));
-  };
+  const getTargetColumns = useCallback(
+    (column: any) => {
+      const targetRelation = relations.find(
+        (relation) => relation.id === column.relationId
+      );
 
-  const getTargetColumns = useCallback((column: any) => {
-    const targetRelation = relations.find(
-      (relation) => relation.id === column.relationId
-    );
+      const columns = targetRelation?.target_canvas?.nodes?.map(
+        (node: any) => ({
+          id: node.node_id,
+          title: node?.flow_data?.data?.label,
+        })
+      );
 
-    const columns = targetRelation?.target_canvas?.nodes?.map((node: any) => ({
-      id: node.node_id,
-      title: node?.flow_data?.data?.label,
-    }));
-
-    return columns;
-  }, []);
+      return columns;
+    },
+    [relations]
+  );
 
   useMemo(() => {
     const fNodes = canvasDetails?.nodes?.map((node: any) => {
@@ -287,6 +282,10 @@ const FlowTable = ({
     return value[column.key]?.[index]?.value;
   };
 
+  useEffect(() => {
+    fetchCanvasDetails();
+  }, []);
+
   return (
     <div className="p-4 space-y-4 bg-background text-foreground">
       <div className="">
@@ -305,6 +304,7 @@ const FlowTable = ({
             fetchFolderCanvases={fetchFolderCanvases}
             relations={relations}
             canvasDetails={canvasDetails}
+            handleDeleteColumn={handleDeleteColumn}
           />
           <TableBody>
             {formattedNodes?.map((user, nodeIndex) => (

@@ -29,7 +29,7 @@ export const useTableState = (
 ) => {
   const [newNodeData, setNewNodeData] = useState<NewNodeData>({
     label: "",
-    shape: "rectangle",
+    shape: "square",
   });
 
   const [formattedData, setFormattedData] = useState<any>([]);
@@ -51,7 +51,7 @@ export const useTableState = (
   const [newSubNode, setNewSubNode] = useState({
     parentId: "",
     label: "",
-    shape: "rectangle",
+    shape: "square",
   });
 
   const supabase = createClient();
@@ -83,7 +83,7 @@ export const useTableState = (
 
     setNewNodeData({
       label: "",
-      shape: "rectangle",
+      shape: "square",
     });
   };
 
@@ -230,7 +230,7 @@ export const useTableState = (
     setNewSubNode({
       parentId: "",
       label: "",
-      shape: "rectangle",
+      shape: "square",
     });
 
     toast({

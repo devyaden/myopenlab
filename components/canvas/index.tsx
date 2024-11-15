@@ -40,6 +40,8 @@ const Canvas: React.FC<{}> = () => {
     onAddNode,
     fetchFolderCanvases,
     relations,
+    fetchCanvasDetails,
+    handleDeleteColumn,
   } = useCanvas();
 
   return (
@@ -95,9 +97,9 @@ const Canvas: React.FC<{}> = () => {
                       position="top-right"
                       className="w-1/6 items-center justify-center flex"
                     >
-                      <div className="w-64 bg-white p-4 rounded-lg shadow-lg">
+                      <div className="w-64 bg-white p-4 rounded-lg shadow-lg h-96">
                         <h2 className="mb-6 text-lg font-semibold">Nodes</h2>
-                        <ul className="space-y-2">
+                        <ul className="space-y-2 h-80 overflow-y-auto">
                           {nodes?.map((node) => (
                             <li
                               key={node.id}
@@ -133,6 +135,8 @@ const Canvas: React.FC<{}> = () => {
               onAddNode={onAddNode}
               fetchFolderCanvases={fetchFolderCanvases}
               relations={relations}
+              fetchCanvasDetails={fetchCanvasDetails}
+              handleDeleteColumn={handleDeleteColumn}
             />
           </TabsContent>
         </Tabs>

@@ -69,7 +69,7 @@ export const SubnodesModal: React.FC<SubnodesModalProps> = ({
                 }
                 className="border rounded px-2 py-1"
               >
-                <option value="rectangle">مستطيل</option>
+                <option value="square">مستطيل</option>
                 <option value="circle">دائرة</option>
                 <option value="diamond">معين</option>
                 <option value="group">مجموعة</option>

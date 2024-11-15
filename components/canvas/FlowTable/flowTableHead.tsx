@@ -26,7 +26,18 @@ import {
 } from "@/components/ui/sheet";
 import { TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { COLUMN_TYPES } from "@/types/column-types.enum";
-import { ArrowUpDown, Eye, Plus, Search, Trash2 } from "lucide-react";
+import {
+  BarChart,
+  Calendar,
+  CheckCircle,
+  Eye,
+  Hash,
+  Link,
+  Plus,
+  Search,
+  Text,
+  Trash2,
+} from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
 const typeTranslations = {
@@ -88,9 +99,19 @@ interface FlowTableHeaderProps {
   addNewColumn: () => void;
   newColumn: any;
   fetchFolderCanvases: () => Promise<any>;
+  handleDeleteColumn: (columnId: number) => Promise<any>;
   relations: any[];
   canvasDetails: any;
 }
+
+const typeIcons = {
+  [COLUMN_TYPES.STRING]: <Text className="w-4 h-4" />,
+  [COLUMN_TYPES.NUMBER]: <Hash className="w-4 h-4" />,
+  [COLUMN_TYPES.DATE]: <Calendar className="w-4 h-4" />,
+  [COLUMN_TYPES.BOOLEAN]: <CheckCircle className="w-4 h-4" />,
+  [COLUMN_TYPES.RELATION]: <Link className="w-4 h-4" />,
+  [COLUMN_TYPES.ROLLUP]: <BarChart className="w-4 h-4" />,
+};
 
 const FlowTableHeader = ({
   columns,
@@ -102,7 +123,10 @@ const FlowTableHeader = ({
   fetchFolderCanvases,
   relations,
   canvasDetails,
+  handleDeleteColumn,
 }: FlowTableHeaderProps) => {
+  console.log("🚀 ~ columns:", columns);
+  const [isSheetOpen, setIsSheetOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [canvases, setCanvases] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -197,27 +221,19 @@ const FlowTableHeader = ({
             <TableHead key={index.toString()}>
               <DropdownMenu>
                 <DropdownMenuTrigger className="flex items-center gap-2">
+                  {typeIcons[column.validationType as keyof typeof typeIcons] ??
+                    ""}
                   {column.label}
-                  <ArrowUpDown className="w-4 h-4" />
+                  {/* <ArrowUpDown className="w-4 h-4" /> */}
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="start" className="w-56">
                   <div className="p-2">
-                    <Input
-                      defaultValue={column.label}
-                      onBlur={(e) =>
-                        updateColumnTitle(column.key, e.target.value)
-                      }
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") {
-                          updateColumnTitle(column.key, e.currentTarget.value);
-                          e.currentTarget.blur();
-                        }
-                      }}
-                    />
+                    <span>{column.label}</span>
                   </div>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem
                     onClick={() => toggleColumnVisibility(column.key)}
+                    disabled={column.key === "id" || column.key === "title"}
                     className="gap-2"
                   >
                     <Eye className="w-4 h-4" />
@@ -226,7 +242,11 @@ const FlowTableHeader = ({
                       إخفاء في العرض
                     </span>
                   </DropdownMenuItem>
-                  <DropdownMenuItem className="gap-2 text-red-500">
+                  <DropdownMenuItem
+                    className="gap-2 text-red-500"
+                    disabled={column.key === "id" || column.key === "title"}
+                    onClick={() => handleDeleteColumn(column.id)}
+                  >
                     <Trash2 className="w-4 h-4" />
 
                     <span className="mr-2 text-gray-500 text-sm">
@@ -238,9 +258,14 @@ const FlowTableHeader = ({
             </TableHead>
           ))}
         <TableHead>
-          <Sheet>
+          <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
             <SheetTrigger asChild>
-              <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-8 w-8 p-0"
+                onClick={() => setIsSheetOpen(true)}
+              >
                 <Plus className="h-4 w-4" />
                 <span className="sr-only mt-4">إضافة عمود جديد</span>
               </Button>
@@ -451,7 +476,12 @@ const FlowTableHeader = ({
 
               <SheetFooter className="mt-6">
                 <Button
-                  onClick={() => handleFormSubmission()}
+                  onClick={() => {
+                    if (isFormValid()) {
+                      handleFormSubmission();
+                      setIsSheetOpen(false); // Close the sheet
+                    }
+                  }}
                   disabled={!isFormValid()}
                   className="w-full"
                 >
