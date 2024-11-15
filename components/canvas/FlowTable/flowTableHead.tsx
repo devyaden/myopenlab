@@ -99,7 +99,7 @@ interface FlowTableHeaderProps {
   addNewColumn: () => void;
   newColumn: any;
   fetchFolderCanvases: () => Promise<any>;
-  handleDeleteColumn: (columnId: number) => Promise<any>;
+  handleDeleteColumn: (columnId: number, type: COLUMN_TYPES) => Promise<any>;
   relations: any[];
   canvasDetails: any;
 }
@@ -245,7 +245,10 @@ const FlowTableHeader = ({
                   <DropdownMenuItem
                     className="gap-2 text-red-500"
                     disabled={column.key === "id" || column.key === "title"}
-                    onClick={() => handleDeleteColumn(column.id)}
+                    onClick={() =>
+                      // @ts-ignore
+                      handleDeleteColumn(column.columnId, column.validationType)
+                    }
                   >
                     <Trash2 className="w-4 h-4" />
 

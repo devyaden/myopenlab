@@ -622,8 +622,6 @@ const useCanvas = () => {
           variant: "destructive",
         });
       }
-
-      await fetchCanvasRelations();
     } else if (type === COLUMN_TYPES.ROLLUP) {
       const { error } = await supabase
         .from("rollups")
@@ -637,8 +635,6 @@ const useCanvas = () => {
           variant: "destructive",
         });
       }
-
-      await fetchCanvasDetails();
     } else {
       const { error } = await supabase
         .from("columns")
@@ -651,9 +647,9 @@ const useCanvas = () => {
           variant: "destructive",
         });
       }
-
-      await fetchCanvasDetails();
     }
+    await fetchCanvasRelations();
+    await fetchCanvasDetails();
   };
   // flowtable functions end here
 

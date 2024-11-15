@@ -22,6 +22,7 @@ interface Column {
   label: string;
   hidden?: boolean;
   validationType?: string;
+  columnId?: number;
 }
 
 const defaultColumns: Column[] = [
@@ -37,7 +38,7 @@ interface FlowTableProps {
   relations: any[];
   fetchFolderCanvases: () => Promise<any>;
   fetchCanvasDetails: () => Promise<any>;
-  handleDeleteColumn: (columnId: number) => Promise<any>;
+  handleDeleteColumn: (columnId: number, type: COLUMN_TYPES) => Promise<any>;
 }
 
 const FlowTable = ({
@@ -203,6 +204,7 @@ const FlowTable = ({
   useMemo(() => {
     if (canvasDetails?.columns) {
       const newColumns = canvasDetails.columns.map((column: any) => ({
+        columnId: column.id,
         key: column.key,
         label: column.name,
         validationType: column.data_type,
@@ -213,6 +215,7 @@ const FlowTable = ({
         label: relation.target_canvas?.name,
         validationType: COLUMN_TYPES.RELATION,
         relationId: relation.id,
+        columnId: relation.id,
       }));
 
       const rollupColumns =
@@ -221,6 +224,7 @@ const FlowTable = ({
           label: rollup?.name,
           validationType: COLUMN_TYPES.ROLLUP,
           relationId: rollup.relationId,
+          columnId: rollup.id,
         })) || [];
 
       // Combine columns and remove duplicates by key
@@ -237,7 +241,7 @@ const FlowTable = ({
 
       setColumns(uniqueColumns);
     }
-  }, [canvasDetails?.columns, relations]);
+  }, [canvasDetails?.columns, relations, canvasDetails?.rollups]);
 
   const rollupNodeValues = useMemo(() => {
     const rollups = canvasDetails?.rollups;
@@ -282,158 +286,170 @@ const FlowTable = ({
     return value[column.key]?.[index]?.value;
   };
 
+  const handleColumnDeletion = async (id: number, type: COLUMN_TYPES) => {
+    await handleDeleteColumn(id, type);
+
+    // update local state
+    setColumns(columns.filter((col) => col.columnId !== id));
+  };
+
   useEffect(() => {
     fetchCanvasDetails();
   }, []);
 
   return (
-    <div className="p-4 space-y-4 bg-background text-foreground">
+    <div className="p-4 space-y-4 bg-background text-foreground h-full">
       <div className="">
         <h1 className="text-2xl font-bold">{canvasDetails?.name}</h1>
         <p className="">{canvasDetails?.description}</p>
       </div>
-      <div className=" max-h-[450px] overflow-y-auto">
-        <Table>
-          <FlowTableHeader
-            columns={columns}
-            updateColumnTitle={updateColumnTitle}
-            toggleColumnVisibility={toggleColumnVisibility}
-            addNewColumn={addNewColumn}
-            newColumn={newColumn}
-            setNewColumn={setNewColumn}
-            fetchFolderCanvases={fetchFolderCanvases}
-            relations={relations}
-            canvasDetails={canvasDetails}
-            handleDeleteColumn={handleDeleteColumn}
-          />
-          <TableBody>
-            {formattedNodes?.map((user, nodeIndex) => (
-              <TableRow key={nodeIndex.toString()}>
-                {columns
-                  .filter((column) => !column.hidden)
-                  .map((column, index) => (
-                    <TableCell
-                      key={index?.toString()}
-                      className="cursor-pointer border-r"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        if (index === 0) {
-                          setSelectedUser(user);
-                        } else {
-                          setEditingCell({
-                            userId: user.id,
-                            field: column.key,
-                          });
-                        }
-                      }}
-                    >
-                      <>
-                        {column.validationType === COLUMN_TYPES.RELATION ? (
-                          <AddTableCellTrigger
-                            label="Testing"
-                            value={user[column.key]}
-                            columns={getTargetColumns(column)}
-                            onSelectValue={(value) => {
-                              handleEdit(user.id, column.key, value);
-                            }}
-                          />
-                        ) : column.validationType === COLUMN_TYPES.ROLLUP ? (
-                          <span className="block min-h-[20px]">
-                            {getRollupColumnValue(column, user, nodeIndex)}
-                          </span>
-                        ) : (
-                          <>
-                            {index !== 0 &&
-                            editingCell.userId === user.id &&
-                            editingCell.field === column.key ? (
-                              <Input
-                                autoFocus
-                                defaultValue={user[column.key]}
-                                onBlur={(e) => {
-                                  handleEdit(
-                                    user.id,
-                                    column.key,
-                                    e.target.value
-                                  );
-                                  setEditingCell({ userId: "", field: null });
-                                }}
-                                type={
-                                  column.validationType === COLUMN_TYPES.NUMBER
-                                    ? "number"
-                                    : "text"
-                                }
-                                onKeyDown={(e) => {
-                                  if (e.key === "Enter") {
+      <div className="flex flex-col h-[74vh]">
+        <div className="overflow-y-auto">
+          <Table>
+            <FlowTableHeader
+              columns={columns}
+              updateColumnTitle={updateColumnTitle}
+              toggleColumnVisibility={toggleColumnVisibility}
+              addNewColumn={addNewColumn}
+              newColumn={newColumn}
+              setNewColumn={setNewColumn}
+              fetchFolderCanvases={fetchFolderCanvases}
+              relations={relations}
+              canvasDetails={canvasDetails}
+              handleDeleteColumn={handleColumnDeletion}
+            />
+            <TableBody>
+              {formattedNodes?.map((user, nodeIndex) => (
+                <TableRow key={nodeIndex.toString()}>
+                  {columns
+                    .filter((column) => !column.hidden)
+                    .map((column, index) => (
+                      <TableCell
+                        key={index?.toString()}
+                        className="cursor-pointer border-r"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (index === 0) {
+                            setSelectedUser(user);
+                          } else {
+                            setEditingCell({
+                              userId: user.id,
+                              field: column.key,
+                            });
+                          }
+                        }}
+                      >
+                        <>
+                          {column.validationType === COLUMN_TYPES.RELATION ? (
+                            <AddTableCellTrigger
+                              label="Testing"
+                              value={user[column.key]}
+                              columns={getTargetColumns(column)}
+                              onSelectValue={(value) => {
+                                handleEdit(user.id, column.key, value);
+                              }}
+                            />
+                          ) : column.validationType === COLUMN_TYPES.ROLLUP ? (
+                            <span className="block min-h-[20px]">
+                              {getRollupColumnValue(column, user, nodeIndex)}
+                            </span>
+                          ) : (
+                            <>
+                              {index !== 0 &&
+                              editingCell.userId === user.id &&
+                              editingCell.field === column.key ? (
+                                <Input
+                                  autoFocus
+                                  defaultValue={user[column.key]}
+                                  onBlur={(e) => {
                                     handleEdit(
                                       user.id,
                                       column.key,
-                                      e.currentTarget.value
+                                      e.target.value
                                     );
                                     setEditingCell({ userId: "", field: null });
+                                  }}
+                                  type={
+                                    column.validationType ===
+                                    COLUMN_TYPES.NUMBER
+                                      ? "number"
+                                      : "text"
                                   }
-                                }}
-                              />
-                            ) : (
-                              <span className="block min-h-[20px]">
-                                {user[column.key]}
-                              </span>
-                            )}
-                          </>
-                        )}
-                      </>
+                                  onKeyDown={(e) => {
+                                    if (e.key === "Enter") {
+                                      handleEdit(
+                                        user.id,
+                                        column.key,
+                                        e.currentTarget.value
+                                      );
+                                      setEditingCell({
+                                        userId: "",
+                                        field: null,
+                                      });
+                                    }
+                                  }}
+                                />
+                              ) : (
+                                <span className="block min-h-[20px]">
+                                  {user[column.key]}
+                                </span>
+                              )}
+                            </>
+                          )}
+                        </>
+                      </TableCell>
+                    ))}
+                </TableRow>
+              ))}
+
+              {isAddingRow && (
+                <TableRow>
+                  {columns.map((column, index) => (
+                    <TableCell key={index?.toString()}>
+                      {column.key === "id" ? (
+                        <span>{newRowData[column.key]}</span>
+                      ) : (
+                        column.validationType !== COLUMN_TYPES.RELATION &&
+                        column.validationType !== COLUMN_TYPES.ROLLUP && (
+                          <Input
+                            value={newRowData[column.key]}
+                            onChange={(e) =>
+                              setNewRowData({
+                                ...newRowData,
+                                [column.key]: e.target.value,
+                              })
+                            }
+                          />
+                        )
+                      )}
                     </TableCell>
                   ))}
-              </TableRow>
-            ))}
-
-            {isAddingRow && (
-              <TableRow>
-                {columns.map((column, index) => (
-                  <TableCell key={index?.toString()}>
-                    {column.key === "id" ? (
-                      <span>{newRowData[column.key]}</span>
-                    ) : (
-                      column.validationType !== COLUMN_TYPES.RELATION &&
-                      column.validationType !== COLUMN_TYPES.ROLLUP && (
-                        <Input
-                          value={newRowData[column.key]}
-                          onChange={(e) =>
-                            setNewRowData({
-                              ...newRowData,
-                              [column.key]: e.target.value,
-                            })
-                          }
-                        />
-                      )
-                    )}
+                  <TableCell className="flex gap-2 justify-center">
+                    <Button
+                      onClick={handleSaveNewRow}
+                      className="bg-green-500 hover:bg-green-600 text-white rounded p-4"
+                      aria-label="Save Row"
+                    >
+                      <Check className="w-4 h-4" />
+                    </Button>
+                    <Button
+                      onClick={handleCancelNewRow}
+                      className="bg-red-500 hover:bg-red-600 text-white rounded p-4"
+                      aria-label="Cancel Row"
+                    >
+                      <X className="w-4 h-4" />
+                    </Button>
                   </TableCell>
-                ))}
-                <TableCell className="flex gap-2 justify-center">
-                  <Button
-                    onClick={handleSaveNewRow}
-                    className="bg-green-500 hover:bg-green-600 text-white rounded p-4"
-                    aria-label="Save Row"
-                  >
-                    <Check className="w-4 h-4" />
-                  </Button>
-                  <Button
-                    onClick={handleCancelNewRow}
-                    className="bg-red-500 hover:bg-red-600 text-white rounded p-4"
-                    aria-label="Cancel Row"
-                  >
-                    <X className="w-4 h-4" />
-                  </Button>
-                </TableCell>
-              </TableRow>
-            )}
-          </TableBody>
-        </Table>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+        </div>
+        <Button onClick={addNewNode} variant="outline" className="gap-2">
+          <PlusCircle className="w-4 h-4" />
+          New Row
+        </Button>
       </div>
-
-      <Button onClick={addNewNode} variant="outline" className="gap-2">
-        <PlusCircle className="w-4 h-4" />
-        New Row
-      </Button>
 
       <AddNodeSheet
         selectedNode={selectedUser}
