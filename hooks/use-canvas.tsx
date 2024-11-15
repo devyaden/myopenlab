@@ -205,7 +205,7 @@ const useCanvas = () => {
       setNodes(
         data.nodes?.map((node: any) => {
           const nodeFromFlowData = data.flow_data?.nodes?.find(
-            (nd) => nd.id === node.node_id
+            (nd: any) => nd.id === node.node_id
           );
 
           return {
