@@ -11,6 +11,7 @@ const categories = {
     "task",
   ],
   "Group Shapes": ["group"],
+  "Text Shapes": ["text"],
 };
 
 const borderStyles = [
@@ -53,6 +54,21 @@ const ShapeSidebar = () => {
   };
 
   const renderShape = (shape: string) => {
+    if (shape === "text") {
+      return (
+        <div
+          key={shape}
+          className="flex items-center justify-center cursor-move"
+          onDragStart={(event) => onDragStart(event, shape)}
+          draggable
+        >
+          <div className="w-8 h-8 border-2 border-dashed border-gray-500 flex items-center justify-center">
+            <span className="text-xs">T</span>
+          </div>
+        </div>
+      );
+    }
+
     if (shape === "group") {
       return (
         <div

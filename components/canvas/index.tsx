@@ -13,14 +13,17 @@ import "reactflow/dist/style.css";
 import { Button } from "../ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
 import FlowTable from "./FlowTable";
-import ShapeSidebar from "./Sidebar";
 import CustomNode from "./shapes/CustomNode";
 import GroupNode from "./shapes/GroupNode";
 import HelperLines from "./shapes/HelperLines";
+import TextNode from "./shapes/TextNode";
+import ShapeSidebar from "./Sidebar";
+import NodesSidebar from "./Sidebar/NodesSidebar";
 
 const nodeTypes = {
   custom: CustomNode,
   group: GroupNode,
+  text: TextNode,
 };
 
 const Canvas: React.FC<{}> = () => {
@@ -112,32 +115,12 @@ const Canvas: React.FC<{}> = () => {
 
                     <Panel
                       position="top-right"
-                      className="w-1/6 items-center justify-center flex"
+                      className="flex items-center justify-center max-w-64 h-5/6"
                     >
-                      <div className="w-64 bg-white p-4 rounded-lg shadow-lg h-96">
-                        <h2 className="mb-6 text-lg font-semibold">Nodes</h2>
-                        <ul className="space-y-2 h-80 overflow-y-auto">
-                          {nodes?.map((node) => (
-                            <li
-                              key={node.id}
-                              className="bg-white p-2 rounded shadow cursor-pointer"
-                              onClick={() =>
-                                handleTransform(
-                                  node.position.x,
-                                  node.position.y
-                                )
-                              }
-                            >
-                              <h3 className="font-semibold">
-                                {node.data.label}
-                              </h3>
-                              <p className="text-sm text-gray-600">
-                                ID: {node.id}
-                              </p>
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
+                      <NodesSidebar
+                        nodes={nodes}
+                        handleTransform={handleTransform}
+                      />
                     </Panel>
                   </ReactFlow>
                 </div>

@@ -86,6 +86,8 @@ const useCanvas = () => {
 
       setNodes((prevNodes) => [...prevNodes, newNode]);
 
+      if (nodeData.type === "text") return; // Don't save text nodes to the database
+
       const { error, data } = await supabase.from("nodes").insert([
         {
           canvas_id: canvasDetails?.id,
@@ -222,15 +224,28 @@ const useCanvas = () => {
     if (data) {
       setCanvasTitle(data.name);
 
-      setNodes(
-        data.nodes?.map((node: any) => {
-          const nodeFromFlowData = data.flow_data?.nodes?.find(
-            (nd: any) => nd.id === node.node_id
+      console.log(
+        data.flow_data?.nodes?.map((node: any) => {
+          const nodeFromFlowData = data?.nodes?.find(
+            (nd: any) => nd.node_id === node.id
           );
 
           return {
-            ...node.flow_data,
-            ...nodeFromFlowData,
+            ...node,
+            ...nodeFromFlowData?.flow_data,
+          };
+        })
+      );
+
+      setNodes(
+        data.flow_data?.nodes?.map((node: any) => {
+          const nodeFromFlowData = data?.nodes?.find(
+            (nd: any) => nd.node_id === node.id
+          );
+
+          return {
+            ...node,
+            ...nodeFromFlowData?.flow_data,
           };
         })
       );
@@ -370,7 +385,10 @@ const useCanvas = () => {
 
         const newNode: Node = {
           id,
-          type: shapeType === "group" ? "group" : "custom",
+          type:
+            shapeType === "group" || shapeType === "text"
+              ? shapeType
+              : "custom",
           position,
           draggable: true,
           data: {
