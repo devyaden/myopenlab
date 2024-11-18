@@ -75,6 +75,7 @@ const CustomNode = memo(
         style={{
           width: dimensions.width,
           height: dimensions.height,
+          zIndex: 99999,
         }}
       >
         <div style={{ touchAction: "none", position: "relative" }}>

@@ -48,6 +48,9 @@ const Canvas: React.FC<{}> = () => {
     handleDeleteColumn,
     helperLineHorizontal,
     helperLineVertical,
+    onNodeDrag,
+    onNodeDragStart,
+    onNodeDragStop,
   } = useCanvas();
 
   return (
@@ -79,6 +82,10 @@ const Canvas: React.FC<{}> = () => {
                     snapToGrid
                     snapGrid={[15, 15]}
                     fitView
+                    onNodeDrag={onNodeDrag}
+                    // @ts-ignore
+                    onDragStart={onNodeDragStart}
+                    onNodeDragStop={onNodeDragStop}
                     defaultEdgeOptions={{
                       type: "smoothstep",
                       markerEnd: { type: MarkerType.ArrowClosed },
@@ -86,8 +93,6 @@ const Canvas: React.FC<{}> = () => {
                     proOptions={{ hideAttribution: true }}
                     deleteKeyCode={["Backspace", "Delete"]}
                     onInit={setRfInstance}
-                    elevateEdgesOnSelect
-                    elevateNodesOnSelect
                   >
                     <Background variant={BackgroundVariant.Dots} />
                     <Controls />

@@ -5,9 +5,11 @@ interface GroupNodeData {
   label?: string;
   backgroundColor?: string;
   borderColor?: string;
-  children?: string[]; // Array of child node IDs
+
+  parentId?: string; // ID of the parent node
 
   onLabelChange?: (newLabel: string) => void;
+  className?: string;
 }
 
 interface GroupNodeProps {
@@ -23,35 +25,31 @@ const GroupNode = memo(({ data, selected }: GroupNodeProps) => {
     (_: any, { width, height }: { width: number; height: number }) => {
       setDimensions({ width, height });
 
-      // Adjust child nodes when group is resized
-      //   if (data.children) {
-      //     const childNodes = reactFlow
-      //       .getNodes()
-      //       .filter((node) => data.children?.includes(node.id));
+      const childNodes = reactFlow
+        .getNodes()
+        .filter((node) => data.parentId === node.id);
 
-      //     const updatedNodes = childNodes.map((childNode) => {
-      //       // Ensure child nodes stay within group bounds
-      //       const childPosition = {
-      //         x: Math.max(0, Math.min(childNode.position.x, width - 100)),
-      //         y: Math.max(0, Math.min(childNode.position.y, height - 100)),
-      //       };
+      const updatedNodes = childNodes.map((childNode) => {
+        const childPosition = {
+          x: Math.max(0, Math.min(childNode.position.x, width - 100)),
+          y: Math.max(0, Math.min(childNode.position.y, height - 100)),
+        };
 
-      //       return {
-      //         ...childNode,
-      //         parentNode: childNode.parentNode,
-      //         position: childPosition,
-      //       };
-      //     });
+        return {
+          ...childNode,
+          parentId: childNode.parentId,
+          position: childPosition,
+        };
+      });
 
-      //     reactFlow.setNodes((nodes) =>
-      //       nodes.map(
-      //         (node) =>
-      //           updatedNodes.find((updated) => updated.id === node.id) || node
-      //       )
-      //     );
-      //   }
+      reactFlow.setNodes((nodes) =>
+        nodes.map(
+          (node) =>
+            updatedNodes.find((updated) => updated.id === node.id) || node
+        )
+      );
     },
-    [data.children, reactFlow]
+    [reactFlow]
   );
 
   return (
@@ -60,6 +58,7 @@ const GroupNode = memo(({ data, selected }: GroupNodeProps) => {
         width: dimensions.width,
         height: dimensions.height,
       }}
+      // className={className}
     >
       {selected && (
         <NodeResizer

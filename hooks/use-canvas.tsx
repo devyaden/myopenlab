@@ -4,11 +4,21 @@ import {
 } from "@/components/canvas/FlowTable/types";
 import { COLUMN_TYPES } from "@/types/column-types.enum";
 import { ICreateColumn } from "@/types/flow-table.types";
-import { getHelperLines } from "@/utils/canvas.utils";
+import {
+  findAbsolutePosition,
+  getHelperLines,
+  sortNodes,
+} from "@/utils/canvas.utils";
 import { createClient } from "@/utils/supabase/client";
 import { nanoid } from "nanoid";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  DragEventHandler,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 import {
   addEdge,
   applyEdgeChanges,
@@ -33,6 +43,8 @@ const useCanvas = () => {
   const [canvasTitle, setCanvasTitle] = useState<string>("My Canvas");
   const [isEditing, setIsEditing] = useState(false);
   const [relations, setRelations] = useState<any[]>([]);
+  const connectingNodeId = useRef<string | null>(null);
+  const [intersectingNode, setIntersectingNode] = useState<Node | any>(null);
   const [helperLineHorizontal, setHelperLineHorizontal] = useState<
     number | undefined
   >(undefined);
@@ -42,12 +54,12 @@ const useCanvas = () => {
 
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
 
+  const router = useRouter();
   const { canvasId } = useCanvasParams();
-
   const supabase = createClient();
   const { toast } = useToast();
-  const { screenToFlowPosition, setViewport, setCenter } = useReactFlow();
-  const router = useRouter();
+  const { screenToFlowPosition, setViewport, setCenter, getIntersectingNodes } =
+    useReactFlow();
 
   const onAddNode = useCallback(
     async (nodeData: Partial<Node<NodeData>>) => {
@@ -373,6 +385,59 @@ const useCanvas = () => {
     [nodes, setNodes]
   );
 
+  const onNodeDrag = useCallback((event: any, node: Node) => {
+    connectingNodeId.current = node.id;
+
+    const intersectingNodes = getIntersectingNodes(node, false);
+    setIntersectingNode(intersectingNodes[intersectingNodes.length - 1]);
+  }, []);
+
+  const onNodeDragStop = (evt: any, node: Node) => {
+    const connectingNodeIdCurrent = connectingNodeId?.current;
+    const children = nodes.filter((n) => n.parentId === node.id);
+    let sortedNodes: Node[];
+    if (children.length == 0) {
+      sortedNodes = [...nodes].sort((a, b) => {
+        if (a.id === node.id) return 1;
+        if (b.id === node.id) return -1;
+        return 0;
+      });
+    } else {
+      sortedNodes = sortNodes(node, nodes);
+    }
+    setNodes(sortedNodes);
+
+    setNodes((nodes: Node[]) =>
+      nodes.map((n) => {
+        if (n.id === connectingNodeIdCurrent) {
+          const absolutePosition = findAbsolutePosition(n, nodes);
+
+          if (!intersectingNode) {
+            return {
+              ...n,
+              parentId: "",
+              position: absolutePosition,
+            };
+          } else if (n.id !== intersectingNode.id) {
+            const targetAbsolutePosition = findAbsolutePosition(
+              intersectingNode,
+              nodes
+            );
+            return {
+              ...n,
+              parentId: intersectingNode.id,
+              position: {
+                x: absolutePosition.x - targetAbsolutePosition.x,
+                y: absolutePosition.y - targetAbsolutePosition.y,
+              },
+            };
+          }
+        }
+        return n;
+      })
+    );
+  };
+
   const onNodesDelete = useCallback(
     async (deleted: Node[]) => {
       const newEdges = edges.filter(
@@ -384,6 +449,18 @@ const useCanvas = () => {
       setEdges(newEdges);
 
       const deletedIds = deleted.map((deletedNode) => deletedNode.id);
+
+      const newNodes = nodes.map((node) => {
+        if (deletedIds.includes(node.parentId as string)) {
+          return {
+            ...node,
+            parentId: null,
+          };
+        }
+        return node;
+      });
+
+      setNodes(newNodes as Node[]);
 
       // delete from db
       const { data, error } = await supabase
@@ -399,7 +476,7 @@ const useCanvas = () => {
         });
       }
 
-      // onSave();
+      onSave();
     },
     [edges, setEdges]
   );
@@ -483,6 +560,28 @@ const useCanvas = () => {
     },
     [setViewport]
   );
+
+  const onNodeDragStart = (
+    evt: React.DragEvent<HTMLDivElement>,
+    node: Node
+  ) => {
+    connectingNodeId.current = node?.id;
+
+    if (!node) return;
+    setNodes((nodes) =>
+      nodes.map((n) => {
+        if (n.id === node?.id) {
+          const absolutePosition = findAbsolutePosition(n, nodes);
+          return {
+            ...n,
+            parentId: "",
+            position: absolutePosition,
+          };
+        }
+        return n;
+      })
+    );
+  };
 
   // canvas handling functions end here
 
@@ -747,6 +846,9 @@ const useCanvas = () => {
     handleDeleteColumn,
     helperLineHorizontal,
     helperLineVertical,
+    onNodeDrag,
+    onNodeDragStart,
+    onNodeDragStop,
   };
 };
 
