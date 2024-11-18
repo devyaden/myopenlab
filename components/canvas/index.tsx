@@ -15,9 +15,12 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
 import FlowTable from "./FlowTable";
 import ShapeSidebar from "./Sidebar";
 import CustomNode from "./shapes/CustomNode";
+import GroupNode from "./shapes/GroupNode";
+import HelperLines from "./shapes/HelperLines";
 
 const nodeTypes = {
   custom: CustomNode,
+  group: GroupNode,
 };
 
 const Canvas: React.FC<{}> = () => {
@@ -25,6 +28,7 @@ const Canvas: React.FC<{}> = () => {
     nodes,
     edges,
     onNodesChange,
+    setNodes,
     onEdgesChange,
     reactFlowWrapper,
     onDragOver,
@@ -42,6 +46,8 @@ const Canvas: React.FC<{}> = () => {
     relations,
     fetchCanvasDetails,
     handleDeleteColumn,
+    helperLineHorizontal,
+    helperLineVertical,
   } = useCanvas();
 
   return (
@@ -80,9 +86,15 @@ const Canvas: React.FC<{}> = () => {
                     proOptions={{ hideAttribution: true }}
                     deleteKeyCode={["Backspace", "Delete"]}
                     onInit={setRfInstance}
+                    elevateEdgesOnSelect
+                    elevateNodesOnSelect
                   >
                     <Background variant={BackgroundVariant.Dots} />
                     <Controls />
+                    <HelperLines
+                      horizontal={helperLineHorizontal}
+                      vertical={helperLineVertical}
+                    />
 
                     <Panel position="top-left" className="w-1/6">
                       <ShapeSidebar />

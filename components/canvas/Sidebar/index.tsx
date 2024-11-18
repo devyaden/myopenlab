@@ -10,6 +10,7 @@ const categories = {
     "parallelogram",
     "task",
   ],
+  "Group Shapes": ["group"],
 };
 
 const borderStyles = [
@@ -52,6 +53,21 @@ const ShapeSidebar = () => {
   };
 
   const renderShape = (shape: string) => {
+    if (shape === "group") {
+      return (
+        <div
+          key={shape}
+          className="flex items-center justify-center cursor-move"
+          onDragStart={(event) => onDragStart(event, shape)}
+          draggable
+        >
+          <div className="w-8 h-8 border-2 border-dashed border-gray-500 flex items-center justify-center">
+            <span className="text-xs">G</span>
+          </div>
+        </div>
+      );
+    }
+
     const ShapeComponent = ShapeComponents[shape];
     if (!ShapeComponent) return null;
 

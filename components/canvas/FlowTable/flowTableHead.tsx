@@ -125,7 +125,6 @@ const FlowTableHeader = ({
   canvasDetails,
   handleDeleteColumn,
 }: FlowTableHeaderProps) => {
-  console.log("🚀 ~ columns:", columns);
   const [isSheetOpen, setIsSheetOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [canvases, setCanvases] = useState([]);
