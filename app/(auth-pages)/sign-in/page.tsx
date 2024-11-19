@@ -55,7 +55,10 @@ export default function Login({ searchParams }: { searchParams: Message }) {
 
             <Button
               className="bg-black hover:bg-gray-800 text-white font-bold py-3 px-4 focus:outline-none focus:shadow-outline w-full mb-2"
-              onClick={() => signInWithGoogleAction()}
+              onClick={(e) => {
+                e.preventDefault();
+                signInWithGoogleAction();
+              }}
             >
               <div className="h-4 w-4 ml-2">
                 <svg role="img" viewBox="0 0 24 24">
