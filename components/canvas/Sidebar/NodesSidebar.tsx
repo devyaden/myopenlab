@@ -11,7 +11,7 @@ const NodesSidebar: React.FC<SidebarProps> = ({ nodes, handleTransform }) => {
 
   return (
     <>
-      <div className="bg-gradient-to-br from-gray-50 to-gray-200 px-2 py-5 rounded-xl shadow-lg h-full w-full overflow-hidden min-w-80">
+      <div className="bg-gradient-to-br from-gray-50 to-gray-200 px-2 py-5 rounded-xl shadow-lg h-full w-full overflow-hidden max-w-64">
         <h2 className="mb-4 text-xl font-bold text-gray-800">Nodes</h2>
         <ul className="space-y-3 overflow-y-auto h-full w-full">
           {nodesWithoutText?.map((node) => (

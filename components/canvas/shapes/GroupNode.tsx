@@ -1,29 +1,32 @@
 import { memo, useCallback, useState } from "react";
-import { NodeResizer, useReactFlow } from "reactflow";
+import { NodeProps, NodeResizer, useReactFlow } from "reactflow";
 
-interface GroupNodeData {
-  label?: string;
-  backgroundColor?: string;
-  borderColor?: string;
-
-  parentId?: string; // ID of the parent node
-
-  onLabelChange?: (newLabel: string) => void;
-  className?: string;
-}
-
-interface GroupNodeProps {
-  data: GroupNodeData;
-  selected?: boolean;
-}
-
-const GroupNode = memo(({ data, selected }: GroupNodeProps) => {
-  const [dimensions, setDimensions] = useState({ width: 300, height: 250 });
+const GroupNode = memo(({ data, selected, id }: NodeProps) => {
+  const style = data.style;
+  const [dimensions, setDimensions] = useState({
+    width: style?.height ?? 200,
+    height: style?.width ?? 300,
+  });
   const reactFlow = useReactFlow();
 
   const onResize = useCallback(
     (_: any, { width, height }: { width: number; height: number }) => {
       setDimensions({ width, height });
+
+      reactFlow.setNodes((nodes) =>
+        nodes.map((node) =>
+          node.id === id
+            ? {
+                ...node,
+                style: { ...node.style, width, height },
+              }
+            : node
+        )
+      );
+
+      if (data.onNodeResize) {
+        data.onNodeResize({ width, height });
+      }
 
       const childNodes = reactFlow
         .getNodes()

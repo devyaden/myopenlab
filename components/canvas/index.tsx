@@ -1,7 +1,7 @@
 "use client";
 
 import useCanvas from "@/hooks/use-canvas";
-import React from "react";
+import React, { useCallback } from "react";
 import ReactFlow, {
   Background,
   BackgroundVariant,
@@ -56,10 +56,24 @@ const Canvas: React.FC<{}> = () => {
     onNodeDragStop,
   } = useCanvas();
 
+  const handleTabChange = useCallback(
+    async (value: string) => {
+      if (value === "password") {
+        // Save before switching to table view
+        await onSave();
+      }
+    },
+    [onSave]
+  );
+
   return (
     <>
       <main className="flex-1 overflow-hidden">
-        <Tabs defaultValue="account" className="h-full">
+        <Tabs
+          defaultValue="account"
+          className="h-full"
+          onValueChange={handleTabChange}
+        >
           <div className="border-b px-4">
             <TabsList>
               <TabsTrigger value="account">Canvas</TabsTrigger>

@@ -12,13 +12,7 @@ import {
 import { createClient } from "@/utils/supabase/client";
 import { nanoid } from "nanoid";
 import { useRouter } from "next/navigation";
-import {
-  DragEventHandler,
-  useCallback,
-  useEffect,
-  useRef,
-  useState,
-} from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   addEdge,
   applyEdgeChanges,
@@ -80,6 +74,13 @@ const useCanvas = () => {
             handleNodeDataChange(id, {
               label: newLabel,
             }),
+
+          onNodeResize: (dimensions: { height: number; width: number }) => {
+            handleNodeResizing(id, dimensions);
+          },
+
+          style: {},
+
           ...nodeData.data,
         },
       };
@@ -113,6 +114,7 @@ const useCanvas = () => {
 
   const handleNodeDataChange = useCallback(
     async (nodeId: string, newData: Partial<NodeData>) => {
+      console.log("🚀 ~ nodeId:", nodeId);
       let effectedNode = null;
 
       setNodes((prevNodes) =>
@@ -224,28 +226,15 @@ const useCanvas = () => {
     if (data) {
       setCanvasTitle(data.name);
 
-      console.log(
-        data.flow_data?.nodes?.map((node: any) => {
-          const nodeFromFlowData = data?.nodes?.find(
-            (nd: any) => nd.node_id === node.id
-          );
-
-          return {
-            ...node,
-            ...nodeFromFlowData?.flow_data,
-          };
-        })
-      );
-
       setNodes(
-        data.flow_data?.nodes?.map((node: any) => {
-          const nodeFromFlowData = data?.nodes?.find(
-            (nd: any) => nd.node_id === node.id
+        data?.nodes?.map((node: any) => {
+          const nodeFromFlowData = data?.flow_data?.nodes?.find(
+            (nd: any) => nd.id === node.node_id
           );
 
           return {
-            ...node,
-            ...nodeFromFlowData?.flow_data,
+            ...node?.flow_data,
+            ...nodeFromFlowData,
           };
         })
       );
@@ -263,7 +252,6 @@ const useCanvas = () => {
         flow_data: data,
       })
       .eq("id", canvasId);
-    console.log("🚀 ~ handleFlowDataChange ~ updatedCanvas:", updatedCanvas);
 
     if (error) {
       toast({
@@ -364,6 +352,18 @@ const useCanvas = () => {
     event.dataTransfer.dropEffect = "move";
   }, []);
 
+  // testing
+  const findGroupNodeAtPosition = (position: { x: number; y: number }) => {
+    return nodes.find(
+      (node) =>
+        node.type === "group" &&
+        position.x >= node.position.x &&
+        position.x <= node.position.x + node.width &&
+        position.y >= node.position.y &&
+        position.y <= node.position.y + node.height
+    );
+  };
+
   const onDrop = useCallback(
     async (event: React.DragEvent) => {
       event.preventDefault();
@@ -396,6 +396,12 @@ const useCanvas = () => {
             label: `New ${shapeType}`,
           },
         };
+
+        const parentNode = findGroupNodeAtPosition(position);
+        console.log("🚀 ~ parentNode:", parentNode);
+        if (parentNode) {
+          newNode.parentId = parentNode.id;
+        }
 
         await onAddNode(newNode);
       }
@@ -560,11 +566,13 @@ const useCanvas = () => {
     if (rfInstance) {
       let flow = rfInstance?.toObject();
 
-      flow = {
-        nodes,
-        edges,
-        ...flow,
-      };
+      // flow = {
+      //   nodes,
+      //   edges,
+      //   ...flow,
+      // };
+
+      // updated nodes flow data
 
       if (Boolean(flow?.nodes?.length)) await handleFlowDataChange(flow);
 
@@ -811,9 +819,31 @@ const useCanvas = () => {
     await fetchCanvasRelations();
     await fetchCanvasDetails();
   };
-  // flowtable functions end here
 
-  // fetch canvas data
+  const handleNodeResizing = useCallback(
+    (nodeId: string, newSize: { width: number; height: number }) => {
+      setNodes((prevNodes: Node[]) =>
+        prevNodes.map((node) =>
+          node.id === nodeId
+            ? {
+                ...node,
+
+                data: {
+                  ...node.data,
+                  style: {
+                    ...node?.data.style,
+                    width: newSize.width,
+                    height: newSize.height,
+                  },
+                },
+              }
+            : node
+        )
+      );
+    },
+    []
+  );
+
   useEffect(() => {
     if (canvasId) {
       fetchCanvasDetails();
@@ -867,6 +897,7 @@ const useCanvas = () => {
     onNodeDrag,
     onNodeDragStart,
     onNodeDragStop,
+    handleNodeResizing,
   };
 };
 

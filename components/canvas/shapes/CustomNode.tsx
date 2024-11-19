@@ -68,6 +68,9 @@ const CustomNode = memo(
       height: "8px",
       background: "#fff",
       backgroundColor: "#1a192b",
+
+      // only viible on hover and selected
+      opacity: selected ? 1 : 0,
     };
 
     return (
@@ -78,7 +81,12 @@ const CustomNode = memo(
           zIndex: 99999,
         }}
       >
-        <div style={{ touchAction: "none", position: "relative" }}>
+        <div
+          style={{
+            touchAction: "none",
+            position: "relative",
+          }}
+        >
           {selected && (
             <NodeResizer
               isVisible={selected}
@@ -158,7 +166,9 @@ const CustomNode = memo(
             width="100%"
             height="100%"
             viewBox={`0 0 ${dimensions.width} ${dimensions.height}`}
-            style={{ cursor: "move" }}
+            style={{
+              cursor: "move",
+            }}
           >
             <g
               fill={backgroundColor}
@@ -179,7 +189,7 @@ const CustomNode = memo(
             </g>
           </svg>
 
-          <div
+          {/* <div
             style={{
               position: "absolute",
               top: "50%",
@@ -215,7 +225,7 @@ const CustomNode = memo(
                 {labelText || "Double click to edit"}
               </span>
             )}
-          </div>
+          </div> */}
         </div>
       </div>
     );

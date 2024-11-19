@@ -4,7 +4,7 @@ import {
   Italic as ItalicIcon,
   Underline as UnderlineIcon,
 } from "lucide-react";
-import React, { memo, useCallback, useMemo } from "react";
+import React, { memo, useCallback, useEffect, useMemo, useRef } from "react";
 import { NodeToolbar, useReactFlow } from "reactflow";
 import { BaseEditor, createEditor, Descendant, Editor } from "slate";
 import { withHistory } from "slate-history";
@@ -105,6 +105,8 @@ const ToolbarButton = ({
 
 const TextNode = memo(({ data, selected }: TextNodeProps) => {
   const reactFlow = useReactFlow();
+  const editableRef = useRef<HTMLDivElement>(null);
+  console.log("🚀 ~ TextNode ~ editableRef:", editableRef?.current);
 
   const editor = useMemo(
     () => withHistory(withReact(createEditor() as ReactEditor)),
@@ -140,7 +142,7 @@ const TextNode = memo(({ data, selected }: TextNodeProps) => {
 
     //
 
-    [reactFlow]
+    [reactFlow, selected]
   );
 
   const toggleMark = useCallback(
@@ -167,6 +169,29 @@ const TextNode = memo(({ data, selected }: TextNodeProps) => {
     // @ts-ignore
     return marks ? marks[mark] === true : false;
   };
+
+  const handleNodeClick = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (editableRef.current) {
+      editableRef.current.focus();
+    }
+  }, []);
+
+  useEffect(() => {
+    if (selected && editableRef.current) {
+      const timeoutId = setTimeout(() => {
+        editableRef.current?.focus();
+      }, 0);
+      return () => clearTimeout(timeoutId);
+    }
+  }, [selected]);
+
+  useEffect(() => {
+    if (data.content) {
+      editor.children = data.content;
+      editor.onChange();
+    }
+  }, [data.content, editor]);
 
   return (
     <>
@@ -214,6 +239,7 @@ const TextNode = memo(({ data, selected }: TextNodeProps) => {
         style={{
           border: selected ? "2px solid #0041d0" : "2px solid transparent",
         }}
+        onClick={handleNodeClick}
       >
         <Slate
           editor={editor}
@@ -221,10 +247,12 @@ const TextNode = memo(({ data, selected }: TextNodeProps) => {
           onChange={handleChange}
         >
           <Editable
+            ref={editableRef}
             renderElement={(props) => <CustomElement {...props} />}
             renderLeaf={(props) => <CustomLeaf {...props} />}
             placeholder="Enter your text..."
             className="outline-none"
+            autoFocus={selected}
           />
         </Slate>
       </div>
