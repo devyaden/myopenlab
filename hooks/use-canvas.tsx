@@ -355,7 +355,7 @@ const useCanvas = () => {
   // testing
   const findGroupNodeAtPosition = (position: { x: number; y: number }) => {
     return nodes.find(
-      (node) =>
+      (node: any) =>
         node.type === "group" &&
         position.x >= node.position.x &&
         position.x <= node.position.x + node.width &&
