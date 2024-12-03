@@ -189,7 +189,7 @@ const CustomNode = memo(
             </g>
           </svg>
 
-          {/* <div
+          <div
             style={{
               position: "absolute",
               top: "50%",
@@ -225,7 +225,7 @@ const CustomNode = memo(
                 {labelText || "Double click to edit"}
               </span>
             )}
-          </div> */}
+          </div>
         </div>
       </div>
     );
