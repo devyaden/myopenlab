@@ -8,6 +8,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import AddNodeSheet from "./add-node-sheet";
 import AddTableCellTrigger from "./add-table-cell-relation-trigger";
 import FlowTableHeader from "./flowTableHead";
+import { Node } from "reactflow";
 
 interface User {
   id: string;
@@ -195,8 +196,14 @@ const FlowTable = ({
         title: node?.flow_data?.data?.label,
         ...node.custom_data, // DONT CHANGE ORDER
         id: node.node_id,
+        type: node.type,
       };
     });
+
+    console.log("🚀 ~ fNodes ~ fNodes:", fNodes);
+    // fetch group nodes and add nodes having parentId of the grou node as its children
+    const groupNodes = fNodes.filter((node: Node) => node.type === "group");
+    console.log("🚀 ~ useMemo ~ groupNodes:", groupNodes);
 
     setFormattedNodes(fNodes);
   }, [canvasDetails?.nodes]);
