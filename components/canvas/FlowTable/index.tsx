@@ -2,13 +2,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableRow } from "@/components/ui/table";
 import { COLUMN_TYPES } from "@/types/column-types.enum";
-import { Check, PlusCircle, X } from "lucide-react";
+import { Check, ChevronDown, ChevronRight, PlusCircle, X } from "lucide-react";
 import { nanoid } from "nanoid";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
 import AddNodeSheet from "./add-node-sheet";
 import AddTableCellTrigger from "./add-table-cell-relation-trigger";
 import FlowTableHeader from "./flowTableHead";
 import { Node } from "reactflow";
+import SubTable from "./Subtable";
 
 interface User {
   id: string;
@@ -24,6 +25,10 @@ interface Column {
   hidden?: boolean;
   validationType?: string;
   columnId?: number;
+}
+
+interface ExpandedRows {
+  [key: string]: boolean;
 }
 
 const defaultColumns: Column[] = [
@@ -53,10 +58,13 @@ const FlowTable = ({
   handleDeleteColumn,
 }: FlowTableProps) => {
   const [formattedNodes, setFormattedNodes] = useState<any[]>([]);
+  console.log("🚀 ~ formattedNodes:", formattedNodes);
   const [columns, setColumns] = useState<Column[]>(defaultColumns);
-
   const [isAddingRow, setIsAddingRow] = useState(false);
   const [newRowData, setNewRowData] = useState<{ [key: string]: string }>({});
+  const [expandedRows, setExpandedRows] = useState<{ [key: string]: boolean }>(
+    {}
+  );
 
   const [editingCell, setEditingCell] = useState<{
     userId: string;
@@ -191,21 +199,41 @@ const FlowTable = ({
   );
 
   useMemo(() => {
-    const fNodes = canvasDetails?.nodes?.map((node: any) => {
+    const groupNodes = canvasDetails?.nodes
+      ?.filter((node: any) => node.flow_data?.type === "group")
+      .map((node: any) => {
+        return {
+          title: node?.flow_data?.data?.label,
+          ...node.custom_data, // DONT CHANGE ORDER
+          id: node.node_id,
+        };
+      });
+
+    const groupNodesWithChildren = groupNodes.map((groupNode: Node) => {
+      const children = canvasDetails?.flow_data?.nodes?.filter(
+        (node: Node) => node.parentId === groupNode.id
+      );
+
+      const childrenFromNodes = children?.map((node: any) => {
+        const nodeCustomData = canvasDetails?.nodes?.find(
+          (n: any) => n.node_id === node.node_id
+        )?.custom_data;
+
+        return {
+          title: node?.data?.label,
+          ...nodeCustomData, // DONT CHANGE ORDER
+          id: node.id,
+          type: node?.type,
+        };
+      });
+
       return {
-        title: node?.flow_data?.data?.label,
-        ...node.custom_data, // DONT CHANGE ORDER
-        id: node.node_id,
-        type: node.type,
+        ...groupNode,
+        children: childrenFromNodes,
       };
     });
 
-    console.log("🚀 ~ fNodes ~ fNodes:", fNodes);
-    // fetch group nodes and add nodes having parentId of the grou node as its children
-    const groupNodes = fNodes.filter((node: Node) => node.type === "group");
-    console.log("🚀 ~ useMemo ~ groupNodes:", groupNodes);
-
-    setFormattedNodes(fNodes);
+    setFormattedNodes(groupNodesWithChildren);
   }, [canvasDetails?.nodes]);
 
   useMemo(() => {
@@ -300,6 +328,13 @@ const FlowTable = ({
     setColumns(columns.filter((col) => col.columnId !== id));
   };
 
+  const toggleRowExpansion = (userId: string) => {
+    setExpandedRows((prev: ExpandedRows) => ({
+      ...prev,
+      [userId]: !prev[userId],
+    }));
+  };
+
   useEffect(() => {
     fetchCanvasDetails();
   }, []);
@@ -327,86 +362,129 @@ const FlowTable = ({
             />
             <TableBody>
               {formattedNodes?.map((user, nodeIndex) => (
-                <TableRow key={nodeIndex.toString()}>
-                  {columns
-                    .filter((column) => !column.hidden)
-                    .map((column, index) => (
-                      <TableCell
-                        key={index?.toString()}
-                        className="cursor-pointer border-r"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          if (index === 0) {
-                            setSelectedUser(user);
-                          } else {
-                            setEditingCell({
-                              userId: user.id,
-                              field: column.key,
-                            });
-                          }
-                        }}
-                      >
-                        <>
-                          {column.validationType === COLUMN_TYPES.RELATION ? (
-                            <AddTableCellTrigger
-                              label="Testing"
-                              value={user[column.key]}
-                              columns={getTargetColumns(column)}
-                              onSelectValue={(value) => {
-                                handleEdit(user.id, column.key, value);
-                              }}
-                            />
-                          ) : column.validationType === COLUMN_TYPES.ROLLUP ? (
-                            <span className="block min-h-[20px]">
-                              {getRollupColumnValue(column, user, nodeIndex)}
-                            </span>
-                          ) : (
-                            <>
-                              {index !== 0 &&
-                              editingCell.userId === user.id &&
-                              editingCell.field === column.key ? (
-                                <Input
-                                  autoFocus
-                                  defaultValue={user[column.key]}
-                                  onBlur={(e) => {
-                                    handleEdit(
-                                      user.id,
-                                      column.key,
-                                      e.target.value
-                                    );
-                                    setEditingCell({ userId: "", field: null });
-                                  }}
-                                  type={
-                                    column.validationType ===
-                                    COLUMN_TYPES.NUMBER
-                                      ? "number"
-                                      : "text"
-                                  }
-                                  onKeyDown={(e) => {
-                                    if (e.key === "Enter") {
+                <Fragment key={nodeIndex.toString()}>
+                  <TableRow key={nodeIndex.toString()}>
+                    <TableCell
+                      className="w-[50px] cursor-pointer"
+                      onClick={() => toggleRowExpansion(user.id)}
+                    >
+                      {expandedRows[user.id] ? (
+                        <ChevronDown />
+                      ) : (
+                        <ChevronRight />
+                      )}
+                    </TableCell>
+
+                    {columns
+                      .filter((column) => !column.hidden)
+                      .map((column, index) => (
+                        <TableCell
+                          key={index?.toString()}
+                          className="cursor-pointer border-r"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (index === 0) {
+                              setSelectedUser(user);
+                            } else {
+                              setEditingCell({
+                                userId: user.id,
+                                field: column.key,
+                              });
+                            }
+                          }}
+                        >
+                          <>
+                            {column.validationType === COLUMN_TYPES.RELATION ? (
+                              <AddTableCellTrigger
+                                label="Testing"
+                                value={user[column.key]}
+                                columns={getTargetColumns(column)}
+                                onSelectValue={(value) => {
+                                  handleEdit(user.id, column.key, value);
+                                }}
+                              />
+                            ) : column.validationType ===
+                              COLUMN_TYPES.ROLLUP ? (
+                              <span className="block min-h-[20px]">
+                                {getRollupColumnValue(column, user, nodeIndex)}
+                              </span>
+                            ) : (
+                              <>
+                                {index !== 0 &&
+                                editingCell.userId === user.id &&
+                                editingCell.field === column.key ? (
+                                  <Input
+                                    autoFocus
+                                    defaultValue={user[column.key]}
+                                    onBlur={(e) => {
                                       handleEdit(
                                         user.id,
                                         column.key,
-                                        e.currentTarget.value
+                                        e.target.value
                                       );
                                       setEditingCell({
                                         userId: "",
                                         field: null,
                                       });
+                                    }}
+                                    type={
+                                      column.validationType ===
+                                      COLUMN_TYPES.NUMBER
+                                        ? "number"
+                                        : "text"
                                     }
-                                  }}
-                                />
-                              ) : (
-                                <span className="block min-h-[20px]">
-                                  {user[column.key]}
-                                </span>
-                              )}
-                            </>
-                          )}
-                        </>
+                                    onKeyDown={(e) => {
+                                      if (e.key === "Enter") {
+                                        handleEdit(
+                                          user.id,
+                                          column.key,
+                                          e.currentTarget.value
+                                        );
+                                        setEditingCell({
+                                          userId: "",
+                                          field: null,
+                                        });
+                                      }
+                                    }}
+                                  />
+                                ) : (
+                                  <span className="block min-h-[20px]">
+                                    {user[column.key]}
+                                  </span>
+                                )}
+                              </>
+                            )}
+                          </>
+                        </TableCell>
+                      ))}
+                  </TableRow>
+
+                  {expandedRows[user.id] && (
+                    <TableRow>
+                      <TableCell colSpan={columns.length + 1}>
+                        <SubTable
+                          data={user?.children}
+                          columns={columns}
+                          updateColumnTitle={updateColumnTitle}
+                          toggleColumnVisibility={toggleColumnVisibility}
+                          addNewColumn={addNewColumn}
+                          newColumn={newColumn}
+                          setNewColumn={setNewColumn}
+                          fetchFolderCanvases={fetchFolderCanvases}
+                          relations={relations}
+                          canvasDetails={canvasDetails}
+                          handleDeleteColumn={handleColumnDeletion}
+                          handleEdit={handleEdit}
+                          setEditingCell={setEditingCell}
+                          getTargetColumns={getTargetColumns}
+                          getRollupColumnValue={getRollupColumnValue}
+                          editingCell={editingCell}
+                          setSelectedUser={setSelectedUser}
+                        />
                       </TableCell>
-                    ))}
-                </TableRow>
+                    </TableRow>
+                  )}
+                </Fragment>
               ))}
 
               {isAddingRow && (

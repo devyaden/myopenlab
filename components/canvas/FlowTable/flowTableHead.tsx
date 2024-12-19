@@ -102,6 +102,7 @@ interface FlowTableHeaderProps {
   handleDeleteColumn: (columnId: number, type: COLUMN_TYPES) => Promise<any>;
   relations: any[];
   canvasDetails: any;
+  isSubHeader?: boolean;
 }
 
 const typeIcons = {
@@ -124,6 +125,7 @@ const FlowTableHeader = ({
   relations,
   canvasDetails,
   handleDeleteColumn,
+  isSubHeader,
 }: FlowTableHeaderProps) => {
   const [isSheetOpen, setIsSheetOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
@@ -214,6 +216,7 @@ const FlowTableHeader = ({
   return (
     <TableHeader>
       <TableRow>
+        <TableHead></TableHead>
         {columns
           .filter((column) => !column.hidden)
           .map((column, index) => (
@@ -260,238 +263,240 @@ const FlowTableHeader = ({
             </TableHead>
           ))}
         <TableHead>
-          <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
-            <SheetTrigger asChild>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-8 w-8 p-0"
-                onClick={() => setIsSheetOpen(true)}
-              >
-                <Plus className="h-4 w-4" />
-                <span className="sr-only mt-4">إضافة عمود جديد</span>
-              </Button>
-            </SheetTrigger>
+          {Boolean(!isSubHeader) && (
+            <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
+              <SheetTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 w-8 p-0"
+                  onClick={() => setIsSheetOpen(true)}
+                >
+                  <Plus className="h-4 w-4" />
+                  <span className="sr-only mt-4">إضافة عمود جديد</span>
+                </Button>
+              </SheetTrigger>
 
-            <SheetContent className="sm:max-w-[500px]">
-              <SheetHeader className="space-y-2 mb-6">
-                <SheetTitle>
-                  <div className="flex justify-between items-center mt-4">
-                    <span className="text-gray-500">إضافة عمود جديد</span>
-                  </div>
-                </SheetTitle>
-                <SheetDescription>
-                  <div className="space-y-1">
-                    <p className="text-right text-gray-500">
-                      قم بتكوين خصائص العمود الجديد. جميع الحقول المميزة بـ *
-                      مطلوبة.
-                    </p>
-                  </div>
-                </SheetDescription>
-              </SheetHeader>
-
-              <div className="space-y-6">
-                <div className="space-y-2">
-                  <Label
-                    htmlFor="name"
-                    className="flex justify-between text-sm font-medium"
-                  >
-                    <span className="text-gray-500">اسم العمود *</span>
-                  </Label>
-                  <Input
-                    id="name"
-                    value={newColumn.name}
-                    onChange={(e) =>
-                      setNewColumn({ ...newColumn, name: e.target.value })
-                    }
-                    placeholder="أدخل اسم العمود"
-                    className="w-full"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label
-                    htmlFor="validationType"
-                    className="flex justify-between text-sm font-medium"
-                  >
-                    <span className="text-gray-500">نوع العمود *</span>
-                  </Label>
-                  <Select
-                    value={newColumn.validationType}
-                    onValueChange={(value) =>
-                      setNewColumn({
-                        ...newColumn,
-                        validationType: value as COLUMN_TYPES,
-                      })
-                    }
-                  >
-                    <SelectTrigger className="w-full">
-                      <SelectValue placeholder=" اختر نوع العمود" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {Object.entries(typeTranslations).map(
-                        ([type, translation]) => (
-                          <SelectItem key={type} value={type}>
-                            <div className="flex items-center justify-between gap-2">
-                              <div className="text-gray-500 text-sm text-right">
-                                <span>{translation.ar}</span>
-                                <span className="mr-1">
-                                  - {translation.description.ar}
-                                </span>
-                              </div>
-                            </div>
-                          </SelectItem>
-                        )
-                      )}
-                    </SelectContent>
-                  </Select>
-                </div>
-                {newColumn.validationType === COLUMN_TYPES.RELATION && (
-                  <div className="space-y-4 border rounded-lg p-4 bg-gray-50">
-                    <div className="space-y-2">
-                      <Label className="flex justify-between text-sm font-medium">
-                        <span className="text-gray-500">
-                          اختر اللوحة للربط *
-                        </span>
-                      </Label>
-                      <div className="relative">
-                        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-500" />
-                        <Input
-                          placeholder=" البحث في اللوحات..."
-                          value={searchTerm}
-                          onChange={(e) => setSearchTerm(e.target.value)}
-                          className="pl-9"
-                        />
-                      </div>
+              <SheetContent className="sm:max-w-[500px]">
+                <SheetHeader className="space-y-2 mb-6">
+                  <SheetTitle>
+                    <div className="flex justify-between items-center mt-4">
+                      <span className="text-gray-500">إضافة عمود جديد</span>
                     </div>
+                  </SheetTitle>
+                  <SheetDescription>
+                    <div className="space-y-1">
+                      <p className="text-right text-gray-500">
+                        قم بتكوين خصائص العمود الجديد. جميع الحقول المميزة بـ *
+                        مطلوبة.
+                      </p>
+                    </div>
+                  </SheetDescription>
+                </SheetHeader>
 
-                    <div className="space-y-2">
-                      <Label className="flex justify-between text-sm text-gray-500">
-                        <span>اللوحات المتاحة</span>
-                      </Label>
-                      <div className="max-h-48 overflow-y-auto border rounded-md bg-white">
-                        {loading ? (
-                          <div className="px-4 py-3 text-gray-500 text-center">
-                            جارِ التحميل...
-                          </div>
-                        ) : filteredCanvases.length > 0 ? (
-                          filteredCanvases.map((canvas: any) => (
-                            <button
-                              key={canvas.id}
-                              onClick={() => handleRelationSelect(canvas.id)}
-                              className={`w-full px-4 py-3 text-left hover:bg-gray-100 transition-colors
+                <div className="space-y-6">
+                  <div className="space-y-2">
+                    <Label
+                      htmlFor="name"
+                      className="flex justify-between text-sm font-medium"
+                    >
+                      <span className="text-gray-500">اسم العمود *</span>
+                    </Label>
+                    <Input
+                      id="name"
+                      value={newColumn.name}
+                      onChange={(e) =>
+                        setNewColumn({ ...newColumn, name: e.target.value })
+                      }
+                      placeholder="أدخل اسم العمود"
+                      className="w-full"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label
+                      htmlFor="validationType"
+                      className="flex justify-between text-sm font-medium"
+                    >
+                      <span className="text-gray-500">نوع العمود *</span>
+                    </Label>
+                    <Select
+                      value={newColumn.validationType}
+                      onValueChange={(value) =>
+                        setNewColumn({
+                          ...newColumn,
+                          validationType: value as COLUMN_TYPES,
+                        })
+                      }
+                    >
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder=" اختر نوع العمود" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {Object.entries(typeTranslations).map(
+                          ([type, translation]) => (
+                            <SelectItem key={type} value={type}>
+                              <div className="flex items-center justify-between gap-2">
+                                <div className="text-gray-500 text-sm text-right">
+                                  <span>{translation.ar}</span>
+                                  <span className="mr-1">
+                                    - {translation.description.ar}
+                                  </span>
+                                </div>
+                              </div>
+                            </SelectItem>
+                          )
+                        )}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  {newColumn.validationType === COLUMN_TYPES.RELATION && (
+                    <div className="space-y-4 border rounded-lg p-4 bg-gray-50">
+                      <div className="space-y-2">
+                        <Label className="flex justify-between text-sm font-medium">
+                          <span className="text-gray-500">
+                            اختر اللوحة للربط *
+                          </span>
+                        </Label>
+                        <div className="relative">
+                          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-500" />
+                          <Input
+                            placeholder=" البحث في اللوحات..."
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                            className="pl-9"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label className="flex justify-between text-sm text-gray-500">
+                          <span>اللوحات المتاحة</span>
+                        </Label>
+                        <div className="max-h-48 overflow-y-auto border rounded-md bg-white">
+                          {loading ? (
+                            <div className="px-4 py-3 text-gray-500 text-center">
+                              جارِ التحميل...
+                            </div>
+                          ) : filteredCanvases.length > 0 ? (
+                            filteredCanvases.map((canvas: any) => (
+                              <button
+                                key={canvas.id}
+                                onClick={() => handleRelationSelect(canvas.id)}
+                                className={`w-full px-4 py-3 text-left hover:bg-gray-100 transition-colors
                                 ${newColumn.target_canvas_id === canvas.id ? "bg-gray-100 font-medium" : ""}
                                 ${filteredCanvases.length === 1 ? "" : "border-b border-gray-100"}
                               `}
-                            >
-                              {canvas.name}
-                            </button>
-                          ))
-                        ) : (
-                          <div className="px-4 py-3 text-gray-500 text-center">
-                            <p className="text-sm">
-                              لم يتم العثور على لوحة مطابقة
-                            </p>
-                          </div>
-                        )}
+                              >
+                                {canvas.name}
+                              </button>
+                            ))
+                          ) : (
+                            <div className="px-4 py-3 text-gray-500 text-center">
+                              <p className="text-sm">
+                                لم يتم العثور على لوحة مطابقة
+                              </p>
+                            </div>
+                          )}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                )}
-                {newColumn.validationType === COLUMN_TYPES.ROLLUP && (
-                  <div className="space-y-4 border rounded-lg p-4 bg-gray-50">
-                    <div className="space-y-2">
-                      <Label className="flex justify-between text-sm text-gray-500">
-                        <span>Select a relation</span>
-                      </Label>
-                      <Select
-                        value={selectedRelation?.id || ""}
-                        onValueChange={(value) => {
-                          const relation = canvasesWithRelations.find(
-                            (r) => r.id === value
-                          );
+                  )}
+                  {newColumn.validationType === COLUMN_TYPES.ROLLUP && (
+                    <div className="space-y-4 border rounded-lg p-4 bg-gray-50">
+                      <div className="space-y-2">
+                        <Label className="flex justify-between text-sm text-gray-500">
+                          <span>Select a relation</span>
+                        </Label>
+                        <Select
+                          value={selectedRelation?.id || ""}
+                          onValueChange={(value) => {
+                            const relation = canvasesWithRelations.find(
+                              (r) => r.id === value
+                            );
 
-                          handleRollupRelationSelect(relation);
-                        }}
-                      >
-                        <SelectTrigger className="w-full bg-white">
-                          <SelectValue placeholder="Select a relation" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {canvasesWithRelations.length > 0 ? (
-                            canvasesWithRelations.map((relation: any) => (
-                              <SelectItem
-                                key={relation.id}
-                                value={relation.id}
-                                className="cursor-pointer"
-                              >
-                                {relation?.targetCanvas?.name}
+                            handleRollupRelationSelect(relation);
+                          }}
+                        >
+                          <SelectTrigger className="w-full bg-white">
+                            <SelectValue placeholder="Select a relation" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {canvasesWithRelations.length > 0 ? (
+                              canvasesWithRelations.map((relation: any) => (
+                                <SelectItem
+                                  key={relation.id}
+                                  value={relation.id}
+                                  className="cursor-pointer"
+                                >
+                                  {relation?.targetCanvas?.name}
+                                </SelectItem>
+                              ))
+                            ) : (
+                              <SelectItem value="none" disabled>
+                                No available relations found
                               </SelectItem>
-                            ))
-                          ) : (
-                            <SelectItem value="none" disabled>
-                              No available relations found
-                            </SelectItem>
-                          )}
-                        </SelectContent>
-                      </Select>
-                    </div>
+                            )}
+                          </SelectContent>
+                        </Select>
+                      </div>
 
-                    <div className="space-y-2">
-                      <Label className="flex justify-between text-sm text-gray-500">
-                        <span>Select field</span>
-                      </Label>
-                      <Select
-                        value={selectedField?.name || ""}
-                        onValueChange={(value) => {
-                          const column = selectedRelation?.columns.find(
-                            (c: any) => c.key === value
-                          );
-                          handleRollupFieldSelect(column);
-                        }}
-                        disabled={!selectedRelation}
-                      >
-                        <SelectTrigger className="w-full bg-white">
-                          <SelectValue placeholder="Select a field" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {selectedRelation ? (
-                            selectedRelation.columns.map((column: any) => (
-                              <SelectItem
-                                key={column.key}
-                                value={column.key}
-                                className="cursor-pointer"
-                              >
-                                {column.name}
+                      <div className="space-y-2">
+                        <Label className="flex justify-between text-sm text-gray-500">
+                          <span>Select field</span>
+                        </Label>
+                        <Select
+                          value={selectedField?.name || ""}
+                          onValueChange={(value) => {
+                            const column = selectedRelation?.columns.find(
+                              (c: any) => c.key === value
+                            );
+                            handleRollupFieldSelect(column);
+                          }}
+                          disabled={!selectedRelation}
+                        >
+                          <SelectTrigger className="w-full bg-white">
+                            <SelectValue placeholder="Select a field" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {selectedRelation ? (
+                              selectedRelation.columns.map((column: any) => (
+                                <SelectItem
+                                  key={column.key}
+                                  value={column.key}
+                                  className="cursor-pointer"
+                                >
+                                  {column.name}
+                                </SelectItem>
+                              ))
+                            ) : (
+                              <SelectItem value="none" disabled>
+                                Select a relation to select field
                               </SelectItem>
-                            ))
-                          ) : (
-                            <SelectItem value="none" disabled>
-                              Select a relation to select field
-                            </SelectItem>
-                          )}
-                        </SelectContent>
-                      </Select>
+                            )}
+                          </SelectContent>
+                        </Select>
+                      </div>
                     </div>
-                  </div>
-                )}
-              </div>
+                  )}
+                </div>
 
-              <SheetFooter className="mt-6">
-                <Button
-                  onClick={() => {
-                    if (isFormValid()) {
-                      handleFormSubmission();
-                      setIsSheetOpen(false); // Close the sheet
-                    }
-                  }}
-                  disabled={!isFormValid()}
-                  className="w-full"
-                >
-                  <span className="mr-2 text-sm">إضافة عمود</span>
-                </Button>
-              </SheetFooter>
-            </SheetContent>
-          </Sheet>
+                <SheetFooter className="mt-6">
+                  <Button
+                    onClick={() => {
+                      if (isFormValid()) {
+                        handleFormSubmission();
+                        setIsSheetOpen(false); // Close the sheet
+                      }
+                    }}
+                    disabled={!isFormValid()}
+                    className="w-full"
+                  >
+                    <span className="mr-2 text-sm">إضافة عمود</span>
+                  </Button>
+                </SheetFooter>
+              </SheetContent>
+            </Sheet>
+          )}
         </TableHead>
       </TableRow>
     </TableHeader>

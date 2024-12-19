@@ -141,6 +141,7 @@ const Canvas: React.FC<{}> = () => {
               </div>
             </div>
           </TabsContent>
+
           <TabsContent value="password">
             <FlowTable
               canvasDetails={canvasDetails}
