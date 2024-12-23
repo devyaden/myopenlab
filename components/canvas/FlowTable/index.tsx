@@ -47,6 +47,11 @@ interface FlowTableProps {
   handleDeleteColumn: (columnId: number, type: COLUMN_TYPES) => Promise<any>;
 }
 
+interface GroupNode extends Node {
+  title: string;
+  children: Node[];
+}
+
 const FlowTable = ({
   canvasDetails,
   handleNewColumnCreation,
@@ -231,8 +236,9 @@ const FlowTable = ({
       };
     });
 
-    const childNodeIds = groupNodesWithChildren.flatMap((groupNode) =>
-      groupNode.children.map((child) => child.id)
+    const childNodeIds: string[] = groupNodesWithChildren.flatMap(
+      (groupNode: GroupNode) =>
+        groupNode.children.map((child: Node) => child.id)
     );
 
     const nodes = canvasDetails.nodes

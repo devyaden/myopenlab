@@ -233,7 +233,6 @@ const useCanvas = () => {
           );
 
           const id = node?.node_id;
-          console.log("🚀 ~ data?.nodes?.map ~ id:", id);
 
           return {
             ...node?.flow_data,
