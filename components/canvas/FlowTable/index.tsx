@@ -58,7 +58,7 @@ const FlowTable = ({
   handleDeleteColumn,
 }: FlowTableProps) => {
   const [formattedNodes, setFormattedNodes] = useState<any[]>([]);
-  console.log("🚀 ~ formattedNodes:", formattedNodes);
+
   const [columns, setColumns] = useState<Column[]>(defaultColumns);
   const [isAddingRow, setIsAddingRow] = useState(false);
   const [newRowData, setNewRowData] = useState<{ [key: string]: string }>({});
@@ -199,41 +199,67 @@ const FlowTable = ({
   );
 
   useMemo(() => {
-    const groupNodes = canvasDetails?.nodes
-      ?.filter((node: any) => node.flow_data?.type === "group")
-      .map((node: any) => {
-        return {
-          title: node?.flow_data?.data?.label,
-          ...node.custom_data, // DONT CHANGE ORDER
-          id: node.node_id,
-        };
-      });
+    if (!canvasDetails?.nodes) return;
+
+    const groupNodes = canvasDetails.nodes
+      .filter((node: any) => node.flow_data?.type === "group")
+      .map((node: any) => ({
+        title: node?.flow_data?.data?.label,
+        ...node.custom_data, // DONT CHANGE ORDER
+        id: node.node_id,
+      }));
 
     const groupNodesWithChildren = groupNodes.map((groupNode: Node) => {
-      const children = canvasDetails?.flow_data?.nodes?.filter(
-        (node: Node) => node.parentId === groupNode.id
-      );
+      const children = canvasDetails.flow_data?.nodes
+        ?.filter((node: Node) => node.parentId === groupNode.id)
+        .map((node: any) => {
+          const nodeCustomData = canvasDetails.nodes.find(
+            (n: any) => n.node_id === node.node_id
+          )?.custom_data;
 
-      const childrenFromNodes = children?.map((node: any) => {
-        const nodeCustomData = canvasDetails?.nodes?.find(
+          return {
+            title: node?.data?.label,
+            ...nodeCustomData, // DONT CHANGE ORDER
+            id: node.id,
+            type: node?.type,
+          };
+        });
+
+      return {
+        ...groupNode,
+        children,
+      };
+    });
+
+    const childNodeIds = groupNodesWithChildren.flatMap((groupNode) =>
+      groupNode.children.map((child) => child.id)
+    );
+
+    const nodes = canvasDetails.nodes
+      .filter(
+        (node: any) =>
+          node.flow_data?.type !== "group" &&
+          !childNodeIds.includes(node.node_id)
+      )
+      .map((node: any) => {
+        const nodeCustomData = canvasDetails.nodes.find(
           (n: any) => n.node_id === node.node_id
         )?.custom_data;
 
         return {
-          title: node?.data?.label,
+          title: node?.flow_data?.data?.label,
           ...nodeCustomData, // DONT CHANGE ORDER
-          id: node.id,
+          id: node.node_id,
           type: node?.type,
         };
       });
 
-      return {
-        ...groupNode,
-        children: childrenFromNodes,
-      };
-    });
+    const allNodes = [...groupNodesWithChildren, ...nodes];
+    const uniqueNodes = Array.from(
+      new Set(allNodes.map((node) => node.id))
+    ).map((id) => allNodes.find((node) => node.id === id));
 
-    setFormattedNodes(groupNodesWithChildren);
+    setFormattedNodes(uniqueNodes);
   }, [canvasDetails?.nodes]);
 
   useMemo(() => {

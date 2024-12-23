@@ -30,6 +30,7 @@ import { useToast } from "./use-toast";
 
 const useCanvas = () => {
   const [nodes, setNodes] = useState<Node<NodeData>[]>([]);
+
   const [edges, setEdges] = useState<Edge[]>([]);
   const [canvasDetails, setCanvasDetails] = useState<any>(null);
   const [loading, setLoading] = useState(false);
