@@ -115,7 +115,6 @@ const useCanvas = () => {
 
   const handleNodeDataChange = useCallback(
     async (nodeId: string, newData: Partial<NodeData>) => {
-      console.log("🚀 ~ nodeId:", nodeId);
       let effectedNode = null;
 
       setNodes((prevNodes) =>
@@ -233,9 +232,23 @@ const useCanvas = () => {
             (nd: any) => nd.id === node.node_id
           );
 
+          const id = node?.node_id;
+          console.log("🚀 ~ data?.nodes?.map ~ id:", id);
+
           return {
             ...node?.flow_data,
             ...nodeFromFlowData,
+            data: {
+              ...node?.flow_data?.data,
+              onLabelChange: (newLabel: string) =>
+                handleNodeDataChange(id, {
+                  label: newLabel,
+                }),
+
+              onNodeResize: (dimensions: { height: number; width: number }) => {
+                handleNodeResizing(id, dimensions);
+              },
+            },
           };
         })
       );
