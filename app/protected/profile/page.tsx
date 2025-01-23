@@ -1,3 +1,4 @@
+import { InputWithIcon } from "@/components/input-with-icon";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -28,14 +29,14 @@ export default function Profile() {
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-2">
-                <Input
+                <InputWithIcon
                   id="username"
                   placeholder="اسم المستخدم"
                   icon={<User className="h-4 w-4 text-white" />}
                 />
               </div>
               <div className="space-y-2">
-                <Input
+                <InputWithIcon
                   id="email"
                   placeholder="البريد الإلكتروني"
                   type="email"
@@ -43,7 +44,7 @@ export default function Profile() {
                 />
               </div>
               <div className="space-y-2">
-                <Input
+                <InputWithIcon
                   id="password"
                   placeholder="كلمة المرور"
                   type="password"
@@ -51,7 +52,7 @@ export default function Profile() {
                 />
               </div>
               <div className="space-y-2">
-                <Input
+                <InputWithIcon
                   id="confirm-password"
                   placeholder="تأكيد كلمة المرور"
                   type="password"
