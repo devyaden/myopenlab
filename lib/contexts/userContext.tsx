@@ -115,7 +115,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
   const signOut = async () => {
     await supabase.auth.signOut();
     setUser(null);
-    redirect("/sign-in");
+    redirect("/authentication");
   };
 
   const forgotPassword = async (email: string) => {

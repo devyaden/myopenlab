@@ -1,8 +1,10 @@
-import { resetPasswordAction } from "@/app/actions";
+"use client";
+
 import { FormMessage, Message } from "@/components/form-message";
 import { SubmitButton } from "@/components/submit-button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { useUser } from "@/lib/contexts/userContext";
 import { LockIcon } from "lucide-react";
 import Image from "next/image";
 
@@ -11,6 +13,7 @@ export default async function ResetPassword({
 }: {
   searchParams: Message;
 }) {
+  const { resetPassword } = useUser();
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-100 w-screen">
       <div className="flex flex-col items-center w-full">
@@ -66,7 +69,11 @@ export default async function ResetPassword({
 
           <SubmitButton
             className="bg-black hover:bg-gray-800 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline w-full"
-            formAction={resetPasswordAction}
+            formAction={(formData) => {
+              const password = formData.get("password") as string;
+              const confirmPassword = formData.get("confirmPassword") as string;
+              resetPassword(password, confirmPassword);
+            }}
           >
             إعادة تعيين كلمة المرور
           </SubmitButton>

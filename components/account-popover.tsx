@@ -1,6 +1,5 @@
 "use client";
 
-import { signOutAction } from "@/app/actions";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
@@ -64,7 +63,7 @@ export const AccountPopover: React.FC<AccountPopoverProps> = ({
               <span>الإعدادات الشخصية</span>
             </Link>
           </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => signOutAction()}>
+          <DropdownMenuItem onClick={() => signOut()}>
             <LogOut className="ml-4 h-4 w-4" aria-hidden="true" />
             <span>تسجيل الخروج</span>
           </DropdownMenuItem>
