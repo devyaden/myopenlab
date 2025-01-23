@@ -1,3 +1,5 @@
+"use client";
+
 import { InputWithIcon } from "@/components/input-with-icon";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
