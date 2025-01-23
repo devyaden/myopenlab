@@ -1,43 +1,96 @@
 "use client";
 
-import { signInAction, signInWithGoogleAction } from "@/app/actions";
-import { FormMessage, Message } from "@/components/form-message";
 import AuthHeader from "@/components/header-auth";
-import { SubmitButton } from "@/components/submit-button";
+import { InputWithIcon } from "@/components/input-with-icon";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { useUser } from "@/lib/contexts/userContext";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { LockIcon, MailIcon } from "lucide-react";
 import Link from "next/link";
+import { useForm } from "react-hook-form";
+import { Toaster, toast } from "react-hot-toast";
+import { z } from "zod";
 
-export default function Login({ searchParams }: { searchParams: Message }) {
+const loginSchema = z.object({
+  email: z.string().email({ message: "البريد الإلكتروني غير صالح" }),
+  password: z
+    .string()
+    .min(6, { message: "كلمة المرور يجب أن تكون 6 أحرف على الأقل" }),
+});
+
+const Login = () => {
+  const { signIn, signInWithGoogle } = useUser();
+
+  const {
+    register,
+    handleSubmit,
+    formState: { errors },
+  } = useForm<z.infer<typeof loginSchema>>({
+    resolver: zodResolver(loginSchema),
+  });
+
+  const onSubmit = async (data: z.infer<typeof loginSchema>) => {
+    try {
+      const result = await signIn(data.email, data.password);
+      if (result?.error) {
+        toast.error(result.error);
+      }
+    } catch (error) {
+      toast.error("حدث خطأ أثناء تسجيل الدخول");
+      console.error(error);
+    }
+  };
+
+  const handleGoogleSignIn = async () => {
+    try {
+      await signInWithGoogle();
+    } catch (error) {
+      toast.error("فشل تسجيل الدخول عبر جوجل");
+      console.error(error);
+    }
+  };
+
   return (
     <div className="min-h-screen flex items-center justify-center w-screen">
+      <Toaster position="top-center" reverseOrder={false} />
+
       <div className="flex flex-col items-center w-full">
         <AuthHeader title="تسجيل الدخول" />
 
-        <form className=" bg-light_background p-8 rounded-lg shadow-lg w-full max-w-sm">
+        <form
+          onSubmit={handleSubmit(onSubmit)}
+          className="bg-light_background p-8 rounded-lg shadow-lg w-full max-w-sm"
+        >
           <div className="mb-4 relative">
             <Input
-              name="email"
+              {...register("email")}
               type="email"
               placeholder="البريد الإلكتروني"
-              required
-              icon={<MailIcon className=" text-white h-5 w-5" />}
+              icon={<MailIcon className="text-white h-5 w-5" />}
             />
+            {errors.email && (
+              <p className="text-red-500 text-xs mt-1">
+                {errors.email.message}
+              </p>
+            )}
           </div>
 
           <div className="mb-6 relative">
-            <Input
+            <InputWithIcon
+              {...register("password")}
               type="password"
-              name="password"
-              // className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 mb-3 leading-tight focus:outline-none focus:shadow-outline pl-10"
               placeholder="كلمة المرور"
-              required
               icon={<LockIcon className="text-white h-5 w-5" />}
             />
+            {errors.password && (
+              <p className="text-red-500 text-xs mt-1">
+                {errors.password.message}
+              </p>
+            )}
 
             <Link
-              className="inline-block align-baseline text-sm  hover:text-blue-800 underline mt-2"
+              className="inline-block align-baseline text-sm hover:text-blue-800 underline mt-2"
               href="/forgot-password"
             >
               نسيت كلمة المرور؟
@@ -45,20 +98,17 @@ export default function Login({ searchParams }: { searchParams: Message }) {
           </div>
 
           <div className="px-12">
-            <SubmitButton
-              className="bg-black hover:bg-gray-800 text-white font-bold py-3 px-4  focus:outline-none focus:shadow-outline w-full mb-2"
-              pendingText="تسجيل الدخول..."
-              formAction={signInAction}
+            <button
+              type="submit"
+              className="bg-black hover:bg-gray-800 text-white font-bold py-3 px-4 focus:outline-none focus:shadow-outline w-full mb-2"
             >
               تسجيل الدخول
-            </SubmitButton>
+            </button>
 
             <Button
+              type="button"
               className="bg-black hover:bg-gray-800 text-white font-bold py-3 px-4 focus:outline-none focus:shadow-outline w-full mb-2"
-              onClick={(e) => {
-                e.preventDefault();
-                signInWithGoogleAction();
-              }}
+              onClick={handleGoogleSignIn}
             >
               <div className="h-4 w-4 ml-2">
                 <svg role="img" viewBox="0 0 24 24">
@@ -71,15 +121,19 @@ export default function Login({ searchParams }: { searchParams: Message }) {
               تسجيل الدخول عبر جوجل
             </Button>
 
-            <Button className="bg-dark_background  text-white font-bold py-3 px-4 focus:outline-none focus:shadow-outline w-full mb-2 border border-white">
+            <Button
+              type="button"
+              className="bg-dark_background text-white font-bold py-3 px-4 focus:outline-none focus:shadow-outline w-full mb-2 border border-white"
+            >
               <Link href="/sign-up" className="text-center font-medium block">
                 إنشاء حساب جديد
               </Link>
             </Button>
           </div>
-          <FormMessage message={searchParams} />
         </form>
       </div>
     </div>
   );
-}
+};
+
+export default Login;

@@ -13,7 +13,7 @@ export default function Header() {
       </p>
       <div className="w-24 h-1 bg-gradient-to-r from-blue-400 to-indigo-600 my-4"></div>
       <Link
-        href="/sign-in"
+        href="/authentication"
         className="text-white bg-blue-600 hover:bg-blue-700 transition-colors font-medium py-3 px-8 rounded-full shadow-md"
       >
         Login

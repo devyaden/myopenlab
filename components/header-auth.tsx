@@ -5,7 +5,7 @@ interface AuthHeaderProps {
   subTitle?: string;
 }
 
-export default async function AuthHeader({ title, subTitle }: AuthHeaderProps) {
+const AuthHeader = ({ title, subTitle }: AuthHeaderProps) => {
   return (
     <div className="mb-4 flex items-center justify-between w-full max-w-2xl  pl-8">
       <div>
@@ -21,4 +21,6 @@ export default async function AuthHeader({ title, subTitle }: AuthHeaderProps) {
       />
     </div>
   );
-}
+};
+
+export default AuthHeader;

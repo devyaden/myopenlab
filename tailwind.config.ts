@@ -67,6 +67,11 @@ const config = {
           border: "hsl(var(--sidebar-border))",
           ring: "hsl(var(--sidebar-ring))",
         },
+        yadn: {
+          pink: "#E91E63",
+          "pink-light": "#FFE6EF",
+          "pink-dark": "#C2185B",
+        },
       },
       borderRadius: {
         lg: "var(--radius)",
