@@ -1,4 +1,4 @@
-import { HierarchyItem } from "@/interfaces/canvas";
+import { HierarchyItem } from "@/lib/interfaces/canvas";
 import { useCallback, useReducer } from "react";
 import { Edge, Node } from "reactflow";
 

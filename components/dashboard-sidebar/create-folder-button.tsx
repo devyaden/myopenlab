@@ -2,7 +2,7 @@
 "use client";
 
 import { useToast } from "@/hooks/use-toast";
-import { createClient } from "@/utils/supabase/client";
+import { createClient } from "@/lib/supabase/client";
 import { Folder, Plus } from "lucide-react";
 import { useState } from "react";
 import { Button } from "../ui/button";

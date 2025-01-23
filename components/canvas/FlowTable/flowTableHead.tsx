@@ -25,7 +25,7 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import { TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { COLUMN_TYPES } from "@/types/column-types.enum";
+import { COLUMN_TYPES } from "@/lib/types/column-types.enum";
 import {
   BarChart,
   Calendar,

@@ -22,7 +22,7 @@ import {
   SidebarMenuSubItem,
 } from "@/components/ui/sidebar";
 import { useUser } from "@/lib/contexts/userContext";
-import { createClient } from "@/utils/supabase/client";
+import { createClient } from "@/lib/supabase/client";
 import {
   Collapsible,
   CollapsibleContent,

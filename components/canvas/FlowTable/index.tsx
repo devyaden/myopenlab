@@ -1,7 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableRow } from "@/components/ui/table";
-import { COLUMN_TYPES } from "@/types/column-types.enum";
+import { COLUMN_TYPES } from "@/lib/types/column-types.enum";
 import { Check, ChevronDown, ChevronRight, PlusCircle, X } from "lucide-react";
 import { nanoid } from "nanoid";
 import { Fragment, useCallback, useEffect, useMemo, useState } from "react";

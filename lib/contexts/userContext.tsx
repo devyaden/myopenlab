@@ -7,7 +7,7 @@ import {
   useCallback,
 } from "react";
 import { User } from "@supabase/supabase-js";
-import { createClient } from "@/utils/supabase/client";
+import { createClient } from "@/lib/supabase/client";
 import { redirect } from "next/navigation";
 import { useToast } from "@/hooks/use-toast";
 

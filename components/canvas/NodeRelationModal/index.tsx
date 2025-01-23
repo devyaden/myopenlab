@@ -15,7 +15,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
-import { createClient } from "@/utils/supabase/client";
+import { createClient } from "@/lib/supabase/client";
 import { PlusCircle } from "lucide-react";
 import React, { useEffect, useState } from "react";
 import { NodeRelationModalProps } from "../FlowTable/types";

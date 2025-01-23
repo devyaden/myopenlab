@@ -2,14 +2,14 @@ import {
   InitialCanvasData,
   NodeData,
 } from "@/components/canvas/FlowTable/types";
-import { COLUMN_TYPES } from "@/types/column-types.enum";
-import { ICreateColumn } from "@/types/flow-table.types";
+import { COLUMN_TYPES } from "@/lib/types/column-types.enum";
+import { ICreateColumn } from "@/lib/types/flow-table.types";
 import {
   findAbsolutePosition,
   getHelperLines,
   sortNodes,
-} from "@/utils/canvas.utils";
-import { createClient } from "@/utils/supabase/client";
+} from "@/lib/canvas.utils";
+import { createClient } from "@/lib/supabase/client";
 import { nanoid } from "nanoid";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
