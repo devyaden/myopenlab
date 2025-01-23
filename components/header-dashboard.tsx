@@ -2,11 +2,11 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { Menu, Search } from "lucide-react";
 import { useState } from "react";
 import { AccountPopover } from "./account-popover";
+import { InputWithIcon } from "./input-with-icon";
 
 export const HeaderSidebar = () => {
   const [profileOpen, setProfileOpen] = useState(false);
@@ -23,7 +23,7 @@ export const HeaderSidebar = () => {
       </div>
 
       <div className="flex-grow mx-4 hidden sm:block">
-        <Input
+        <InputWithIcon
           type="search"
           placeholder="بحث..."
           className=" bg-white placeholder-gray-400"

@@ -5,6 +5,7 @@ import { useToast } from "@/hooks/use-toast";
 import { createClient } from "@/lib/supabase/client";
 import { Folder, Plus } from "lucide-react";
 import { useState } from "react";
+import { InputWithIcon } from "../input-with-icon";
 import { Button } from "../ui/button";
 import {
   Dialog,
@@ -13,7 +14,6 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "../ui/dialog";
-import { Input } from "../ui/input";
 import { Label } from "../ui/label";
 
 interface CreateFolderButtonProps {
@@ -142,7 +142,7 @@ const CreateFolderButton = ({
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="name">اسم المجلد</Label>
-            <Input
+            <InputWithIcon
               id="name"
               name="name"
               value={formData.name}
