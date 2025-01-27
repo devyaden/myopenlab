@@ -21,7 +21,7 @@ export default function ClientLayout({
       lang="en"
       className={plexSansArabic.className}
       suppressHydrationWarning
-      // dir="rtl"
+      dir="ltr"
     >
       <body className="bg-background text-foreground">
         <ThemeProvider

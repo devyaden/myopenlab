@@ -1,13 +1,12 @@
 "use client";
 
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import Image from "next/image";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useForm } from "react-hook-form";
 import toast from "react-hot-toast";
 import * as z from "zod";
 import { InputWithIcon } from "../input-with-icon";
+import { useRouter } from "next/navigation";
 
 const signupSchema = z.object({
   email: z.string().email("Please enter a valid email address"),
@@ -16,6 +15,8 @@ const signupSchema = z.object({
 type SignupFormData = z.infer<typeof signupSchema>;
 
 export function SignupForm() {
+  const router = useRouter();
+
   const {
     register,
     handleSubmit,
@@ -27,6 +28,8 @@ export function SignupForm() {
   const onSubmit = async (data: SignupFormData) => {
     try {
       // Simulate API call
+      router.push("/auth/onboarding/company");
+
       await new Promise((resolve) => setTimeout(resolve, 1000));
       toast.success("Account created successfully!");
       console.log(data);
