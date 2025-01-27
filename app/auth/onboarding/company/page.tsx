@@ -16,12 +16,17 @@ import {
   sectors,
   type CompanyFormData,
 } from "@/lib/schemas/company-form.schema";
+import useSignupFormStore from "@/lib/store/useSignupFormStore";
 import { cn } from "@/lib/utils";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import toast from "react-hot-toast";
 
 export default function CompanyForm() {
+  const router = useRouter();
+  const { updateFormData } = useSignupFormStore();
+
   const {
     register,
     handleSubmit,
@@ -33,12 +38,20 @@ export default function CompanyForm() {
   });
 
   const onSubmit = (data: CompanyFormData) => {
+    updateFormData("companyInfo", {
+      companyName: data.companyName,
+      companyEmail: data.companyEmail,
+      companySector: data.companySector,
+      companySize: data.companySize,
+      userPosition: data.position,
+    });
+
     toast.success("Form submitted successfully!");
-    console.log(data);
+    router.push("/auth/onboarding/profile");
   };
 
   return (
-    <div className="w-full max-w-[460px] mx-auto my-auto p-6">
+    <div className="w-full max-w-md mx-auto my-auto p-10 ">
       <div className="flex justify-center mb-6">
         <img src="/assets/global/app-logo.png" alt="" className="h-12 w-auto" />
       </div>
@@ -150,7 +163,7 @@ export default function CompanyForm() {
 
         <Button
           type="submit"
-          className="w-full bg-[#E31B54] hover:bg-[#C71548] text-white font-medium"
+          className="w-full bg-yadn-pink hover:bg-yadn-pink-dark text-white font-medium"
         >
           Continue
         </Button>

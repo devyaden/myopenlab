@@ -8,10 +8,18 @@ datasource db {
 }
 
 model User {
-  id         Int      @id @default(autoincrement())
-  email      String   @unique
-  name       String?
-  auth_id    String?
+  id             Int     @id @default(autoincrement())
+  email          String  @unique
+  username       String  @unique
+  name           String?
+  auth_id        String?
+  // company details
+  company_name   String?
+  company_email  String?
+  company_sector String?
+  user_position  String?
+  company_size   String?
+
   folders    Folder[]
   created_at DateTime @default(now())
   updated_at DateTime @default(now()) @updatedAt

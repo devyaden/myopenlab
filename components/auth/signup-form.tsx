@@ -2,11 +2,12 @@
 
 import { Button } from "@/components/ui/button";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import toast from "react-hot-toast";
 import * as z from "zod";
 import { InputWithIcon } from "../input-with-icon";
-import { useRouter } from "next/navigation";
+import useSignupFormStore from "@/lib/store/useSignupFormStore";
 
 const signupSchema = z.object({
   email: z.string().email("Please enter a valid email address"),
@@ -16,6 +17,7 @@ type SignupFormData = z.infer<typeof signupSchema>;
 
 export function SignupForm() {
   const router = useRouter();
+  const { updateFormData } = useSignupFormStore();
 
   const {
     register,
@@ -27,7 +29,9 @@ export function SignupForm() {
 
   const onSubmit = async (data: SignupFormData) => {
     try {
-      // Simulate API call
+      updateFormData("personalInfo", {
+        email: data.email,
+      });
       router.push("/auth/onboarding/company");
 
       await new Promise((resolve) => setTimeout(resolve, 1000));
