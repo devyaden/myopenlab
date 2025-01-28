@@ -68,7 +68,10 @@ export function LoginForm() {
           />
         </div>
         <div className="flex justify-end w-full">
-          <a href="#" className="text-sm text-gray-600 hover:text-yadn-pink">
+          <a
+            href="/forgot-password"
+            className="text-sm text-gray-600 hover:text-yadn-pink"
+          >
             Forgot Password?
           </a>
         </div>

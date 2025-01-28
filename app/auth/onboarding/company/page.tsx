@@ -19,6 +19,7 @@ import {
 import useSignupFormStore from "@/lib/store/useSignupFormStore";
 import { cn } from "@/lib/utils";
 import { zodResolver } from "@hookform/resolvers/zod";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 import { useForm } from "react-hook-form";
@@ -66,7 +67,13 @@ export default function CompanyForm() {
   return (
     <div className="w-full max-w-md mx-auto my-auto p-10 ">
       <div className="flex justify-center mb-6">
-        <img src="/assets/global/app-logo.png" alt="" className="h-12 w-auto" />
+        <Image
+          src="/assets/global/app-logo.png"
+          alt="Logo"
+          width={64}
+          height={64}
+          className="mb-6"
+        />
       </div>
       <h1 className="text-2xl font-semibold text-center mb-8">
         More About You

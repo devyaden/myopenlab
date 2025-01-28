@@ -11,6 +11,7 @@ import { useRouter } from "next/navigation";
 import useSignupFormStore from "@/lib/store/useSignupFormStore";
 import { useEffect } from "react";
 import { useUser } from "@/lib/contexts/userContext";
+import Image from "next/image";
 
 export default function SignupForm() {
   const { formData, clearFormData } = useSignupFormStore();
@@ -63,7 +64,13 @@ export default function SignupForm() {
   return (
     <div className="w-full max-w-md mx-auto p-8">
       <div className="flex justify-center mb-6">
-        <img src="/assets/global/app-logo.png" alt="" className="h-12 w-auto" />
+        <Image
+          src="/assets/global/app-logo.png"
+          alt="Logo"
+          width={64}
+          height={64}
+          className="mb-6"
+        />
       </div>
       <div className="text-center mb-8">
         <h1 className="text-2xl font-semibold mb-1">
