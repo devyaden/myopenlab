@@ -10,10 +10,13 @@ import { signupSchema, type SignupFormData } from "@/lib/schemas/signup.schema";
 import { useRouter } from "next/navigation";
 import useSignupFormStore from "@/lib/store/useSignupFormStore";
 import { useEffect } from "react";
+import { useUser } from "@/lib/contexts/userContext";
 
 export default function SignupForm() {
   const router = useRouter();
   const { formData, updateFormData } = useSignupFormStore();
+
+  const {} = useUser();
 
   const {
     register,
