@@ -20,6 +20,7 @@ import useSignupFormStore from "@/lib/store/useSignupFormStore";
 import { cn } from "@/lib/utils";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useRouter } from "next/navigation";
+import { useEffect } from "react";
 import { useForm } from "react-hook-form";
 import toast from "react-hot-toast";
 
@@ -49,6 +50,18 @@ export default function CompanyForm() {
     toast.success("Form submitted successfully!");
     router.push("/auth/onboarding/profile");
   };
+
+  useEffect(() => {
+    toast("🚀 Step 2 of 3: Company Details", {
+      duration: Infinity,
+      position: "bottom-center",
+      icon: "💼",
+    });
+
+    return () => {
+      toast.dismiss();
+    };
+  }, []);
 
   return (
     <div className="w-full max-w-md mx-auto my-auto p-10 ">

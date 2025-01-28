@@ -3,12 +3,17 @@ import { User } from "@supabase/supabase-js";
 import { redirect } from "next/navigation";
 import { createContext, useContext, useEffect, useState } from "react";
 import { toast } from "react-hot-toast";
+import { SignupFormData } from "../types/forms.types";
 
 type UserContextType = {
   user: User | null;
   loading: boolean;
-  signUp: (email: string, password: string) => Promise<{ error?: string }>;
+  signUp: (
+    data: SignupFormData,
+    password: string
+  ) => Promise<{ error?: string }>;
   signIn: (email: string, password: string) => Promise<{ error?: string }>;
+  checkIfEmailExists: (email: string) => Promise<boolean>;
   signInWithGoogle: () => Promise<void>;
   signOut: () => Promise<void>;
   forgotPassword: (email: string) => Promise<{ error?: string }>;
@@ -61,23 +66,50 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
     getUser();
   }, [supabase]);
 
-  const signUp = async (email: string, password: string) => {
+  const signUp = async (data: SignupFormData, password: string) => {
+    const userAdditionalAttributes = {
+      email: data?.personalInfo?.email as string,
+      username: data?.personalInfo?.username,
+      name: data?.personalInfo?.name,
+      company_name: data?.companyInfo?.companyName,
+      company_email: data?.companyInfo?.companyEmail,
+      company_sector: data?.companyInfo?.companySector,
+      company_size: data?.companyInfo?.companySize,
+      user_position: data?.companyInfo?.userPosition,
+    };
+
     const origin = window.location.origin;
     const { error } = await supabase.auth.signUp({
-      email,
+      email: data?.personalInfo?.email as string,
       password,
+
       options: {
         emailRedirectTo: `${origin}/auth/callback`,
+        data: userAdditionalAttributes,
       },
     });
 
     if (error) {
-      toast.error(error.message);
+      toast.error(error.message ?? "Sign up failed. Please try again later.");
       return { error: error.message };
     }
 
-    toast.success("Please check your email for a verification link.");
+    toast.success("Success. Please check your email for a verification link.");
     return {};
+  };
+
+  const checkIfEmailExists = async (email: string) => {
+    const { data, error } = await supabase
+      .from("users")
+      .select("*")
+      .eq("email", email);
+
+    if (error) {
+      toast.error("Error checking email");
+      return false;
+    }
+
+    return data.length > 0;
   };
 
   const signIn = async (email: string, password: string) => {
@@ -170,6 +202,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
         loading,
         signUp,
         signIn,
+        checkIfEmailExists,
         signInWithGoogle,
         signOut,
         forgotPassword,

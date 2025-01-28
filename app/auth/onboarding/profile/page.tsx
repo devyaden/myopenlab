@@ -13,34 +13,52 @@ import { useEffect } from "react";
 import { useUser } from "@/lib/contexts/userContext";
 
 export default function SignupForm() {
+  const { formData, clearFormData } = useSignupFormStore();
   const router = useRouter();
-  const { formData, updateFormData } = useSignupFormStore();
 
-  const {} = useUser();
+  const { signUp } = useUser();
 
   const {
     register,
     handleSubmit,
-    formState: { errors },
+    formState: { errors, isSubmitting },
     setValue,
   } = useForm<SignupFormData>({
     resolver: zodResolver(signupSchema),
   });
 
-  const onSubmit = (data: SignupFormData) => {
-    toast.success("Account created successfully!");
-    updateFormData("personalInfo", {
-      username: data.username,
-      email: data.email,
-    });
-    console.log(data);
+  const onSubmit = async (data: SignupFormData) => {
+    const { error } = await signUp(
+      {
+        personalInfo: data,
+        companyInfo: formData.companyInfo,
+      },
+      data.password
+    );
+
+    if (!error) {
+      clearFormData();
+      router.push("/authentication");
+    }
   };
 
   useEffect(() => {
     if (formData.personalInfo) {
-      setValue("email", formData.personalInfo.email);
+      setValue("email", formData?.personalInfo?.email || "");
     }
   }, [formData.personalInfo]);
+
+  useEffect(() => {
+    toast("🌟 Step 3 of 3: Personal Information", {
+      duration: Infinity,
+      position: "bottom-center",
+      icon: "👤",
+    });
+
+    return () => {
+      toast.dismiss();
+    };
+  }, []);
 
   return (
     <div className="w-full max-w-md mx-auto p-8">
@@ -54,6 +72,15 @@ export default function SignupForm() {
         </h1>
       </div>
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+        <InputWithIcon
+          label="Name"
+          icon={<User className="h-5 w-5 text-gray-400" />}
+          {...register("name")}
+          error={errors.name?.message}
+          placeholder="Enter your name"
+          className="border-gray-200 placeholder:text-gray-400"
+        />
+
         <InputWithIcon
           label="Username"
           icon={<User className="h-5 w-5 text-gray-400" />}
@@ -99,7 +126,7 @@ export default function SignupForm() {
           type="submit"
           className="w-full bg-yadn-pink hover:bg-yadn-pink-dark text-white font-medium"
         >
-          Continue
+          {isSubmitting ? "Creating Account..." : "Create Account"}
         </Button>
       </form>
     </div>

@@ -1,6 +1,7 @@
 // types/form.ts
 export interface SignupPersonalInfo {
-  email: string;
+  name?: string;
+  email?: string;
   username?: string;
 }
 
