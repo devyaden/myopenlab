@@ -76,7 +76,7 @@ export const SidebarDashboard = () => {
   const [folders, setFolders] = useState<Folder[]>([]);
   const [canvases, setCanvases] = useState<CanvasMap>({});
 
-  const [isFoldersLoading, setIsFoldersLoading] = useState(true);
+  const [isFoldersLoading, setIsFoldersLoading] = useState(false);
   const [canvasesLoading, setCanvasesLoading] = useState<LoadingState>({});
   const [isDeletingFolder, setIsDeletingFolder] = useState(false);
 
@@ -85,6 +85,7 @@ export const SidebarDashboard = () => {
 
   const supabase = createClient();
   const { user } = useUser();
+
   const userId = user?.id;
 
   const fetchFolders = async () => {
@@ -96,16 +97,18 @@ export const SidebarDashboard = () => {
         .eq("user_id", userId)
         .order("created_at", { ascending: false });
 
-      if (!error && data) {
-        setFolders(data);
-        // Initialize loading states for each folder's canvases
-        const loadingStates: LoadingState = {};
-        data.forEach((folder) => {
-          loadingStates[folder.id] = true;
-          fetchCanvases(folder.id);
-        });
-        setCanvasesLoading(loadingStates);
+      if (error) {
+        throw error;
       }
+
+      setFolders(data);
+      // Initialize loading states for each folder's canvases
+      const loadingStates: LoadingState = {};
+      data.forEach((folder) => {
+        loadingStates[folder.id] = true;
+        fetchCanvases(folder.id);
+      });
+      setCanvasesLoading(loadingStates);
     } catch (error) {
       console.error("Error fetching folders:", error);
     } finally {
@@ -122,12 +125,14 @@ export const SidebarDashboard = () => {
         .eq("folder_id", folderId)
         .order("created_at", { ascending: false });
 
-      if (!error && data) {
-        setCanvases((prev) => ({
-          ...prev,
-          [folderId]: data,
-        }));
+      if (error) {
+        throw error;
       }
+
+      setCanvases((prev) => ({
+        ...prev,
+        [folderId]: data,
+      }));
     } catch (error) {
       console.error(`Error fetching canvases for folder ${folderId}:`, error);
     } finally {

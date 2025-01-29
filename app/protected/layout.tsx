@@ -7,5 +7,5 @@ export default function RootLayout({
 }: {
   children: React.ReactNode;
 }) {
-  return <SidebarProvider suppressHydrationWarning>{children}</SidebarProvider>;
+  return <SidebarProvider>{children}</SidebarProvider>;
 }
