@@ -1,384 +1,207 @@
 "use client";
 
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
+import * as React from "react";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { ChevronDown } from "lucide-react";
+
+import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
 import {
   Sidebar,
-  SidebarGroup,
-  SidebarGroupContent,
-  SidebarGroupLabel,
+  SidebarContent,
   SidebarHeader,
-  SidebarMenuSub,
-  SidebarMenuSubButton,
-  SidebarMenuSubItem,
 } from "@/components/ui/sidebar";
-import { useUser } from "@/lib/contexts/userContext";
-import { createClient } from "@/lib/supabase/client";
 import {
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
-} from "@radix-ui/react-collapsible";
-import { ChevronDown, FileText, Folder, Trash2 } from "lucide-react";
-import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
-import { LoadingSpinner } from "../loading-spinner";
-import CreateCanvasButton from "./create-canvas-button";
-import CreateFolderButton from "./create-folder-button";
+} from "@/components/ui/collapsible";
 
-import { Button } from "@/components/ui/button";
-import { useToast } from "@/hooks/use-toast";
-
-interface Folder {
-  id: number;
-  name: string;
-  description?: string;
-  created_at: string;
-  updated_at: string;
-  user_id: number;
+interface NavItem {
+  title: string;
+  href: string;
+  icon: string;
+  hasDropdown?: boolean;
+  dropdownItems?: { title: string; href: string }[];
 }
 
-interface Canvas {
-  id: number;
-  name: string;
-  description?: string;
-  created_at: string;
-  updated_at: string;
-  last_edited: string;
-  flow_data: {
-    nodes: any[];
-    edges: any[];
-    viewport: { x: number; y: number; zoom: number };
-  };
-  is_published: boolean;
-  user_id: number;
-  folder_id: number;
-}
+const mainNavItems: NavItem[] = [
+  {
+    title: "Home",
+    href: "/",
+    icon: `<svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+      <path d="M8.85714 1.14286H3.14286C2.51167 1.14286 2 1.65453 2 2.28571V13.7143C2 14.3455 2.51167 14.8571 3.14286 14.8571H12.8571C13.4883 14.8571 14 14.3455 14 13.7143V6.28571M8.85714 1.14286L14 6.28571M8.85714 1.14286V5.71429C8.85714 6.03571 9.12143 6.28571 9.42857 6.28571H14" stroke="currentColor" stroke-width="1.14286" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>`,
+  },
+  {
+    title: "Recent",
+    href: "/recent",
+    icon: `<svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+      <path d="M8 4.57143V8L10.2857 9.14286M14 8C14 11.3137 11.3137 14 8 14C4.68629 14 2 11.3137 2 8C2 4.68629 4.68629 2 8 2C11.3137 2 14 4.68629 14 8Z" stroke="currentColor" stroke-width="1.14286" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>`,
+  },
+  {
+    title: "Starred",
+    href: "/starred",
+    icon: `<svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+      <path d="M7.43006 2.76663C7.67006 2.0233 8.33006 2.0233 8.57006 2.76663L9.64006 5.99996H13.0701C13.8534 5.99996 14.1501 6.61663 13.5101 7.08329L10.7501 9.13329L11.8201 12.3666C12.0601 13.1099 11.5234 13.7266 10.8834 13.2599L8.00006 11.0999L5.12006 13.2599C4.48006 13.7266 3.94339 13.1099 4.18339 12.3666L5.25339 9.13329L2.49339 7.08329C1.85339 6.61663 2.15006 5.99996 2.93339 5.99996H6.36339L7.43339 2.76663H7.43006Z" stroke="currentColor" stroke-width="1.14286" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>`,
+  },
+  {
+    title: "Document",
+    href: "/document",
+    icon: `<svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+      <path d="M8.85714 1.14286H3.14286C2.51167 1.14286 2 1.65453 2 2.28571V13.7143C2 14.3455 2.51167 14.8571 3.14286 14.8571H12.8571C13.4883 14.8571 14 14.3455 14 13.7143V6.28571M8.85714 1.14286L14 6.28571M8.85714 1.14286V5.71429C8.85714 6.03571 9.12143 6.28571 9.42857 6.28571H14" stroke="currentColor" stroke-width="1.14286" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>`,
+    hasDropdown: true,
+    dropdownItems: [
+      { title: "Personal", href: "/document/personal" },
+      { title: "Work", href: "/document/work" },
+      { title: "Projects", href: "/document/projects" },
+    ],
+  },
+  {
+    title: "Share with me",
+    href: "/shared",
+    icon: `<svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+      <path d="M2 8C2 6.34315 3.34315 5 5 5C6.65685 5 8 6.34315 8 8C8 9.65685 6.65685 11 5 11C3.34315 11 2 9.65685 2 8Z" stroke="currentColor" stroke-width="1.14286" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M8 3C8 1.34315 9.34315 0 11 0C12.6569 0 14 1.34315 14 3C14 4.65685 12.6569 6 11 6C9.34315 6 8 4.65685 8 3Z" stroke="currentColor" stroke-width="1.14286" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M8 13C8 11.3431 9.34315 10 11 10C12.6569 10 14 11.3431 14 13C14 14.6569 12.6569 16 11 16C9.34315 16 8 14.6569 8 13Z" stroke="currentColor" stroke-width="1.14286" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>`,
+    hasDropdown: true,
+    dropdownItems: [
+      { title: "Team Files", href: "/shared/team" },
+      { title: "Client Files", href: "/shared/client" },
+      { title: "Archive", href: "/shared/archive" },
+    ],
+  },
+];
 
-interface CanvasMap {
-  [key: number]: Canvas[];
-}
+const discoverNavItems: NavItem[] = [
+  {
+    title: "Templates",
+    href: "/templates",
+    icon: `<svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+      <path d="M6.85714 1.14286H2.28571C1.65453 1.14286 1.14286 1.65453 1.14286 2.28571V6.85714C1.14286 7.48833 1.65453 8 2.28571 8H6.85714C7.48833 8 8 7.48833 8 6.85714V2.28571C8 1.65453 7.48833 1.14286 6.85714 1.14286Z" stroke="currentColor" stroke-width="1.14286" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M6.85714 8H2.28571C1.65453 8 1.14286 8.51167 1.14286 9.14286V13.7143C1.14286 14.3455 1.65453 14.8571 2.28571 14.8571H6.85714C7.48833 14.8571 8 14.3455 8 13.7143V9.14286C8 8.51167 7.48833 8 6.85714 8Z" stroke="currentColor" stroke-width="1.14286" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M13.7143 1.14286H9.14286C8.51167 1.14286 8 1.65453 8 2.28571V6.85714C8 7.48833 8.51167 8 9.14286 8H13.7143C14.3455 8 14.8571 7.48833 14.8571 6.85714V2.28571C14.8571 1.65453 14.3455 1.14286 13.7143 1.14286Z" stroke="currentColor" stroke-width="1.14286" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M13.7143 8H9.14286C8.51167 8 8 8.51167 8 9.14286V13.7143C8 14.3455 8.51167 14.8571 9.14286 14.8571H13.7143C14.3455 14.8571 14.8571 14.3455 14.8571 13.7143V9.14286C14.8571 8.51167 14.3455 8 13.7143 8Z" stroke="currentColor" stroke-width="1.14286" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>`,
+  },
+  {
+    title: "Integrations",
+    href: "/integrations",
+    icon: `<svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+      <path d="M6.85714 1.14286H2.28571C1.65453 1.14286 1.14286 1.65453 1.14286 2.28571V6.85714C1.14286 7.48833 1.65453 8 2.28571 8H6.85714C7.48833 8 8 7.48833 8 6.85714V2.28571C8 1.65453 7.48833 1.14286 6.85714 1.14286Z" stroke="currentColor" stroke-width="1.14286" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>`,
+  },
+];
 
-interface LoadingState {
-  [key: number]: boolean;
-}
+function NavItem({ item, pathname }: { item: NavItem; pathname: string }) {
+  const [isOpen, setIsOpen] = React.useState(false);
 
-export const SidebarDashboard = () => {
-  const [folders, setFolders] = useState<Folder[]>([]);
-  const [canvases, setCanvases] = useState<CanvasMap>({});
-
-  const [isFoldersLoading, setIsFoldersLoading] = useState(false);
-  const [canvasesLoading, setCanvasesLoading] = useState<LoadingState>({});
-  const [isDeletingFolder, setIsDeletingFolder] = useState(false);
-
-  const router = useRouter();
-  const { toast } = useToast();
-
-  const supabase = createClient();
-  const { user } = useUser();
-
-  const userId = user?.id;
-
-  const fetchFolders = async () => {
-    setIsFoldersLoading(true);
-    try {
-      const { data, error } = await supabase
-        .from("folders")
-        .select("*")
-        .eq("user_id", userId)
-        .order("created_at", { ascending: false });
-
-      if (error) {
-        throw error;
-      }
-
-      setFolders(data);
-      // Initialize loading states for each folder's canvases
-      const loadingStates: LoadingState = {};
-      data.forEach((folder) => {
-        loadingStates[folder.id] = true;
-        fetchCanvases(folder.id);
-      });
-      setCanvasesLoading(loadingStates);
-    } catch (error) {
-      console.error("Error fetching folders:", error);
-    } finally {
-      setIsFoldersLoading(false);
-    }
-  };
-
-  const fetchCanvases = async (folderId: number) => {
-    setCanvasesLoading((prev) => ({ ...prev, [folderId]: true }));
-    try {
-      const { data, error } = await supabase
-        .from("canvases")
-        .select("*")
-        .eq("folder_id", folderId)
-        .order("created_at", { ascending: false });
-
-      if (error) {
-        throw error;
-      }
-
-      setCanvases((prev) => ({
-        ...prev,
-        [folderId]: data,
-      }));
-    } catch (error) {
-      console.error(`Error fetching canvases for folder ${folderId}:`, error);
-    } finally {
-      setCanvasesLoading((prev) => ({ ...prev, [folderId]: false }));
-    }
-  };
-
-  const handleCanvasClick = (canvas: Canvas) => {
-    const recentlyOpenedCanvases = JSON.parse(
-      localStorage.getItem("recentlyOpenedCanvases") || "[]"
-    );
-
-    const newEntry = {
-      id: canvas.id,
-      name: canvas.name,
-      openedAt: new Date().toISOString(),
-    };
-
-    const updatedCanvases = [
-      newEntry,
-      ...recentlyOpenedCanvases.filter((item: any) => item.id !== canvas.id),
-    ].slice(0, 10); // Keep only the latest 10 entries
-
-    localStorage.setItem(
-      "recentlyOpenedCanvases",
-      JSON.stringify(updatedCanvases)
-    );
-
-    router.push(`/protected/canvas/${canvas.id}`);
-  };
-
-  const handleDeleteCanvas = async (canvas: Canvas) => {
-    try {
-      // Delete the canvas
-      const { error } = await supabase
-        .from("canvases")
-        .delete()
-        .eq("id", canvas.id);
-
-      if (error) {
-        throw error;
-      }
-
-      // Remove the deleted canvas from the local state
-      setCanvases((prev) => ({
-        ...prev,
-        [canvas.folder_id]: prev[canvas.folder_id].filter(
-          (c) => c.id !== canvas.id
-        ),
-      }));
-
-      // Show success toast
-      toast({
-        title: "Canvas Deleted",
-        description: `Canvas "${canvas.name}" has been deleted.`,
-      });
-    } catch (error) {
-      console.error("Error deleting canvas:", error);
-      toast({
-        title: "Error",
-        description: "Failed to delete canvas. Please try again.",
-        variant: "destructive",
-      });
-    }
-  };
-
-  const handleDeleteFolder = async (folder: Folder) => {
-    try {
-      setIsDeletingFolder(true);
-
-      // First, get all canvases in the folder
-      const { data: folderCanvases, error: fetchError } = await supabase
-        .from("canvases")
-        .select("id")
-        .eq("folder_id", folder.id);
-
-      if (fetchError) {
-        throw fetchError;
-      }
-
-      // Delete all canvases in the folder
-      if (folderCanvases && folderCanvases.length > 0) {
-        const { error: deleteCanvasesError } = await supabase
-          .from("canvases")
-          .delete()
-          .in(
-            "id",
-            folderCanvases.map((canvas) => canvas.id)
-          );
-
-        if (deleteCanvasesError) {
-          throw deleteCanvasesError;
-        }
-      }
-
-      // Delete the folder
-      const { error: deleteFolderError } = await supabase
-        .from("folders")
-        .delete()
-        .eq("id", folder.id);
-
-      if (deleteFolderError) {
-        throw deleteFolderError;
-      }
-
-      // Remove the deleted folder from the local state
-      setFolders((prev) => prev.filter((f) => f.id !== folder.id));
-
-      // Remove the folder's canvases from the local state
-      setCanvases((prev) => {
-        const newCanvases = { ...prev };
-        delete newCanvases[folder.id];
-        return newCanvases;
-      });
-
-      // Show success toast
-      toast({
-        title: "Folder Deleted",
-        description: `Folder "${folder.name}" and all its canvases have been deleted.`,
-      });
-    } catch (error) {
-      console.error("Error deleting folder:", error);
-      toast({
-        title: "Error",
-        description: "Failed to delete folder. Please try again.",
-        variant: "destructive",
-      });
-    } finally {
-      setIsDeletingFolder(false);
-    }
-  };
-
-  useEffect(() => {
-    if (userId) {
-      fetchFolders();
-    }
-  }, [userId]);
-
-  if (isFoldersLoading) {
+  if (!item.hasDropdown) {
     return (
-      <Sidebar side="right">
-        <SidebarHeader className="pt-4 md:pt-24 flex justify-center items-center">
-          <LoadingSpinner size={32} className="text-gray-400" />
-        </SidebarHeader>
-      </Sidebar>
+      <Link
+        href={item.href}
+        className={cn(
+          "flex items-center w-full px-3 py-2 text-[15px] text-[#767676] rounded-lg group hover:bg-[#f1f3f4] hover:text-[#344054]",
+          pathname === item.href && "bg-[#f1f3f4] text-[#344054]"
+        )}
+      >
+        <span
+          className="mr-3"
+          dangerouslySetInnerHTML={{ __html: item.icon }}
+        />
+        {item.title}
+      </Link>
     );
   }
 
   return (
-    <Sidebar side="right">
-      <SidebarHeader className="pt-4 md:pt-24">
-        <CreateFolderButton userId={userId} onFolderCreated={fetchFolders} />
-        {folders.map((folder) => (
-          <Collapsible key={folder.id} className="group/collapsible">
-            <SidebarGroup>
-              <SidebarGroupLabel asChild>
-                <CollapsibleTrigger className="w-full">
-                  <div className="w-full text-lg flex items-center text-black">
-                    <Folder className="ml-4 h-4 w-4" />
-                    <span className="ml-2">{folder.name}</span>
-                    <ChevronDown className="ml-auto transition-transform group-data-[state=open]/collapsible:rotate-180 text-black" />
-                  </div>
-                </CollapsibleTrigger>
-              </SidebarGroupLabel>
-              <CollapsibleContent>
-                <SidebarGroupContent>
-                  <div className="flex justify-between items-center py-2 flex-col border-b">
-                    <CreateCanvasButton
-                      folderId={folder.id}
-                      userId={userId || ""}
-                      onCanvasCreated={() => fetchCanvases(folder.id)}
-                    />
-                    <AlertDialog>
-                      <AlertDialogTrigger asChild className="px-1 text-red-600">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="w-full justify-start"
-                        >
-                          <Trash2 className="mr-2 h-4 w-4" />
-                          <span>Delete Folder</span>
-                        </Button>
-                      </AlertDialogTrigger>
-                      <AlertDialogContent>
-                        <AlertDialogHeader>
-                          <AlertDialogTitle>Delete Folder</AlertDialogTitle>
-                          <AlertDialogDescription>
-                            Are you sure you want to delete this folder and all
-                            its canvases? This action cannot be undone.
-                          </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                          <AlertDialogCancel>Cancel</AlertDialogCancel>
-                          <AlertDialogAction
-                            onClick={() => handleDeleteFolder(folder)}
-                            disabled={isDeletingFolder}
-                          >
-                            {isDeletingFolder ? (
-                              <LoadingSpinner size={16} className="mr-2" />
-                            ) : (
-                              "Delete"
-                            )}
-                          </AlertDialogAction>
-                        </AlertDialogFooter>
-                      </AlertDialogContent>
-                    </AlertDialog>
-                  </div>
-                  {canvasesLoading[folder.id] ? (
-                    <div className="flex justify-center py-4">
-                      <LoadingSpinner size={24} className="text-gray-400" />
-                    </div>
-                  ) : (
-                    <SidebarMenuSub>
-                      {canvases[folder.id]?.map((canvas) => (
-                        <SidebarMenuSubItem
-                          key={canvas.id}
-                          className="flex items-center justify-between cursor-pointer"
-                        >
-                          <SidebarMenuSubButton
-                            className="flex-grow"
-                            onClick={() => handleCanvasClick(canvas)}
-                          >
-                            <FileText className="ml-2 h-4 w-4" />
-                            {canvas.name}
-                          </SidebarMenuSubButton>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="p-1 hover:bg-gray-100 rounded-full"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleDeleteCanvas(canvas);
-                            }}
-                          >
-                            <Trash2 className="h-4 w-4 text-red-500" />
-                          </Button>
-                        </SidebarMenuSubItem>
-                      ))}
-                    </SidebarMenuSub>
-                  )}
-                </SidebarGroupContent>
-              </CollapsibleContent>
-            </SidebarGroup>
-          </Collapsible>
+    <Collapsible open={isOpen} onOpenChange={setIsOpen}>
+      <CollapsibleTrigger asChild>
+        <button
+          className={cn(
+            "flex items-center w-full px-3 py-2 text-[15px] text-[#767676] rounded-lg group hover:bg-[#f1f3f4] hover:text-[#344054]",
+            (pathname === item.href || isOpen) && "bg-[#f1f3f4] text-[#344054]"
+          )}
+        >
+          <span
+            className="mr-3"
+            dangerouslySetInnerHTML={{ __html: item.icon }}
+          />
+          {item.title}
+          <ChevronDown
+            className={cn(
+              "ml-auto h-4 w-4 opacity-60 transition-transform duration-200",
+              isOpen && "transform rotate-180"
+            )}
+          />
+        </button>
+      </CollapsibleTrigger>
+      <CollapsibleContent className="pl-9 pr-3">
+        {item.dropdownItems?.map((dropdownItem) => (
+          <Link
+            key={dropdownItem.href}
+            href={dropdownItem.href}
+            className={cn(
+              "flex items-center w-full px-3 py-2 text-[15px] text-[#767676] rounded-lg group hover:bg-[#f1f3f4] hover:text-[#344054]",
+              pathname === dropdownItem.href && "bg-[#f1f3f4] text-[#344054]"
+            )}
+          >
+            {dropdownItem.title}
+          </Link>
         ))}
+      </CollapsibleContent>
+    </Collapsible>
+  );
+}
+
+export function SidebarDashboard() {
+  const pathname = usePathname();
+
+  return (
+    <Sidebar className="border-r border-gray-200 bg-red-400">
+      <SidebarHeader className="p-4 md:pt-20 bg-white">
+        <Button className="w-full bg-[#ed1e78] hover:bg-[#ed1e78]/90 text-white rounded-xl py-3 px-4 text-base font-normal">
+          <svg
+            width="16"
+            height="16"
+            viewBox="0 0 16 16"
+            fill="none"
+            className="mr-2"
+          >
+            <path
+              d="M8 1.14286V14.8571M1.14286 8H14.8571"
+              stroke="currentColor"
+              strokeWidth="1.71429"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
+          New
+        </Button>
       </SidebarHeader>
+      <SidebarContent className="px-1 bg-white">
+        <nav className="space-y-0.5">
+          {mainNavItems.map((item) => (
+            <NavItem key={item.href} item={item} pathname={pathname} />
+          ))}
+        </nav>
+
+        <div className="mt-8 mb-2">
+          <h2 className="px-3 text-base font-medium text-[#344054]">
+            Discover
+          </h2>
+          <nav className="mt-2 space-y-0.5">
+            {discoverNavItems.map((item) => (
+              <NavItem key={item.href} item={item} pathname={pathname} />
+            ))}
+          </nav>
+        </div>
+      </SidebarContent>
     </Sidebar>
   );
-};
+}
