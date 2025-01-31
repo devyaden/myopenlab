@@ -71,6 +71,8 @@ const config = {
           pink: "#E91E63",
           "pink-light": "#FFE6EF",
           "pink-dark": "#C2185B",
+          "gradient-pink-from": "#D92AA5",
+          "gardient-pink-to": "#FA6CD0",
         },
       },
       borderRadius: {

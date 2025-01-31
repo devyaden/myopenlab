@@ -243,8 +243,7 @@ export function DiagramsSection() {
         <h1 className="text-lg md:text-xl font-semibold text-[#344054] mb-4 md:mb-6">
           Jumping Into Something New
         </h1>
-
-        {/* Mobile View (Grid) */}
+        {/* Mobile View (Grid)
         <div className="grid grid-cols-2 gap-3 md:hidden">
           {templates.map((template) => (
             <Card key={template.title} className="p-3">
@@ -282,10 +281,9 @@ export function DiagramsSection() {
               <span className="text-xs">Blank Diagram</span>
             </Button>
           </div>
-        </div>
-
+        </div> */}
         {/* Desktop View (Horizontal Scroll) */}
-        <div className="hidden md:block">
+        <div className="">
           <ScrollArea className="w-full whitespace-nowrap rounded-lg">
             <div className="flex space-x-4 pb-4">
               {templates.map((template) => (
