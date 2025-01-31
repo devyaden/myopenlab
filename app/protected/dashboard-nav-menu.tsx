@@ -74,7 +74,7 @@ export function DashboardNavMenu() {
                   alt={item.label}
                   height={10}
                   width={10}
-                  className="h-6 w-6 text-[#d7bed0]"
+                  className="h-6 w-6 "
                 />
               </div>
               <span className="text-center text-sm font-medium text-white">
