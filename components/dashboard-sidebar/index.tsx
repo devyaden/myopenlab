@@ -106,8 +106,8 @@ function NavItem({ item, pathname }: { item: NavItem; pathname: string }) {
       <Link
         href={item.href}
         className={cn(
-          "flex items-center w-full px-3 py-2 text-[15px] text-[#767676] rounded-lg group hover:bg-[#f1f3f4] hover:text-[#344054]",
-          pathname === item.href && "bg-[#f1f3f4] text-[#344054]"
+          "flex items-center w-full px-3 py-2 text-[15px]  rounded-lg group hover:bg-[#f1f3f4] hover:text-yadn-primary-text",
+          pathname === item.href && "bg-[#f1f3f4] "
         )}
       >
         <span
@@ -124,8 +124,8 @@ function NavItem({ item, pathname }: { item: NavItem; pathname: string }) {
       <CollapsibleTrigger asChild>
         <button
           className={cn(
-            "flex items-center w-full px-3 py-2 text-[15px] text-[#767676] rounded-lg group hover:bg-[#f1f3f4] hover:text-[#344054]",
-            (pathname === item.href || isOpen) && "bg-[#f1f3f4] text-[#344054]"
+            "flex items-center w-full px-3 py-2 text-[15px]  rounded-lg group hover:bg-[#f1f3f4] hover:",
+            (pathname === item.href || isOpen) && "bg-[#f1f3f4] "
           )}
         >
           <span
@@ -147,8 +147,8 @@ function NavItem({ item, pathname }: { item: NavItem; pathname: string }) {
             key={dropdownItem.href}
             href={dropdownItem.href}
             className={cn(
-              "flex items-center w-full px-3 py-2 text-[15px] text-[#767676] rounded-lg group hover:bg-[#f1f3f4] hover:text-[#344054]",
-              pathname === dropdownItem.href && "bg-[#f1f3f4] text-[#344054]"
+              "flex items-center w-full px-3 py-2 text-[15px]  rounded-lg group hover:bg-[#f1f3f4] hover:text-yadn-primary-text",
+              pathname === dropdownItem.href && "bg-[#f1f3f4] "
             )}
           >
             {dropdownItem.title}
@@ -164,8 +164,11 @@ export function SidebarDashboard() {
 
   return (
     <Sidebar className="border-r border-gray-200 bg-red-400">
-      <SidebarHeader className="p-4 md:pt-20 bg-white">
-        <Button className="w-full bg-[#ed1e78] hover:bg-[#ed1e78]/90 text-white rounded-xl py-3 px-4 text-base font-normal">
+      <SidebarHeader className="p-4 md:pt-24 bg-white">
+        <Link
+          href="/protected/canvas-new"
+          className="w-full bg-yadn-pink hover:bg-yadn-pink/90 text-white rounded-xl py-3 px-4 text-base font-normal flex items-center justify-center"
+        >
           <svg
             width="16"
             height="16"
@@ -182,7 +185,7 @@ export function SidebarDashboard() {
             />
           </svg>
           New
-        </Button>
+        </Link>
       </SidebarHeader>
       <SidebarContent className="px-1 bg-white">
         <nav className="space-y-0.5">
@@ -192,9 +195,7 @@ export function SidebarDashboard() {
         </nav>
 
         <div className="mt-8 mb-2">
-          <h2 className="px-3 text-base font-medium text-[#344054]">
-            Discover
-          </h2>
+          <h2 className="px-3 text-base font-medium ">Discover</h2>
           <nav className="mt-2 space-y-0.5">
             {discoverNavItems.map((item) => (
               <NavItem key={item.href} item={item} pathname={pathname} />
