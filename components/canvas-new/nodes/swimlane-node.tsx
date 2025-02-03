@@ -71,8 +71,11 @@ export const SwimlaneNode = memo(
     };
 
     const labelStyle: React.CSSProperties = {
-      width: data.style?.isVertical ? "100%" : "100px",
+      width: data.style?.isVertical ? "100%" : "40px",
       height: data.style?.isVertical ? "40px" : "100%",
+      position: "absolute",
+      top: 0,
+      left: 0,
       display: "flex",
       alignItems: "center",
       justifyContent: "center",
@@ -82,11 +85,13 @@ export const SwimlaneNode = memo(
       borderBottom: data.style?.isVertical ? "1px solid #e2e8f0" : "none",
       writingMode: data.style?.isVertical ? "horizontal-tb" : "vertical-rl",
       transform: data.style?.isVertical ? "none" : "rotate(180deg)",
+      zIndex: 10,
     };
 
     const contentStyle: React.CSSProperties = {
       flex: 1,
       padding: "8px",
+      paddingTop: "48px", // Add this line to ensure space for the header
       minHeight: "100px",
       position: "relative",
     };

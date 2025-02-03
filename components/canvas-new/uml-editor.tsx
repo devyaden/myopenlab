@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback } from "react";
+import { useCallback, useState } from "react";
 import ReactFlow, {
   Controls,
   Background,
@@ -13,12 +13,13 @@ import ReactFlow, {
   type Node,
   type Edge,
   useReactFlow,
-  MiniMap,
 } from "reactflow";
 import "reactflow/dist/style.css";
 import { GenericNode } from "./nodes/generic-node";
 import { SwimlaneNode } from "./nodes/swimlane-node";
 import { UMLToolbar } from "./uml-toolbar";
+import TableView from "./table-view";
+import { Button } from "@/components/ui/button";
 
 const nodeTypes = {
   genericNode: GenericNode,
@@ -47,6 +48,7 @@ export function UMLEditor({
   onLabelChange,
 }: UMLEditorProps) {
   const { getNode } = useReactFlow();
+  const [viewMode, setViewMode] = useState<"canvas" | "table">("canvas");
 
   const handleNodesChange = useCallback(
     (changes: NodeChange[]) => {
@@ -54,27 +56,17 @@ export function UMLEditor({
         if (node.parentNode) {
           const parent = getNode(node.parentNode);
           if (parent && node.position) {
-            const isOutsideParent =
-              node.position.x < 0 ||
-              node.position.y < 0 ||
-              node.position.x > (parent.width || 0) - 100 ||
-              node.position.y > (parent.height || 0) - 40;
+            const minY = 48; // Minimum Y position to avoid overlapping with the swimlane header
+            const maxX = (parent.width || 0) - (node.width || 0);
+            const maxY = (parent.height || 0) - (node.height || 0);
 
-            if (isOutsideParent) {
-              return {
-                ...node,
-                position: {
-                  x: Math.max(
-                    0,
-                    Math.min(node.position.x, (parent.width || 0) - 100)
-                  ),
-                  y: Math.max(
-                    0,
-                    Math.min(node.position.y, (parent.height || 0) - 40)
-                  ),
-                },
-              };
-            }
+            return {
+              ...node,
+              position: {
+                x: Math.max(0, Math.min(node.position.x, maxX)),
+                y: Math.max(minY, Math.min(node.position.y, maxY)),
+              },
+            };
           }
         }
         return node;
@@ -84,8 +76,7 @@ export function UMLEditor({
 
       const selectChange = changes.find((change) => change.type === "select");
       if (selectChange) {
-        // @ts-ignore
-        onNodeSelect(selectChange?.selected ? selectChange.id : null);
+        onNodeSelect(selectChange.selected ? selectChange.id : null);
       } else if (changes.some((change) => change.type === "remove")) {
         onNodeSelect(null);
       }
@@ -145,36 +136,31 @@ export function UMLEditor({
               bottom: swimlane.position.y + (swimlane.height || 0),
             };
             return (
-              n.position.x > swimlaneRect.left &&
+              n.position.x >= swimlaneRect.left &&
               n.position.x < swimlaneRect.right &&
-              n.position.y > swimlaneRect.top &&
+              n.position.y >= swimlaneRect.top &&
               n.position.y < swimlaneRect.bottom
             );
           });
 
           if (parentSwimlane) {
+            // Node is inside a swimlane
             return {
               ...n,
               parentNode: parentSwimlane.id,
               extent: "parent",
               position: {
-                x: n.position.x - parentSwimlane.position.x - 100,
-                y: n.position.y - parentSwimlane.position.y,
+                x: n.position.x - parentSwimlane.position.x,
+                y: Math.max(48, n.position.y - parentSwimlane.position.y),
               },
             };
           } else {
+            // Node is outside any swimlane
             const { parentNode, extent, ...rest } = n;
-            if (parentNode) {
-              const parent = getNode(parentNode)!;
-              return {
-                ...rest,
-                position: {
-                  x: n.position.x + parent.position.x + 100,
-                  y: n.position.y + parent.position.y,
-                },
-              };
-            }
-            return rest;
+            return {
+              ...rest,
+              position: n.position,
+            };
           }
         }
         return n;
@@ -182,40 +168,91 @@ export function UMLEditor({
 
       onNodesChange(updatedNodes as Node[]);
     },
-    [nodes, onNodesChange, getNode]
+    [nodes, onNodesChange]
+  );
+
+  const handleTableNodesChange = useCallback(
+    (updatedNodes: Node[]) => {
+      // Check if any nodes were deleted
+      const deletedNodeIds = nodes
+        .filter((node) => !updatedNodes.some((n) => n.id === node.id))
+        .map((node) => node.id);
+
+      if (deletedNodeIds.length > 0) {
+        // Remove deleted nodes
+        const newNodes = nodes.filter(
+          (node) => !deletedNodeIds.includes(node.id)
+        );
+        onNodesChange(newNodes);
+      } else {
+        // Update existing nodes
+        const newNodes = nodes.map((node) => {
+          const updatedNode = updatedNodes.find((n) => n.id === node.id);
+          return updatedNode
+            ? { ...node, data: { ...node.data, ...updatedNode.data } }
+            : node;
+        });
+        onNodesChange(newNodes);
+      }
+    },
+    [nodes, onNodesChange]
+  );
+
+  const handleTableEdgesChange = useCallback(
+    (updatedEdges: Edge[]) => {
+      onEdgesChange(updatedEdges);
+    },
+    [onEdgesChange]
   );
 
   return (
     <div className="w-full h-[calc(100vh-132px)]">
       <UMLToolbar onAddNode={onAddNode} onAddSwimlane={onAddSwimlane} />
-      <ReactFlow
-        nodes={nodes.map((node) => ({
-          ...node,
-          data: {
-            ...node.data,
-            style: nodeStyles[node.id],
-            onLabelChange: onLabelChange,
-          },
-          selectable: true,
-        }))}
-        edges={edges}
-        onNodesChange={handleNodesChange}
-        onEdgesChange={handleEdgesChange}
-        onConnect={handleConnect}
-        onSelectionChange={handleSelectionChange}
-        onNodeDragStop={onNodeDragStop}
-        nodeTypes={nodeTypes}
-        fitView
-        className="bg-white"
-        multiSelectionKeyCode={["Meta", "Shift"]}
-        selectNodesOnDrag={false}
-        // panOnDrag={[1, 2]}
-        elementsSelectable={true}
-      >
-        <Background />
-        <Controls />
-        <MiniMap />
-      </ReactFlow>
+      <div className="flex justify-end mb-4">
+        <Button
+          onClick={() =>
+            setViewMode(viewMode === "canvas" ? "table" : "canvas")
+          }
+        >
+          Switch to {viewMode === "canvas" ? "Table" : "Canvas"} View
+        </Button>
+      </div>
+      {viewMode === "canvas" ? (
+        <ReactFlow
+          nodes={nodes.map((node) => ({
+            ...node,
+            data: {
+              ...node.data,
+              style: nodeStyles[node.id],
+              onLabelChange: onLabelChange,
+            },
+            selectable: true,
+          }))}
+          edges={edges}
+          onNodesChange={handleNodesChange}
+          onEdgesChange={handleEdgesChange}
+          onConnect={handleConnect}
+          onSelectionChange={handleSelectionChange}
+          onNodeDragStop={onNodeDragStop}
+          nodeTypes={nodeTypes}
+          fitView
+          className="bg-white"
+          multiSelectionKeyCode={["Meta", "Shift"]}
+          selectNodesOnDrag={false}
+          panOnDrag={[1, 2]}
+          elementsSelectable={true}
+        >
+          <Background />
+          <Controls />
+        </ReactFlow>
+      ) : (
+        <TableView
+          nodes={nodes}
+          edges={edges}
+          onNodesChange={handleTableNodesChange}
+          onEdgesChange={handleTableEdgesChange}
+        />
+      )}
     </div>
   );
 }

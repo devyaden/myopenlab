@@ -33,7 +33,7 @@ interface AppState {
 
 const MAX_HISTORY_SIZE = 50;
 
-export default function CanvasNew() {
+export default function FigmaInterface() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [selectedNode, setSelectedNode] = useState<string | null>(null);
   const [currentState, setCurrentState] = useState<AppState>({
