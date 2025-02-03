@@ -6,6 +6,7 @@ import {
   RepeatIcon as Record,
   Play,
   Link2,
+  Menu,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -18,26 +19,37 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 export function Header() {
   return (
-    <>
+    <div className="border-b border-gray-200">
       <div className="flex items-center px-4 h-12">
         <div className="flex items-center gap-4">
-          <Button variant="ghost" size="sm" className="gap-2 text-gray-600">
+          <Button
+            variant="ghost"
+            size="sm"
+            className="gap-2 text-gray-600 md:hidden"
+          >
+            <Menu className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="gap-2 text-gray-600 hidden md:flex"
+          >
             <ArrowLeft className="h-4 w-4" />
             Back
           </Button>
           <div className="flex items-center gap-2">
-            <div className="h-8 w-8 bg-yadn-pink rounded flex items-center justify-center">
+            <div className="h-8 w-8 bg-[#ed1e78] rounded flex items-center justify-center">
               <FlowChart className="h-5 w-5 text-white" />
             </div>
             <div className="flex items-center gap-2">
-              <h1 className=" font-medium">Flowchart</h1>
-              <span className="text-sm text-gray-500">•</span>
+              <h1 className="text-[#344054] font-medium">Flowchart</h1>
+              <span className="text-sm text-gray-500 hidden sm:inline">•</span>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button
                     variant="ghost"
                     size="sm"
-                    className="gap-1 h-6 px-2 text-gray-600"
+                    className="gap-1 h-6 px-2 text-gray-600 hidden sm:flex"
                   >
                     Draft
                     <ChevronDown className="h-3 w-3" />
@@ -54,22 +66,34 @@ export function Header() {
           </div>
         </div>
         <div className="ml-auto flex items-center gap-2">
-          <Button size="icon" variant="ghost" className="h-8 w-8">
+          <Button
+            size="icon"
+            variant="ghost"
+            className="h-8 w-8 hidden sm:flex"
+          >
             <Record className="h-4 w-4 text-gray-600" />
           </Button>
-          <Button size="icon" variant="ghost" className="h-8 w-8">
+          <Button
+            size="icon"
+            variant="ghost"
+            className="h-8 w-8 hidden sm:flex"
+          >
             <Play className="h-4 w-4 text-gray-600" />
           </Button>
-          <Button size="icon" variant="ghost" className="h-8 w-8">
+          <Button
+            size="icon"
+            variant="ghost"
+            className="h-8 w-8 hidden sm:flex"
+          >
             <Link2 className="h-4 w-4 text-gray-600" />
           </Button>
           <Button
             size="sm"
             variant="default"
-            className="bg-yadn-pink hover:bg-yadn-pink/90 gap-2"
+            className="bg-[#ed1e78] hover:bg-[#ed1e78]/90 gap-2"
           >
             <Share2 className="h-4 w-4" />
-            Share
+            <span className="hidden sm:inline">Share</span>
           </Button>
           <Avatar className="h-8 w-8">
             <AvatarImage src="/placeholder.svg?height=32&width=32" />
@@ -77,7 +101,7 @@ export function Header() {
           </Avatar>
         </div>
       </div>
-      <nav className="flex items-center gap-4 px-4 py-1 border-t border-gray-200">
+      <nav className="flex items-center gap-4 px-4 py-1 border-t border-gray-200 overflow-x-auto">
         {[
           {
             name: "File",
@@ -131,7 +155,7 @@ export function Header() {
               <Button
                 variant="ghost"
                 size="sm"
-                className="text-gray-600 px-2 h-7"
+                className="text-gray-600 px-2 h-7 whitespace-nowrap"
               >
                 {item.name}
               </Button>
@@ -144,6 +168,6 @@ export function Header() {
           </DropdownMenu>
         ))}
       </nav>
-    </>
+    </div>
   );
 }
