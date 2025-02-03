@@ -84,6 +84,7 @@ export function UMLEditor({
 
       const selectChange = changes.find((change) => change.type === "select");
       if (selectChange) {
+        // @ts-ignore
         onNodeSelect(selectChange?.selected ? selectChange.id : null);
       } else if (changes.some((change) => change.type === "remove")) {
         onNodeSelect(null);
