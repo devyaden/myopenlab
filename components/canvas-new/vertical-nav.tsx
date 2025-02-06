@@ -1,23 +1,17 @@
-import {
-  Code,
-  LayoutGrid,
-  Wand2,
-  MessageCircleQuestionIcon as QuestionMarkCircle,
-  Square,
-  Database,
-  PenTool,
-  PanelsTopLeft,
-  Shapes,
-  Printer,
-  Blocks,
-  Image,
-  WandSparkles,
-  Rocket,
-  Sparkle,
-  CodeXml,
-} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
+import {
+  Blocks,
+  CodeXml,
+  Database,
+  Image,
+  PanelsTopLeft,
+  Printer,
+  Rocket,
+  Shapes,
+  Sparkle,
+  WandSparkles,
+} from "lucide-react";
 
 interface VerticalNavProps {
   className?: string;

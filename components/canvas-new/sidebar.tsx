@@ -77,10 +77,10 @@ export function Sidebar({ className, onDragStart }: SidebarProps) {
   ];
 
   return (
-    <div className={`w-64 border-r border-gray-200 bg-white ${className}`}>
+    <div className={`w-72 border-r border-gray-200 bg-white ${className}`}>
       <div className="pt-3 ">
-        <div className="flex items-center justify-between pb-2 border-b border-gray-200 px-4 ">
-          <h2 className=" text-lg font-semibold ">Shapes</h2>
+        <div className="flex items-center justify-between pb-2  px-4 ">
+          <h2 className=" text-md font-semibold ">Shapes</h2>
           <Button
             variant="ghost"
             size="icon"
@@ -97,12 +97,12 @@ export function Sidebar({ className, onDragStart }: SidebarProps) {
               onOpenChange={() => toggleItem(item.title)}
             >
               <CollapsibleTrigger asChild>
-                <div className="flex items-center justify-between px-2 hover:bg-gray-100/80 rounded-md cursor-pointer py-4 border-b">
+                <div className="flex items-center justify-between px-2 hover:bg-gray-100/80 rounded-md cursor-pointer py-4 border-t">
                   <div className="flex items-center gap-2 ">
                     <span className=" text-sm font-normal">
                       <GripVertical className="h-5 w-5 text-[#98A2B3]" />
                     </span>
-                    <span className="text-base font-semibold  ">
+                    <span className="text-md font-semibold  ">
                       {item.title}
                     </span>
                   </div>
@@ -114,13 +114,6 @@ export function Sidebar({ className, onDragStart }: SidebarProps) {
                     >
                       <Star className="h-4 w-4 " />
                     </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-6 w-6 hover:bg-transparent"
-                    >
-                      <Trash2 className="h-4 w-4 " />
-                    </Button>
 
                     <ChevronDown
                       className={`h-4 w-4  transition-transform duration-200 ${
@@ -131,16 +124,18 @@ export function Sidebar({ className, onDragStart }: SidebarProps) {
                 </div>
               </CollapsibleTrigger>
               <CollapsibleContent>
-                <div className="py-1 pl-8">
+                <div className="py-1 px-4 grid grid-cols-3">
                   {item.shapes.map((shape) => (
                     <div
                       key={shape.name}
-                      className="flex items-center gap-2 py-1 cursor-move hover:bg-gray-100 rounded px-2"
+                      className="flex items-center justify-center py-1 cursor-move hover:bg-gray-100 rounded px-2 flex-col"
                       draggable
                       onDragStart={(e) => onDragStart(e, shape.type)}
                     >
-                      <shape.icon className="h-4 w-4" />
-                      <span className="text-sm ">{shape.name}</span>
+                      <shape.icon className="h-6 w-6" />
+                      <span className="text-sm text-center line-clamp-1">
+                        {shape.name}
+                      </span>
                     </div>
                   ))}
                 </div>
