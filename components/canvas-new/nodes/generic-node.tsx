@@ -1,3 +1,5 @@
+"use client";
+
 import { memo, useState, useCallback, useEffect } from "react";
 import { Handle, Position, NodeResizer } from "reactflow";
 import type React from "react";
@@ -5,6 +7,17 @@ import type React from "react";
 interface GenericNodeProps {
   data: {
     label: string;
+    shape:
+      | "rectangle"
+      | "rounded"
+      | "circle"
+      | "diamond"
+      | "hexagon"
+      | "triangle"
+      | "useCase"
+      | "actor"
+      | "class"
+      | "interface";
     style?: React.CSSProperties & {
       fontFamily?: string;
       fontSize?: number;
@@ -12,10 +25,13 @@ interface GenericNodeProps {
       isItalic?: boolean;
       isUnderline?: boolean;
       textAlign?: "left" | "center" | "right" | "justify";
-      shape?: "rectangle" | "rounded" | "circle";
       locked?: boolean;
       borderStyle?: string;
       borderWidth?: number;
+      backgroundColor?: string;
+      borderColor?: string;
+      textColor?: string;
+      lineHeight?: number;
     };
     onLabelChange?: (nodeId: string, newLabel: string) => void;
   };
@@ -28,10 +44,7 @@ export const GenericNode = memo(
   ({ data, id, selected, isConnectable }: GenericNodeProps) => {
     const [isEditing, setIsEditing] = useState(false);
     const [labelValue, setLabelValue] = useState(data.label);
-    const [nodeSize, setNodeSize] = useState({
-      width: data.style?.width || 150,
-      height: data.style?.height || 50,
-    });
+    const [nodeSize, setNodeSize] = useState({ width: 100, height: 100 });
 
     useEffect(() => {
       setLabelValue(data.label);
@@ -69,26 +82,290 @@ export const GenericNode = memo(
       []
     );
 
-    const nodeStyle: React.CSSProperties = {
-      ...data.style,
-      width: nodeSize.width,
-      height: nodeSize.height,
+    const getTextStyle = () => ({
       fontFamily: data.style?.fontFamily || "Arial",
-      fontSize: data.style?.fontSize || 12,
+      fontSize: `${data.style?.fontSize || 12}px`,
       fontWeight: data.style?.isBold ? "bold" : "normal",
       fontStyle: data.style?.isItalic ? "italic" : "normal",
       textDecoration: data.style?.isUnderline ? "underline" : "none",
-      textAlign: data.style?.textAlign || "left",
-      borderRadius:
-        data.style?.shape === "rounded"
-          ? "8px"
-          : data.style?.shape === "circle"
-            ? "50%"
-            : "0",
-      zIndex: selected ? 1 : 0,
-      borderWidth: data.style?.borderWidth || 2,
-      borderStyle: data.style?.borderStyle || "solid",
-      borderColor: selected ? "#3b82f6" : "#d1d5db",
+      textAlign: data.style?.textAlign || "center",
+      color: data.style?.textColor || "#000000",
+      lineHeight: `${data.style?.lineHeight || 1.2}`,
+    });
+
+    const nodeStyle: React.CSSProperties = {
+      width: nodeSize.width,
+      height: nodeSize.height,
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      overflow: "hidden",
+    };
+
+    const shapeStyle: React.CSSProperties = {
+      width: "100%",
+      height: "100%",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+    };
+
+    const shapeProps = {
+      fill: data.style?.backgroundColor || "white",
+      stroke: data.style?.borderColor || "#000000",
+      strokeWidth: data.style?.borderWidth || 1,
+      strokeDasharray:
+        data.style?.borderStyle === "dashed"
+          ? "5,5"
+          : data.style?.borderStyle === "dotted"
+            ? "1,5"
+            : undefined,
+    };
+
+    const renderShape = () => {
+      const svgStyle: React.CSSProperties = {
+        width: "100%",
+        height: "100%",
+        maxWidth: "100%",
+        maxHeight: "100%",
+      };
+
+      const textProps = {
+        style: getTextStyle(),
+      };
+
+      switch (data.shape) {
+        case "circle":
+        case "useCase":
+          return (
+            <svg
+              style={svgStyle}
+              viewBox="0 0 100 100"
+              preserveAspectRatio="xMidYMid meet"
+            >
+              <ellipse cx="50" cy="50" rx="45" ry="45" {...shapeProps} />
+              <text
+                x="50"
+                y="50"
+                dominantBaseline="middle"
+                textAnchor="middle"
+                style={textProps.style}
+                fill={data.style?.textColor || "#000000"}
+              >
+                {labelValue}
+              </text>
+            </svg>
+          );
+        case "diamond":
+          return (
+            <svg
+              style={svgStyle}
+              viewBox="0 0 100 100"
+              preserveAspectRatio="xMidYMid meet"
+            >
+              <polygon points="50,5 95,50 50,95 5,50" {...shapeProps} />
+              <text
+                x="50"
+                y="50"
+                dominantBaseline="middle"
+                textAnchor="middle"
+                style={textProps.style}
+                fill={data.style?.textColor || "#000000"}
+              >
+                {labelValue}
+              </text>
+            </svg>
+          );
+        case "hexagon":
+          return (
+            <svg
+              style={svgStyle}
+              viewBox="0 0 100 100"
+              preserveAspectRatio="xMidYMid meet"
+            >
+              <polygon
+                points="25,5 75,5 95,50 75,95 25,95 5,50"
+                {...shapeProps}
+              />
+              <text
+                x="50"
+                y="50"
+                dominantBaseline="middle"
+                textAnchor="middle"
+                style={textProps.style}
+                fill={data.style?.textColor || "#000000"}
+              >
+                {labelValue}
+              </text>
+            </svg>
+          );
+        case "triangle":
+          return (
+            <svg
+              style={svgStyle}
+              viewBox="0 0 100 100"
+              preserveAspectRatio="xMidYMid meet"
+            >
+              <polygon points="50,5 95,95 5,95" {...shapeProps} />
+              <text
+                x="50"
+                y="60"
+                dominantBaseline="middle"
+                textAnchor="middle"
+                style={textProps.style}
+                fill={data.style?.textColor || "#000000"}
+              >
+                {labelValue}
+              </text>
+            </svg>
+          );
+        case "actor":
+          return (
+            <svg
+              style={svgStyle}
+              viewBox="0 0 100 100"
+              preserveAspectRatio="xMidYMid meet"
+            >
+              <circle cx="50" cy="20" r="15" {...shapeProps} />
+              <line
+                x1="50"
+                y1="35"
+                x2="50"
+                y2="70"
+                stroke={data.style?.borderColor || "#000000"}
+                strokeWidth={data.style?.borderWidth || 1}
+              />
+              <line
+                x1="30"
+                y1="50"
+                x2="70"
+                y2="50"
+                stroke={data.style?.borderColor || "#000000"}
+                strokeWidth={data.style?.borderWidth || 1}
+              />
+              <line
+                x1="50"
+                y1="70"
+                x2="30"
+                y2="90"
+                stroke={data.style?.borderColor || "#000000"}
+                strokeWidth={data.style?.borderWidth || 1}
+              />
+              <line
+                x1="50"
+                y1="70"
+                x2="70"
+                y2="90"
+                stroke={data.style?.borderColor || "#000000"}
+                strokeWidth={data.style?.borderWidth || 1}
+              />
+              <text
+                x="50"
+                y="95"
+                dominantBaseline="middle"
+                textAnchor="middle"
+                style={textProps.style}
+                fill={data.style?.textColor || "#000000"}
+              >
+                {labelValue}
+              </text>
+            </svg>
+          );
+        case "class":
+          return (
+            <div
+              style={{
+                ...shapeStyle,
+                borderColor: data.style?.borderColor || "#000000",
+                borderStyle: data.style?.borderStyle || "solid",
+                borderWidth: `${data.style?.borderWidth || 1}px`,
+              }}
+              className="flex flex-col"
+            >
+              <div
+                className="border-b-2 p-2 font-bold"
+                style={{
+                  ...getTextStyle(),
+                  borderColor: data.style?.borderColor || "#000000",
+                  backgroundColor: data.style?.backgroundColor || "white",
+                }}
+              >
+                {labelValue}
+              </div>
+              <div
+                className="border-b-2 p-2"
+                style={{
+                  borderColor: data.style?.borderColor || "#000000",
+                  backgroundColor: data.style?.backgroundColor || "white",
+                }}
+              >
+                Attributes
+              </div>
+              <div
+                className="p-2"
+                style={{
+                  backgroundColor: data.style?.backgroundColor || "white",
+                }}
+              >
+                Methods
+              </div>
+            </div>
+          );
+        case "interface":
+          return (
+            <div
+              style={{
+                ...shapeStyle,
+                borderColor: data.style?.borderColor || "#000000",
+                borderStyle: data.style?.borderStyle || "solid",
+                borderWidth: `${data.style?.borderWidth || 1}px`,
+                backgroundColor: data.style?.backgroundColor || "white",
+              }}
+              className="flex flex-col"
+            >
+              <div
+                className="border-b-2 p-2 font-bold"
+                style={{ borderColor: data.style?.borderColor || "#000000" }}
+              >
+                «interface»
+              </div>
+              <div className="p-2" style={getTextStyle()}>
+                {labelValue}
+              </div>
+            </div>
+          );
+        case "rounded":
+          return (
+            <div
+              style={{
+                ...shapeStyle,
+                ...getTextStyle(),
+                borderRadius: "8px",
+                borderColor: data.style?.borderColor || "#000000",
+                borderStyle: data.style?.borderStyle || "solid",
+                borderWidth: `${data.style?.borderWidth || 1}px`,
+                backgroundColor: data.style?.backgroundColor || "white",
+              }}
+            >
+              {labelValue}
+            </div>
+          );
+        default:
+          return (
+            <div
+              style={{
+                ...shapeStyle,
+                ...getTextStyle(),
+                borderColor: data.style?.borderColor || "#000000",
+                borderStyle: data.style?.borderStyle || "solid",
+                borderWidth: `${data.style?.borderWidth || 1}px`,
+                backgroundColor: data.style?.backgroundColor || "white",
+              }}
+            >
+              {labelValue}
+            </div>
+          );
+      }
     };
 
     return (
@@ -96,14 +373,12 @@ export const GenericNode = memo(
         <NodeResizer
           isVisible={selected}
           minWidth={100}
-          minHeight={50}
+          minHeight={100}
           onResize={handleResize}
         />
         <div
-          className={`bg-white p-2 shadow-md ${
-            selected ? "ring-2 ring-blue-500" : ""
-          } ${data.style?.locked ? "cursor-not-allowed" : "cursor-pointer"}`}
-          style={nodeStyle}
+          style={{ ...nodeStyle, ...shapeStyle }}
+          className={`${data.style?.locked ? "cursor-not-allowed" : "cursor-pointer"}`}
         >
           <Handle
             type="target"
@@ -119,11 +394,12 @@ export const GenericNode = memo(
               onBlur={handleBlur}
               onKeyDown={handleKeyDown}
               className="w-full text-center bg-transparent border-none outline-none"
+              style={getTextStyle()}
               autoFocus
             />
           ) : (
-            <div className="text-center" onDoubleClick={handleDoubleClick}>
-              {labelValue}
+            <div className="w-full h-full" onDoubleClick={handleDoubleClick}>
+              {renderShape()}
             </div>
           )}
           <Handle

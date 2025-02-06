@@ -1,5 +1,6 @@
 "use client";
 
+import type React from "react";
 import { useState, useCallback, useRef, useEffect } from "react";
 import { ReactFlowProvider } from "reactflow";
 import { Header } from "./header";
@@ -10,6 +11,7 @@ import { UMLEditor } from "./uml-editor";
 import { Menu } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { Node, Edge } from "reactflow";
+import { MarkerType } from "reactflow";
 
 interface NodeStyle {
   fontFamily: string;
@@ -18,11 +20,26 @@ interface NodeStyle {
   isItalic: boolean;
   isUnderline: boolean;
   textAlign: "left" | "center" | "right" | "justify";
-  shape: "rectangle" | "rounded" | "circle" | "swimlane";
+  shape:
+    | "rectangle"
+    | "rounded"
+    | "circle"
+    | "diamond"
+    | "hexagon"
+    | "triangle"
+    | "useCase"
+    | "actor"
+    | "class"
+    | "interface"
+    | "swimlane";
   locked: boolean;
   isVertical?: boolean;
   borderStyle: string;
   borderWidth: number;
+  backgroundColor: string;
+  borderColor: string;
+  textColor: string;
+  lineHeight: number;
 }
 
 interface AppState {
@@ -36,6 +53,7 @@ const MAX_HISTORY_SIZE = 50;
 export default function FigmaInterface() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [selectedNode, setSelectedNode] = useState<string | null>(null);
+  const [selectedNodes, setSelectedNodes] = useState<string[]>([]);
   const [currentState, setCurrentState] = useState<AppState>({
     nodes: [],
     edges: [],
@@ -43,12 +61,13 @@ export default function FigmaInterface() {
   });
   const [history, setHistory] = useState<AppState[]>([]);
   const [historyIndex, setHistoryIndex] = useState(-1);
-  const clipboardRef = useRef<Node | null>(null);
+  const [selectedEdge, setSelectedEdge] = useState<string | null>(null);
+  const clipboardRef = useRef<Node[]>([]);
 
   useEffect(() => {
     setHistory([currentState]);
     setHistoryIndex(0);
-  }, [currentState]); // Added currentState to dependencies
+  }, [currentState]);
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -85,6 +104,10 @@ export default function FigmaInterface() {
           isVertical: true,
           borderStyle: "solid",
           borderWidth: 2,
+          backgroundColor: "#ffffff",
+          borderColor: "#000000",
+          textColor: "#000000",
+          lineHeight: 1.2,
         }
       );
     },
@@ -125,7 +148,14 @@ export default function FigmaInterface() {
                 ...node,
                 data: {
                   ...node.data,
-                  style: { ...getNodeStyle(nodeId), ...styleUpdate },
+                  style:
+                    node.type === "textNode"
+                      ? { ...getNodeStyle(nodeId), ...styleUpdate }
+                      : {
+                          ...getNodeStyle(nodeId),
+                          ...styleUpdate,
+                          shape: node.data.shape,
+                        },
                 },
               }
             : node
@@ -135,8 +165,9 @@ export default function FigmaInterface() {
     [currentState.nodeStyles, currentState.nodes, getNodeStyle, updateState]
   );
 
-  const onNodeSelect = useCallback((nodeId: string | null) => {
-    setSelectedNode(nodeId);
+  const onNodeSelect = useCallback((nodeIds: string[]) => {
+    setSelectedNodes(nodeIds);
+    setSelectedNode(nodeIds.length === 1 ? nodeIds[0] : null);
   }, []);
 
   const onNodesChange = useCallback(
@@ -169,29 +200,45 @@ export default function FigmaInterface() {
     }
   }, [history, historyIndex]);
 
-  const copyNode = useCallback(() => {
-    if (selectedNode) {
-      const nodeToCopy = currentState.nodes.find(
-        (node) => node.id === selectedNode
-      );
-      if (nodeToCopy) {
-        clipboardRef.current = { ...nodeToCopy, id: `${Date.now()}` };
-      }
-    }
-  }, [currentState.nodes, selectedNode]);
+  const copySelectedNodes = useCallback(() => {
+    const nodesToCopy = currentState.nodes
+      .filter((node) => selectedNodes.includes(node.id))
+      .map((node) => ({
+        ...node,
+        style: currentState.nodeStyles[node.id] || {},
+      }));
+    clipboardRef.current = nodesToCopy;
+  }, [currentState.nodes, currentState.nodeStyles, selectedNodes]);
 
-  const pasteNode = useCallback(() => {
-    if (clipboardRef.current) {
-      const newNode = {
-        ...clipboardRef.current,
+  const pasteNodes = useCallback(() => {
+    if (clipboardRef.current.length > 0) {
+      const newNodes = clipboardRef.current.map((node) => ({
+        ...node,
+        id: `${node.id}-copy-${Date.now()}`,
         position: {
-          x: clipboardRef.current.position.x + 50,
-          y: clipboardRef.current.position.y + 50,
+          x: node.position.x + 20,
+          y: node.position.y + 20,
         },
-      };
-      updateState({ nodes: [...currentState.nodes, newNode] });
+        data: {
+          ...node.data,
+          label: node.data.label,
+        },
+      }));
+      updateState({
+        nodes: [...currentState.nodes, ...newNodes],
+        nodeStyles: {
+          ...currentState.nodeStyles,
+          ...newNodes.reduce(
+            (styles, node) => ({
+              ...styles,
+              [node.id]: node.style,
+            }),
+            {}
+          ),
+        },
+      });
     }
-  }, [currentState.nodes, updateState]);
+  }, [currentState.nodes, currentState.nodeStyles, updateState]);
 
   const lockNode = useCallback(() => {
     if (selectedNode) {
@@ -201,7 +248,7 @@ export default function FigmaInterface() {
   }, [selectedNode, updateNodeStyle, getNodeStyle]);
 
   const changeShape = useCallback(
-    (shape: "rectangle" | "rounded" | "circle" | "swimlane") => {
+    (shape: NodeStyle["shape"]) => {
       if (selectedNode) {
         updateNodeStyle(selectedNode, { shape });
       }
@@ -209,16 +256,51 @@ export default function FigmaInterface() {
     [selectedNode, updateNodeStyle]
   );
 
-  const addSwimlane = useCallback(() => {
-    const newSwimlane = {
-      id: `swimlane-${Date.now()}`,
-      type: "swimlaneNode",
-      position: { x: 100, y: 100 },
-      style: { width: 600, height: 200 },
-      data: { label: "New Swimlane" },
-    };
-    updateState({ nodes: [...currentState.nodes, newSwimlane] });
-  }, [currentState.nodes, updateState]);
+  const onDragStart = (event: React.DragEvent, nodeType: string) => {
+    event.dataTransfer.setData("application/reactflow", nodeType);
+    event.dataTransfer.effectAllowed = "move";
+  };
+
+  const addNode = useCallback(
+    (type: string, position: { x: number; y: number }) => {
+      const newNode = {
+        id: `node-${Date.now()}`,
+        type: type === "text" ? "textNode" : "genericNode",
+        position,
+        data: {
+          label: `New ${type}`,
+          shape: type,
+          style: type === "text" ? {} : { width: 100, height: 100 },
+        },
+        connectable: type !== "text",
+      };
+      updateState({ nodes: [...currentState.nodes, newNode] });
+    },
+    [currentState.nodes, updateState]
+  );
+
+  const addSwimlane = useCallback(
+    (position: { x: number; y: number }) => {
+      const newSwimlane = {
+        id: `swimlane-${Date.now()}`,
+        type: "swimlaneNode",
+        position,
+        style: { width: 600, height: 150 },
+        data: {
+          label: "New Swimlane",
+          lanes: [
+            {
+              id: `lane-${Date.now()}`,
+              label: "Lane 1",
+              height: 150,
+            },
+          ],
+        },
+      };
+      updateState({ nodes: [...currentState.nodes, newSwimlane] });
+    },
+    [currentState.nodes, updateState]
+  );
 
   const rotateSwimlane = useCallback(() => {
     if (selectedNode) {
@@ -258,14 +340,190 @@ export default function FigmaInterface() {
     [selectedNode, updateNodeStyle]
   );
 
+  const addLaneToSwimlane = useCallback(
+    (swimlaneId: string) => {
+      updateState({
+        nodes: currentState.nodes.map((node) => {
+          if (node.id === swimlaneId && node.type === "swimlaneNode") {
+            const newLane = {
+              id: `lane-${Date.now()}`,
+              label: `Lane ${node.data.lanes.length + 1}`,
+              height: 100,
+            };
+            return {
+              ...node,
+              data: {
+                ...node.data,
+                lanes: [...node.data.lanes, newLane],
+              },
+              style: {
+                ...node.style,
+                height: ((node.style?.height as number) || 0) + 100,
+              },
+            };
+          }
+          return node;
+        }),
+      });
+    },
+    [currentState.nodes, updateState]
+  );
+
+  const deleteSelectedNodes = useCallback(() => {
+    updateState({
+      nodes: currentState.nodes.filter(
+        (node) => !selectedNodes.includes(node.id)
+      ),
+    });
+    setSelectedNodes([]);
+    setSelectedNode(null);
+  }, [currentState.nodes, selectedNodes, updateState]);
+
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.ctrlKey && event.key === "z") {
+        event.preventDefault();
+        undo();
+      } else if (event.ctrlKey && event.key === "y") {
+        event.preventDefault();
+        redo();
+      } else if (event.ctrlKey && event.shiftKey && event.key === "Z") {
+        event.preventDefault();
+        redo();
+      } else if (event.ctrlKey && event.key === "c") {
+        event.preventDefault();
+        copySelectedNodes();
+      } else if (event.ctrlKey && event.key === "v") {
+        event.preventDefault();
+        pasteNodes();
+      } else if (event.key === "Delete" && selectedNodes.length > 0) {
+        event.preventDefault();
+        deleteSelectedNodes();
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [
+    undo,
+    redo,
+    copySelectedNodes,
+    pasteNodes,
+    deleteSelectedNodes,
+    selectedNodes,
+  ]);
+
+  const deleteSelectedNode = useCallback(() => {
+    if (selectedNode) {
+      updateState({
+        nodes: currentState.nodes.filter((node) => node.id !== selectedNode),
+      });
+      setSelectedNode(null);
+    }
+  }, [selectedNode, currentState.nodes, updateState]);
+
+  const setBackgroundColor = useCallback(
+    (color: string) => {
+      if (selectedNode) {
+        updateNodeStyle(selectedNode, { backgroundColor: color });
+      }
+    },
+    [selectedNode, updateNodeStyle]
+  );
+
+  const setBorderColor = useCallback(
+    (color: string) => {
+      if (selectedNode) {
+        updateNodeStyle(selectedNode, { borderColor: color });
+      }
+    },
+    [selectedNode, updateNodeStyle]
+  );
+
+  const setTextColor = useCallback(
+    (color: string) => {
+      if (selectedNode) {
+        updateNodeStyle(selectedNode, { textColor: color });
+      }
+    },
+    [selectedNode, updateNodeStyle]
+  );
+
+  const setLineHeight = useCallback(
+    (height: number) => {
+      if (selectedNode) {
+        updateNodeStyle(selectedNode, { lineHeight: height });
+      }
+    },
+    [selectedNode, updateNodeStyle]
+  );
+
+  const onEdgeSelect = useCallback((edgeIds: string[]) => {
+    setSelectedEdge(edgeIds.length === 1 ? edgeIds[0] : null);
+  }, []);
+
+  const onChangeEdgeStyle = useCallback(
+    (style: string) => {
+      if (selectedEdge) {
+        updateState({
+          edges: currentState.edges.map((edge) =>
+            edge.id === selectedEdge
+              ? {
+                  ...edge,
+                  type:
+                    style === "default" ||
+                    style === "step" ||
+                    style === "smoothstep"
+                      ? style
+                      : edge.type,
+                  style: {
+                    ...edge.style,
+                    strokeDasharray:
+                      style === "dashed"
+                        ? "5,5"
+                        : style === "dotted"
+                          ? "1,5"
+                          : undefined,
+                  },
+                  markerEnd: { type: MarkerType.Arrow },
+                }
+              : edge
+          ),
+        });
+      }
+    },
+    [selectedEdge, currentState.edges, updateState]
+  );
+
+  const onChangeEdgeLabel = useCallback(
+    (edgeId: string, newLabel: string) => {
+      updateState({
+        edges: currentState.edges.map((edge) =>
+          edge.id === edgeId
+            ? {
+                ...edge,
+                data: { ...edge.data, label: newLabel },
+              }
+            : edge
+        ),
+      });
+    },
+    [currentState.edges, updateState]
+  );
+
   const selectedStyle = selectedNode ? getNodeStyle(selectedNode) : null;
+  const selectedEdgeData = selectedEdge
+    ? currentState.edges.find((edge) => edge.id === selectedEdge)?.data
+    : null;
 
   return (
     <ReactFlowProvider>
       <div className="min-h-screen bg-white flex flex-col w-screen">
         <Header />
         <Toolbar
-          key={selectedNode || "no-selection"}
+          key={selectedNode || selectedEdge || "no-selection"}
           fontFamily={selectedStyle?.fontFamily || "Arial"}
           setFontFamily={(font) =>
             selectedNode && updateNodeStyle(selectedNode, { fontFamily: font })
@@ -294,8 +552,8 @@ export default function FigmaInterface() {
           selectedNode={selectedNode}
           onUndo={undo}
           onRedo={redo}
-          onCopy={copyNode}
-          onPaste={pasteNode}
+          onCopy={copySelectedNodes}
+          onPaste={pasteNodes}
           onLock={lockNode}
           onChangeShape={changeShape}
           onRotateSwimlane={rotateSwimlane}
@@ -307,6 +565,22 @@ export default function FigmaInterface() {
           borderWidth={selectedStyle?.borderWidth || 2}
           setBorderWidth={setBorderWidth}
           isSwimlane={selectedStyle?.shape === "swimlane"}
+          onDelete={deleteSelectedNodes}
+          backgroundColor={selectedStyle?.backgroundColor || "#ffffff"}
+          setBackgroundColor={setBackgroundColor}
+          borderColor={selectedStyle?.borderColor || "#000000"}
+          setBorderColor={setBorderColor}
+          textColor={selectedStyle?.textColor || "#000000"}
+          setTextColor={setTextColor}
+          lineHeight={selectedStyle?.lineHeight || 1.2}
+          setLineHeight={setLineHeight}
+          selectedEdge={selectedEdge}
+          onChangeEdgeStyle={onChangeEdgeStyle}
+          currentEdgeStyle={selectedEdgeData?.type || "default"}
+          onChangeEdgeLabel={(label) =>
+            selectedEdge && onChangeEdgeLabel(selectedEdge, label)
+          }
+          currentEdgeLabel={selectedEdgeData?.label || ""}
         />
         <div className="flex flex-1 overflow-hidden">
           <VerticalNav className="hidden md:flex" />
@@ -323,6 +597,7 @@ export default function FigmaInterface() {
               className={`${
                 sidebarOpen ? "translate-x-0" : "-translate-x-full"
               } transition-transform md:translate-x-0 absolute md:relative z-10 md:z-0`}
+              onDragStart={onDragStart}
             />
             <div className="flex-1 relative">
               <UMLEditor
@@ -332,8 +607,16 @@ export default function FigmaInterface() {
                 onEdgesChange={onEdgesChange}
                 nodeStyles={currentState.nodeStyles}
                 onNodeSelect={onNodeSelect}
+                selectedNodes={selectedNodes}
+                onAddNode={addNode}
                 onAddSwimlane={addSwimlane}
                 onLabelChange={onLabelChange}
+                onAddLane={addLaneToSwimlane}
+                onDelete={deleteSelectedNodes}
+                selectedEdge={selectedEdge}
+                onEdgeSelect={onEdgeSelect}
+                onChangeEdgeStyle={onChangeEdgeStyle}
+                onChangeEdgeLabel={onChangeEdgeLabel}
               />
             </div>
           </div>

@@ -27,6 +27,7 @@ export default function Dashboard() {
 
       <div className="flex flex-1 overflow-hidden">
         <SidebarDashboard />
+        {/* <SidebarDashboard /> */}
 
         <main className="flex-grow overflow-auto">
           <DashboardNavMenu />

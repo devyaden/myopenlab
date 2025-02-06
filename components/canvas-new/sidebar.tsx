@@ -1,7 +1,19 @@
 "use client";
 
 import { useState } from "react";
-import { Search, Star, Trash2, ChevronDown } from "lucide-react";
+import {
+  Search,
+  Star,
+  Trash2,
+  ChevronDown,
+  Square,
+  Circle,
+  Diamond,
+  Triangle,
+  User,
+  Box,
+  Type,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Collapsible,
@@ -11,9 +23,10 @@ import {
 
 interface SidebarProps {
   className?: string;
+  onDragStart: (event: React.DragEvent, shapeType: string) => void;
 }
 
-export function Sidebar({ className }: SidebarProps) {
+export function Sidebar({ className, onDragStart }: SidebarProps) {
   const [openItems, setOpenItems] = useState<Record<string, boolean>>({});
 
   const toggleItem = (title: string) => {
@@ -24,11 +37,42 @@ export function Sidebar({ className }: SidebarProps) {
   };
 
   const sidebarItems = [
-    { title: "Shape In Use", hasActions: false },
-    { title: "Standard", hasActions: true },
-    { title: "Flowchart", hasActions: true },
-    { title: "Containers", hasActions: true },
-    { title: "My Saved...", hasActions: true },
+    {
+      title: "Basic Shapes",
+      shapes: [
+        { name: "Rectangle", type: "rectangle", icon: Square },
+        { name: "Rounded Rectangle", type: "rounded", icon: Square },
+        { name: "Circle", type: "circle", icon: Circle },
+        { name: "Diamond", type: "diamond", icon: Diamond },
+        { name: "Triangle", type: "triangle", icon: Triangle },
+      ],
+    },
+    {
+      title: "UML Shapes",
+      shapes: [
+        { name: "Class", type: "class", icon: Box },
+        { name: "Interface", type: "interface", icon: Box },
+        { name: "Use Case", type: "useCase", icon: Circle },
+        { name: "Actor", type: "actor", icon: User },
+      ],
+    },
+    {
+      title: "Flowchart",
+      shapes: [
+        { name: "Process", type: "rectangle", icon: Square },
+        { name: "Decision", type: "diamond", icon: Diamond },
+        { name: "Input/Output", type: "parallelogram", icon: Square },
+        { name: "Terminator", type: "terminator", icon: Square },
+      ],
+    },
+    {
+      title: "Containers",
+      shapes: [{ name: "Swimlane", type: "swimlane", icon: Square }],
+    },
+    {
+      title: "Text",
+      shapes: [{ name: "Text Node", type: "text", icon: Type }],
+    },
   ];
 
   return (
@@ -57,24 +101,20 @@ export function Sidebar({ className }: SidebarProps) {
                   <span className="text-sm text-[#344054]">{item.title}</span>
                 </div>
                 <div className="flex items-center">
-                  {item.hasActions && (
-                    <>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-6 w-6 hover:bg-transparent"
-                      >
-                        <Star className="h-3.5 w-3.5 text-[#344054]" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-6 w-6 hover:bg-transparent"
-                      >
-                        <Trash2 className="h-3.5 w-3.5 text-[#344054]" />
-                      </Button>
-                    </>
-                  )}
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-6 w-6 hover:bg-transparent"
+                  >
+                    <Star className="h-3.5 w-3.5 text-[#344054]" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-6 w-6 hover:bg-transparent"
+                  >
+                    <Trash2 className="h-3.5 w-3.5 text-[#344054]" />
+                  </Button>
                   <CollapsibleTrigger asChild>
                     <Button
                       variant="ghost"
@@ -92,7 +132,19 @@ export function Sidebar({ className }: SidebarProps) {
               </div>
               <CollapsibleContent>
                 <div className="py-1 pl-8">
-                  <div className="text-sm text-[#344054]/70">No items</div>
+                  {item.shapes.map((shape) => (
+                    <div
+                      key={shape.name}
+                      className="flex items-center gap-2 py-1 cursor-move hover:bg-gray-100 rounded px-2"
+                      draggable
+                      onDragStart={(e) => onDragStart(e, shape.type)}
+                    >
+                      <shape.icon className="h-4 w-4" />
+                      <span className="text-sm text-[#344054]">
+                        {shape.name}
+                      </span>
+                    </div>
+                  ))}
                 </div>
               </CollapsibleContent>
             </Collapsible>

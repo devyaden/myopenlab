@@ -1,9 +1,17 @@
 import { memo, useState, useCallback, useEffect } from "react";
 import { Handle, Position, NodeResizer, type NodeProps } from "reactflow";
 import type React from "react";
+import { PlusCircle } from "lucide-react";
+
+interface Lane {
+  id: string;
+  label: string;
+  height: number;
+}
 
 interface SwimlaneNodeData {
   label: string;
+  lanes: Lane[];
   style?: React.CSSProperties & {
     fontFamily?: string;
     fontSize?: number;
@@ -14,50 +22,114 @@ interface SwimlaneNodeData {
     locked?: boolean;
     isVertical?: boolean;
   };
-  onLabelChange?: (nodeId: string, newLabel: string) => void;
+  onLabelChange?: (nodeId: string, laneId: string, newLabel: string) => void;
+  onAddLane?: (nodeId: string) => void;
+  onLaneResize?: (nodeId: string, laneId: string, newHeight: number) => void;
 }
 
 export const SwimlaneNode = memo(
   ({ id, data, selected }: NodeProps<SwimlaneNodeData>) => {
-    const [isEditing, setIsEditing] = useState(false);
-    const [labelValue, setLabelValue] = useState(data.label);
+    const [editingLane, setEditingLane] = useState<string | null>(null);
+    const [labelValues, setLabelValues] = useState<Record<string, string>>({});
+    const [resizingLane, setResizingLane] = useState<string | null>(null);
+    const [resizeStartY, setResizeStartY] = useState(0);
 
     useEffect(() => {
-      setLabelValue(data.label);
-    }, [data.label]);
+      const initialLabelValues: Record<string, string> = {};
+      data.lanes.forEach((lane) => {
+        initialLabelValues[lane.id] = lane.label;
+      });
+      setLabelValues(initialLabelValues);
+    }, [data.lanes]);
 
-    const handleDoubleClick = useCallback(() => {
-      if (!data.style?.locked) {
-        setIsEditing(true);
-      }
-    }, [data.style?.locked]);
+    const handleDoubleClick = useCallback(
+      (laneId: string) => {
+        if (!data.style?.locked) {
+          setEditingLane(laneId);
+        }
+      },
+      [data.style?.locked]
+    );
 
-    const handleBlur = useCallback(() => {
-      setIsEditing(false);
-      if (data.onLabelChange) {
-        data.onLabelChange(id, labelValue);
-      }
-    }, [data, id, labelValue]);
+    const handleBlur = useCallback(
+      (laneId: string) => {
+        setEditingLane(null);
+        if (data.onLabelChange) {
+          data.onLabelChange(id, laneId, labelValues[laneId]);
+        }
+      },
+      [data, id, labelValues]
+    );
 
     const handleKeyDown = useCallback(
-      (event: React.KeyboardEvent<HTMLInputElement>) => {
+      (event: React.KeyboardEvent<HTMLInputElement>, laneId: string) => {
         if (event.key === "Enter") {
-          setIsEditing(false);
+          setEditingLane(null);
           if (data.onLabelChange) {
-            data.onLabelChange(id, labelValue);
+            data.onLabelChange(id, laneId, labelValues[laneId]);
           }
         }
       },
-      [data, id, labelValue]
+      [data, id, labelValues]
     );
+
+    const handleAddLane = useCallback(() => {
+      if (data.onAddLane) {
+        data.onAddLane(id);
+      }
+    }, [data, id]);
+
+    const handleResizeStart = useCallback(
+      (event: React.MouseEvent, laneId: string) => {
+        setResizingLane(laneId);
+        setResizeStartY(event.clientY);
+      },
+      []
+    );
+
+    const handleResizeMove = useCallback(
+      (event: MouseEvent) => {
+        if (resizingLane) {
+          const deltaY = event.clientY - resizeStartY;
+          if (data.onLaneResize) {
+            const laneIndex = data.lanes.findIndex(
+              (lane) => lane.id === resizingLane
+            );
+            const currentHeight = data.lanes[laneIndex].height;
+            data.onLaneResize(
+              id,
+              resizingLane,
+              Math.max(50, currentHeight + deltaY)
+            );
+          }
+          setResizeStartY(event.clientY);
+        }
+      },
+      [data, id, resizingLane, resizeStartY]
+    );
+
+    const handleResizeEnd = useCallback(() => {
+      setResizingLane(null);
+    }, []);
+
+    useEffect(() => {
+      if (resizingLane) {
+        window.addEventListener("mousemove", handleResizeMove);
+        window.addEventListener("mouseup", handleResizeEnd);
+      }
+      return () => {
+        window.removeEventListener("mousemove", handleResizeMove);
+        window.removeEventListener("mouseup", handleResizeEnd);
+      };
+    }, [resizingLane, handleResizeMove, handleResizeEnd]);
 
     const nodeStyle: React.CSSProperties = {
       width: "100%",
       height: "100%",
-      border: `2px solid ${selected ? "#3182ce" : "#e2e8f0"}`,
+      borderWidth: "2px",
+      borderStyle: "solid",
+      borderColor: selected ? "#3182ce" : "#e2e8f0",
       borderRadius: "4px",
-      display: "flex",
-      flexDirection: data.style?.isVertical ? "column" : "row",
       minWidth: "400px",
       minHeight: "100px",
       ...data.style,
@@ -67,33 +139,6 @@ export const SwimlaneNode = memo(
       fontStyle: data.style?.isItalic ? "italic" : "normal",
       textDecoration: data.style?.isUnderline ? "underline" : "none",
       textAlign: data.style?.textAlign || "left",
-      borderStyle: "solid", // Always solid for swimlanes
-    };
-
-    const labelStyle: React.CSSProperties = {
-      width: data.style?.isVertical ? "100%" : "40px",
-      height: data.style?.isVertical ? "40px" : "100%",
-      position: "absolute",
-      top: 0,
-      left: 0,
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "center",
-      backgroundColor: "#f7fafc",
-      padding: "8px",
-      borderRight: data.style?.isVertical ? "none" : "1px solid #e2e8f0",
-      borderBottom: data.style?.isVertical ? "1px solid #e2e8f0" : "none",
-      writingMode: data.style?.isVertical ? "horizontal-tb" : "vertical-rl",
-      transform: data.style?.isVertical ? "none" : "rotate(180deg)",
-      zIndex: 10,
-    };
-
-    const contentStyle: React.CSSProperties = {
-      flex: 1,
-      padding: "8px",
-      paddingTop: "48px", // Add this line to ensure space for the header
-      minHeight: "100px",
-      position: "relative",
     };
 
     return (
@@ -104,31 +149,61 @@ export const SwimlaneNode = memo(
           className={`${selected ? "ring-2 ring-blue-500" : ""}`}
         >
           <Handle type="target" position={Position.Left} className="w-3 h-3" />
-          <div style={labelStyle}>
-            {isEditing ? (
-              <input
-                type="text"
-                value={labelValue}
-                onChange={(e) => setLabelValue(e.target.value)}
-                onBlur={handleBlur}
-                onKeyDown={handleKeyDown}
-                className="w-full text-center bg-transparent border-none outline-none"
-                autoFocus
-                style={{
-                  ...nodeStyle,
-                  writingMode: data.style?.isVertical
-                    ? "horizontal-tb"
-                    : "vertical-rl",
-                  transform: data.style?.isVertical ? "none" : "rotate(180deg)",
-                }}
+          <div className="flex flex-col w-full h-full">
+            {data.lanes.map((lane, index) => (
+              <div
+                key={lane.id}
+                className="relative flex-grow border-b border-gray-200 last:border-b-0"
+                style={{ height: lane.height }}
+              >
+                <div
+                  className="absolute left-0 top-0 bottom-0 w-10 bg-gray-100 border-r border-gray-300 flex items-center justify-center"
+                  style={{
+                    writingMode: "vertical-rl",
+                    transform: "rotate(180deg)",
+                    textOrientation: "mixed",
+                  }}
+                >
+                  {editingLane === lane.id ? (
+                    <input
+                      type="text"
+                      value={labelValues[lane.id]}
+                      onChange={(e) =>
+                        setLabelValues({
+                          ...labelValues,
+                          [lane.id]: e.target.value,
+                        })
+                      }
+                      onBlur={() => handleBlur(lane.id)}
+                      onKeyDown={(e) => handleKeyDown(e, lane.id)}
+                      className="w-full text-center bg-transparent border-none outline-none transform rotate-180"
+                      style={{ writingMode: "horizontal-tb" }}
+                      autoFocus
+                    />
+                  ) : (
+                    <div onDoubleClick={() => handleDoubleClick(lane.id)}>
+                      {lane.label}
+                    </div>
+                  )}
+                </div>
+                <div className="ml-10 h-full"></div>
+                {index < data.lanes.length - 1 && (
+                  <div
+                    className="absolute bottom-0 left-0 right-0 h-2 bg-gray-300 cursor-row-resize"
+                    onMouseDown={(e) => handleResizeStart(e, lane.id)}
+                  ></div>
+                )}
+              </div>
+            ))}
+          </div>
+          {selected && (
+            <div className="absolute bottom-2 right-2 p-2 bg-white bg-opacity-80 z-10">
+              <PlusCircle
+                className="w-6 h-6 cursor-pointer text-blue-500 hover:text-blue-600"
+                onClick={() => data.onAddLane && data.onAddLane(id)}
               />
-            ) : (
-              <div onDoubleClick={handleDoubleClick}>{labelValue}</div>
-            )}
-          </div>
-          <div style={contentStyle} className="pointer-events-none">
-            {/* This is where child nodes will be rendered */}
-          </div>
+            </div>
+          )}
           <Handle type="source" position={Position.Right} className="w-3 h-3" />
         </div>
       </>

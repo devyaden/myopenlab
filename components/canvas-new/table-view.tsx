@@ -299,7 +299,7 @@ const TableView: React.FC<TableViewProps> = ({
   };
 
   return (
-    <div className="p-4 z-50">
+    <div className="p-4">
       <div className="flex justify-between mb-4">
         <Button onClick={addNewNode}>
           <Plus className="mr-2 h-4 w-4" /> Add New Node

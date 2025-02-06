@@ -1,13 +1,4 @@
-import {
-  ArrowLeft,
-  ChevronDown,
-  FileLineChartIcon as FlowChart,
-  Share2,
-  RepeatIcon as Record,
-  Play,
-  Link2,
-  Menu,
-} from "lucide-react";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -15,13 +6,22 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import {
+  ChevronDown,
+  ChevronLeft,
+  Link2,
+  Menu,
+  Send,
+  Video,
+  Youtube,
+} from "lucide-react";
+import Image from "next/image";
 
 export function Header() {
   return (
-    <div className="border-b border-gray-200">
-      <div className="flex items-center px-4 h-12">
-        <div className="flex items-center gap-4">
+    <div className="border-b border-gray-200 ">
+      <div className="flex items-center px-4 ">
+        <div className="flex items-center gap-4 ">
           <Button
             variant="ghost"
             size="sm"
@@ -30,27 +30,40 @@ export function Header() {
             <Menu className="h-4 w-4" />
           </Button>
           <Button
-            variant="ghost"
+            variant="outline"
             size="sm"
-            className="gap-2 text-gray-600 hidden md:flex"
+            className="hidden md:flex items-center justify-center"
           >
-            <ArrowLeft className="h-4 w-4" />
+            <ChevronLeft className="h-4 w-4" />
             Back
           </Button>
-          <div className="flex items-center gap-2">
-            <div className="h-8 w-8 bg-[#ed1e78] rounded flex items-center justify-center">
-              <FlowChart className="h-5 w-5 text-white" />
-            </div>
+
+          <Button
+            variant="ghost"
+            size="sm"
+            className="gap-1 h-6 px-2 text-gray-600 hidden sm:flex"
+          >
+            <Image
+              src="/assets/global/app-icon-small.svg"
+              alt="Logo"
+              width={30}
+              height={30}
+            />
+            <ChevronDown className="h-3 w-3" />
+          </Button>
+
+          <div>
             <div className="flex items-center gap-2">
-              <h1 className="text-[#344054] font-medium">Flowchart</h1>
-              <span className="text-sm text-gray-500 hidden sm:inline">•</span>
+              <h1 className=" text-xl font-semibold">Flowchart</h1>
+
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button
                     variant="ghost"
                     size="sm"
-                    className="gap-1 h-6 px-2 text-gray-600 hidden sm:flex"
+                    className="px-2 hidden sm:flex items-center justify-center text-center"
                   >
+                    <div className="h-2 w-2 bg-yadn-pink rounded-full" />
                     Draft
                     <ChevronDown className="h-3 w-3" />
                   </Button>
@@ -63,111 +76,119 @@ export function Header() {
                 </DropdownMenuContent>
               </DropdownMenu>
             </div>
+
+            <nav className="flex items-center gap-4 overflow-x-auto">
+              {[
+                {
+                  name: "File",
+                  options: [
+                    "New",
+                    "Open",
+                    "Save",
+                    "Save As",
+                    "Export",
+                    "Close",
+                  ],
+                },
+                {
+                  name: "Edit",
+                  options: ["Undo", "Redo", "Cut", "Copy", "Paste", "Delete"],
+                },
+                {
+                  name: "Select",
+                  options: ["All", "None", "Inverse", "Same Type"],
+                },
+                {
+                  name: "View",
+                  options: [
+                    "Zoom In",
+                    "Zoom Out",
+                    "Fit to Screen",
+                    "Show Grid",
+                    "Show Rulers",
+                  ],
+                },
+                {
+                  name: "Insert",
+                  options: ["Shape", "Text", "Image", "Frame", "Component"],
+                },
+                {
+                  name: "Arrange",
+                  options: [
+                    "Bring Forward",
+                    "Send Backward",
+                    "Group",
+                    "Ungroup",
+                    "Align",
+                  ],
+                },
+                {
+                  name: "Share",
+                  options: ["Invite to Project", "Share Link", "Export"],
+                },
+                {
+                  name: "Help",
+                  options: [
+                    "Documentation",
+                    "Keyboard Shortcuts",
+                    "Community Forum",
+                    "Contact Support",
+                  ],
+                },
+              ].map((item) => (
+                <DropdownMenu key={item.name}>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="text-gray-600 p-0 pr-2 h-7 whitespace-nowrap"
+                    >
+                      {item.name}
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent>
+                    {item.options.map((option) => (
+                      <DropdownMenuItem key={option}>{option}</DropdownMenuItem>
+                    ))}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              ))}
+            </nav>
           </div>
         </div>
-        <div className="ml-auto flex items-center gap-2">
+
+        <div className="ml-auto flex items-center gap-2 ">
           <Button
             size="icon"
             variant="ghost"
-            className="h-8 w-8 hidden sm:flex"
+            className="h-10 w-10 hidden sm:flex border border-yadn-pink rounded-sm"
           >
-            <Record className="h-4 w-4 text-gray-600" />
-          </Button>
-          <Button
-            size="icon"
-            variant="ghost"
-            className="h-8 w-8 hidden sm:flex"
-          >
-            <Play className="h-4 w-4 text-gray-600" />
+            <Youtube className="h-6 w-6 text-yadn-pink" />
           </Button>
           <Button
             size="icon"
             variant="ghost"
-            className="h-8 w-8 hidden sm:flex"
+            className="h-10 w-10 hidden sm:flex border border-yadn-pink rounded-sm"
           >
-            <Link2 className="h-4 w-4 text-gray-600" />
+            <Video className="h-6 w-6 text-yadn-pink" />
           </Button>
-          <Button
-            size="sm"
-            variant="default"
-            className="bg-[#ed1e78] hover:bg-[#ed1e78]/90 gap-2"
-          >
-            <Share2 className="h-4 w-4" />
-            <span className="hidden sm:inline">Share</span>
-          </Button>
-          <Avatar className="h-8 w-8">
+
+          <div className="inline-flex rounded-lg overflow-hidden border border-yadn-pink h-10">
+            <button className="bg-yadn-pink hover:bg-yadn-pink text-white px-4 py-2  flex items-center gap-2">
+              <Send className="w-5 h-5" />
+              <span className="font-medium">Share</span>
+            </button>
+            <button className="bg-white hover:bg-gray-50 border border-yadn-pink/20 px-3  flex items-center justify-center">
+              <Link2 className="w-5 h-5 text-yadn-pink" />
+            </button>
+          </div>
+
+          <Avatar>
             <AvatarImage src="/placeholder.svg?height=32&width=32" />
             <AvatarFallback>U</AvatarFallback>
           </Avatar>
         </div>
       </div>
-      <nav className="flex items-center gap-4 px-4 py-1 border-t border-gray-200 overflow-x-auto">
-        {[
-          {
-            name: "File",
-            options: ["New", "Open", "Save", "Save As", "Export", "Close"],
-          },
-          {
-            name: "Edit",
-            options: ["Undo", "Redo", "Cut", "Copy", "Paste", "Delete"],
-          },
-          { name: "Select", options: ["All", "None", "Inverse", "Same Type"] },
-          {
-            name: "View",
-            options: [
-              "Zoom In",
-              "Zoom Out",
-              "Fit to Screen",
-              "Show Grid",
-              "Show Rulers",
-            ],
-          },
-          {
-            name: "Insert",
-            options: ["Shape", "Text", "Image", "Frame", "Component"],
-          },
-          {
-            name: "Arrange",
-            options: [
-              "Bring Forward",
-              "Send Backward",
-              "Group",
-              "Ungroup",
-              "Align",
-            ],
-          },
-          {
-            name: "Share",
-            options: ["Invite to Project", "Share Link", "Export"],
-          },
-          {
-            name: "Help",
-            options: [
-              "Documentation",
-              "Keyboard Shortcuts",
-              "Community Forum",
-              "Contact Support",
-            ],
-          },
-        ].map((item) => (
-          <DropdownMenu key={item.name}>
-            <DropdownMenuTrigger asChild>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="text-gray-600 px-2 h-7 whitespace-nowrap"
-              >
-                {item.name}
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent>
-              {item.options.map((option) => (
-                <DropdownMenuItem key={option}>{option}</DropdownMenuItem>
-              ))}
-            </DropdownMenuContent>
-          </DropdownMenu>
-        ))}
-      </nav>
     </div>
   );
 }
