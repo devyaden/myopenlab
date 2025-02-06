@@ -313,24 +313,14 @@ export const Toolbar = React.memo(function Toolbar({
   };
 
   return (
-    <div className="flex items-center gap-2 p-2  overflow-x-auto">
-      <div className="flex items-center gap-2 border rounded-lg">
-        <Button
-          variant="ghost"
-          size="sm"
-          className="rounded-lg"
-          onClick={onUndo}
-        >
-          <CornerUpLeft className="h-4 w-4" />
+    <div className="flex items-center gap-2 p-2  overflow-x-auto border-b">
+      <div className="flex items-center gap-2 border rounded-lg h-9">
+        <Button variant="ghost" size="sm" onClick={onUndo}>
+          <CornerUpLeft className="h-3 w-3" />
         </Button>
         <Separator orientation="vertical" className="h-6" />
-        <Button
-          variant="ghost"
-          size="sm"
-          className="rounded-lg"
-          onClick={onRedo}
-        >
-          <CornerUpRight className="h-4 w-4 " />
+        <Button variant="ghost" size="sm" onClick={onRedo}>
+          <CornerUpRight className="h-3 w-3 " />
         </Button>
       </div>
 

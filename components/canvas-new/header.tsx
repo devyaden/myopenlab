@@ -16,8 +16,11 @@ import {
   Youtube,
 } from "lucide-react";
 import Image from "next/image";
+import { useRouter } from "next/navigation";
 
 export function Header() {
+  const router = useRouter();
+
   return (
     <div className="border-b border-gray-200 ">
       <div className="flex items-center px-4 ">
@@ -33,6 +36,7 @@ export function Header() {
             variant="outline"
             size="sm"
             className="hidden md:flex items-center justify-center"
+            onClick={() => router.replace("/protected")}
           >
             <ChevronLeft className="h-4 w-4" />
             Back
