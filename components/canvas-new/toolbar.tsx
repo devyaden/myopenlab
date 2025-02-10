@@ -777,7 +777,7 @@ export const Toolbar = React.memo(function Toolbar({
 
       <Switch
         checked={viewMode === "table"}
-        onChange={() =>
+        onCheckedChange={() =>
           onViewModeChange(viewMode === "canvas" ? "table" : "canvas")
         }
         className="!bg-yadn-primary-green ml-auto"

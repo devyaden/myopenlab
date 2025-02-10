@@ -603,7 +603,7 @@ const TableView: React.FC<TableViewProps> = ({
   };
 
   return (
-    <div className="p-4 max-w-[1200px] mx-auto">
+    <div className="p-4 mx-auto">
       <div className="rounded-lg border bg-white">
         <Table>
           <TableHeader>

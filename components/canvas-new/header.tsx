@@ -274,14 +274,7 @@ export function Header({
               {[
                 {
                   name: "File",
-                  options: [
-                    "New",
-                    "Open",
-                    "Save",
-                    "Save As",
-                    "Export",
-                    "Close",
-                  ],
+                  options: ["New", "Open", "Save", "Save As", "Export"],
                 },
                 {
                   name: "Edit",
