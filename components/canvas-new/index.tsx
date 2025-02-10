@@ -1,16 +1,15 @@
 "use client";
 
-import type React from "react";
-import { useState, useCallback, useRef, useEffect } from "react";
-import { ReactFlowProvider } from "reactflow";
-import { Header } from "./header";
-import { Toolbar } from "./toolbar";
-import { Sidebar } from "./sidebar";
-import { VerticalNav } from "./vertical-nav";
-import { UMLEditor } from "./uml-editor";
 import { Input } from "@/components/ui/input";
-import type { Node, Edge } from "reactflow";
-import { MarkerType } from "reactflow";
+import type React from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import type { Edge, Node } from "reactflow";
+import { MarkerType, ReactFlowProvider } from "reactflow";
+import { Header } from "./header";
+import { Sidebar } from "./sidebar";
+import { Toolbar } from "./toolbar";
+import { UMLEditor } from "./uml-editor";
+import { VerticalNav } from "./vertical-nav";
 
 interface NodeStyle {
   fontFamily: string;
@@ -56,7 +55,6 @@ const MAX_HISTORY_SIZE = 50;
 
 export default function FigmaInterface() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  console.log("🚀 ~ FigmaInterface ~ isSidebarOpen:", isSidebarOpen);
   const [selectedNode, setSelectedNode] = useState<string | null>(null);
   const [selectedNodes, setSelectedNodes] = useState<string[]>([]);
   const [currentState, setCurrentState] = useState<AppState>({
@@ -75,6 +73,8 @@ export default function FigmaInterface() {
     { title: "task", type: "Text" },
     { title: "type", type: "Select" },
   ]);
+  const [showGrid, setShowGrid] = useState(true); // Updated initial state for showGrid
+  const [showRulers, setShowRulers] = useState(false);
 
   const updateHistory = useCallback(
     (newState: AppState) => {
@@ -646,6 +646,26 @@ export default function FigmaInterface() {
     setIsSidebarOpen((prev) => !prev);
   }, []);
 
+  const handleZoomIn = useCallback(() => {
+    // This will be handled by the UMLEditor component
+  }, []);
+
+  const handleZoomOut = useCallback(() => {
+    // This will be handled by the UMLEditor component
+  }, []);
+
+  const handleFitToScreen = useCallback(() => {
+    // This will be handled by the UMLEditor component
+  }, []);
+
+  const handleToggleGrid = useCallback(() => {
+    setShowGrid((prev) => !prev);
+  }, []);
+
+  const handleToggleRulers = useCallback(() => {
+    setShowRulers((prev) => !prev);
+  }, []);
+
   const selectedStyle = selectedNode ? getNodeStyle(selectedNode) : null;
   const selectedEdgeData = selectedEdge
     ? currentState.edges.find((edge) => edge.id === selectedEdge)?.data
@@ -665,6 +685,11 @@ export default function FigmaInterface() {
           onPaste={pasteNodes}
           onDelete={deleteSelectedNodes}
           onInsertImage={addImage}
+          onZoomIn={handleZoomIn}
+          onZoomOut={handleZoomOut}
+          onFitToScreen={handleFitToScreen}
+          onToggleGrid={handleToggleGrid}
+          onToggleRulers={handleToggleRulers}
         />
         <Toolbar
           key={selectedNode || selectedEdge || "no-selection"}
@@ -764,6 +789,11 @@ export default function FigmaInterface() {
                 onAddColumn={handleAddColumn}
                 columns={columns}
                 setColumns={setColumns}
+                onZoomIn={handleZoomIn}
+                onZoomOut={handleZoomOut}
+                onFitToScreen={handleFitToScreen}
+                showGrid={showGrid}
+                showRulers={showRulers}
               />
             </div>
           </div>

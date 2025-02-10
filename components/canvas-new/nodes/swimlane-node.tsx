@@ -153,7 +153,7 @@ export const SwimlaneNode = memo(
             {data.lanes.map((lane, index) => (
               <div
                 key={lane.id}
-                className="relative flex-grow border-b border-gray-200 last:border-b-0"
+                className="relative flex-grow  last:border-b-0"
                 style={{ height: lane.height }}
               >
                 <div
@@ -189,7 +189,7 @@ export const SwimlaneNode = memo(
                 <div className="ml-10 h-full"></div>
                 {index < data.lanes.length - 1 && (
                   <div
-                    className="absolute bottom-0 left-0 right-0 h-2 bg-gray-300 cursor-row-resize"
+                    className="absolute bottom-0 left-0 right-0 h-1 bg-gray-300 cursor-row-resize"
                     onMouseDown={(e) => handleResizeStart(e, lane.id)}
                   ></div>
                 )}

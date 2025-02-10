@@ -9,14 +9,25 @@ import {
   Box,
   Type,
   Image,
+  ZoomIn,
+  ZoomOut,
+  Maximize,
+  Bold,
+  Dot,
+  Cross,
+  Grid,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Toggle } from "../ui/toggle";
 
 interface UMLToolbarProps {
   onAddNode: (shape: string) => void;
   onAddSwimlane: () => void;
   onChangeEdgeStyle: (style: string) => void;
   onAddImage: () => void;
+  onZoomIn: () => void;
+  onZoomOut: () => void;
+  onFitToScreen: () => void;
 }
 
 export function UMLToolbar({
@@ -24,6 +35,9 @@ export function UMLToolbar({
   onAddSwimlane,
   onChangeEdgeStyle,
   onAddImage,
+  onZoomIn,
+  onZoomOut,
+  onFitToScreen,
 }: UMLToolbarProps) {
   return (
     <div className="absolute top-4 left-4 bg-white rounded-lg shadow-md border border-gray-200 p-2 z-10">
@@ -124,6 +138,36 @@ export function UMLToolbar({
         >
           <Image className="h-5 w-5" />
         </Button>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-10 w-10"
+          onClick={onZoomIn}
+        >
+          <ZoomIn className="h-5 w-5" />
+        </Button>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-10 w-10"
+          onClick={onZoomOut}
+        >
+          <ZoomOut className="h-5 w-5" />
+        </Button>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-10 w-10"
+          onClick={onFitToScreen}
+        >
+          <Maximize className="h-5 w-5" />
+        </Button>
+
+        <Toggle aria-label="Toggle italic">
+          <Dot className="h-4 w-4" />
+          <Cross className="h-4 w-4" />
+          <Grid className="h-4 w-4" />
+        </Toggle>
       </div>
     </div>
   );

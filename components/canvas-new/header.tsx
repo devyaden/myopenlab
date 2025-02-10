@@ -29,6 +29,11 @@ interface HeaderProps {
   onCopy: () => void;
   onPaste: () => void;
   onDelete: () => void;
+  onZoomIn: () => void;
+  onZoomOut: () => void;
+  onFitToScreen: () => void;
+  onToggleGrid: () => void;
+  onToggleRulers: () => void;
 }
 
 export function Header({
@@ -39,6 +44,11 @@ export function Header({
   onCopy,
   onPaste,
   onDelete,
+  onZoomIn,
+  onZoomOut,
+  onFitToScreen,
+  onToggleGrid,
+  onToggleRulers,
 }: HeaderProps) {
   const router = useRouter();
   const [documentStatus, setDocumentStatus] = useState("Draft");
@@ -104,24 +114,19 @@ export function Header({
         console.log("Selecting same type");
         break;
       case "Zoom In":
-        // Implement zoom in logic
-        console.log("Zooming in");
+        onZoomIn();
         break;
       case "Zoom Out":
-        // Implement zoom out logic
-        console.log("Zooming out");
+        onZoomOut();
         break;
       case "Fit to Screen":
-        // Implement fit to screen logic
-        console.log("Fitting to screen");
+        onFitToScreen();
         break;
       case "Show Grid":
-        // Implement show grid logic
-        console.log("Toggling grid");
+        onToggleGrid();
         break;
       case "Show Rulers":
-        // Implement show rulers logic
-        console.log("Toggling rulers");
+        onToggleRulers();
         break;
       case "Shape":
         // Implement insert shape logic

@@ -18,7 +18,6 @@ import ReactFlow, {
   addEdge,
   type Node,
   type Edge,
-  useReactFlow,
   type ReactFlowInstance,
   MarkerType,
   getBezierPath,
@@ -31,7 +30,9 @@ import TableView from "./table-view";
 import { TextNode } from "./nodes/text-node";
 import { ImageNode } from "./nodes/image-node";
 import type { Node as ReactFlowNode } from "reactflow";
-import { ColumnData } from "./add-column-sidebar";
+import type { ColumnData } from "./add-column-sidebar";
+// The React variable is undeclared. Please fix the import or declare the variable before using it.
+import { useReactFlow } from "reactflow";
 
 const nodeTypes = {
   genericNode: GenericNode,
@@ -62,6 +63,11 @@ interface UMLEditorProps {
   onAddColumn: (columnData: ColumnData) => void;
   columns: ColumnData[];
   setColumns: React.Dispatch<React.SetStateAction<ColumnData[]>>;
+  onZoomIn: () => void;
+  onZoomOut: () => void;
+  onFitToScreen: () => void;
+  showGrid: boolean;
+  showRulers: boolean;
 }
 
 const CustomEdge = ({
@@ -237,11 +243,29 @@ export function UMLEditor({
   onAddColumn,
   columns,
   setColumns,
+  onZoomIn,
+  onZoomOut,
+  onFitToScreen,
+  showGrid,
+  showRulers,
 }: UMLEditorProps) {
   const { getNode, project } = useReactFlow();
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
   const [reactFlowInstance, setReactFlowInstance] =
     useState<ReactFlowInstance | null>(null);
+  const { zoomIn, zoomOut, fitView } = useReactFlow();
+
+  const handleZoomIn = useCallback(() => {
+    zoomIn();
+  }, [zoomIn]);
+
+  const handleZoomOut = useCallback(() => {
+    zoomOut();
+  }, [zoomOut]);
+
+  const handleFitToScreen = useCallback(() => {
+    fitView();
+  }, [fitView]);
 
   const handleNodesChange = useCallback(
     (changes: NodeChange[]) => {
@@ -562,7 +586,9 @@ export function UMLEditor({
             onAddSwimlane={handleAddSwimlane}
             onChangeEdgeStyle={applyEdgeStyle}
             onAddImage={onAddImage}
-            // onDelete={() => handleDeleteNodes(selectedNodes)}
+            onZoomIn={handleZoomIn}
+            onZoomOut={handleZoomOut}
+            onFitToScreen={handleFitToScreen}
           />
           <ReactFlow
             nodes={nodes.map((node) => ({
@@ -623,9 +649,12 @@ export function UMLEditor({
             elementsSelectable={true}
             edgeUpdaterRadius={10}
             onEdgeUpdate={onEdgeUpdate}
+            minZoom={0.1}
+            maxZoom={4}
           >
-            <Background />
-            <Controls />
+            <Background variant={showGrid ? "dots" : "lines"} />
+            <Controls showZoom={false} />
+            {showRulers && <MeasureRuler />}
           </ReactFlow>
         </>
       ) : (
@@ -642,3 +671,77 @@ export function UMLEditor({
     </div>
   );
 }
+
+const MeasureRuler = () => {
+  return (
+    <>
+      <div
+        style={{
+          position: "absolute",
+          top: 0,
+          left: 0,
+          right: 0,
+          height: "20px",
+          background: "white",
+          borderBottom: "1px solid #ccc",
+          display: "flex",
+          alignItems: "flex-end",
+          paddingLeft: "20px",
+        }}
+      >
+        {[...Array(10)].map((_, i) => (
+          <div
+            key={i}
+            style={{
+              width: "100px",
+              height: "100%",
+              borderRight: "1px solid #ccc",
+              display: "flex",
+              justifyContent: "flex-end",
+              alignItems: "center",
+              paddingRight: "5px",
+              fontSize: "10px",
+            }}
+          >
+            {(i + 1) * 100}
+          </div>
+        ))}
+      </div>
+      <div
+        style={{
+          position: "absolute",
+          top: 20,
+          left: 0,
+          bottom: 0,
+          width: "20px",
+          background: "white",
+          borderRight: "1px solid #ccc",
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "flex-end",
+          paddingTop: "20px",
+        }}
+      >
+        {[...Array(10)].map((_, i) => (
+          <div
+            key={i}
+            style={{
+              height: "100px",
+              width: "100%",
+              borderBottom: "1px solid #ccc",
+              display: "flex",
+              justifyContent: "center",
+              alignItems: "flex-start",
+              paddingTop: "5px",
+              fontSize: "10px",
+              writingMode: "vertical-rl",
+              transform: "rotate(180deg)",
+            }}
+          >
+            {(i + 1) * 100}
+          </div>
+        ))}
+      </div>
+    </>
+  );
+};
