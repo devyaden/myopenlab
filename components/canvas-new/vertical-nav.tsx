@@ -90,22 +90,6 @@ export function VerticalNav({ className, onToggleSidebar }: VerticalNavProps) {
       >
         <Rocket className="!h-6 !w-6" />
       </Button>
-
-      <Button
-        variant="outline"
-        size="icon"
-        className="h-12 w-12 rounded-lg hover:bg-gray-100"
-      >
-        <Sparkle className="!h-6 !w-6" />
-      </Button>
-
-      <Button
-        variant="outline"
-        size="icon"
-        className="h-12 w-12 rounded-lg hover:bg-gray-100"
-      >
-        <CodeXml className="!h-6 !w-6" />
-      </Button>
     </div>
   );
 }
