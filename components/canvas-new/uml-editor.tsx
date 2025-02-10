@@ -21,6 +21,7 @@ import ReactFlow, {
   type ReactFlowInstance,
   MarkerType,
   getBezierPath,
+  MiniMap,
 } from "reactflow";
 import "reactflow/dist/style.css";
 import { GenericNode } from "./nodes/generic-node";
@@ -661,6 +662,8 @@ export function UMLEditor({
             <Background variant={background} />
             <Controls showZoom={false} />
             {showRulers && <MeasureRuler />}
+
+            <MiniMap />
           </ReactFlow>
         </>
       ) : (
