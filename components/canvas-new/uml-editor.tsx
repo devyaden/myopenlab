@@ -22,13 +22,15 @@ import { GenericNode } from "./nodes/generic-node";
 import { SwimlaneNode } from "./nodes/swimlane-node";
 import { UMLToolbar } from "./uml-toolbar";
 import TableView from "./table-view";
-import { Button } from "@/components/ui/button";
 import { TextNode } from "./nodes/text-node";
+import { ImageNode } from "./nodes/image-node";
+import { ColumnData } from "./add-column-sidebar";
 
 const nodeTypes = {
   genericNode: GenericNode,
   swimlaneNode: SwimlaneNode,
   textNode: TextNode,
+  imageNode: ImageNode,
 };
 
 interface UMLEditorProps {
@@ -48,9 +50,16 @@ interface UMLEditorProps {
   onEdgeSelect: (edgeIds: string[]) => void;
   onChangeEdgeStyle: (style: string) => void;
   onChangeEdgeLabel: (edgeId: string, label: string) => void;
+  onAddImage: (position?: any) => void;
+  viewMode: "canvas" | "table";
+  onAddColumn: (columnData: ColumnData) => void;
+  columns: ColumnData[];
+  setColumns: React.Dispatch<React.SetStateAction<ColumnData[]>>;
 }
 
-const CustomEdge = ({
+import { EdgeProps } from "reactflow";
+
+const CustomEdge: React.FC<EdgeProps> = ({
   id,
   sourceX,
   sourceY,
@@ -59,9 +68,9 @@ const CustomEdge = ({
   sourcePosition,
   targetPosition,
   style = {},
-  data,
+  data = {},
   markerEnd,
-}: any) => {
+}) => {
   const [isEditing, setIsEditing] = useState(false);
   const [labelText, setLabelText] = useState(data?.label || "");
 
@@ -88,14 +97,12 @@ const CustomEdge = ({
 
   const handleDoubleClick = (
     event: React.MouseEvent<SVGTextElement, MouseEvent>
-  ) => {
+  ): void => {
     event.preventDefault();
     setIsEditing(true);
   };
 
-  const handleLabelChange = (
-    event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
-  ) => {
+  const handleLabelChange = (event: { target: { value: any } }) => {
     setLabelText(event.target.value);
   };
 
@@ -188,9 +195,13 @@ export function UMLEditor({
   onEdgeSelect,
   onChangeEdgeStyle,
   onChangeEdgeLabel,
+  onAddImage,
+  viewMode,
+  onAddColumn,
+  columns,
+  setColumns,
 }: UMLEditorProps) {
   const { getNode, project } = useReactFlow();
-  const [viewMode, setViewMode] = useState<"canvas" | "table">("canvas");
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
   const [reactFlowInstance, setReactFlowInstance] =
     useState<ReactFlowInstance | null>(null);
@@ -324,12 +335,27 @@ export function UMLEditor({
         );
         onNodesChange(newNodes);
       } else {
-        // Update existing nodes
-        const newNodes = nodes.map((node) => {
-          const updatedNode = updatedNodes.find((n) => n.id === node.id);
-          return updatedNode
-            ? { ...node, data: { ...node.data, ...updatedNode.data } }
-            : node;
+        // Update existing nodes or add new nodes
+        const newNodes = updatedNodes.map((updatedNode) => {
+          const existingNode = nodes.find((node) => node.id === updatedNode.id);
+          if (existingNode) {
+            // Update existing node
+            return {
+              ...existingNode,
+              data: {
+                ...existingNode.data,
+                ...updatedNode.data,
+                shape: updatedNode.data.shape || existingNode.data.shape,
+              },
+              type: updatedNode.type || existingNode.type,
+            };
+          } else {
+            // Add new node
+            return {
+              ...updatedNode,
+              position: { x: Math.random() * 500, y: Math.random() * 500 },
+            };
+          }
         });
         onNodesChange(newNodes);
       }
@@ -370,13 +396,15 @@ export function UMLEditor({
         y: event.clientY - reactFlowBounds.top,
       });
 
-      if (type === "swimlane") {
+      if (type === "image") {
+        onAddImage(position);
+      } else if (type === "swimlane") {
         onAddSwimlane(position);
       } else {
         onAddNode(type, position);
       }
     },
-    [reactFlowInstance, onAddNode, onAddSwimlane]
+    [reactFlowInstance, onAddNode, onAddSwimlane, onAddImage]
   );
 
   const handleAddNode = useCallback(
@@ -431,21 +459,13 @@ export function UMLEditor({
 
   return (
     <div className="w-full h-[calc(100vh-132px)]" ref={reactFlowWrapper}>
-      <div className="flex justify-end mb-4">
-        <Button
-          onClick={() =>
-            setViewMode(viewMode === "canvas" ? "table" : "canvas")
-          }
-        >
-          Switch to {viewMode === "canvas" ? "Table" : "Canvas"} View
-        </Button>
-      </div>
       {viewMode === "canvas" ? (
         <>
           <UMLToolbar
             onAddNode={handleAddNode}
             onAddSwimlane={handleAddSwimlane}
             onChangeEdgeStyle={applyEdgeStyle}
+            onAddImage={onAddImage}
           />
           <ReactFlow
             nodes={nodes.map((node) => ({
@@ -455,9 +475,15 @@ export function UMLEditor({
                 style: {
                   ...nodeStyles[node.id],
                   width:
-                    node.style?.width || (node.type === "textNode" ? 150 : 100),
+                    node.type === "imageNode"
+                      ? node.style?.width
+                      : node.style?.width ||
+                        (node.type === "textNode" ? 150 : 100),
                   height:
-                    node.style?.height || (node.type === "textNode" ? 50 : 100),
+                    node.type === "imageNode"
+                      ? node.style?.height
+                      : node.style?.height ||
+                        (node.type === "textNode" ? 50 : 100),
                 },
                 onLabelChange:
                   node.type === "swimlaneNode"
@@ -467,9 +493,15 @@ export function UMLEditor({
               },
               style: {
                 width:
-                  node.style?.width || (node.type === "textNode" ? 150 : 100),
+                  node.type === "imageNode"
+                    ? node.style?.width
+                    : node.style?.width ||
+                      (node.type === "textNode" ? 150 : 100),
                 height:
-                  node.style?.height || (node.type === "textNode" ? 50 : 100),
+                  node.type === "imageNode"
+                    ? node.style?.height
+                    : node.style?.height ||
+                      (node.type === "textNode" ? 50 : 100),
               },
               connectable: node.type !== "textNode",
               selected: selectedNodes.includes(node.id),
@@ -505,6 +537,9 @@ export function UMLEditor({
           edges={edges}
           onNodesChange={handleTableNodesChange}
           onEdgesChange={handleTableEdgesChange}
+          onAddColumn={onAddColumn}
+          columns={columns}
+          setColumns={setColumns}
         />
       )}
     </div>

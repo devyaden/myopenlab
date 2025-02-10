@@ -4,7 +4,6 @@ import { useState } from "react";
 import {
   Search,
   Star,
-  Trash2,
   ChevronDown,
   Square,
   Circle,
@@ -14,6 +13,7 @@ import {
   Box,
   Type,
   GripVertical,
+  Image,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -73,6 +73,10 @@ export function Sidebar({ className, onDragStart }: SidebarProps) {
     {
       title: "Text",
       shapes: [{ name: "Text Node", type: "text", icon: Type }],
+    },
+    {
+      title: "Images",
+      shapes: [{ name: "Image", type: "image", icon: Image }],
     },
   ];
 

@@ -8,6 +8,7 @@ import {
   User,
   Box,
   Type,
+  Image,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -15,12 +16,14 @@ interface UMLToolbarProps {
   onAddNode: (shape: string) => void;
   onAddSwimlane: () => void;
   onChangeEdgeStyle: (style: string) => void;
+  onAddImage: () => void;
 }
 
 export function UMLToolbar({
   onAddNode,
   onAddSwimlane,
   onChangeEdgeStyle,
+  onAddImage,
 }: UMLToolbarProps) {
   return (
     <div className="absolute top-4 left-4 bg-white rounded-lg shadow-md border border-gray-200 p-2 z-10">
@@ -112,6 +115,14 @@ export function UMLToolbar({
           onClick={() => onAddNode("text")}
         >
           <Type className="h-5 w-5" />
+        </Button>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-10 w-10"
+          onClick={onAddImage}
+        >
+          <Image className="h-5 w-5" />
         </Button>
       </div>
     </div>

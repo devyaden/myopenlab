@@ -40,6 +40,8 @@ import {
   Triangle,
   Underline,
   User,
+  TableIcon,
+  Layout,
 } from "lucide-react";
 import React from "react";
 
@@ -110,6 +112,8 @@ interface ToolbarProps {
   currentEdgeStyle: string;
   onChangeEdgeLabel: (label: string) => void;
   currentEdgeLabel: string;
+  viewMode: "canvas" | "table";
+  onViewModeChange: (mode: "canvas" | "table") => void;
 }
 
 export const Toolbar = React.memo(function Toolbar({
@@ -155,6 +159,8 @@ export const Toolbar = React.memo(function Toolbar({
   currentEdgeStyle,
   onChangeEdgeLabel,
   currentEdgeLabel,
+  viewMode,
+  onViewModeChange,
 }: ToolbarProps) {
   const fontFamilies = [
     "Arial",
@@ -767,6 +773,20 @@ export const Toolbar = React.memo(function Toolbar({
           <Lock className="h-4 w-4" />
         </Button>
       </div>
+      <Button
+        variant="outline"
+        size="icon"
+        className="h-10 w-10 border border-yadn-pink rounded-sm"
+        onClick={() =>
+          onViewModeChange(viewMode === "canvas" ? "table" : "canvas")
+        }
+      >
+        {viewMode === "canvas" ? (
+          <TableIcon className="h-6 w-6 text-yadn-pink" />
+        ) : (
+          <Layout className="h-6 w-6 text-yadn-pink" />
+        )}
+      </Button>
     </div>
   );
 });
