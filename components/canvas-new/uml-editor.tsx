@@ -1,6 +1,12 @@
 "use client";
 
-import { useCallback, useState, useRef } from "react";
+import {
+  useCallback,
+  useState,
+  useRef,
+  useEffect,
+  type KeyboardEvent,
+} from "react";
 import ReactFlow, {
   Controls,
   Background,
@@ -24,6 +30,7 @@ import { UMLToolbar } from "./uml-toolbar";
 import TableView from "./table-view";
 import { TextNode } from "./nodes/text-node";
 import { ImageNode } from "./nodes/image-node";
+import type { Node as ReactFlowNode } from "reactflow";
 import { ColumnData } from "./add-column-sidebar";
 
 const nodeTypes = {
@@ -57,9 +64,7 @@ interface UMLEditorProps {
   setColumns: React.Dispatch<React.SetStateAction<ColumnData[]>>;
 }
 
-import { EdgeProps } from "reactflow";
-
-const CustomEdge: React.FC<EdgeProps> = ({
+const CustomEdge = ({
   id,
   sourceX,
   sourceY,
@@ -68,9 +73,9 @@ const CustomEdge: React.FC<EdgeProps> = ({
   sourcePosition,
   targetPosition,
   style = {},
-  data = {},
+  data,
   markerEnd,
-}) => {
+}: any) => {
   const [isEditing, setIsEditing] = useState(false);
   const [labelText, setLabelText] = useState(data?.label || "");
 
@@ -95,9 +100,7 @@ const CustomEdge: React.FC<EdgeProps> = ({
       break;
   }
 
-  const handleDoubleClick = (
-    event: React.MouseEvent<SVGTextElement, MouseEvent>
-  ): void => {
+  const handleDoubleClick = (event: { preventDefault: () => void }) => {
     event.preventDefault();
     setIsEditing(true);
   };
@@ -176,6 +179,40 @@ const CustomEdge: React.FC<EdgeProps> = ({
       )}
     </>
   );
+};
+
+const sortNodes = (node: ReactFlowNode, nodes: ReactFlowNode[]) => {
+  nodes = [...nodes].sort((a, b) => {
+    if (a.id === node.id) return 1;
+    if (b.id === node.id) return -1;
+    return 0;
+  });
+  const children = nodes.filter((n) => n.parentNode === node.id);
+  children.forEach((child) => {
+    nodes = sortNodes(child, nodes);
+  });
+
+  return nodes;
+};
+
+const findAbsolutePosition = (
+  currentNode: ReactFlowNode,
+  allNodes: ReactFlowNode[]
+): { x: number; y: number } => {
+  if (!currentNode?.parentNode) {
+    return { x: currentNode.position.x, y: currentNode.position.y };
+  }
+
+  const parentNode = allNodes.find((n) => n.id === currentNode.parentNode);
+  if (!parentNode) {
+    return { x: currentNode.position.x, y: currentNode.position.y };
+  }
+
+  const parentPosition = findAbsolutePosition(parentNode, allNodes);
+  return {
+    x: parentPosition.x + currentNode.position.x,
+    y: parentPosition.y + currentNode.position.y,
+  };
 };
 
 export function UMLEditor({
@@ -273,50 +310,55 @@ export function UMLEditor({
 
   const onNodeDragStop = useCallback(
     (event: React.MouseEvent, draggedNode: Node, draggedNodes: Node[]) => {
-      const swimlanes = nodes.filter((n) => n.type === "swimlaneNode");
-      const updatedNodes = nodes.map((n) => {
-        if (draggedNodes.some((dn) => dn.id === n.id)) {
-          if (n.type === "swimlaneNode") return n;
+      const children = nodes.filter((n) => n.parentNode === draggedNode.id);
+      let sortedNodes: Node[];
+      if (children.length === 0) {
+        sortedNodes = [...nodes].sort((a, b) => {
+          if (a.id === draggedNode.id) return 1;
+          if (b.id === draggedNode.id) return -1;
+          return 0;
+        });
+      } else {
+        sortedNodes = sortNodes(draggedNode, nodes);
+      }
 
-          const parentSwimlane = swimlanes.find((swimlane) => {
-            const swimlaneRect = {
-              left: swimlane.position.x,
-              right: swimlane.position.x + (swimlane.width || 0),
-              top: swimlane.position.y,
-              bottom: swimlane.position.y + (swimlane.height || 0),
+      const updatedNodes = sortedNodes.map((node) => {
+        if (draggedNodes.some((dn) => dn.id === node.id)) {
+          const absolutePosition = findAbsolutePosition(node, sortedNodes);
+          const intersectingNode = sortedNodes.find(
+            (n) =>
+              n.id !== node.id &&
+              absolutePosition.x >= n.position.x &&
+              absolutePosition.x <= n.position.x + (n.width || 0) &&
+              absolutePosition.y >= n.position.y &&
+              absolutePosition.y <= n.position.y + (n.height || 0)
+          );
+
+          if (!intersectingNode) {
+            return {
+              ...node,
+              parentNode: undefined,
+              position: absolutePosition,
             };
-            return (
-              n.position.x >= swimlaneRect.left &&
-              n.position.x < swimlaneRect.right &&
-              n.position.y >= swimlaneRect.top &&
-              n.position.y < swimlaneRect.bottom
+          } else if (node.id !== intersectingNode.id) {
+            const targetAbsolutePosition = findAbsolutePosition(
+              intersectingNode,
+              sortedNodes
             );
-          });
-
-          if (parentSwimlane) {
-            // Node is inside a swimlane
             return {
-              ...n,
-              parentNode: parentSwimlane.id,
-              extent: "parent",
+              ...node,
+              parentNode: intersectingNode.id,
               position: {
-                x: n.position.x - parentSwimlane.position.x,
-                y: Math.max(48, n.position.y - parentSwimlane.position.y),
+                x: absolutePosition.x - targetAbsolutePosition.x,
+                y: absolutePosition.y - targetAbsolutePosition.y,
               },
-            };
-          } else {
-            // Node is outside any swimlane
-            const { parentNode, extent, ...rest } = n;
-            return {
-              ...rest,
-              position: n.position,
             };
           }
         }
-        return n;
+        return node;
       });
 
-      onNodesChange(updatedNodes as Node[]);
+      onNodesChange(updatedNodes);
     },
     [nodes, onNodesChange]
   );
@@ -457,6 +499,60 @@ export function UMLEditor({
     [edges, onEdgesChange]
   );
 
+  const handleDeleteNodes = useCallback(
+    (nodesToDelete: string[]) => {
+      const nodesToDeleteSet = new Set(nodesToDelete);
+      const deleteNodeAndChildren = (nodeId: string) => {
+        const node = nodes.find((n) => n.id === nodeId);
+        if (node) {
+          nodesToDeleteSet.add(nodeId);
+          nodes.forEach((n) => {
+            if (n.parentNode === nodeId) {
+              deleteNodeAndChildren(n.id);
+            }
+          });
+        }
+      };
+
+      nodesToDelete.forEach((nodeId) => deleteNodeAndChildren(nodeId));
+
+      const updatedNodes = nodes.filter(
+        (node) => !nodesToDeleteSet.has(node.id)
+      );
+      const updatedEdges = edges.filter(
+        (edge) =>
+          !nodesToDeleteSet.has(edge.source) &&
+          !nodesToDeleteSet.has(edge.target)
+      );
+
+      onNodesChange(updatedNodes);
+      onEdgesChange(updatedEdges);
+    },
+    [nodes, edges, onNodesChange, onEdgesChange]
+  );
+
+  const handleKeyDown = useCallback(
+    (event: KeyboardEvent) => {
+      if (event.key === "Delete" && selectedNodes.length > 0) {
+        handleDeleteNodes(selectedNodes);
+      }
+    },
+    [selectedNodes, handleDeleteNodes]
+  );
+
+  useEffect(() => {
+    document.addEventListener(
+      "keydown",
+      handleKeyDown as unknown as EventListener
+    );
+    return () => {
+      document.removeEventListener(
+        "keydown",
+        handleKeyDown as unknown as EventListener
+      );
+    };
+  }, [handleKeyDown]);
+
   return (
     <div className="w-full h-[calc(100vh-132px)]" ref={reactFlowWrapper}>
       {viewMode === "canvas" ? (
@@ -466,6 +562,7 @@ export function UMLEditor({
             onAddSwimlane={handleAddSwimlane}
             onChangeEdgeStyle={applyEdgeStyle}
             onAddImage={onAddImage}
+            // onDelete={() => handleDeleteNodes(selectedNodes)}
           />
           <ReactFlow
             nodes={nodes.map((node) => ({

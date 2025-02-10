@@ -294,14 +294,14 @@ export default function FigmaInterface() {
         id: `swimlane-${Date.now()}`,
         type: "swimlaneNode",
         position,
-        style: { width: 600, height: 200 },
+        style: { width: 600, height: 150 },
         data: {
           label: "New Swimlane",
           lanes: [
             {
               id: `lane-${Date.now()}`,
               label: "Lane 1",
-              height: 200,
+              height: 150,
             },
           ],
         },
@@ -367,7 +367,7 @@ export default function FigmaInterface() {
               },
               style: {
                 ...node.style,
-                height: ((node.style?.height as number) || 0) + 200,
+                height: ((node.style?.height as number) || 0) + 100,
               },
             };
           }
@@ -379,19 +379,47 @@ export default function FigmaInterface() {
   );
 
   const deleteSelectedNodes = useCallback(() => {
+    const nodesToDeleteSet = new Set(selectedNodes);
+    const deleteNodeAndChildren = (nodeId: string) => {
+      const node = currentState.nodes.find((n) => n.id === nodeId);
+      if (node) {
+        nodesToDeleteSet.add(nodeId);
+        currentState.nodes.forEach((n) => {
+          if (n.parentNode === nodeId) {
+            deleteNodeAndChildren(n.id);
+          }
+        });
+      }
+    };
+
+    selectedNodes.forEach((nodeId) => deleteNodeAndChildren(nodeId));
+
+    const updatedNodes = currentState.nodes.filter(
+      (node) => !nodesToDeleteSet.has(node.id)
+    );
+    const updatedEdges = currentState.edges.filter(
+      (edge) =>
+        !nodesToDeleteSet.has(edge.source) && !nodesToDeleteSet.has(edge.target)
+    );
+
     updateState({
-      nodes: currentState.nodes.filter(
-        (node) => !selectedNodes.includes(node.id)
-      ),
+      nodes: updatedNodes,
+      edges: updatedEdges,
       nodeStyles: Object.fromEntries(
         Object.entries(currentState.nodeStyles).filter(
-          ([id]) => !selectedNodes.includes(id)
+          ([id]) => !nodesToDeleteSet.has(id)
         )
       ),
     });
     setSelectedNodes([]);
     setSelectedNode(null);
-  }, [currentState.nodes, currentState.nodeStyles, selectedNodes, updateState]);
+  }, [
+    currentState.nodes,
+    currentState.edges,
+    currentState.nodeStyles,
+    selectedNodes,
+    updateState,
+  ]);
 
   const deleteSelectedEdges = useCallback(() => {
     if (selectedEdge) {
@@ -443,6 +471,20 @@ export default function FigmaInterface() {
     selectedNodes,
     selectedEdge,
   ]);
+
+  const deleteSelectedNode = useCallback(() => {
+    if (selectedNode) {
+      updateState({
+        nodes: currentState.nodes.filter((node) => node.id !== selectedNode),
+        nodeStyles: Object.fromEntries(
+          Object.entries(currentState.nodeStyles).filter(
+            ([id]) => id !== selectedNode
+          )
+        ),
+      });
+      setSelectedNode(null);
+    }
+  }, [selectedNode, currentState.nodes, currentState.nodeStyles, updateState]);
 
   const setBackgroundColor = useCallback(
     (color: string) => {

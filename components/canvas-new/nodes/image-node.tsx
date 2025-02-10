@@ -1,7 +1,7 @@
 "use client";
 
 import { memo, useState, useEffect } from "react";
-import { Handle, Position, NodeResizer } from "reactflow";
+import { Handle, Position, NodeResizer } from "reactflow"; //Fixed import
 import Image from "next/image";
 
 interface ImageNodeProps {
