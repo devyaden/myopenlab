@@ -44,6 +44,7 @@ import {
   Layout,
 } from "lucide-react";
 import React from "react";
+import { Switch } from "../ui/switch";
 
 interface ToolbarProps {
   fontFamily: string;
@@ -773,20 +774,14 @@ export const Toolbar = React.memo(function Toolbar({
           <Lock className="h-4 w-4" />
         </Button>
       </div>
-      <Button
-        variant="outline"
-        size="icon"
-        className="h-10 w-10 border border-yadn-pink rounded-sm"
-        onClick={() =>
+
+      <Switch
+        checked={viewMode === "table"}
+        onCheckedChange={() =>
           onViewModeChange(viewMode === "canvas" ? "table" : "canvas")
         }
-      >
-        {viewMode === "canvas" ? (
-          <TableIcon className="h-6 w-6 text-yadn-pink" />
-        ) : (
-          <Layout className="h-6 w-6 text-yadn-pink" />
-        )}
-      </Button>
+        className="!bg-yadn-primary-green ml-auto"
+      />
     </div>
   );
 });

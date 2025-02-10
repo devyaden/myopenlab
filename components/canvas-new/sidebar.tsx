@@ -1,33 +1,34 @@
 "use client";
 
-import { useState } from "react";
-import {
-  Search,
-  Star,
-  ChevronDown,
-  Square,
-  Circle,
-  Diamond,
-  Triangle,
-  User,
-  Box,
-  Type,
-  GripVertical,
-  Image,
-} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
+import { cn } from "@/lib/utils";
+import {
+  Box,
+  ChevronDown,
+  Circle,
+  Diamond,
+  GripVertical,
+  Image,
+  Search,
+  Square,
+  Star,
+  Triangle,
+  Type,
+  User,
+} from "lucide-react";
+import { useState } from "react";
 
 interface SidebarProps {
-  className?: string;
   onDragStart: (event: React.DragEvent, shapeType: string) => void;
+  isVisible?: boolean;
 }
 
-export function Sidebar({ className, onDragStart }: SidebarProps) {
+export function Sidebar({ onDragStart, isVisible }: SidebarProps) {
   const [openItems, setOpenItems] = useState<Record<string, boolean>>({});
 
   const toggleItem = (title: string) => {
@@ -81,8 +82,13 @@ export function Sidebar({ className, onDragStart }: SidebarProps) {
   ];
 
   return (
-    <div className={`w-72 border-r border-gray-200 bg-white ${className}`}>
-      <div className="pt-3 ">
+    <div
+      className={cn(
+        "border-r border-gray-200 bg-white fixed md:relative transition-all duration-300 ease-in-out z-10 overflow-hidden",
+        isVisible ? "w-72 translate-x-0" : "w-0 -translate-x-full"
+      )}
+    >
+      <div className="pt-3 relative ">
         <div className="flex items-center justify-between pb-2  px-4 ">
           <h2 className=" text-md font-semibold ">Shapes</h2>
           <Button

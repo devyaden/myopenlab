@@ -1,18 +1,16 @@
 "use client";
 
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Menu } from "lucide-react";
 import type React from "react";
-import { useCallback, useEffect, useRef, useState } from "react";
-import type { Edge, Node } from "reactflow";
-import { MarkerType, ReactFlowProvider } from "reactflow";
+import { useState, useCallback, useRef, useEffect } from "react";
+import { ReactFlowProvider } from "reactflow";
 import { Header } from "./header";
-import { Sidebar } from "./sidebar";
 import { Toolbar } from "./toolbar";
-import { UMLEditor } from "./uml-editor";
+import { Sidebar } from "./sidebar";
 import { VerticalNav } from "./vertical-nav";
-import { ColumnData } from "./add-column-sidebar";
+import { UMLEditor } from "./uml-editor";
+import { Input } from "@/components/ui/input";
+import type { Node, Edge } from "reactflow";
+import { MarkerType } from "reactflow";
 
 interface NodeStyle {
   fontFamily: string;
@@ -49,10 +47,16 @@ interface AppState {
   nodeStyles: Record<string, NodeStyle>;
 }
 
+interface ColumnData {
+  title: string;
+  type: string;
+}
+
 const MAX_HISTORY_SIZE = 50;
 
 export default function FigmaInterface() {
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  console.log("🚀 ~ FigmaInterface ~ isSidebarOpen:", isSidebarOpen);
   const [selectedNode, setSelectedNode] = useState<string | null>(null);
   const [selectedNodes, setSelectedNodes] = useState<string[]>([]);
   const [currentState, setCurrentState] = useState<AppState>({
@@ -638,6 +642,10 @@ export default function FigmaInterface() {
     }));
   }, []);
 
+  const toggleSidebar = useCallback(() => {
+    setIsSidebarOpen((prev) => !prev);
+  }, []);
+
   const selectedStyle = selectedNode ? getNodeStyle(selectedNode) : null;
   const selectedEdgeData = selectedEdge
     ? currentState.edges.find((edge) => edge.id === selectedEdge)?.data
@@ -727,22 +735,12 @@ export default function FigmaInterface() {
           onViewModeChange={setViewMode}
         />
         <div className="flex flex-1 overflow-hidden">
-          <VerticalNav className="hidden md:flex" />
+          <VerticalNav
+            className="hidden md:flex"
+            onToggleSidebar={toggleSidebar}
+          />
           <div className="flex-1 flex flex-col md:flex-row relative">
-            <Button
-              variant="ghost"
-              size="icon"
-              className="absolute top-2 left-2 md:hidden z-20"
-              onClick={() => setSidebarOpen(!sidebarOpen)}
-            >
-              <Menu className="h-6 w-6" />
-            </Button>
-            <Sidebar
-              className={`${
-                sidebarOpen ? "translate-x-0" : "-translate-x-full"
-              } transition-transform md:translate-x-0 absolute md:relative z-10 md:z-0`}
-              onDragStart={onDragStart}
-            />
+            <Sidebar onDragStart={onDragStart} isVisible={isSidebarOpen} />
             <div className="flex-1 relative">
               <UMLEditor
                 viewMode={viewMode}

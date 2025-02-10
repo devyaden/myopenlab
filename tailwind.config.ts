@@ -76,6 +76,7 @@ const config = {
           "dark-background": "#252525",
           "button-blue": "#3C41C2",
           "primary-text": "#344054",
+          "primary-green": "#34C759",
         },
       },
       borderRadius: {
