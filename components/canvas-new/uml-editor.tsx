@@ -29,7 +29,7 @@ import { UMLToolbar } from "./uml-toolbar";
 import TableView from "./table-view";
 import { TextNode } from "./nodes/text-node";
 import { ImageNode } from "./nodes/image-node";
-import type { Node as ReactFlowNode } from "reactflow";
+import { BackgroundVariant, Node as ReactFlowNode } from "reactflow";
 import type { ColumnData } from "./add-column-sidebar";
 // The React variable is undeclared. Please fix the import or declare the variable before using it.
 import { useReactFlow } from "reactflow";
@@ -254,6 +254,9 @@ export function UMLEditor({
   const [reactFlowInstance, setReactFlowInstance] =
     useState<ReactFlowInstance | null>(null);
   const { zoomIn, zoomOut, fitView } = useReactFlow();
+  const [background, setBackground] = useState<BackgroundVariant>(
+    BackgroundVariant.Dots
+  );
 
   const handleZoomIn = useCallback(() => {
     zoomIn();
@@ -589,6 +592,9 @@ export function UMLEditor({
             onZoomIn={handleZoomIn}
             onZoomOut={handleZoomOut}
             onFitToScreen={handleFitToScreen}
+            onChangeBackground={(background: BackgroundVariant) =>
+              setBackground(background)
+            }
           />
           <ReactFlow
             nodes={nodes.map((node) => ({
@@ -652,7 +658,7 @@ export function UMLEditor({
             minZoom={0.1}
             maxZoom={4}
           >
-            <Background variant={showGrid ? "dots" : "lines"} />
+            <Background variant={background} />
             <Controls showZoom={false} />
             {showRulers && <MeasureRuler />}
           </ReactFlow>

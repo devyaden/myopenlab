@@ -1,24 +1,13 @@
+import { Button } from "@/components/ui/button";
 import {
-  Square,
-  Columns,
-  Circle,
-  Diamond,
-  Hexagon,
-  Triangle,
-  User,
-  Box,
-  Type,
-  Image,
+  CircleDotDashed,
+  Cross,
+  Grid2X2,
+  Maximize,
   ZoomIn,
   ZoomOut,
-  Maximize,
-  Bold,
-  Dot,
-  Cross,
-  Grid,
 } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Toggle } from "../ui/toggle";
+import { BackgroundVariant } from "reactflow";
 
 interface UMLToolbarProps {
   onAddNode: (shape: string) => void;
@@ -28,6 +17,7 @@ interface UMLToolbarProps {
   onZoomIn: () => void;
   onZoomOut: () => void;
   onFitToScreen: () => void;
+  onChangeBackground: (background: BackgroundVariant) => void;
 }
 
 export function UMLToolbar({
@@ -38,11 +28,12 @@ export function UMLToolbar({
   onZoomIn,
   onZoomOut,
   onFitToScreen,
+  onChangeBackground,
 }: UMLToolbarProps) {
   return (
     <div className="absolute top-4 left-4 bg-white rounded-lg shadow-md border border-gray-200 p-2 z-10">
       <div className="flex flex-wrap gap-2">
-        <Button
+        {/* <Button
           variant="ghost"
           size="icon"
           className="h-10 w-10"
@@ -137,7 +128,7 @@ export function UMLToolbar({
           onClick={onAddImage}
         >
           <Image className="h-5 w-5" />
-        </Button>
+        </Button> */}
         <Button
           variant="ghost"
           size="icon"
@@ -163,11 +154,32 @@ export function UMLToolbar({
           <Maximize className="h-5 w-5" />
         </Button>
 
-        <Toggle aria-label="Toggle italic">
-          <Dot className="h-4 w-4" />
-          <Cross className="h-4 w-4" />
-          <Grid className="h-4 w-4" />
-        </Toggle>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-10 w-10"
+          onClick={() => onChangeBackground(BackgroundVariant.Dots)}
+        >
+          <CircleDotDashed className="h-5 w-5" />
+        </Button>
+
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-10 w-10"
+          onClick={() => onChangeBackground(BackgroundVariant.Cross)}
+        >
+          <Cross className="h-5 w-5" />
+        </Button>
+
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-10 w-10"
+          onClick={() => onChangeBackground(BackgroundVariant.Lines)}
+        >
+          <Grid2X2 className="h-5 w-5" />
+        </Button>
       </div>
     </div>
   );
