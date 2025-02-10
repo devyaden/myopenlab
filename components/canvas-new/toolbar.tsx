@@ -782,20 +782,6 @@ export const Toolbar = React.memo(function Toolbar({
         }
         className="!bg-yadn-primary-green ml-auto"
       />
-      {/* <Button
-        variant="outline"
-        size="icon"
-        className="h-10 w-10 border border-yadn-pink rounded-sm"
-        onClick={() =>
-          onViewModeChange(viewMode === "canvas" ? "table" : "canvas")
-        }
-      >
-        {viewMode === "canvas" ? (
-          <TableIcon className="h-6 w-6 text-yadn-pink" />
-        ) : (
-          <Layout className="h-6 w-6 text-yadn-pink" />
-        )}
-      </Button> */}
     </div>
   );
 });

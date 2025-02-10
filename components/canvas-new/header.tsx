@@ -274,7 +274,7 @@ export function Header({
               {[
                 {
                   name: "File",
-                  options: ["New", "Open", "Save", "Save As", "Export"],
+                  options: ["New", "Open", "Save", "Save As"],
                 },
                 {
                   name: "Edit",
@@ -289,20 +289,7 @@ export function Header({
                     "Same Type",
                   ],
                 },
-                {
-                  name: "View",
-                  options: [
-                    "Zoom In",
-                    "Zoom Out",
-                    "Fit to Screen",
-                    "Show Grid",
-                    "Show Rulers",
-                  ],
-                },
-                {
-                  name: "Insert",
-                  options: ["Shape", "Text", "Image", "Frame", "Component"],
-                },
+
                 {
                   name: "Arrange",
                   options: [
@@ -315,14 +302,13 @@ export function Header({
                 },
                 {
                   name: "Share",
-                  options: ["Invite to Project", "Share Link", "Export"],
+                  options: ["Invite to Project", "Share Link"],
                 },
                 {
                   name: "Help",
                   options: [
                     "Documentation",
                     "Keyboard Shortcuts",
-                    "Community Forum",
                     "Contact Support",
                   ],
                 },
@@ -354,21 +340,6 @@ export function Header({
         </div>
 
         <div className="ml-auto flex items-center gap-2 ">
-          <Button
-            size="icon"
-            variant="ghost"
-            className="h-10 w-10 hidden sm:flex border border-yadn-pink rounded-sm"
-          >
-            <Youtube className="h-6 w-6 text-yadn-pink" />
-          </Button>
-          <Button
-            size="icon"
-            variant="ghost"
-            className="h-10 w-10 hidden sm:flex border border-yadn-pink rounded-sm"
-          >
-            <Video className="h-6 w-6 text-yadn-pink" />
-          </Button>
-
           <div className="inline-flex rounded-lg overflow-hidden border border-yadn-pink h-10">
             <button className="bg-yadn-pink hover:bg-yadn-pink text-white px-4 py-2  flex items-center gap-2">
               <Send className="w-5 h-5" />
