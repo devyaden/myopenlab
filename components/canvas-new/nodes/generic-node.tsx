@@ -385,7 +385,59 @@ export const GenericNode = memo(
             position={Position.Top}
             className="w-3 h-3"
             isConnectable={isConnectable}
+            id="a"
           />
+          <Handle
+            type="target"
+            position={Position.Bottom}
+            className="w-3 h-3"
+            isConnectable={isConnectable}
+            id="b"
+          />
+          <Handle
+            type="target"
+            position={Position.Right}
+            className="w-3 h-3"
+            isConnectable={isConnectable}
+            id="c"
+          />
+          <Handle
+            type="target"
+            position={Position.Left}
+            className="w-3 h-3"
+            isConnectable={isConnectable}
+            id="d"
+          />
+
+          <Handle
+            type="source"
+            position={Position.Top}
+            className="w-3 h-3"
+            isConnectable={isConnectable}
+            id="e"
+          />
+          <Handle
+            type="source"
+            position={Position.Bottom}
+            className="w-3 h-3"
+            isConnectable={isConnectable}
+            id="f"
+          />
+          <Handle
+            type="source"
+            position={Position.Right}
+            className="w-3 h-3"
+            isConnectable={isConnectable}
+            id="g"
+          />
+          <Handle
+            type="source"
+            position={Position.Left}
+            className="w-3 h-3"
+            isConnectable={isConnectable}
+            id="h"
+          />
+
           {isEditing ? (
             <input
               type="text"
@@ -402,12 +454,6 @@ export const GenericNode = memo(
               {renderShape()}
             </div>
           )}
-          <Handle
-            type="source"
-            position={Position.Bottom}
-            className="w-3 h-3"
-            isConnectable={isConnectable}
-          />
         </div>
       </>
     );

@@ -1,4 +1,6 @@
-import { useState } from "react";
+"use client";
+
+import { useState, useEffect } from "react";
 import {
   Menu,
   Info,
@@ -23,6 +25,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import Link from "next/link";
 
 interface Document {
   id: string;
@@ -31,44 +34,20 @@ interface Document {
   type: string;
 }
 
-const recentDocuments: Document[] = [
-  {
-    id: "1",
-    title: "Project Proposal",
-    date: "Jan 15, 2024",
-    type: "Document",
-  },
-  {
-    id: "2",
-    title: "Marketing Strategy",
-    date: "Jan 14, 2024",
-    type: "Document",
-  },
-  {
-    id: "3",
-    title: "Budget Planning",
-    date: "Jan 13, 2024",
-    type: "Document",
-  },
-  {
-    id: "4",
-    title: "Team Overview",
-    date: "Jan 12, 2024",
-    type: "Document",
-  },
-  {
-    id: "5",
-    title: "Q4 Report",
-    date: "Jan 11, 2024",
-    type: "Document",
-  },
-];
-
 export function RecentDocuments() {
-  const [documents, setDocuments] = useState<Document[]>(recentDocuments);
+  const [documents, setDocuments] = useState<Document[]>([]);
+
+  useEffect(() => {
+    const savedDocuments = localStorage.getItem("recentDocuments");
+    if (savedDocuments) {
+      setDocuments(JSON.parse(savedDocuments));
+    }
+  }, []);
 
   const handleDelete = (id: string) => {
-    setDocuments(documents.filter((doc) => doc.id !== id));
+    const updatedDocuments = documents.filter((doc) => doc.id !== id);
+    setDocuments(updatedDocuments);
+    localStorage.setItem("recentDocuments", JSON.stringify(updatedDocuments));
   };
 
   return (
@@ -115,9 +94,9 @@ export function RecentDocuments() {
                     About Recent Documents
                   </h4>
                   <p className="text-sm text-muted-foreground">
-                    This section displays your most recently accessed documents.
-                    Documents are automatically added here when you create or
-                    edit them.
+                    This section displays your most recently accessed documents
+                    and canvases. Items are automatically added here when you
+                    create, edit, or open them.
                   </p>
                 </div>
               </div>
@@ -138,9 +117,11 @@ export function RecentDocuments() {
               </div>
 
               <div className="flex-1 min-w-0">
-                <h3 className="text-sm font-medium text-gray-900 truncate">
-                  {doc.title}
-                </h3>
+                <Link href={doc.type === "Canvas" ? `/canvas/${doc.id}` : "#"}>
+                  <h3 className="text-sm font-medium text-gray-900 truncate">
+                    {doc.title}
+                  </h3>
+                </Link>
                 <div className="flex items-center gap-2 text-xs text-gray-500">
                   <span>{doc.date}</span>
                   <span>•</span>

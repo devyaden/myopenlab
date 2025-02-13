@@ -16,6 +16,7 @@ interface AddColumnSidebarProps {
   isOpen: boolean;
   onClose: () => void;
   onAddColumn: (columnData: ColumnData) => void;
+  columnsState?: any[]; // Added columnsState prop
 }
 
 export interface ColumnData {
@@ -24,6 +25,10 @@ export interface ColumnData {
   options?: string[];
   relationDiagram?: string;
   rollupColumn?: string;
+  relationCanvas?: string; // Added relationCanvas
+  rollupRelation?: string; // Added rollupRelation
+  rollupProperty?: string; // Added rollupProperty
+  aggregationFunction?: string; // Added aggregationFunction
 }
 
 const validationTypes = [
@@ -50,36 +55,40 @@ export const AddColumnSidebar: React.FC<AddColumnSidebarProps> = ({
   isOpen,
   onClose,
   onAddColumn,
+  columnsState,
 }) => {
   const [columnData, setColumnData] = useState<ColumnData>({
     title: "",
     type: "Text",
   });
+  const [availableCanvases, setAvailableCanvases] = useState<
+    { id: string; name: string }[]
+  >([]);
+  const [selectedRelation, setSelectedRelation] = useState<string | null>(null);
+  const [availableProperties, setAvailableProperties] = useState<string[]>([]);
+  const [selectedProperty, setSelectedProperty] = useState<string | null>(null);
+  const [aggregationFunction, setAggregationFunction] = useState<string>("Sum");
   const sidebarRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (
-        sidebarRef.current &&
-        !sidebarRef.current.contains(event.target as Node)
-      ) {
-        onClose();
-      }
-    };
-
-    if (isOpen) {
-      document.addEventListener("mousedown", handleClickOutside);
-    }
-
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-    };
-  }, [isOpen, onClose]);
+    // Fetch available canvases in the same folder
+    const currentFolder = localStorage.getItem("currentFolder");
+    const savedFolders = JSON.parse(
+      localStorage.getItem("savedFolders") || "[]"
+    );
+    const currentFolderCanvases =
+      savedFolders.find((folder: any) => folder.id === currentFolder)
+        ?.canvases || [];
+    setAvailableCanvases(currentFolderCanvases);
+  }, []); // Removed isOpen from dependencies
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     onAddColumn(columnData);
     setColumnData({ title: "", type: "Text" });
+    setSelectedRelation(null);
+    setSelectedProperty(null);
+    setAggregationFunction("Sum");
     onClose();
   };
 
@@ -159,6 +168,29 @@ export const AddColumnSidebar: React.FC<AddColumnSidebarProps> = ({
               />
             </div>
           ) : null}
+          {columnData.type === "Relation" && (
+            <div>
+              <Label htmlFor="relationCanvas">Related Canvas</Label>
+              <Select
+                value={selectedRelation || ""}
+                onValueChange={(value) => {
+                  setSelectedRelation(value);
+                  setColumnData({ ...columnData, relationCanvas: value });
+                }}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select related canvas" />
+                </SelectTrigger>
+                <SelectContent>
+                  {availableCanvases.map((canvas) => (
+                    <SelectItem key={canvas.id} value={canvas.id}>
+                      {canvas.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
           {columnData.type === "Rollup" ? (
             <div>
               <Label htmlFor="rollupColumn">Rollup Column</Label>
@@ -171,6 +203,87 @@ export const AddColumnSidebar: React.FC<AddColumnSidebarProps> = ({
               />
             </div>
           ) : null}
+          {columnData.type === "Rollup" && (
+            <>
+              <div>
+                <Label htmlFor="rollupRelation">Relation</Label>
+                <Select
+                  value={selectedRelation || ""}
+                  onValueChange={(value) => {
+                    setSelectedRelation(value);
+                    setColumnData({ ...columnData, rollupRelation: value });
+                    // Fetch properties for the selected relation
+                    // This is a placeholder. You'll need to implement the actual fetching logic.
+                    setAvailableProperties([
+                      "Property1",
+                      "Property2",
+                      "Property3",
+                    ]);
+                  }}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select relation" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {columnsState
+                      ?.filter((col: any) => col.type === "Relation")
+                      .map((col: any) => (
+                        <SelectItem key={col.title} value={col.title}>
+                          {col.title}
+                        </SelectItem>
+                      ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label htmlFor="rollupProperty">Property</Label>
+                <Select
+                  value={selectedProperty || ""}
+                  onValueChange={(value) => {
+                    setSelectedProperty(value);
+                    setColumnData({ ...columnData, rollupProperty: value });
+                  }}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select property" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {availableProperties.map((prop) => (
+                      <SelectItem key={prop} value={prop}>
+                        {prop}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label htmlFor="aggregationFunction">
+                  Aggregation Function
+                </Label>
+                <Select
+                  value={aggregationFunction}
+                  onValueChange={(value) => {
+                    setAggregationFunction(value);
+                    setColumnData({
+                      ...columnData,
+                      aggregationFunction: value,
+                    });
+                  }}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select aggregation function" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Sum">Sum</SelectItem>
+                    <SelectItem value="Count">Count</SelectItem>
+                    <SelectItem value="Average">Average</SelectItem>
+                    <SelectItem value="Min">Min</SelectItem>
+                    <SelectItem value="Max">Max</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </>
+          )}
         </div>
         <Button type="submit" className="mt-4 w-full">
           Add Column

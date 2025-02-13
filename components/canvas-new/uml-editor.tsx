@@ -20,8 +20,9 @@ import ReactFlow, {
   type Edge,
   type ReactFlowInstance,
   MarkerType,
-  getBezierPath,
   MiniMap,
+  getSmoothStepPath,
+  EdgeLabelRenderer,
 } from "reactflow";
 import "reactflow/dist/style.css";
 import { GenericNode } from "./nodes/generic-node";
@@ -30,9 +31,8 @@ import { UMLToolbar } from "./uml-toolbar";
 import TableView from "./table-view";
 import { TextNode } from "./nodes/text-node";
 import { ImageNode } from "./nodes/image-node";
-import { BackgroundVariant, Node as ReactFlowNode } from "reactflow";
+import { BackgroundVariant, type Node as ReactFlowNode } from "reactflow";
 import type { ColumnData } from "./add-column-sidebar";
-// The React variable is undeclared. Please fix the import or declare the variable before using it.
 import { useReactFlow } from "reactflow";
 
 const nodeTypes = {
@@ -88,7 +88,7 @@ const CustomEdge = ({
 
   const edgeType = data?.type || "default";
 
-  const [edgePath, labelX, labelY] = getBezierPath({
+  const [edgePath, labelX, labelY] = getSmoothStepPath({
     sourceX,
     sourceY,
     sourcePosition,
@@ -144,46 +144,40 @@ const CustomEdge = ({
           style={{ ...style, transform: "translate(0, 3px)" }}
         />
       )}
-      {isEditing ? (
-        <foreignObject
-          width={100}
-          height={40}
-          x={labelX - 50}
-          y={labelY - 20}
-          className="edgebutton-foreignobject"
-          requiredExtensions="http://www.w3.org/1999/xhtml"
+      <EdgeLabelRenderer>
+        <div
+          style={{
+            position: "absolute",
+            transform: `translate(-50%, -50%) translate(${labelX}px,${labelY}px)`,
+            fontSize: 12,
+            pointerEvents: "all",
+          }}
+          className="nodrag nopan"
         >
-          <input
-            type="text"
-            value={labelText}
-            onChange={handleLabelChange}
-            onBlur={handleLabelBlur}
-            className="nodrag nopan"
-            style={{
-              width: "100%",
-              height: "100%",
-              background: "transparent",
-              border: "none",
-              outline: "none",
-              textAlign: "center",
-            }}
-            autoFocus
-          />
-        </foreignObject>
-      ) : (
-        labelText && (
-          <text
-            x={labelX}
-            y={labelY}
-            textAnchor="middle"
-            dominantBaseline="central"
-            className="react-flow__edge-text"
-            onDoubleClick={handleDoubleClick}
-          >
-            {labelText}
-          </text>
-        )
-      )}
+          {isEditing ? (
+            <input
+              type="text"
+              value={labelText}
+              onChange={handleLabelChange}
+              onBlur={handleLabelBlur}
+              className="nodrag nopan"
+              style={{
+                width: "100%",
+                height: "100%",
+                background: "white",
+                border: "1px solid #ccc",
+                borderRadius: "4px",
+                padding: "2px 4px",
+                outline: "none",
+                textAlign: "center",
+              }}
+              autoFocus
+            />
+          ) : (
+            <div onDoubleClick={handleDoubleClick}>{labelText}</div>
+          )}
+        </div>
+      </EdgeLabelRenderer>
     </>
   );
 };
@@ -326,14 +320,38 @@ export function UMLEditor({
     (params: Connection) => {
       const newEdge = {
         ...params,
-        type: "custom",
+        type: "floating",
         data: { type: "default", label: "", onLabelChange: onChangeEdgeLabel },
         markerEnd: { type: MarkerType.Arrow },
       };
       const updatedEdges = addEdge(newEdge, edges);
       onEdgesChange(updatedEdges);
+
+      // Update the nodes to reflect the new connection
+      const updatedNodes = nodes.map((node) => {
+        if (node.id === params.source) {
+          return {
+            ...node,
+            data: {
+              ...node.data,
+              to: params.target,
+            },
+          };
+        }
+        if (node.id === params.target) {
+          return {
+            ...node,
+            data: {
+              ...node.data,
+              from: params.source,
+            },
+          };
+        }
+        return node;
+      });
+      onNodesChange(updatedNodes);
     },
-    [edges, onEdgesChange, onChangeEdgeLabel]
+    [edges, onEdgesChange, nodes, onNodesChange, onChangeEdgeLabel]
   );
 
   const onNodeDragStop = useCallback(
@@ -506,7 +524,7 @@ export function UMLEditor({
         if (edge.id === selectedEdge) {
           return {
             ...edge,
-            type: "custom",
+            type: "floating",
             data: { ...edge.data, type: style },
           };
         }
@@ -581,6 +599,123 @@ export function UMLEditor({
     };
   }, [handleKeyDown]);
 
+  const handleRemoveConnection = useCallback(
+    (edgeId: string) => {
+      const edgeToRemove = edges.find((edge) => edge.id === edgeId);
+      if (edgeToRemove) {
+        const updatedEdges = edges.filter((edge) => edge.id !== edgeId);
+        onEdgesChange(updatedEdges);
+
+        // Update the nodes to reflect the removed connection
+        const updatedNodes = nodes.map((node) => {
+          if (node.id === edgeToRemove.source) {
+            return {
+              ...node,
+              data: {
+                ...node.data,
+                to: node.data.to === edgeToRemove.target ? null : node.data.to,
+              },
+            };
+          }
+          if (node.id === edgeToRemove.target) {
+            return {
+              ...node,
+              data: {
+                ...node.data,
+                from:
+                  node.data.from === edgeToRemove.source
+                    ? null
+                    : node.data.from,
+              },
+            };
+          }
+          return node;
+        });
+        onNodesChange(updatedNodes);
+      }
+    },
+    [edges, onEdgesChange, nodes, onNodesChange]
+  );
+
+  const handleCreateConnection = useCallback(
+    (sourceId: string, targetId: string) => {
+      const newEdge = {
+        id: `edge-${Date.now()}`,
+        source: sourceId,
+        target: targetId,
+        type: "floating",
+        data: { type: "default", label: "", onLabelChange: onChangeEdgeLabel },
+        markerEnd: { type: MarkerType.Arrow },
+      };
+      const updatedEdges = [...edges, newEdge];
+      onEdgesChange(updatedEdges);
+
+      // Update the nodes to reflect the new connection
+      const updatedNodes = nodes.map((node) => {
+        if (node.id === sourceId) {
+          return {
+            ...node,
+            data: {
+              ...node.data,
+              to: [...(node.data.to || []), targetId],
+            },
+          };
+        }
+        if (node.id === targetId) {
+          return {
+            ...node,
+            data: {
+              ...node.data,
+              from: [...(node.data.from || []), sourceId],
+            },
+          };
+        }
+        return node;
+      });
+      onNodesChange(updatedNodes);
+    },
+    [edges, onEdgesChange, nodes, onNodesChange, onChangeEdgeLabel]
+  );
+
+  const handleDeleteConnection = useCallback(
+    (edgeId: string) => {
+      const edgeToRemove = edges.find((edge) => edge.id === edgeId);
+      if (edgeToRemove) {
+        const updatedEdges = edges.filter((edge) => edge.id !== edgeId);
+        onEdgesChange(updatedEdges);
+
+        // Update the nodes to reflect the removed connection
+        const updatedNodes = nodes.map((node) => {
+          if (node.id === edgeToRemove.source) {
+            return {
+              ...node,
+              data: {
+                ...node.data,
+                to: (node.data.to || []).filter(
+                  (id: string) => id !== edgeToRemove.target
+                ),
+              },
+            };
+          }
+          if (node.id === edgeToRemove.target) {
+            return {
+              ...node,
+              data: {
+                ...node.data,
+                from: (node.data.from || []).filter(
+                  (id: string) => id !== edgeToRemove.source
+                ),
+              },
+            };
+          }
+          return node;
+        });
+        onNodesChange(updatedNodes);
+      }
+    },
+    [edges, onEdgesChange, nodes, onNodesChange]
+  );
+
   return (
     <div className="w-full h-[calc(100vh-132px)]" ref={reactFlowWrapper}>
       {viewMode === "canvas" ? (
@@ -638,6 +773,7 @@ export function UMLEditor({
             }))}
             edges={edges.map((edge) => ({
               ...edge,
+              type: "floating",
               data: { ...edge.data, onLabelChange: onChangeEdgeLabel },
             }))}
             onNodesChange={handleNodesChange}
@@ -648,7 +784,7 @@ export function UMLEditor({
             onDragOver={onDragOver}
             onDrop={onDrop}
             nodeTypes={nodeTypes}
-            edgeTypes={{ custom: CustomEdge }}
+            edgeTypes={{ floating: CustomEdge }}
             fitView
             className="bg-white"
             multiSelectionKeyCode={["Meta", "Shift"]}
@@ -675,6 +811,8 @@ export function UMLEditor({
           onAddColumn={onAddColumn}
           columns={columns}
           setColumns={setColumns}
+          onCreateConnection={handleCreateConnection}
+          onDeleteConnection={handleDeleteConnection}
         />
       )}
     </div>

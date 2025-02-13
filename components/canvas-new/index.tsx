@@ -1,12 +1,16 @@
 "use client";
 
 import { Input } from "@/components/ui/input";
+import { useRouter } from "next/navigation";
 import type React from "react";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { toast, Toaster } from "react-hot-toast";
 import type { Edge, Node } from "reactflow";
 import { MarkerType, ReactFlowProvider } from "reactflow";
 import { Header } from "./header";
+import { RollupCalculator } from "./rollup-calculator"; // Import RollupCalculator
 import { Sidebar } from "./sidebar";
+
 import { Toolbar } from "./toolbar";
 import { UMLEditor } from "./uml-editor";
 import { VerticalNav } from "./vertical-nav";
@@ -53,7 +57,12 @@ interface ColumnData {
 
 const MAX_HISTORY_SIZE = 50;
 
-export default function FigmaInterface() {
+interface FigmaInterfaceProps {
+  canvasId: string;
+}
+
+export default function FigmaInterface({ canvasId }: FigmaInterfaceProps) {
+  const router = useRouter();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [selectedNode, setSelectedNode] = useState<string | null>(null);
   const [selectedNodes, setSelectedNodes] = useState<string[]>([]);
@@ -73,8 +82,55 @@ export default function FigmaInterface() {
     { title: "task", type: "Text" },
     { title: "type", type: "Select" },
   ]);
-  const [showGrid, setShowGrid] = useState(true); // Updated initial state for showGrid
+  const [showGrid, setShowGrid] = useState(true);
   const [showRulers, setShowRulers] = useState(false);
+  const [projectName, setProjectName] = useState<string>("Untitled Project");
+  const [folders, setFolders] = useState<
+    {
+      id: string;
+      name: string;
+      canvases: { id: string; name: string }[];
+    }[]
+  >([]);
+  const [currentFolder, setCurrentFolder] = useState<string | null>(null);
+
+  useEffect(() => {
+    const savedFolders = localStorage.getItem("savedFolders");
+    if (savedFolders) {
+      setFolders(JSON.parse(savedFolders));
+    }
+  }, []);
+
+  const addToRecentDocuments = useCallback(
+    (canvasId: string, canvasName: string) => {
+      const recentDocuments = JSON.parse(
+        localStorage.getItem("recentDocuments") || "[]"
+      );
+      const updatedDocuments = [
+        {
+          id: canvasId,
+          title: canvasName,
+          date: new Date().toLocaleDateString(),
+          type: "Canvas",
+        },
+        ...recentDocuments.filter((doc: any) => doc.id !== canvasId),
+      ].slice(0, 10); // Keep only the 10 most recent documents
+      localStorage.setItem("recentDocuments", JSON.stringify(updatedDocuments));
+    },
+    []
+  );
+
+  useEffect(() => {
+    const savedCanvas = localStorage.getItem(`canvas_${canvasId}`);
+    if (savedCanvas) {
+      const parsedCanvas = JSON.parse(savedCanvas);
+      setCurrentState(parsedCanvas.currentState);
+      setColumns(parsedCanvas.columns);
+      setProjectName(parsedCanvas.projectName);
+      setCurrentFolder(parsedCanvas.folderId); // Set currentFolder
+      addToRecentDocuments(canvasId, parsedCanvas.projectName);
+    }
+  }, [canvasId, addToRecentDocuments]);
 
   const updateHistory = useCallback(
     (newState: AppState) => {
@@ -277,7 +333,19 @@ export default function FigmaInterface() {
         data: {
           label: `New ${type}`,
           shape: type,
-          style: type === "text" ? {} : { width: 100, height: 100 },
+          from: "",
+          to: "",
+          // Add default values for all columns
+          ...columns.reduce(
+            (acc, column) => ({
+              ...acc,
+              [column.title]:
+                column.type === "Relation" || column.type === "Rollup"
+                  ? null
+                  : "",
+            }),
+            {}
+          ),
         },
         connectable: type !== "text",
       };
@@ -289,7 +357,13 @@ export default function FigmaInterface() {
         },
       });
     },
-    [currentState.nodes, currentState.nodeStyles, updateState, getNodeStyle]
+    [
+      currentState.nodes,
+      currentState.nodeStyles,
+      updateState,
+      getNodeStyle,
+      columns,
+    ]
   );
 
   const addSwimlane = useCallback(
@@ -588,7 +662,7 @@ export default function FigmaInterface() {
           const img = new Image();
           img.onload = () => {
             const aspectRatio = img.width / img.height;
-            const maxSize = 200; // Maximum initial size for either width or height
+            const maxSize = 200;
             let width = img.width;
             let height = img.height;
 
@@ -666,6 +740,115 @@ export default function FigmaInterface() {
     setShowRulers((prev) => !prev);
   }, []);
 
+  const saveToLocalStorage = useCallback(() => {
+    const dataToSave = {
+      projectName,
+      currentState,
+      columns,
+      folderId: currentFolder, // Added folderId
+    };
+    localStorage.setItem(`canvas_${canvasId}`, JSON.stringify(dataToSave));
+
+    // Update the savedCanvases list
+    const savedCanvases = JSON.parse(
+      localStorage.getItem("savedCanvases") || "[]"
+    );
+    const existingCanvasIndex = savedCanvases.findIndex(
+      (canvas: { id: string }) => canvas.id === canvasId
+    );
+    if (existingCanvasIndex !== -1) {
+      savedCanvases[existingCanvasIndex] = {
+        id: canvasId,
+        name: projectName,
+        lastModified: new Date().toISOString(),
+        folderId: currentFolder, // Added folderId
+      };
+    } else {
+      savedCanvases.push({
+        id: canvasId,
+        name: projectName,
+        lastModified: new Date().toISOString(),
+        folderId: currentFolder, // Added folderId
+      });
+    }
+    localStorage.setItem("savedCanvases", JSON.stringify(savedCanvases));
+
+    toast.success("Project saved successfully!", {
+      icon: "💾",
+      style: {
+        borderRadius: "10px",
+        background: "#333",
+        color: "#fff",
+      },
+    });
+  }, [projectName, currentState, columns, canvasId, currentFolder]);
+
+  const restoreFromLocalStorage = useCallback(() => {
+    const savedCanvas = localStorage.getItem(`canvas_${canvasId}`);
+    if (savedCanvas) {
+      const parsedCanvas = JSON.parse(savedCanvas);
+      setCurrentState(parsedCanvas.currentState);
+      setColumns(parsedCanvas.columns);
+      setProjectName(parsedCanvas.projectName);
+      setCurrentFolder(parsedCanvas.folderId); // Set currentFolder
+
+      // Update the lastModified date in the savedCanvases list
+      const savedCanvases = JSON.parse(
+        localStorage.getItem("savedCanvases") || "[]"
+      );
+      const updatedCanvases = savedCanvases.map(
+        (canvas: { id: string; lastModified: string }) =>
+          canvas.id === canvasId
+            ? { ...canvas, lastModified: new Date().toISOString() }
+            : canvas
+      );
+      localStorage.setItem("savedCanvases", JSON.stringify(updatedCanvases));
+
+      toast.success("Project restored successfully!");
+    } else {
+      toast.error("No saved project found!");
+    }
+  }, [canvasId]);
+
+  const handleCanvasNameChange = useCallback(
+    (canvasId: string, newName: string) => {
+      setProjectName(newName);
+
+      const updatedFolders = folders.map((folder) => ({
+        ...folder,
+        canvases: folder.canvases.map((canvas) =>
+          canvas.id === canvasId ? { ...canvas, name: newName } : canvas
+        ),
+      }));
+
+      setFolders(updatedFolders);
+      localStorage.setItem("savedFolders", JSON.stringify(updatedFolders));
+
+      // Update savedCanvases
+      const savedCanvases = JSON.parse(
+        localStorage.getItem("savedCanvases") || "[]"
+      );
+      const updatedCanvases = savedCanvases.map(
+        (canvas: { id: string; name: string }) =>
+          canvas.id === canvasId ? { ...canvas, name: newName } : canvas
+      );
+      localStorage.setItem("savedCanvases", JSON.stringify(updatedCanvases));
+    },
+    [folders]
+  );
+
+  const handleFolderNameChange = useCallback(
+    (folderId: string, newName: string) => {
+      const updatedFolders = folders.map((folder) =>
+        folder.id === folderId ? { ...folder, name: newName } : folder
+      );
+
+      setFolders(updatedFolders);
+      localStorage.setItem("savedFolders", JSON.stringify(updatedFolders));
+    },
+    [folders]
+  );
+
   const selectedStyle = selectedNode ? getNodeStyle(selectedNode) : null;
   const selectedEdgeData = selectedEdge
     ? currentState.edges.find((edge) => edge.id === selectedEdge)?.data
@@ -690,6 +873,14 @@ export default function FigmaInterface() {
           onFitToScreen={handleFitToScreen}
           onToggleGrid={handleToggleGrid}
           onToggleRulers={handleToggleRulers}
+          projectName={projectName}
+          setProjectName={(newName) => {
+            setProjectName(newName);
+            handleCanvasNameChange(canvasId, newName); // Pass canvasId here
+          }}
+          onSave={saveToLocalStorage}
+          onRestore={restoreFromLocalStorage}
+          onBackToDashboard={() => router.push("/")}
         />
         <Toolbar
           key={selectedNode || selectedEdge || "no-selection"}
@@ -795,6 +986,23 @@ export default function FigmaInterface() {
                 showGrid={showGrid}
                 showRulers={showRulers}
               />
+              <RollupCalculator // Added RollupCalculator component
+                nodes={currentState.nodes}
+                columns={columns}
+                onRollupChange={(nodeId, columnTitle, value) => {
+                  setCurrentState((prevState) => ({
+                    ...prevState,
+                    nodes: prevState.nodes.map((node) =>
+                      node.id === nodeId
+                        ? {
+                            ...node,
+                            data: { ...node.data, [columnTitle]: value },
+                          }
+                        : node
+                    ),
+                  }));
+                }}
+              />
             </div>
           </div>
         </div>
@@ -804,6 +1012,16 @@ export default function FigmaInterface() {
           className="hidden"
           accept="image/*"
           onChange={handleImageUpload}
+        />
+        <Toaster
+          position="bottom-right"
+          toastOptions={{
+            duration: 3000,
+            style: {
+              background: "#333",
+              color: "#fff",
+            },
+          }}
         />
       </div>
     </ReactFlowProvider>

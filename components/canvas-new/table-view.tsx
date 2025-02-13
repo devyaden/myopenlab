@@ -1,22 +1,13 @@
 "use client";
 
-import { useState, useMemo } from "react";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableRow,
-  TableHeader,
-} from "@/components/ui/table";
+import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuTrigger,
   DropdownMenuSeparator,
+  DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -26,26 +17,25 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import {
+  Check,
   ChevronDown,
-  ChevronUp,
   ChevronRight,
+  ChevronUp,
   MoreHorizontal,
+  MoreVertical,
   Plus,
   X,
-  Check,
-  MoreVertical,
 } from "lucide-react";
-import type { Node, Edge } from "reactflow"; //This import is likely incorrect.  Reactflow is not a standard library.  The functionality will need to be replaced.
-import type React from "react";
-import { AddColumnSidebar, type ColumnData } from "./add-column-sidebar";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { useCallback, useMemo, useState } from "react";
+
 import {
   AlertDialog,
   AlertDialogAction,
@@ -56,21 +46,36 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Switch } from "@/components/ui/switch";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
+import type React from "react";
+import { MarkerType, Node } from "reactflow";
+import type { ColumnData } from "./add-column-sidebar";
+import { AddColumnSidebar } from "./add-column-sidebar";
+import ManageConnectionsModal from "./manage-connections-modal";
 
 interface TableViewProps {
   nodes: Node[];
-  edges: Edge[];
+  edges: any[];
   onNodesChange: (nodes: Node[]) => void;
-  onEdgesChange: (edges: Edge[]) => void;
+  onEdgesChange: (edges: any[]) => void;
   columns: ColumnData[];
   setColumns: React.Dispatch<React.SetStateAction<ColumnData[]>>;
   onAddColumn: (columnData: ColumnData) => void;
+  onCreateConnection: (source: string, target: string) => void;
+  onDeleteConnection: (id: string) => void;
 }
 
 type SortDirection = "asc" | "desc" | null;
-type SortField = "id" | "task" | "type" | null;
+type SortField = "id" | "task" | "type" | "from" | "to" | null;
 
 interface HierarchyNode extends Node {
   children: HierarchyNode[];
@@ -84,6 +89,8 @@ const TableView: React.FC<TableViewProps> = ({
   columns,
   setColumns,
   onAddColumn,
+  onCreateConnection,
+  onDeleteConnection,
 }) => {
   const [sortField, setSortField] = useState<SortField>(null);
   const [sortDirection, setSortDirection] = useState<SortDirection>(null);
@@ -108,6 +115,17 @@ const TableView: React.FC<TableViewProps> = ({
   const [frozenColumns, setFrozenColumns] = useState<Set<string>>(new Set());
   const [hiddenColumns, setHiddenColumns] = useState<Set<string>>(new Set());
   const [isHiddenColumnsMenuOpen, setIsHiddenColumnsMenuOpen] = useState(false);
+  const [isManageConnectionsOpen, setIsManageConnectionsOpen] = useState(false);
+  const [selectedNodeForConnections, setSelectedNodeForConnections] = useState<
+    string | null
+  >(null);
+
+  const [columnsState, setColumnsState] = useState<ColumnData[]>([
+    { title: "task", type: "Text" },
+    { title: "type", type: "Select" },
+    { title: "from", type: "Text" },
+    { title: "to", type: "Text" },
+  ]);
 
   const handleSort = (field: SortField) => {
     if (sortField === field) {
@@ -183,6 +201,14 @@ const TableView: React.FC<TableViewProps> = ({
               aValue = a.data.shape || a.type || "";
               bValue = b.data.shape || b.type || "";
               break;
+            case "from":
+              aValue = a.data.from || "";
+              bValue = b.data.from || "";
+              break;
+            case "to":
+              aValue = a.data.to || "";
+              bValue = b.data.to || "";
+              break;
           }
 
           const sortOrder = sortDirection === "asc" ? 1 : -1;
@@ -195,7 +221,7 @@ const TableView: React.FC<TableViewProps> = ({
     };
 
     return sortNodes(hierarchy);
-  }, [nodes, sortField, sortDirection]); // Removed createHierarchy from dependencies
+  }, [nodes, sortField, sortDirection]);
 
   const deleteNode = (nodeId: string, deleteChildren = false) => {
     const nodesToDelete = new Set<string>([nodeId]);
@@ -231,6 +257,8 @@ const TableView: React.FC<TableViewProps> = ({
       data: {
         label: newTaskName,
         shape: newShapeType,
+        from: "",
+        to: "",
       },
       parentNode:
         selectedParentId !== "no-parent" ? selectedParentId : undefined,
@@ -262,13 +290,15 @@ const TableView: React.FC<TableViewProps> = ({
       setEditedValues({
         task: node.data.label,
         type: node.data.shape,
+        from: node.data.from,
+        to: node.data.to,
         ...node.data,
       });
     }
   };
 
   const handleEditChange = (field: string, value: string) => {
-    const column = columns.find((col) => col.title === field);
+    const column = columnsState.find((col) => col.title === field);
     if (column && validateField(column.type, value)) {
       setEditedValues((prev) => ({ ...prev, [field]: value }));
     }
@@ -301,7 +331,10 @@ const TableView: React.FC<TableViewProps> = ({
   const handleSaveEdit = () => {
     if (editingRow) {
       const isValid = Object.entries(editedValues).every(([key, value]) => {
-        const column = columns.find((col) => col.title === key);
+        const column = columnsState.find((col) => col.title === key);
+        if (column?.type === "Relation" || column?.type === "Rollup") {
+          return true; // These are always valid as they're selected from a list
+        }
         return column ? validateField(column.type, value as string) : true;
       });
 
@@ -311,8 +344,6 @@ const TableView: React.FC<TableViewProps> = ({
             const newData = {
               ...node.data,
               ...editedValues,
-              label: editedValues.task,
-              shape: editedValues.type,
             };
             return { ...node, data: newData };
           }
@@ -372,13 +403,13 @@ const TableView: React.FC<TableViewProps> = ({
   };
 
   const isDefaultColumn = (columnTitle: string) => {
-    return ["id", "task", "type"].includes(columnTitle);
+    return ["task", "type", "from", "to"].includes(columnTitle);
   };
 
   const handleColumnTitleEdit = (columnTitle: string, newTitle: string) => {
     if (newTitle.trim() && newTitle !== columnTitle) {
-      setColumns(
-        columns.map((col) =>
+      setColumnsState(
+        columnsState.map((col) =>
           col.title === columnTitle ? { ...col, title: newTitle } : col
         )
       );
@@ -398,7 +429,7 @@ const TableView: React.FC<TableViewProps> = ({
   };
 
   const handleDeleteColumn = (columnTitle: string) => {
-    setColumns(columns.filter((col) => col.title !== columnTitle));
+    setColumnsState(columnsState.filter((col) => col.title !== columnTitle));
     // Remove the column data from all nodes
     const updatedNodes = nodes.map((node) => {
       const newData = { ...node.data };
@@ -410,17 +441,19 @@ const TableView: React.FC<TableViewProps> = ({
   };
 
   const handleDuplicateColumn = (columnTitle: string) => {
-    const originalColumn = columns.find((col) => col.title === columnTitle);
+    const originalColumn = columnsState.find(
+      (col) => col.title === columnTitle
+    );
     if (originalColumn) {
       let newTitle = `${columnTitle} copy`;
       let counter = 1;
-      while (columns.some((col) => col.title === newTitle)) {
+      while (columnsState.some((col) => col.title === newTitle)) {
         newTitle = `${columnTitle} copy ${counter}`;
         counter++;
       }
 
       const newColumn = { ...originalColumn, title: newTitle };
-      setColumns([...columns, newColumn]);
+      setColumnsState([...columnsState, newColumn]);
 
       // Duplicate the column data for all nodes
       const updatedNodes = nodes.map((node) => ({
@@ -488,8 +521,11 @@ const TableView: React.FC<TableViewProps> = ({
           className="hover:bg-gray-50"
           onDoubleClick={() => handleDoubleClick(node.id)}
         >
-          {columns
-            .filter((column) => !hiddenColumns.has(column.title))
+          {columnsState
+            .filter(
+              (column) =>
+                !hiddenColumns.has(column.title) && column.title !== "id"
+            )
             .map((column, index) => (
               <TableCell
                 key={`${node.id}-${column.title}`}
@@ -526,52 +562,7 @@ const TableView: React.FC<TableViewProps> = ({
                     )}
                   </span>
                 )}
-                {editingRow === node.id && column.title !== "id" ? (
-                  column.title === "type" ? (
-                    <Select
-                      value={editedValues.type || node.data.shape}
-                      onValueChange={(value) => handleEditChange("type", value)}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select shape" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {shapeOptions.map((shape) => (
-                          <SelectItem key={shape} value={shape}>
-                            {shape}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  ) : (
-                    <Input
-                      type={
-                        column.type === "Number"
-                          ? "number"
-                          : column.type === "Date"
-                            ? "date"
-                            : "text"
-                      }
-                      value={editedValues[column.title] || ""}
-                      onChange={(e) =>
-                        handleEditChange(column.title, e.target.value)
-                      }
-                      className={
-                        !validateField(column.type, editedValues[column.title])
-                          ? "border-red-500"
-                          : ""
-                      }
-                    />
-                  )
-                ) : (
-                  <>
-                    {column.title === "id" && node.id}
-                    {column.title === "task" && node.data.label}
-                    {column.title === "type" && (node.data.shape || node.type)}
-                    {!["id", "task", "type"].includes(column.title) &&
-                      (node.data[column.title] || "—")}
-                  </>
-                )}
+                {renderCellContent(node, column)}
               </TableCell>
             ))}
           <TableCell className="text-right">
@@ -587,6 +578,11 @@ const TableView: React.FC<TableViewProps> = ({
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
+                  <DropdownMenuItem
+                    onClick={() => handleManageConnections(node.id)}
+                  >
+                    Manage Connections
+                  </DropdownMenuItem>
                   <DropdownMenuItem onClick={() => handleDeleteClick(node)}>
                     Delete
                   </DropdownMenuItem>
@@ -602,13 +598,245 @@ const TableView: React.FC<TableViewProps> = ({
     });
   };
 
+  const availableCanvases = [
+    // Add your available canvases here
+    { id: "canvas1", name: "Canvas 1" },
+    { id: "canvas2", name: "Canvas 2" },
+  ];
+
+  const navigateToCanvas = (canvasId: string) => {
+    // Implement navigation logic here
+    console.log(`Navigating to canvas: ${canvasId}`);
+  };
+
+  const renderCellContent = (node: HierarchyNode, column: ColumnData) => {
+    if (editingRow === node.id) {
+      if (column.type === "Relation") {
+        return (
+          <Select
+            value={editedValues[column.title] || ""}
+            onValueChange={(value) => handleEditChange(column.title, value)}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="Select related canvas" />
+            </SelectTrigger>
+            <SelectContent>
+              {availableCanvases.map((canvas) => (
+                <SelectItem key={canvas.id} value={canvas.id}>
+                  {canvas.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        );
+      } else if (column.type === "Rollup") {
+        // Rollup values are calculated, not editable
+        return node.data[column.title] || "—";
+      } else {
+        // Existing input rendering for other types
+        return (
+          <Input
+            type={
+              column.type === "Number"
+                ? "number"
+                : column.type === "Date"
+                  ? "date"
+                  : "text"
+            }
+            value={editedValues[column.title] || ""}
+            onChange={(e) => handleEditChange(column.title, e.target.value)}
+            className={
+              !validateField(column.type, editedValues[column.title])
+                ? "border-red-500"
+                : ""
+            }
+          />
+        );
+      }
+    }
+
+    switch (column.title) {
+      case "task":
+        return node.data.label || "—";
+      case "type":
+        return node.data.shape || node.type || "—";
+      case "from":
+        return node.data.from || "—";
+      case "to":
+        return node.data.to || "—";
+      case "Relation":
+        const relatedCanvas = availableCanvases.find(
+          (canvas) => canvas.id === node.data[column.title]
+        );
+        return relatedCanvas ? (
+          <Button
+            variant="link"
+            onClick={() => navigateToCanvas(relatedCanvas.id)}
+          >
+            {relatedCanvas.name}
+          </Button>
+        ) : (
+          "—"
+        );
+      case "Rollup":
+        return node.data[column.title] || "—";
+      default:
+        return node.data[column.title] || "—";
+    }
+  };
+
+  const handleAddConnection = (nodeId: string) => {
+    // Implement the logic to add a connection
+    // This could open a modal or inline form to select the connection type and target node
+    console.log("Add connection for node:", nodeId);
+  };
+
+  const handleRemoveConnection = (nodeId: string) => {
+    // Implement the logic to remove a connection
+    // This could open a modal to select which connection to remove
+    console.log("Remove connection for node:", nodeId);
+  };
+
+  const handleTableNodesChange = useCallback(
+    (updatedNodes: Node[]) => {
+      // Check if any nodes were deleted
+      const deletedNodeIds = nodes
+        .filter((node) => !updatedNodes.some((n) => n.id === node.id))
+        .map((node) => node.id);
+
+      if (deletedNodeIds.length > 0) {
+        // Remove deleted nodes
+        const newNodes = nodes.filter(
+          (node) => !deletedNodeIds.includes(node.id)
+        );
+        onNodesChange(newNodes);
+      } else {
+        // Update existing nodes or add new nodes
+        const newNodes = updatedNodes.map((updatedNode) => {
+          const existingNode = nodes.find((node) => node.id === updatedNode.id);
+          if (existingNode) {
+            // Update existing node
+            return {
+              ...existingNode,
+              data: {
+                ...existingNode.data,
+                ...updatedNode.data,
+                shape: updatedNode.data.shape || existingNode.data.shape,
+                from: updatedNode.data.from || existingNode.data.from,
+                to: updatedNode.data.to || existingNode.data.to,
+              },
+              type: updatedNode.type || existingNode.type,
+              parentNode: updatedNode.data.parent || existingNode.parentNode,
+            };
+          } else {
+            // Add new node
+            return {
+              ...updatedNode,
+              position: { x: Math.random() * 500, y: Math.random() * 500 },
+            };
+          }
+        });
+        onNodesChange(newNodes);
+      }
+    },
+    [nodes, onNodesChange]
+  );
+
+  const handleManageConnections = (nodeId: string) => {
+    setSelectedNodeForConnections(nodeId);
+    setIsManageConnectionsOpen(true);
+  };
+
+  const handleCreateConnection = useCallback(
+    (sourceId: string, targetId: string) => {
+      const existingConnection = edges.find(
+        (edge) => edge.source === sourceId || edge.target === sourceId
+      );
+      if (existingConnection) {
+        // If a connection already exists, don't create a new one
+        return;
+      }
+
+      const newEdge = {
+        id: `edge-${Date.now()}`,
+        source: sourceId,
+        target: targetId,
+        type: "custom",
+        data: { type: "default", label: "", onLabelChange: onChangeEdgeLabel },
+        markerEnd: { type: MarkerType.Arrow },
+      };
+      const updatedEdges = [...edges, newEdge];
+      onEdgesChange(updatedEdges);
+
+      // Update the nodes to reflect the new connection
+      const updatedNodes = nodes.map((node) => {
+        if (node.id === sourceId) {
+          return {
+            ...node,
+            data: {
+              ...node.data,
+              to: targetId,
+            },
+          };
+        }
+        if (node.id === targetId) {
+          return {
+            ...node,
+            data: {
+              ...node.data,
+              from: sourceId,
+            },
+          };
+        }
+        return node;
+      });
+      onNodesChange(updatedNodes);
+    },
+    [edges, onEdgesChange, nodes, onNodesChange, onChangeEdgeLabel]
+  );
+
+  const handleDeleteConnection = useCallback(
+    (edgeId: string) => {
+      const edgeToRemove = edges.find((edge) => edge.id === edgeId);
+      if (edgeToRemove) {
+        const updatedEdges = edges.filter((edge) => edge.id !== edgeId);
+        onEdgesChange(updatedEdges);
+
+        // Update the nodes to reflect the removed connection
+        const updatedNodes = nodes.map((node) => {
+          if (node.id === edgeToRemove.source) {
+            return {
+              ...node,
+              data: {
+                ...node.data,
+                to: null,
+              },
+            };
+          }
+          if (node.id === edgeToRemove.target) {
+            return {
+              ...node,
+              data: {
+                ...node.data,
+                from: null,
+              },
+            };
+          }
+          return node;
+        });
+        onNodesChange(updatedNodes);
+      }
+    },
+    [edges, onEdgesChange, nodes, onNodesChange]
+  );
+
   return (
     <div className="p-4 mx-auto">
       <div className="rounded-lg border bg-white">
         <Table>
           <TableHeader>
             <TableRow className="hover:bg-transparent">
-              {columns
+              {columnsState
                 .filter((column) => !hiddenColumns.has(column.title))
                 .map((column) => (
                   <TableHead
@@ -882,7 +1110,7 @@ const TableView: React.FC<TableViewProps> = ({
             <DialogTitle>Manage Hidden Columns</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
-            {columns.map((column) => (
+            {columnsState.map((column) => (
               <div
                 key={column.title}
                 className="flex items-center justify-between"
@@ -902,8 +1130,25 @@ const TableView: React.FC<TableViewProps> = ({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      {/* ManageConnectionsModal Component */}
+      <ManageConnectionsModal
+        isOpen={isManageConnectionsOpen}
+        onClose={() => setIsManageConnectionsOpen(false)}
+        selectedNode={nodes.find(
+          (node) => node.id === selectedNodeForConnections
+        )}
+        nodes={nodes}
+        edges={edges}
+        onCreateConnection={handleCreateConnection}
+        onDeleteConnection={handleDeleteConnection}
+      />
     </div>
   );
 };
 
 export default TableView;
+
+const onChangeEdgeLabel = (edgeId: string, newLabel: string) => {
+  //Implementation for updating edge label
+  console.log("Edge label changed:", edgeId, newLabel);
+};

@@ -1,3 +1,5 @@
+"use client";
+
 import { memo, useState, useCallback, useEffect } from "react";
 import { Handle, Position, NodeResizer, type NodeProps } from "reactflow";
 import type React from "react";
@@ -21,6 +23,7 @@ interface SwimlaneNodeData {
     textAlign?: "left" | "center" | "right" | "justify";
     locked?: boolean;
     isVertical?: boolean;
+    textColor?: string;
   };
   onLabelChange?: (nodeId: string, laneId: string, newLabel: string) => void;
   onAddLane?: (nodeId: string) => void;
@@ -31,15 +34,17 @@ export const SwimlaneNode = memo(
   ({ id, data, selected }: NodeProps<SwimlaneNodeData>) => {
     const [editingLane, setEditingLane] = useState<string | null>(null);
     const [labelValues, setLabelValues] = useState<Record<string, string>>({});
-    const [resizingLane, setResizingLane] = useState<string | null>(null);
-    const [resizeStartY, setResizeStartY] = useState(0);
+    const [laneHeights, setLaneHeights] = useState<Record<string, number>>({});
 
     useEffect(() => {
       const initialLabelValues: Record<string, string> = {};
+      const initialLaneHeights: Record<string, number> = {};
       data.lanes.forEach((lane) => {
         initialLabelValues[lane.id] = lane.label;
+        initialLaneHeights[lane.id] = lane.height;
       });
       setLabelValues(initialLabelValues);
+      setLaneHeights(initialLaneHeights);
     }, [data.lanes]);
 
     const handleDoubleClick = useCallback(
@@ -81,47 +86,28 @@ export const SwimlaneNode = memo(
 
     const handleResizeStart = useCallback(
       (event: React.MouseEvent, laneId: string) => {
-        setResizingLane(laneId);
-        setResizeStartY(event.clientY);
-      },
-      []
-    );
+        event.stopPropagation();
+        const resizeStartY = event.clientY;
 
-    const handleResizeMove = useCallback(
-      (event: MouseEvent) => {
-        if (resizingLane) {
-          const deltaY = event.clientY - resizeStartY;
+        const handleResizeMove = (moveEvent: MouseEvent) => {
+          const deltaY = moveEvent.clientY - resizeStartY;
+          const newHeight = Math.max(50, laneHeights[laneId] + deltaY);
+          setLaneHeights((prev) => ({ ...prev, [laneId]: newHeight }));
           if (data.onLaneResize) {
-            const laneIndex = data.lanes.findIndex(
-              (lane) => lane.id === resizingLane
-            );
-            const currentHeight = data.lanes[laneIndex].height;
-            data.onLaneResize(
-              id,
-              resizingLane,
-              Math.max(50, currentHeight + deltaY)
-            );
+            data.onLaneResize(id, laneId, newHeight);
           }
-          setResizeStartY(event.clientY);
-        }
-      },
-      [data, id, resizingLane, resizeStartY]
-    );
+        };
 
-    const handleResizeEnd = useCallback(() => {
-      setResizingLane(null);
-    }, []);
+        const handleResizeEnd = () => {
+          window.removeEventListener("mousemove", handleResizeMove);
+          window.removeEventListener("mouseup", handleResizeEnd);
+        };
 
-    useEffect(() => {
-      if (resizingLane) {
         window.addEventListener("mousemove", handleResizeMove);
         window.addEventListener("mouseup", handleResizeEnd);
-      }
-      return () => {
-        window.removeEventListener("mousemove", handleResizeMove);
-        window.removeEventListener("mouseup", handleResizeEnd);
-      };
-    }, [resizingLane, handleResizeMove, handleResizeEnd]);
+      },
+      [data, id, laneHeights]
+    );
 
     const nodeStyle: React.CSSProperties = {
       width: "100%",
@@ -141,6 +127,15 @@ export const SwimlaneNode = memo(
       textAlign: data.style?.textAlign || "left",
     };
 
+    const getLaneTextStyle = (laneId: string) => ({
+      fontFamily: data.style?.fontFamily || "Arial",
+      fontSize: `${data.style?.fontSize || 12}px`,
+      fontWeight: data.style?.isBold ? "bold" : "normal",
+      fontStyle: data.style?.isItalic ? "italic" : "normal",
+      textDecoration: data.style?.isUnderline ? "underline" : "none",
+      color: data.style?.textColor || "#000000",
+    });
+
     return (
       <>
         <NodeResizer isVisible={selected} minWidth={400} minHeight={100} />
@@ -153,8 +148,8 @@ export const SwimlaneNode = memo(
             {data.lanes.map((lane, index) => (
               <div
                 key={lane.id}
-                className="relative flex-grow  last:border-b-0"
-                style={{ height: lane.height }}
+                className="relative flex-grow border-b border-gray-200 last:border-b-0"
+                style={{ height: laneHeights[lane.id] }}
               >
                 <div
                   className="absolute left-0 top-0 bottom-0 w-10 bg-gray-100 border-r border-gray-300 flex items-center justify-center"
@@ -162,6 +157,7 @@ export const SwimlaneNode = memo(
                     writingMode: "vertical-rl",
                     transform: "rotate(180deg)",
                     textOrientation: "mixed",
+                    ...getLaneTextStyle(lane.id),
                   }}
                 >
                   {editingLane === lane.id ? (
@@ -177,19 +173,22 @@ export const SwimlaneNode = memo(
                       onBlur={() => handleBlur(lane.id)}
                       onKeyDown={(e) => handleKeyDown(e, lane.id)}
                       className="w-full text-center bg-transparent border-none outline-none transform rotate-180"
-                      style={{ writingMode: "horizontal-tb" }}
+                      style={{
+                        writingMode: "horizontal-tb",
+                        ...getLaneTextStyle(lane.id),
+                      }}
                       autoFocus
                     />
                   ) : (
                     <div onDoubleClick={() => handleDoubleClick(lane.id)}>
-                      {lane.label}
+                      {labelValues[lane.id]}
                     </div>
                   )}
                 </div>
                 <div className="ml-10 h-full"></div>
                 {index < data.lanes.length - 1 && (
                   <div
-                    className="absolute bottom-0 left-0 right-0 h-1 bg-gray-300 cursor-row-resize"
+                    className="absolute bottom-0 left-0 right-0 h-2 bg-gray-300 cursor-row-resize"
                     onMouseDown={(e) => handleResizeStart(e, lane.id)}
                   ></div>
                 )}
@@ -200,7 +199,7 @@ export const SwimlaneNode = memo(
             <div className="absolute bottom-2 right-2 p-2 bg-white bg-opacity-80 z-10">
               <PlusCircle
                 className="w-6 h-6 cursor-pointer text-blue-500 hover:text-blue-600"
-                onClick={() => data.onAddLane && data.onAddLane(id)}
+                onClick={handleAddLane}
               />
             </div>
           )}

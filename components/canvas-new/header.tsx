@@ -14,12 +14,15 @@ import {
   Link2,
   Menu,
   Send,
-  Video,
-  Youtube,
+  RotateCcw,
+  Save,
 } from "lucide-react";
 import Image from "next/image";
-import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { toast } from "react-hot-toast";
+import type React from "react";
+
+const MAX_TITLE_LENGTH = 50;
 
 interface HeaderProps {
   onInsertImage: () => void;
@@ -34,6 +37,11 @@ interface HeaderProps {
   onFitToScreen: () => void;
   onToggleGrid: () => void;
   onToggleRulers: () => void;
+  projectName: string;
+  setProjectName: (name: string) => void;
+  onSave: () => void;
+  onRestore: () => void;
+  onBackToDashboard: () => void;
 }
 
 export function Header({
@@ -49,9 +57,41 @@ export function Header({
   onFitToScreen,
   onToggleGrid,
   onToggleRulers,
+  projectName,
+  setProjectName,
+  onSave,
+  onRestore,
+  onBackToDashboard,
 }: HeaderProps) {
-  const router = useRouter();
   const [documentStatus, setDocumentStatus] = useState("Draft");
+  const [isEditing, setIsEditing] = useState(false);
+  const [titleError, setTitleError] = useState(false);
+
+  const handleTitleDoubleClick = () => {
+    setIsEditing(true);
+  };
+
+  const handleTitleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newTitle = e.target.value;
+    setProjectName(newTitle);
+    setTitleError(newTitle.length > MAX_TITLE_LENGTH);
+  };
+
+  const handleTitleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter") {
+      if (projectName.length <= MAX_TITLE_LENGTH) {
+        setIsEditing(false);
+        setProjectName(projectName);
+        toast.success("Title updated successfully!");
+      } else {
+        toast.error(`Title must be ${MAX_TITLE_LENGTH} characters or less`);
+      }
+    } else if (e.key === "Escape") {
+      setIsEditing(false);
+      setProjectName("Untitled Project");
+      setTitleError(false);
+    }
+  };
 
   const handleMenuAction = (action: string) => {
     switch (action) {
@@ -64,8 +104,7 @@ export function Header({
         console.log("Opening document");
         break;
       case "Save":
-        // Implement save document logic
-        console.log("Saving document");
+        onSave();
         break;
       case "Save As":
         // Implement save as logic
@@ -211,10 +250,10 @@ export function Header({
             variant="outline"
             size="sm"
             className="hidden md:flex items-center justify-center"
-            onClick={() => router.replace("/protected")}
+            onClick={onBackToDashboard}
           >
             <ChevronLeft className="h-4 w-4" />
-            Back
+            Back to Dashboard
           </Button>
 
           <Button
@@ -233,7 +272,33 @@ export function Header({
 
           <div>
             <div className="flex items-center gap-2">
-              <h1 className=" text-xl font-semibold">Flowchart</h1>
+              {isEditing ? (
+                <input
+                  type="text"
+                  value={projectName}
+                  onChange={handleTitleChange}
+                  onKeyDown={handleTitleKeyDown}
+                  onBlur={() => {
+                    setIsEditing(false);
+                    setTitleError(false);
+                  }}
+                  autoFocus
+                  className={`text-xl font-semibold bg-transparent border-none outline-none ${
+                    titleError ? "border-red-500 border-b-2" : ""
+                  }`}
+                  maxLength={MAX_TITLE_LENGTH}
+                />
+              ) : (
+                <h1
+                  className="text-xl font-semibold cursor-pointer"
+                  onDoubleClick={handleTitleDoubleClick}
+                >
+                  {projectName}
+                </h1>
+              )}
+              {titleError && (
+                <span className="text-red-500 text-xs">Title too long</span>
+              )}
 
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
@@ -340,6 +405,14 @@ export function Header({
         </div>
 
         <div className="ml-auto flex items-center gap-2 ">
+          <Button variant="outline" size="sm" onClick={onSave}>
+            <Save className="w-4 h-4 mr-2" />
+            Save
+          </Button>
+          <Button variant="outline" size="sm" onClick={onRestore}>
+            <RotateCcw className="w-4 h-4 mr-2" />
+            Restore
+          </Button>
           <div className="inline-flex rounded-lg overflow-hidden border border-yadn-pink h-10">
             <button className="bg-yadn-pink hover:bg-yadn-pink text-white px-4 py-2  flex items-center gap-2">
               <Send className="w-5 h-5" />

@@ -2,16 +2,14 @@ import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import {
   Blocks,
-  CodeXml,
   Database,
   Image,
+  Menu,
   PanelsTopLeft,
   Printer,
   Rocket,
   Shapes,
-  Sparkle,
   WandSparkles,
-  Menu,
 } from "lucide-react";
 
 interface VerticalNavProps {

@@ -40,11 +40,9 @@ import {
   Triangle,
   Underline,
   User,
-  TableIcon,
-  Layout,
 } from "lucide-react";
 import React from "react";
-import { Switch } from "../ui/switch";
+import { Switch } from "@/components/ui/switch";
 
 interface ToolbarProps {
   fontFamily: string;
