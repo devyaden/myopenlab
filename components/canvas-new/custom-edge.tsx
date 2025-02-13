@@ -56,7 +56,7 @@ const CustomEdge = ({
     }
   };
 
-  const labelStyles = {
+  const labelStyles: any = {
     position: "absolute",
     transform: `translate(-50%, -50%) translate(${labelX}px,${labelY}px)`,
     fontSize: 12,
