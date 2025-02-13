@@ -10,7 +10,6 @@ import {
 import ReactFlow, {
   Background,
   BackgroundVariant,
-  ConnectionLineType,
   Controls,
   MarkerType,
   MiniMap,
@@ -29,13 +28,13 @@ import ReactFlow, {
 import "reactflow/dist/style.css";
 import type { ColumnData } from "./add-column-sidebar";
 import CustomEdge from "./custom-edge";
+import MeasureRuler from "./measure-ruler";
 import { GenericNode } from "./nodes/generic-node";
 import { ImageNode } from "./nodes/image-node";
 import { SwimlaneNode } from "./nodes/swimlane-node";
 import { TextNode } from "./nodes/text-node";
 import TableView from "./table-view";
 import { UMLToolbar } from "./uml-toolbar";
-import MeasureRuler from "./measure-ruler";
 
 const nodeTypes = {
   genericNode: GenericNode,
@@ -435,85 +434,6 @@ export function UMLEditor({
     };
   }, [handleKeyDown]);
 
-  const handleCreateConnection = useCallback(
-    (sourceId: string, targetId: string) => {
-      const newEdge = {
-        id: `edge-${Date.now()}`,
-        source: sourceId,
-        target: targetId,
-        type: "floating",
-        data: { type: "default", label: "", onLabelChange: onChangeEdgeLabel },
-        markerEnd: { type: MarkerType.Arrow },
-      };
-      const updatedEdges = [...edges, newEdge];
-      onEdgesChange(updatedEdges);
-
-      // Update the nodes to reflect the new connection
-      const updatedNodes = nodes.map((node) => {
-        if (node.id === sourceId) {
-          return {
-            ...node,
-            data: {
-              ...node.data,
-              to: [...(node.data.to || []), targetId],
-            },
-          };
-        }
-        if (node.id === targetId) {
-          return {
-            ...node,
-            data: {
-              ...node.data,
-              from: [...(node.data.from || []), sourceId],
-            },
-          };
-        }
-        return node;
-      });
-      onNodesChange(updatedNodes);
-    },
-    [edges, onEdgesChange, nodes, onNodesChange, onChangeEdgeLabel]
-  );
-
-  const handleDeleteConnection = useCallback(
-    (edgeId: string) => {
-      const edgeToRemove = edges.find((edge) => edge.id === edgeId);
-      if (edgeToRemove) {
-        const updatedEdges = edges.filter((edge) => edge.id !== edgeId);
-        onEdgesChange(updatedEdges);
-
-        // Update the nodes to reflect the removed connection
-        const updatedNodes = nodes.map((node) => {
-          if (node.id === edgeToRemove.source) {
-            return {
-              ...node,
-              data: {
-                ...node.data,
-                to: (node.data.to || []).filter(
-                  (id: string) => id !== edgeToRemove.target
-                ),
-              },
-            };
-          }
-          if (node.id === edgeToRemove.target) {
-            return {
-              ...node,
-              data: {
-                ...node.data,
-                from: (node.data.from || []).filter(
-                  (id: string) => id !== edgeToRemove.source
-                ),
-              },
-            };
-          }
-          return node;
-        });
-        onNodesChange(updatedNodes);
-      }
-    },
-    [edges, onEdgesChange, nodes, onNodesChange]
-  );
-
   return (
     <div className="w-full h-[calc(100vh-132px)]" ref={reactFlowWrapper}>
       {viewMode === "canvas" ? (
@@ -611,8 +531,6 @@ export function UMLEditor({
           onAddColumn={onAddColumn}
           columns={columns}
           setColumns={setColumns}
-          onCreateConnection={handleCreateConnection}
-          onDeleteConnection={handleDeleteConnection}
         />
       )}
     </div>
