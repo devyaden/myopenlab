@@ -1,5 +1,5 @@
-import CanvasNew from "@/components/canvas-new";
+import { redirect } from "next/navigation";
 
-const Canvas = () => <CanvasNew />;
-
-export default Canvas;
+export default function CanvasNew() {
+  redirect("/protected");
+}
