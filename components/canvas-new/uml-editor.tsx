@@ -2,38 +2,40 @@
 
 import {
   useCallback,
-  useState,
-  useRef,
   useEffect,
+  useRef,
+  useState,
   type KeyboardEvent,
 } from "react";
 import ReactFlow, {
-  Controls,
   Background,
-  applyEdgeChanges,
-  applyNodeChanges,
-  type NodeChange,
-  type EdgeChange,
-  type Connection,
-  addEdge,
-  type Node,
-  type Edge,
-  type ReactFlowInstance,
+  BackgroundVariant,
+  ConnectionLineType,
+  Controls,
   MarkerType,
   MiniMap,
-  getSmoothStepPath,
-  EdgeLabelRenderer,
+  addEdge,
+  applyEdgeChanges,
+  applyNodeChanges,
+  useReactFlow,
+  type Connection,
+  type Edge,
+  type EdgeChange,
+  type Node,
+  type NodeChange,
+  type ReactFlowInstance,
+  type Node as ReactFlowNode,
 } from "reactflow";
 import "reactflow/dist/style.css";
-import { GenericNode } from "./nodes/generic-node";
-import { SwimlaneNode } from "./nodes/swimlane-node";
-import { UMLToolbar } from "./uml-toolbar";
-import TableView from "./table-view";
-import { TextNode } from "./nodes/text-node";
-import { ImageNode } from "./nodes/image-node";
-import { BackgroundVariant, type Node as ReactFlowNode } from "reactflow";
 import type { ColumnData } from "./add-column-sidebar";
-import { useReactFlow } from "reactflow";
+import CustomEdge from "./custom-edge";
+import { GenericNode } from "./nodes/generic-node";
+import { ImageNode } from "./nodes/image-node";
+import { SwimlaneNode } from "./nodes/swimlane-node";
+import { TextNode } from "./nodes/text-node";
+import TableView from "./table-view";
+import { UMLToolbar } from "./uml-toolbar";
+import MeasureRuler from "./measure-ruler";
 
 const nodeTypes = {
   genericNode: GenericNode,
@@ -54,133 +56,14 @@ interface UMLEditorProps {
   onAddSwimlane: (position: { x: number; y: number }) => void;
   onLabelChange: (nodeId: string, newLabel: string) => void;
   onAddLane: (swimlaneId: string) => void;
-  onDelete: () => void;
-  selectedEdge: string | null;
   onEdgeSelect: (edgeIds: string[]) => void;
-  onChangeEdgeStyle: (style: string) => void;
   onChangeEdgeLabel: (edgeId: string, label: string) => void;
   onAddImage: (position?: any) => void;
   viewMode: "canvas" | "table";
   onAddColumn: (columnData: ColumnData) => void;
   columns: ColumnData[];
   setColumns: React.Dispatch<React.SetStateAction<ColumnData[]>>;
-  onZoomIn: () => void;
-  onZoomOut: () => void;
-  onFitToScreen: () => void;
-  showGrid: boolean;
-  showRulers: boolean;
 }
-
-const CustomEdge = ({
-  id,
-  sourceX,
-  sourceY,
-  targetX,
-  targetY,
-  sourcePosition,
-  targetPosition,
-  style = {},
-  data,
-  markerEnd,
-}: any) => {
-  const [isEditing, setIsEditing] = useState(false);
-  const [labelText, setLabelText] = useState(data?.label || "");
-
-  const edgeType = data?.type || "default";
-
-  const [edgePath, labelX, labelY] = getSmoothStepPath({
-    sourceX,
-    sourceY,
-    sourcePosition,
-    targetX,
-    targetY,
-    targetPosition,
-  });
-
-  let strokeDasharray;
-  switch (edgeType) {
-    case "dashed":
-      strokeDasharray = "5,5";
-      break;
-    case "dotted":
-      strokeDasharray = "1,5";
-      break;
-  }
-
-  const handleDoubleClick = (event: { preventDefault: () => void }) => {
-    event.preventDefault();
-    setIsEditing(true);
-  };
-
-  const handleLabelChange = (event: { target: { value: any } }) => {
-    setLabelText(event.target.value);
-  };
-
-  const handleLabelBlur = () => {
-    setIsEditing(false);
-    if (data.onLabelChange) {
-      data.onLabelChange(id, labelText);
-    }
-  };
-
-  return (
-    <>
-      <path
-        id={id}
-        d={edgePath}
-        className="react-flow__edge-path"
-        strokeWidth={2}
-        strokeDasharray={strokeDasharray}
-        stroke="#000"
-        style={style}
-        markerEnd={markerEnd}
-      />
-      {edgeType === "double" && (
-        <path
-          d={edgePath}
-          className="react-flow__edge-path"
-          strokeWidth={2}
-          stroke="#000"
-          style={{ ...style, transform: "translate(0, 3px)" }}
-        />
-      )}
-      <EdgeLabelRenderer>
-        <div
-          style={{
-            position: "absolute",
-            transform: `translate(-50%, -50%) translate(${labelX}px,${labelY}px)`,
-            fontSize: 12,
-            pointerEvents: "all",
-          }}
-          className="nodrag nopan"
-        >
-          {isEditing ? (
-            <input
-              type="text"
-              value={labelText}
-              onChange={handleLabelChange}
-              onBlur={handleLabelBlur}
-              className="nodrag nopan"
-              style={{
-                width: "100%",
-                height: "100%",
-                background: "white",
-                border: "1px solid #ccc",
-                borderRadius: "4px",
-                padding: "2px 4px",
-                outline: "none",
-                textAlign: "center",
-              }}
-              autoFocus
-            />
-          ) : (
-            <div onDoubleClick={handleDoubleClick}>{labelText}</div>
-          )}
-        </div>
-      </EdgeLabelRenderer>
-    </>
-  );
-};
 
 const sortNodes = (node: ReactFlowNode, nodes: ReactFlowNode[]) => {
   nodes = [...nodes].sort((a, b) => {
@@ -228,27 +111,20 @@ export function UMLEditor({
   onAddSwimlane,
   onLabelChange,
   onAddLane,
-  onDelete,
-  selectedEdge,
   onEdgeSelect,
-  onChangeEdgeStyle,
   onChangeEdgeLabel,
   onAddImage,
   viewMode,
   onAddColumn,
   columns,
   setColumns,
-  onZoomIn,
-  onZoomOut,
-  onFitToScreen,
-  showGrid,
-  showRulers,
 }: UMLEditorProps) {
-  const { getNode, project } = useReactFlow();
+  const { getNode } = useReactFlow();
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
   const [reactFlowInstance, setReactFlowInstance] =
     useState<ReactFlowInstance | null>(null);
   const { zoomIn, zoomOut, fitView } = useReactFlow();
+  const [showRulers, setShowRulers] = useState(false);
   const [background, setBackground] = useState<BackgroundVariant>(
     BackgroundVariant.Dots
   );
@@ -495,46 +371,6 @@ export function UMLEditor({
     [reactFlowInstance, onAddNode, onAddSwimlane, onAddImage]
   );
 
-  const handleAddNode = useCallback(
-    (shape: string) => {
-      if (reactFlowInstance) {
-        const position = reactFlowInstance.project({
-          x: Math.random() * 500,
-          y: Math.random() * 500,
-        });
-        onAddNode(shape, position);
-      }
-    },
-    [reactFlowInstance, onAddNode]
-  );
-
-  const handleAddSwimlane = useCallback(() => {
-    if (reactFlowInstance) {
-      const position = reactFlowInstance.project({
-        x: Math.random() * 500,
-        y: Math.random() * 500,
-      });
-      onAddSwimlane(position);
-    }
-  }, [reactFlowInstance, onAddSwimlane]);
-
-  const applyEdgeStyle = useCallback(
-    (style: string) => {
-      const updatedEdges = edges.map((edge) => {
-        if (edge.id === selectedEdge) {
-          return {
-            ...edge,
-            type: "floating",
-            data: { ...edge.data, type: style },
-          };
-        }
-        return edge;
-      });
-      onEdgesChange(updatedEdges);
-    },
-    [edges, selectedEdge, onEdgesChange]
-  );
-
   const onEdgeUpdate = useCallback(
     (oldEdge: Edge, newConnection: Connection) => {
       const updatedEdges = edges.map((e) =>
@@ -598,44 +434,6 @@ export function UMLEditor({
       );
     };
   }, [handleKeyDown]);
-
-  const handleRemoveConnection = useCallback(
-    (edgeId: string) => {
-      const edgeToRemove = edges.find((edge) => edge.id === edgeId);
-      if (edgeToRemove) {
-        const updatedEdges = edges.filter((edge) => edge.id !== edgeId);
-        onEdgesChange(updatedEdges);
-
-        // Update the nodes to reflect the removed connection
-        const updatedNodes = nodes.map((node) => {
-          if (node.id === edgeToRemove.source) {
-            return {
-              ...node,
-              data: {
-                ...node.data,
-                to: node.data.to === edgeToRemove.target ? null : node.data.to,
-              },
-            };
-          }
-          if (node.id === edgeToRemove.target) {
-            return {
-              ...node,
-              data: {
-                ...node.data,
-                from:
-                  node.data.from === edgeToRemove.source
-                    ? null
-                    : node.data.from,
-              },
-            };
-          }
-          return node;
-        });
-        onNodesChange(updatedNodes);
-      }
-    },
-    [edges, onEdgesChange, nodes, onNodesChange]
-  );
 
   const handleCreateConnection = useCallback(
     (sourceId: string, targetId: string) => {
@@ -721,13 +519,12 @@ export function UMLEditor({
       {viewMode === "canvas" ? (
         <>
           <UMLToolbar
-            onAddNode={handleAddNode}
-            onAddSwimlane={handleAddSwimlane}
-            onChangeEdgeStyle={applyEdgeStyle}
-            onAddImage={onAddImage}
             onZoomIn={handleZoomIn}
             onZoomOut={handleZoomOut}
             onFitToScreen={handleFitToScreen}
+            onToggleRuler={() => {
+              setShowRulers(!showRulers);
+            }}
             onChangeBackground={(background: BackgroundVariant) =>
               setBackground(background)
             }
@@ -794,6 +591,9 @@ export function UMLEditor({
             onEdgeUpdate={onEdgeUpdate}
             minZoom={0.1}
             maxZoom={4}
+            proOptions={{
+              hideAttribution: true,
+            }}
           >
             <Background variant={background} />
             <Controls showZoom={false} />
@@ -818,77 +618,3 @@ export function UMLEditor({
     </div>
   );
 }
-
-const MeasureRuler = () => {
-  return (
-    <>
-      <div
-        style={{
-          position: "absolute",
-          top: 0,
-          left: 0,
-          right: 0,
-          height: "20px",
-          background: "white",
-          borderBottom: "1px solid #ccc",
-          display: "flex",
-          alignItems: "flex-end",
-          paddingLeft: "20px",
-        }}
-      >
-        {[...Array(10)].map((_, i) => (
-          <div
-            key={i}
-            style={{
-              width: "100px",
-              height: "100%",
-              borderRight: "1px solid #ccc",
-              display: "flex",
-              justifyContent: "flex-end",
-              alignItems: "center",
-              paddingRight: "5px",
-              fontSize: "10px",
-            }}
-          >
-            {(i + 1) * 100}
-          </div>
-        ))}
-      </div>
-      <div
-        style={{
-          position: "absolute",
-          top: 20,
-          left: 0,
-          bottom: 0,
-          width: "20px",
-          background: "white",
-          borderRight: "1px solid #ccc",
-          display: "flex",
-          flexDirection: "column",
-          alignItems: "flex-end",
-          paddingTop: "20px",
-        }}
-      >
-        {[...Array(10)].map((_, i) => (
-          <div
-            key={i}
-            style={{
-              height: "100px",
-              width: "100%",
-              borderBottom: "1px solid #ccc",
-              display: "flex",
-              justifyContent: "center",
-              alignItems: "flex-start",
-              paddingTop: "5px",
-              fontSize: "10px",
-              writingMode: "vertical-rl",
-              transform: "rotate(180deg)",
-            }}
-          >
-            {(i + 1) * 100}
-          </div>
-        ))}
-      </div>
-    </>
-  );
-};

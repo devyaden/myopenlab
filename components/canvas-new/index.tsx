@@ -4,7 +4,7 @@ import { Input } from "@/components/ui/input";
 import { useRouter } from "next/navigation";
 import type React from "react";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { toast, Toaster } from "react-hot-toast";
+import { toast } from "react-hot-toast";
 import type { Edge, Node } from "reactflow";
 import { MarkerType, ReactFlowProvider } from "reactflow";
 import { Header } from "./header";
@@ -124,6 +124,7 @@ export default function FigmaInterface({ canvasId }: FigmaInterfaceProps) {
     const savedCanvas = localStorage.getItem(`canvas_${canvasId}`);
     if (savedCanvas) {
       const parsedCanvas = JSON.parse(savedCanvas);
+      console.log("🚀 ~ useEffect ~ parsedCanvas:", parsedCanvas);
       setCurrentState(parsedCanvas.currentState);
       setColumns(parsedCanvas.columns);
       setProjectName(parsedCanvas.projectName);
@@ -606,6 +607,7 @@ export default function FigmaInterface({ canvasId }: FigmaInterfaceProps) {
 
   const onChangeEdgeStyle = useCallback(
     (style: string) => {
+      console.log("🚀 ~ FigmaInterface ~ style:", style);
       if (selectedEdge) {
         updateState({
           edges: currentState.edges.map((edge) =>
@@ -620,6 +622,7 @@ export default function FigmaInterface({ canvasId }: FigmaInterfaceProps) {
                       : edge.type,
                   style: {
                     ...edge.style,
+                    edgeType: style,
                     strokeDasharray:
                       style === "dashed"
                         ? "5,5"
@@ -627,7 +630,7 @@ export default function FigmaInterface({ canvasId }: FigmaInterfaceProps) {
                           ? "1,5"
                           : undefined,
                   },
-                  markerEnd: { type: MarkerType.Arrow },
+                  markerEnd: { type: MarkerType.ArrowClosed },
                 }
               : edge
           ),
@@ -1012,16 +1015,6 @@ export default function FigmaInterface({ canvasId }: FigmaInterfaceProps) {
           className="hidden"
           accept="image/*"
           onChange={handleImageUpload}
-        />
-        <Toaster
-          position="bottom-right"
-          toastOptions={{
-            duration: 3000,
-            style: {
-              background: "#333",
-              color: "#fff",
-            },
-          }}
         />
       </div>
     </ReactFlowProvider>

@@ -4,71 +4,30 @@ import {
   Cross,
   Grid2X2,
   Maximize,
+  Ruler,
   ZoomIn,
   ZoomOut,
-  User,
-  Box,
-  Columns,
 } from "lucide-react";
 import { BackgroundVariant } from "reactflow";
 
 interface UMLToolbarProps {
-  onAddNode: (shape: string) => void;
-  onAddSwimlane: () => void;
-  onChangeEdgeStyle: (style: string) => void;
-  onAddImage: () => void;
   onZoomIn: () => void;
   onZoomOut: () => void;
   onFitToScreen: () => void;
+  onToggleRuler: () => void;
   onChangeBackground: (background: BackgroundVariant) => void;
 }
 
 export function UMLToolbar({
-  onAddNode,
-  onAddSwimlane,
-  onChangeEdgeStyle,
-  onAddImage,
   onZoomIn,
   onZoomOut,
   onFitToScreen,
   onChangeBackground,
+  onToggleRuler,
 }: UMLToolbarProps) {
   return (
-    <div className="absolute top-4 left-4 bg-white rounded-lg shadow-md border border-gray-200 p-2 z-10">
+    <div className="absolute top-6 left-6 bg-white rounded-lg shadow-md border border-gray-200 p-2 z-10">
       <div className="flex flex-wrap gap-2">
-        <Button
-          variant="ghost"
-          size="icon"
-          className="h-10 w-10"
-          onClick={() => onAddNode("actor")}
-        >
-          <User className="h-5 w-5" />
-        </Button>
-        <Button
-          variant="ghost"
-          size="icon"
-          className="h-10 w-10"
-          onClick={() => onAddNode("class")}
-        >
-          <Box className="h-5 w-5" />
-        </Button>
-        <Button
-          variant="ghost"
-          size="icon"
-          className="h-10 w-10"
-          onClick={() => onAddNode("interface")}
-        >
-          <Box className="h-5 w-5" />
-        </Button>
-        <Button
-          variant="ghost"
-          size="icon"
-          className="h-10 w-10"
-          onClick={onAddSwimlane}
-        >
-          <Columns className="h-5 w-5" />
-        </Button>
-
         <Button
           variant="ghost"
           size="icon"
@@ -92,6 +51,15 @@ export function UMLToolbar({
           onClick={onFitToScreen}
         >
           <Maximize className="h-5 w-5" />
+        </Button>
+
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-10 w-10"
+          onClick={onToggleRuler}
+        >
+          <Ruler className="h-5 w-5" />
         </Button>
 
         <Button
