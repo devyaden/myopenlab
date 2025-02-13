@@ -551,20 +551,6 @@ export default function FigmaInterface({ canvasId }: FigmaInterfaceProps) {
     selectedEdge,
   ]);
 
-  const deleteSelectedNode = useCallback(() => {
-    if (selectedNode) {
-      updateState({
-        nodes: currentState.nodes.filter((node) => node.id !== selectedNode),
-        nodeStyles: Object.fromEntries(
-          Object.entries(currentState.nodeStyles).filter(
-            ([id]) => id !== selectedNode
-          )
-        ),
-      });
-      setSelectedNode(null);
-    }
-  }, [selectedNode, currentState.nodes, currentState.nodeStyles, updateState]);
-
   const setBackgroundColor = useCallback(
     (color: string) => {
       if (selectedNode) {
@@ -840,18 +826,6 @@ export default function FigmaInterface({ canvasId }: FigmaInterfaceProps) {
     [folders]
   );
 
-  const handleFolderNameChange = useCallback(
-    (folderId: string, newName: string) => {
-      const updatedFolders = folders.map((folder) =>
-        folder.id === folderId ? { ...folder, name: newName } : folder
-      );
-
-      setFolders(updatedFolders);
-      localStorage.setItem("savedFolders", JSON.stringify(updatedFolders));
-    },
-    [folders]
-  );
-
   const selectedStyle = selectedNode ? getNodeStyle(selectedNode) : null;
   const selectedEdgeData = selectedEdge
     ? currentState.edges.find((edge) => edge.id === selectedEdge)?.data
@@ -974,20 +948,12 @@ export default function FigmaInterface({ canvasId }: FigmaInterfaceProps) {
                 onAddSwimlane={addSwimlane}
                 onLabelChange={onLabelChange}
                 onAddLane={addLaneToSwimlane}
-                onDelete={deleteSelectedNodes}
-                selectedEdge={selectedEdge}
                 onEdgeSelect={onEdgeSelect}
-                onChangeEdgeStyle={onChangeEdgeStyle}
                 onChangeEdgeLabel={onChangeEdgeLabel}
                 onAddImage={addImage}
                 onAddColumn={handleAddColumn}
                 columns={columns}
                 setColumns={setColumns}
-                onZoomIn={handleZoomIn}
-                onZoomOut={handleZoomOut}
-                onFitToScreen={handleFitToScreen}
-                showGrid={showGrid}
-                showRulers={showRulers}
               />
               <RollupCalculator // Added RollupCalculator component
                 nodes={currentState.nodes}
