@@ -1,13 +1,22 @@
 "use client";
 
-import { Button } from "@/components/ui/button";
+import { useState, useMemo } from "react";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableRow,
+  TableHeader,
+} from "@/components/ui/table";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
+  DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -17,25 +26,26 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import {
-  Check,
   ChevronDown,
-  ChevronRight,
   ChevronUp,
+  ChevronRight,
   MoreHorizontal,
-  MoreVertical,
   Plus,
   X,
+  Check,
+  MoreVertical,
 } from "lucide-react";
-import { useCallback, useMemo, useState } from "react";
-
+import type { Node, Edge } from "reactflow";
+import type React from "react";
+import { AddColumnSidebar, type ColumnData } from "./add-column-sidebar";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -46,36 +56,77 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import type React from "react";
-import { MarkerType, Node } from "reactflow";
-import type { ColumnData } from "./add-column-sidebar";
-import { AddColumnSidebar } from "./add-column-sidebar";
-import ManageConnectionsModal from "./manage-connections-modal";
+import { Label } from "@/components/ui/label";
+import * as z from "zod";
+import { MultiSelect } from "@/components/ui/multi-select";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  AlignLeft,
+  Calendar,
+  CheckSquare,
+  Hash,
+  Link,
+  Mail,
+  Phone,
+  Globe,
+  User,
+  List,
+  FileText,
+  Type,
+  Database,
+} from "lucide-react";
+
+const getColumnIcon = (columnType: string) => {
+  switch (columnType) {
+    case "Text":
+      return <Type className="h-4 w-4 mr-2" />;
+    case "Long Text":
+      return <AlignLeft className="h-4 w-4 mr-2" />;
+    case "Number":
+      return <Hash className="h-4 w-4 mr-2" />;
+    case "Date":
+    case "Created Time":
+    case "Last edited time":
+      return <Calendar className="h-4 w-4 mr-2" />;
+    case "Checkbox":
+      return <CheckSquare className="h-4 w-4 mr-2" />;
+    case "Select":
+      return <List className="h-4 w-4 mr-2" />;
+    case "Multiselect":
+      return <List className="h-4 w-4 mr-2" />;
+    case "Email":
+      return <Mail className="h-4 w-4 mr-2" />;
+    case "Phone Number":
+      return <Phone className="h-4 w-4 mr-2" />;
+    case "URL":
+      return <Globe className="h-4 w-4 mr-2" />;
+    case "User":
+      return <User className="h-4 w-4 mr-2" />;
+    case "Relation":
+      return <Link className="h-4 w-4 mr-2" />;
+    case "Rollup":
+      return <Database className="h-4 w-4 mr-2" />;
+    case "Created by":
+    case "Last edited by":
+      return <User className="h-4 w-4 mr-2" />;
+    default:
+      return <FileText className="h-4 w-4 mr-2" />;
+  }
+};
 
 interface TableViewProps {
   nodes: Node[];
-  edges: any[];
+  edges: Edge[];
   onNodesChange: (nodes: Node[]) => void;
-  onEdgesChange: (edges: any[]) => void;
+  onEdgesChange: (edges: Edge[]) => void;
   columns: ColumnData[];
   setColumns: React.Dispatch<React.SetStateAction<ColumnData[]>>;
   onAddColumn: (columnData: ColumnData) => void;
-  onCreateConnection: (source: string, target: string) => void;
-  onDeleteConnection: (id: string) => void;
 }
 
 type SortDirection = "asc" | "desc" | null;
-type SortField = "id" | "task" | "type" | "from" | "to" | null;
+type SortField = "id" | "task" | "type" | null;
 
 interface HierarchyNode extends Node {
   children: HierarchyNode[];
@@ -89,8 +140,6 @@ const TableView: React.FC<TableViewProps> = ({
   columns,
   setColumns,
   onAddColumn,
-  onCreateConnection,
-  onDeleteConnection,
 }) => {
   const [sortField, setSortField] = useState<SortField>(null);
   const [sortDirection, setSortDirection] = useState<SortDirection>(null);
@@ -115,17 +164,9 @@ const TableView: React.FC<TableViewProps> = ({
   const [frozenColumns, setFrozenColumns] = useState<Set<string>>(new Set());
   const [hiddenColumns, setHiddenColumns] = useState<Set<string>>(new Set());
   const [isHiddenColumnsMenuOpen, setIsHiddenColumnsMenuOpen] = useState(false);
-  const [isManageConnectionsOpen, setIsManageConnectionsOpen] = useState(false);
-  const [selectedNodeForConnections, setSelectedNodeForConnections] = useState<
-    string | null
-  >(null);
-
-  const [columnsState, setColumnsState] = useState<ColumnData[]>([
-    { title: "task", type: "Text" },
-    { title: "type", type: "Select" },
-    { title: "from", type: "Text" },
-    { title: "to", type: "Text" },
-  ]);
+  const [validationErrors, setValidationErrors] = useState<
+    Record<string, string | null>
+  >({});
 
   const handleSort = (field: SortField) => {
     if (sortField === field) {
@@ -201,14 +242,6 @@ const TableView: React.FC<TableViewProps> = ({
               aValue = a.data.shape || a.type || "";
               bValue = b.data.shape || b.type || "";
               break;
-            case "from":
-              aValue = a.data.from || "";
-              bValue = b.data.from || "";
-              break;
-            case "to":
-              aValue = a.data.to || "";
-              bValue = b.data.to || "";
-              break;
           }
 
           const sortOrder = sortDirection === "asc" ? 1 : -1;
@@ -221,7 +254,7 @@ const TableView: React.FC<TableViewProps> = ({
     };
 
     return sortNodes(hierarchy);
-  }, [nodes, sortField, sortDirection]);
+  }, [nodes, sortField, sortDirection]); // Removed createHierarchy from dependencies
 
   const deleteNode = (nodeId: string, deleteChildren = false) => {
     const nodesToDelete = new Set<string>([nodeId]);
@@ -257,8 +290,6 @@ const TableView: React.FC<TableViewProps> = ({
       data: {
         label: newTaskName,
         shape: newShapeType,
-        from: "",
-        to: "",
       },
       parentNode:
         selectedParentId !== "no-parent" ? selectedParentId : undefined,
@@ -287,55 +318,106 @@ const TableView: React.FC<TableViewProps> = ({
     setEditingRow(nodeId);
     const node = nodes.find((n) => n.id === nodeId);
     if (node) {
-      setEditedValues({
-        task: node.data.label,
-        type: node.data.shape,
-        from: node.data.from,
-        to: node.data.to,
-        ...node.data,
-      });
+      const initialValues = columns.reduce(
+        (acc, column) => {
+          if (column.title === "task") {
+            acc[column.title] = node.data.label;
+          } else if (column.title === "type") {
+            acc[column.title] = node.data.shape || node.type;
+          } else {
+            acc[column.title] = node.data[column.title] || "";
+          }
+          return acc;
+        },
+        {} as Record<string, any>
+      );
+      setEditedValues(initialValues);
     }
   };
 
-  const handleEditChange = (field: string, value: string) => {
-    const column = columnsState.find((col) => col.title === field);
-    if (column && validateField(column.type, value)) {
-      setEditedValues((prev) => ({ ...prev, [field]: value }));
-    }
+  const validationSchemas = {
+    Email: z.string().email("Invalid email address"),
+    "Phone Number": z
+      .string()
+      .regex(/^\+?[\d\s-]{10,}$/, "Invalid phone number"),
+    URL: z.string().url("Invalid URL"),
+    Number: z.number().or(z.string().regex(/^-?\d*\.?\d+$/, "Invalid number")),
+    Date: z
+      .string()
+      .refine((value) => !isNaN(new Date(value).getTime()), "Invalid date"),
+    Checkbox: z.boolean(),
+    Text: z.string(),
+    "Long Text": z.string(),
+    Select: z.string(),
+    Multiselect: z
+      .array(z.string())
+      .min(1, "At least one option must be selected"),
+    "Created Time": z
+      .string()
+      .refine((value) => !isNaN(new Date(value).getTime()), "Invalid date"),
+    "Created by": z.string(),
+    "Last edited time": z
+      .string()
+      .refine((value) => !isNaN(new Date(value).getTime()), "Invalid date"),
+    "Last edited by": z.string(),
+    User: z.string(),
+    Relation: z.string().nullable(),
+    Rollup: z.string().nullable(),
   };
 
-  const validateField = (type: string, value: string): boolean => {
-    switch (type) {
-      case "Email":
-        return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
-      case "Phone Number":
-        return /^\+?[\d\s-]{10,}$/.test(value);
-      case "URL":
-        try {
-          new URL(value);
-          return true;
-        } catch {
-          return false;
-        }
-      case "Number":
-        return /^-?\d*\.?\d+$/.test(value);
-      case "Date":
-        return !isNaN(Date.parse(value));
-      case "Checkbox":
-        return value === "true" || value === "false";
-      default:
-        return true;
+  const validateField = (
+    type: string,
+    value: any
+  ): { isValid: boolean; errorMessage: string | null } => {
+    const schema =
+      validationSchemas[type as keyof typeof validationSchemas] || z.string();
+    let result;
+    if (type === "Multiselect") {
+      result = schema.safeParse(
+        Array.isArray(value) ? value : [value].filter(Boolean)
+      );
+    } else if (type === "Checkbox") {
+      result = schema.safeParse(value === true);
+    } else if (
+      type === "Date" ||
+      type === "Created Time" ||
+      type === "Last edited time"
+    ) {
+      // Improved date and time validation
+      const dateValue = new Date(value);
+      if (isNaN(dateValue.getTime())) {
+        return { isValid: false, errorMessage: "Invalid date or time" };
+      }
+      result = schema.safeParse(dateValue.toISOString());
+    } else {
+      result = schema.safeParse(value);
+    }
+    return {
+      isValid: result.success,
+      errorMessage: result.success ? null : result.error.errors[0].message,
+    };
+  };
+
+  const handleEditChange = (field: string, value: string | string[]) => {
+    const column = columns.find((col) => col.title === field);
+    if (column) {
+      const { isValid, errorMessage } = validateField(column.type, value);
+      setEditedValues((prev) => ({
+        ...prev,
+        [field]: value,
+      }));
+      setValidationErrors((prev) => ({
+        ...prev,
+        [field]: errorMessage,
+      }));
     }
   };
 
   const handleSaveEdit = () => {
     if (editingRow) {
       const isValid = Object.entries(editedValues).every(([key, value]) => {
-        const column = columnsState.find((col) => col.title === key);
-        if (column?.type === "Relation" || column?.type === "Rollup") {
-          return true; // These are always valid as they're selected from a list
-        }
-        return column ? validateField(column.type, value as string) : true;
+        const column = columns.find((col) => col.title === key);
+        return column ? validateField(column.type, value).isValid : true;
       });
 
       if (isValid) {
@@ -344,6 +426,8 @@ const TableView: React.FC<TableViewProps> = ({
             const newData = {
               ...node.data,
               ...editedValues,
+              label: editedValues.task,
+              shape: editedValues.type,
             };
             return { ...node, data: newData };
           }
@@ -352,6 +436,7 @@ const TableView: React.FC<TableViewProps> = ({
         onNodesChange(updatedNodes);
         setEditingRow(null);
         setEditedValues({});
+        setValidationErrors({});
       } else {
         alert("Please correct the invalid fields before saving.");
       }
@@ -403,13 +488,13 @@ const TableView: React.FC<TableViewProps> = ({
   };
 
   const isDefaultColumn = (columnTitle: string) => {
-    return ["task", "type", "from", "to"].includes(columnTitle);
+    return ["task", "type"].includes(columnTitle);
   };
 
   const handleColumnTitleEdit = (columnTitle: string, newTitle: string) => {
     if (newTitle.trim() && newTitle !== columnTitle) {
-      setColumnsState(
-        columnsState.map((col) =>
+      setColumns(
+        columns.map((col) =>
           col.title === columnTitle ? { ...col, title: newTitle } : col
         )
       );
@@ -429,7 +514,7 @@ const TableView: React.FC<TableViewProps> = ({
   };
 
   const handleDeleteColumn = (columnTitle: string) => {
-    setColumnsState(columnsState.filter((col) => col.title !== columnTitle));
+    setColumns(columns.filter((col) => col.title !== columnTitle));
     // Remove the column data from all nodes
     const updatedNodes = nodes.map((node) => {
       const newData = { ...node.data };
@@ -441,19 +526,17 @@ const TableView: React.FC<TableViewProps> = ({
   };
 
   const handleDuplicateColumn = (columnTitle: string) => {
-    const originalColumn = columnsState.find(
-      (col) => col.title === columnTitle
-    );
+    const originalColumn = columns.find((col) => col.title === columnTitle);
     if (originalColumn) {
       let newTitle = `${columnTitle} copy`;
       let counter = 1;
-      while (columnsState.some((col) => col.title === newTitle)) {
+      while (columns.some((col) => col.title === newTitle)) {
         newTitle = `${columnTitle} copy ${counter}`;
         counter++;
       }
 
       const newColumn = { ...originalColumn, title: newTitle };
-      setColumnsState([...columnsState, newColumn]);
+      setColumns([...columns, newColumn]);
 
       // Duplicate the column data for all nodes
       const updatedNodes = nodes.map((node) => ({
@@ -521,7 +604,7 @@ const TableView: React.FC<TableViewProps> = ({
           className="hover:bg-gray-50"
           onDoubleClick={() => handleDoubleClick(node.id)}
         >
-          {columnsState
+          {columns
             .filter(
               (column) =>
                 !hiddenColumns.has(column.title) && column.title !== "id"
@@ -562,10 +645,135 @@ const TableView: React.FC<TableViewProps> = ({
                     )}
                   </span>
                 )}
-                {renderCellContent(node, column)}
+                {editingRow === node.id && column.title !== "id" ? (
+                  <div>
+                    {column.type === "Select" ? (
+                      <Select
+                        value={editedValues[column.title] || "default"}
+                        onValueChange={(value) =>
+                          handleEditChange(column.title, value)
+                        }
+                      >
+                        <SelectTrigger className="w-full">
+                          <SelectValue placeholder="Select option" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {column.options?.map((option) => (
+                            <SelectItem
+                              key={option}
+                              value={option || "default"}
+                            >
+                              {option || "Default"}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    ) : column.type === "Multiselect" ? (
+                      <MultiSelect
+                        options={(column.options || []).map((option) => ({
+                          label: option,
+                          value: option,
+                        }))}
+                        selected={editedValues[column.title] || []}
+                        onChange={(selected) =>
+                          handleEditChange(column.title, selected)
+                        }
+                      />
+                    ) : column.type === "Checkbox" ? (
+                      <Switch
+                        checked={editedValues[column.title] === true}
+                        onCheckedChange={(checked) => {
+                          // @ts-ignore
+                          handleEditChange(column.title, checked);
+                        }}
+                      />
+                    ) : column.type === "Date" ||
+                      column.type === "Created Time" ||
+                      column.type === "Last edited time" ? (
+                      <Input
+                        type="datetime-local"
+                        value={
+                          editedValues[column.title]
+                            ? new Date(editedValues[column.title])
+                                .toISOString()
+                                .slice(0, 16)
+                            : ""
+                        }
+                        onChange={(e) =>
+                          handleEditChange(column.title, e.target.value)
+                        }
+                        className={
+                          validationErrors[column.title] ? "border-red-500" : ""
+                        }
+                      />
+                    ) : column.type === "Long Text" ? (
+                      <Textarea
+                        value={editedValues[column.title] || ""}
+                        onChange={(e) =>
+                          handleEditChange(column.title, e.target.value)
+                        }
+                        className={
+                          validationErrors[column.title] ? "border-red-500" : ""
+                        }
+                      />
+                    ) : (
+                      <Input
+                        type={column.type === "Number" ? "number" : "text"}
+                        value={editedValues[column.title] || ""}
+                        onChange={(e) =>
+                          handleEditChange(column.title, e.target.value)
+                        }
+                        className={
+                          validationErrors[column.title] ? "border-red-500" : ""
+                        }
+                      />
+                    )}
+                    {validationErrors[column.title] && (
+                      <p className="text-red-500 text-xs mt-1">
+                        {validationErrors[column.title]}
+                      </p>
+                    )}
+                  </div>
+                ) : (
+                  <>
+                    {column.title === "task" && node.data.label}
+                    {column.title === "type" && (node.data.shape || node.type)}
+                    {!["task", "type"].includes(column.title) && (
+                      <>
+                        {column.type === "Checkbox" ? (
+                          <Switch
+                            checked={node.data[column.title] === true}
+                            disabled
+                          />
+                        ) : column.type === "Date" ||
+                          column.type === "Created Time" ||
+                          column.type === "Last edited time" ? (
+                          node.data[column.title] &&
+                          !isNaN(
+                            new Date(node.data[column.title]).getTime()
+                          ) ? (
+                            new Date(node.data[column.title]).toLocaleString()
+                          ) : (
+                            "—"
+                          )
+                        ) : column.type === "Long Text" ? (
+                          <div className="max-w-[300px] max-h-[4.5em] overflow-hidden">
+                            <p className="line-clamp-3">
+                              {node.data[column.title] || "—"}
+                            </p>
+                          </div>
+                        ) : Array.isArray(node.data[column.title]) ? (
+                          node.data[column.title].join(", ")
+                        ) : (
+                          node.data[column.title] || "—"
+                        )}
+                      </>
+                    )}
+                  </>
+                )}
               </TableCell>
             ))}
-          <TableCell className="text-right">
+          <TableCell className="text-right sticky right-0 bg-white z-10">
             {editingRow === node.id ? (
               <Button variant="ghost" size="icon" onClick={handleSaveEdit}>
                 <Check className="h-4 w-4" />
@@ -578,11 +786,6 @@ const TableView: React.FC<TableViewProps> = ({
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
-                  <DropdownMenuItem
-                    onClick={() => handleManageConnections(node.id)}
-                  >
-                    Manage Connections
-                  </DropdownMenuItem>
                   <DropdownMenuItem onClick={() => handleDeleteClick(node)}>
                     Delete
                   </DropdownMenuItem>
@@ -598,390 +801,186 @@ const TableView: React.FC<TableViewProps> = ({
     });
   };
 
-  const availableCanvases = [
-    // Add your available canvases here
-    { id: "canvas1", name: "Canvas 1" },
-    { id: "canvas2", name: "Canvas 2" },
-  ];
-
-  const navigateToCanvas = (canvasId: string) => {
-    // Implement navigation logic here
-    console.log(`Navigating to canvas: ${canvasId}`);
+  const startEditingColumnTitle = (columnTitle: string) => {
+    setEditingColumnTitle(columnTitle);
+    setNewColumnTitle(columnTitle);
   };
-
-  const renderCellContent = (node: HierarchyNode, column: ColumnData) => {
-    if (editingRow === node.id) {
-      if (column.type === "Relation") {
-        return (
-          <Select
-            value={editedValues[column.title] || ""}
-            onValueChange={(value) => handleEditChange(column.title, value)}
-          >
-            <SelectTrigger>
-              <SelectValue placeholder="Select related canvas" />
-            </SelectTrigger>
-            <SelectContent>
-              {availableCanvases.map((canvas) => (
-                <SelectItem key={canvas.id} value={canvas.id}>
-                  {canvas.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        );
-      } else if (column.type === "Rollup") {
-        // Rollup values are calculated, not editable
-        return node.data[column.title] || "—";
-      } else {
-        // Existing input rendering for other types
-        return (
-          <Input
-            type={
-              column.type === "Number"
-                ? "number"
-                : column.type === "Date"
-                  ? "date"
-                  : "text"
-            }
-            value={editedValues[column.title] || ""}
-            onChange={(e) => handleEditChange(column.title, e.target.value)}
-            className={
-              !validateField(column.type, editedValues[column.title])
-                ? "border-red-500"
-                : ""
-            }
-          />
-        );
-      }
-    }
-
-    switch (column.title) {
-      case "task":
-        return node.data.label || "—";
-      case "type":
-        return node.data.shape || node.type || "—";
-      case "from":
-        return node.data.from || "—";
-      case "to":
-        return node.data.to || "—";
-      case "Relation":
-        const relatedCanvas = availableCanvases.find(
-          (canvas) => canvas.id === node.data[column.title]
-        );
-        return relatedCanvas ? (
-          <Button
-            variant="link"
-            onClick={() => navigateToCanvas(relatedCanvas.id)}
-          >
-            {relatedCanvas.name}
-          </Button>
-        ) : (
-          "—"
-        );
-      case "Rollup":
-        return node.data[column.title] || "—";
-      default:
-        return node.data[column.title] || "—";
-    }
-  };
-
-  const handleAddConnection = (nodeId: string) => {
-    // Implement the logic to add a connection
-    // This could open a modal or inline form to select the connection type and target node
-    console.log("Add connection for node:", nodeId);
-  };
-
-  const handleRemoveConnection = (nodeId: string) => {
-    // Implement the logic to remove a connection
-    // This could open a modal to select which connection to remove
-    console.log("Remove connection for node:", nodeId);
-  };
-
-  const handleTableNodesChange = useCallback(
-    (updatedNodes: Node[]) => {
-      // Check if any nodes were deleted
-      const deletedNodeIds = nodes
-        .filter((node) => !updatedNodes.some((n) => n.id === node.id))
-        .map((node) => node.id);
-
-      if (deletedNodeIds.length > 0) {
-        // Remove deleted nodes
-        const newNodes = nodes.filter(
-          (node) => !deletedNodeIds.includes(node.id)
-        );
-        onNodesChange(newNodes);
-      } else {
-        // Update existing nodes or add new nodes
-        const newNodes = updatedNodes.map((updatedNode) => {
-          const existingNode = nodes.find((node) => node.id === updatedNode.id);
-          if (existingNode) {
-            // Update existing node
-            return {
-              ...existingNode,
-              data: {
-                ...existingNode.data,
-                ...updatedNode.data,
-                shape: updatedNode.data.shape || existingNode.data.shape,
-                from: updatedNode.data.from || existingNode.data.from,
-                to: updatedNode.data.to || existingNode.data.to,
-              },
-              type: updatedNode.type || existingNode.type,
-              parentNode: updatedNode.data.parent || existingNode.parentNode,
-            };
-          } else {
-            // Add new node
-            return {
-              ...updatedNode,
-              position: { x: Math.random() * 500, y: Math.random() * 500 },
-            };
-          }
-        });
-        onNodesChange(newNodes);
-      }
-    },
-    [nodes, onNodesChange]
-  );
-
-  const handleManageConnections = (nodeId: string) => {
-    setSelectedNodeForConnections(nodeId);
-    setIsManageConnectionsOpen(true);
-  };
-
-  const handleCreateConnection = useCallback(
-    (sourceId: string, targetId: string) => {
-      const existingConnection = edges.find(
-        (edge) => edge.source === sourceId || edge.target === sourceId
-      );
-      if (existingConnection) {
-        // If a connection already exists, don't create a new one
-        return;
-      }
-
-      const newEdge = {
-        id: `edge-${Date.now()}`,
-        source: sourceId,
-        target: targetId,
-        type: "custom",
-        data: { type: "default", label: "", onLabelChange: onChangeEdgeLabel },
-        markerEnd: { type: MarkerType.Arrow },
-      };
-      const updatedEdges = [...edges, newEdge];
-      onEdgesChange(updatedEdges);
-
-      // Update the nodes to reflect the new connection
-      const updatedNodes = nodes.map((node) => {
-        if (node.id === sourceId) {
-          return {
-            ...node,
-            data: {
-              ...node.data,
-              to: targetId,
-            },
-          };
-        }
-        if (node.id === targetId) {
-          return {
-            ...node,
-            data: {
-              ...node.data,
-              from: sourceId,
-            },
-          };
-        }
-        return node;
-      });
-      onNodesChange(updatedNodes);
-    },
-    [edges, onEdgesChange, nodes, onNodesChange, onChangeEdgeLabel]
-  );
-
-  const handleDeleteConnection = useCallback(
-    (edgeId: string) => {
-      const edgeToRemove = edges.find((edge) => edge.id === edgeId);
-      if (edgeToRemove) {
-        const updatedEdges = edges.filter((edge) => edge.id !== edgeId);
-        onEdgesChange(updatedEdges);
-
-        // Update the nodes to reflect the removed connection
-        const updatedNodes = nodes.map((node) => {
-          if (node.id === edgeToRemove.source) {
-            return {
-              ...node,
-              data: {
-                ...node.data,
-                to: null,
-              },
-            };
-          }
-          if (node.id === edgeToRemove.target) {
-            return {
-              ...node,
-              data: {
-                ...node.data,
-                from: null,
-              },
-            };
-          }
-          return node;
-        });
-        onNodesChange(updatedNodes);
-      }
-    },
-    [edges, onEdgesChange, nodes, onNodesChange]
-  );
 
   return (
     <div className="p-4 mx-auto">
-      <div className="rounded-lg border bg-white">
-        <Table>
-          <TableHeader>
-            <TableRow className="hover:bg-transparent">
-              {columnsState
-                .filter((column) => !hiddenColumns.has(column.title))
-                .map((column) => (
-                  <TableHead
-                    key={column.title}
-                    className={`group ${frozenColumns.has(column.title) ? "sticky left-0 bg-white z-10" : ""}`}
-                  >
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <div className="flex items-center cursor-pointer">
-                          {editingColumnTitle === column.title ? (
-                            <Input
-                              value={newColumnTitle}
-                              onChange={(e) =>
-                                setNewColumnTitle(e.target.value)
-                              }
-                              onBlur={() =>
-                                handleColumnTitleEdit(
-                                  column.title,
-                                  newColumnTitle
-                                )
-                              }
-                              onKeyDown={(e) => {
-                                if (e.key === "Enter") {
-                                  handleColumnTitleEdit(
-                                    column.title,
-                                    newColumnTitle
-                                  );
+      <div className="rounded-lg border bg-white overflow-hidden">
+        <div className="overflow-x-auto">
+          <div className="overflow-y-auto max-h-[calc(100vh-300px)]">
+            <Table>
+              <TableHeader>
+                <TableRow className="hover:bg-transparent">
+                  {columns
+                    .filter(
+                      (column) =>
+                        !hiddenColumns.has(column.title) &&
+                        column.title !== "id"
+                    )
+                    .map((column) => (
+                      <TableHead
+                        key={column.title}
+                        className={`group ${frozenColumns.has(column.title) ? "sticky left-0 bg-white z-10" : ""}`}
+                      >
+                        <DropdownMenu>
+                          <DropdownMenuTrigger
+                            asChild
+                            disabled={editingColumnTitle === column.title}
+                          >
+                            <div
+                              className="flex items-center cursor-pointer"
+                              onClick={(e) => {
+                                if (editingColumnTitle === column.title) {
+                                  e.preventDefault();
+                                  e.stopPropagation();
                                 }
                               }}
-                              onClick={(e) => e.stopPropagation()}
-                              autoFocus
-                              className="h-7 w-32"
-                            />
-                          ) : (
-                            <>
-                              {column.title}
-                              {getSortIcon(column.title as SortField)}
-                            </>
-                          )}
-                        </div>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="start" className="w-56">
-                        <DropdownMenuItem
-                          onClick={() => {
-                            setEditingColumnTitle(column.title);
-                            setNewColumnTitle(column.title);
-                          }}
-                        >
-                          Edit property
-                        </DropdownMenuItem>
-                        <DropdownMenuItem disabled>
-                          Set up AI autofill
-                          <span className="ml-2 text-xs bg-blue-100 text-blue-600 px-1 rounded">
-                            New
-                          </span>
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          onClick={() => {
-                            setSortField(column.title as SortField);
-                            setSortDirection("asc");
-                          }}
-                        >
-                          Sort ascending
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          onClick={() => {
-                            setSortField(column.title as SortField);
-                            setSortDirection("desc");
-                          }}
-                        >
-                          Sort descending
-                        </DropdownMenuItem>
-                        <DropdownMenuItem disabled>Filter</DropdownMenuItem>
-                        {!hiddenColumns.has(column.title) && (
-                          <DropdownMenuItem
-                            onClick={() => toggleHiddenColumn(column.title)}
-                          >
-                            Hide in view
-                          </DropdownMenuItem>
-                        )}
-                        <DropdownMenuItem
-                          onClick={() => toggleFrozenColumn(column.title)}
-                        >
-                          {frozenColumns.has(column.title)
-                            ? "Unfreeze column"
-                            : "Freeze up to column"}
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          onClick={() => handleDuplicateColumn(column.title)}
-                        >
-                          Duplicate property
-                        </DropdownMenuItem>
-                        {!isDefaultColumn(column.title) && (
-                          <DropdownMenuItem
-                            className="text-red-600"
-                            onClick={() => setDeleteColumnDialog(column.title)}
-                          >
-                            Delete property
-                          </DropdownMenuItem>
-                        )}
-                        <DropdownMenuSeparator />
-                        <div className="p-2">
-                          <div className="flex items-center justify-between">
-                            <Label htmlFor={`wrap-${column.title}`}>
-                              Wrap column
-                            </Label>
-                            <Switch
-                              id={`wrap-${column.title}`}
-                              checked={columnWrapping.has(column.title)}
-                              onCheckedChange={() =>
-                                toggleColumnWrapping(column.title)
+                            >
+                              {editingColumnTitle === column.title ? (
+                                <Input
+                                  value={newColumnTitle}
+                                  onChange={(e) =>
+                                    setNewColumnTitle(e.target.value)
+                                  }
+                                  onBlur={() =>
+                                    handleColumnTitleEdit(
+                                      column.title,
+                                      newColumnTitle
+                                    )
+                                  }
+                                  onKeyDown={(e) => {
+                                    if (e.key === "Enter") {
+                                      handleColumnTitleEdit(
+                                        column.title,
+                                        newColumnTitle
+                                      );
+                                    }
+                                  }}
+                                  onClick={(e) => e.stopPropagation()}
+                                  autoFocus
+                                  className="h-7 w-32"
+                                />
+                              ) : (
+                                <div className="flex items-center">
+                                  {getColumnIcon(column.type)}
+                                  <span>{column.title}</span>
+                                  {getSortIcon(column.title as SortField)}
+                                </div>
+                              )}
+                            </div>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="start" className="w-56">
+                            <DropdownMenuItem
+                              onSelect={() =>
+                                startEditingColumnTitle(column.title)
                               }
-                            />
-                          </div>
-                        </div>
+                            >
+                              Edit property
+                            </DropdownMenuItem>
+                            <DropdownMenuItem disabled>
+                              Set up AI autofill
+                              <span className="ml-2 text-xs bg-blue-100 text-blue-600 px-1 rounded">
+                                New
+                              </span>
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={() => {
+                                setSortField(column.title as SortField);
+                                setSortDirection("asc");
+                              }}
+                            >
+                              Sort ascending
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={() => {
+                                setSortField(column.title as SortField);
+                                setSortDirection("desc");
+                              }}
+                            >
+                              Sort descending
+                            </DropdownMenuItem>
+                            <DropdownMenuItem disabled>Filter</DropdownMenuItem>
+                            {!hiddenColumns.has(column.title) && (
+                              <DropdownMenuItem
+                                onClick={() => toggleHiddenColumn(column.title)}
+                              >
+                                Hide in view
+                              </DropdownMenuItem>
+                            )}
+                            <DropdownMenuItem
+                              onClick={() => toggleFrozenColumn(column.title)}
+                            >
+                              {frozenColumns.has(column.title)
+                                ? "Unfreeze column"
+                                : "Freeze up to column"}
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={() =>
+                                handleDuplicateColumn(column.title)
+                              }
+                            >
+                              Duplicate property
+                            </DropdownMenuItem>
+                            {!isDefaultColumn(column.title) && (
+                              <DropdownMenuItem
+                                className="text-red-600"
+                                onClick={() =>
+                                  setDeleteColumnDialog(column.title)
+                                }
+                              >
+                                Delete property
+                              </DropdownMenuItem>
+                            )}
+                            <DropdownMenuSeparator />
+                            <div className="p-2">
+                              <div className="flex items-center justify-between">
+                                <Label htmlFor={`wrap-${column.title}`}>
+                                  Wrap column
+                                </Label>
+                                <Switch
+                                  id={`wrap-${column.title}`}
+                                  checked={columnWrapping.has(column.title)}
+                                  onCheckedChange={() =>
+                                    toggleColumnWrapping(column.title)
+                                  }
+                                />
+                              </div>
+                            </div>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </TableHead>
+                    ))}
+                  <TableHead className="w-[100px] text-right sticky right-0 bg-white z-10">
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="icon" className="h-8 w-8">
+                          <MoreVertical className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem onClick={addNewColumn}>
+                          <Plus className="h-4 w-4 mr-2" />
+                          Add New Column
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onClick={() => setIsHiddenColumnsMenuOpen(true)}
+                        >
+                          <ChevronDown className="h-4 w-4 mr-2" />
+                          Show/Hide Columns
+                        </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </TableHead>
-                ))}
-              <TableHead className="w-[100px] text-right">
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="icon" className="h-8 w-8">
-                      <MoreVertical className="h-4 w-4" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
-                    <DropdownMenuItem onClick={addNewColumn}>
-                      <Plus className="h-4 w-4 mr-2" />
-                      Add New Column
-                    </DropdownMenuItem>
-                    <DropdownMenuItem
-                      onClick={() => setIsHiddenColumnsMenuOpen(true)}
-                    >
-                      <ChevronDown className="h-4 w-4 mr-2" />
-                      Show/Hide Columns
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>{renderHierarchy(sortedHierarchy)}</TableBody>
-        </Table>
-        <div className="p-4 border-t">
+                </TableRow>
+              </TableHeader>
+              <TableBody>{renderHierarchy(sortedHierarchy)}</TableBody>
+            </Table>
+          </div>
+        </div>
+        <div className="p-4 border-t sticky bottom-0 bg-white">
           {isAddingRow ? (
             <div className="flex items-center gap-4">
               <Input
@@ -996,14 +995,14 @@ const TableView: React.FC<TableViewProps> = ({
                 </SelectTrigger>
                 <SelectContent>
                   {shapeOptions.map((shape) => (
-                    <SelectItem key={shape} value={shape}>
-                      {shape}
+                    <SelectItem key={shape} value={shape || "default"}>
+                      {shape || "Default"}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
               <Select
-                value={selectedParentId || ""}
+                value={selectedParentId || "no-parent"}
                 onValueChange={setSelectedParentId}
               >
                 <SelectTrigger className="w-[180px]">
@@ -1012,8 +1011,11 @@ const TableView: React.FC<TableViewProps> = ({
                 <SelectContent>
                   <SelectItem value="no-parent">No parent</SelectItem>
                   {nodes.map((node) => (
-                    <SelectItem key={node.id} value={node.id}>
-                      {node.data.label}
+                    <SelectItem
+                      key={node.id}
+                      value={node.id || `node-${node.id}`}
+                    >
+                      {node.data.label || `Node ${node.id}`}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -1110,7 +1112,7 @@ const TableView: React.FC<TableViewProps> = ({
             <DialogTitle>Manage Hidden Columns</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
-            {columnsState.map((column) => (
+            {columns.map((column) => (
               <div
                 key={column.title}
                 className="flex items-center justify-between"
@@ -1130,25 +1132,8 @@ const TableView: React.FC<TableViewProps> = ({
           </DialogFooter>
         </DialogContent>
       </Dialog>
-      {/* ManageConnectionsModal Component */}
-      <ManageConnectionsModal
-        isOpen={isManageConnectionsOpen}
-        onClose={() => setIsManageConnectionsOpen(false)}
-        selectedNode={nodes.find(
-          (node) => node.id === selectedNodeForConnections
-        )}
-        nodes={nodes}
-        edges={edges}
-        onCreateConnection={handleCreateConnection}
-        onDeleteConnection={handleDeleteConnection}
-      />
     </div>
   );
 };
 
 export default TableView;
-
-const onChangeEdgeLabel = (edgeId: string, newLabel: string) => {
-  //Implementation for updating edge label
-  console.log("Edge label changed:", edgeId, newLabel);
-};
