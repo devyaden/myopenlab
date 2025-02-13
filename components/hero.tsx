@@ -1,6 +1,6 @@
 import Link from "next/link";
 
-export default function Header() {
+export default function Hero() {
   return (
     <header className="flex flex-col items-center gap-12 py-16 bg-gradient-to-r from-blue-50 to-white shadow-lg">
       <h1 className="text-5xl font-extrabold text-gray-800 text-center tracking-tight leading-snug">

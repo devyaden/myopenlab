@@ -1,7 +1,6 @@
 "use client";
 
-import { FormMessage, Message } from "@/components/form-message";
-import { SubmitButton } from "@/components/submit-button";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useUser } from "@/lib/contexts/userContext";
@@ -11,7 +10,7 @@ import Image from "next/image";
 export default async function ResetPassword({
   searchParams,
 }: {
-  searchParams: Message;
+  searchParams: any;
 }) {
   const { resetPassword } = useUser();
   return (
@@ -67,7 +66,7 @@ export default async function ResetPassword({
             <LockIcon className="w-5 h-5 absolute right-2 top-2/3 transform -translate-y-1/2 text-gray-400" />
           </div>
 
-          <SubmitButton
+          <Button
             className="bg-black hover:bg-gray-800 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline w-full"
             formAction={(formData) => {
               const password = formData.get("password") as string;
@@ -76,8 +75,8 @@ export default async function ResetPassword({
             }}
           >
             إعادة تعيين كلمة المرور
-          </SubmitButton>
-          <FormMessage message={searchParams} />
+          </Button>
+          {/* <FormMessage message={searchParams} /> */}
         </form>
       </div>
     </div>
