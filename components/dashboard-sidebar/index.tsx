@@ -94,39 +94,63 @@ export function SidebarDashboard({
     }
   };
 
-  const handleCreateCanvas = (name: string, description: string) => {
+  const handleCreateCanvas = (
+    name: string,
+    description: string,
+    folderId?: string | null
+  ) => {
     const newCanvas = { id: Date.now().toString(), name, description };
     let updatedFolders;
 
-    if (
-      folders.some(
-        (folder) =>
-          folder.name === "Root" &&
-          folder.canvases.some((canvas) => canvas.name === name)
-      )
-    ) {
-      return false;
-    }
-    const rootFolder = folders.find((folder) => folder.name === "Root");
-    if (rootFolder) {
-      updatedFolders = folders.map((folder) =>
-        folder.name === "Root"
-          ? { ...folder, canvases: [...folder.canvases, newCanvas] }
-          : folder
-      );
-    } else {
-      updatedFolders = [
-        ...folders,
-        { id: Date.now().toString(), name: "Root", canvases: [newCanvas] },
-      ];
-    }
+    if (folderId && folderId !== "0") {
+      const targetFolder = folders.find((folder) => folder.id === folderId);
+      if (
+        targetFolder &&
+        targetFolder.canvases.some((canvas) => canvas.name === name)
+      ) {
+        // Canvas with the same name already exists in this folder
+        return false;
+      }
 
+      updatedFolders = folders.map((folder) => {
+        if (folder.id === folderId) {
+          return {
+            ...folder,
+            canvases: [...folder.canvases, newCanvas],
+          };
+        }
+        return folder;
+      });
+    } else {
+      // If no folder is selected or "0" is selected, create a new "root" canvas
+      if (
+        folders.some(
+          (folder) =>
+            folder.name === "Root" &&
+            folder.canvases.some((canvas) => canvas.name === name)
+        )
+      ) {
+        return false;
+      }
+      const rootFolder = folders.find((folder) => folder.name === "Root");
+      if (rootFolder) {
+        updatedFolders = folders.map((folder) =>
+          folder.name === "Root"
+            ? { ...folder, canvases: [...folder.canvases, newCanvas] }
+            : folder
+        );
+      } else {
+        updatedFolders = [
+          ...folders,
+          { id: Date.now().toString(), name: "Root", canvases: [newCanvas] },
+        ];
+      }
+    }
     setFolders(updatedFolders);
     localStorage.setItem("savedFolders", JSON.stringify(updatedFolders));
     onCanvasNameChange(newCanvas.id, name);
     return true;
   };
-
   const handleEdit = (id: string, name: string, type: "folder" | "canvas") => {
     setEditingItemId(id);
     setEditingItemName(name);

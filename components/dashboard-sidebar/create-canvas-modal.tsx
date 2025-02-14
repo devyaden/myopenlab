@@ -16,7 +16,11 @@ import {
 interface CreateCanvasModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onCreateCanvas: (name: string, description: string) => void;
+  onCreateCanvas: (
+    name: string,
+    description: string,
+    folderId?: string
+  ) => void;
 }
 
 export function CreateCanvasModal({
