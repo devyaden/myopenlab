@@ -56,6 +56,7 @@ export function SidebarDashboard({
     description: string,
     folderId: string | null
   ) => {
+    console.log("🚀 ~ folderId:", folderId);
     const newCanvas = { id: Date.now().toString(), name, description };
     let updatedFolders;
 

@@ -99,7 +99,13 @@ export function SidebarDashboard({
     description: string,
     folderId?: string | null
   ) => {
-    const newCanvas = { id: Date.now().toString(), name, description };
+    console.log("🚀 ~ folderId:", folderId);
+    const newCanvas = {
+      id: Date.now().toString(),
+      name,
+      description,
+      folderId,
+    };
     let updatedFolders;
 
     if (folderId && folderId !== "0") {

@@ -34,7 +34,7 @@ const AddTableCellTrigger = ({
 
   const dropdownValues = useMemo(() => {
     return columns?.filter(
-      (column) => !value.some((val) => val.id === column.id)
+      (column) => !value.some((val) => val.title === column.title)
     );
   }, [value, columns]);
 

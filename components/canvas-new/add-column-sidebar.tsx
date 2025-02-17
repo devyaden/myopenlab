@@ -1,3 +1,6 @@
+import type React from "react";
+import { useState, useRef } from "react";
+import { X, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -8,21 +11,21 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { X } from "lucide-react";
-import type React from "react";
-import { useRef, useState } from "react";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 interface AddColumnSidebarProps {
   isOpen: boolean;
   onClose: () => void;
   onAddColumn: (columnData: ColumnData) => void;
+  canvases: { id: string; name: string }[];
+  currentFolderId: string | null;
 }
 
 export interface ColumnData {
   title: string;
   type: string;
   options?: string[];
-  relationDiagram?: string;
+  relationCanvas?: string;
   rollupColumn?: string;
 }
 
@@ -50,18 +53,61 @@ export const AddColumnSidebar: React.FC<AddColumnSidebarProps> = ({
   isOpen,
   onClose,
   onAddColumn,
+  canvases,
+  currentFolderId,
 }) => {
   const [columnData, setColumnData] = useState<ColumnData>({
     title: "",
     type: "Text",
   });
+  const [error, setError] = useState<string | null>(null);
   const sidebarRef = useRef<HTMLDivElement>(null);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!validateColumnData()) {
+      return;
+    }
     onAddColumn(columnData);
     setColumnData({ title: "", type: "Text" });
+    setError(null);
     onClose();
+  };
+
+  const validateColumnData = (): boolean => {
+    if (!columnData.title.trim()) {
+      setError("Column title is required");
+      return false;
+    }
+
+    if (columnData.type === "Relation") {
+      if (!columnData.relationCanvas) {
+        if (canvases.length === 0) {
+          setError(
+            "No canvases found. Create a new canvas to create a relation."
+          );
+        } else {
+          setError("Please select a canvas to relate to");
+        }
+        return false;
+      }
+    }
+
+    if (
+      (columnData.type === "Select" || columnData.type === "Multiselect") &&
+      (!columnData.options || columnData.options.length === 0)
+    ) {
+      setError("Please add at least one option for Select or Multiselect");
+      return false;
+    }
+
+    if (columnData.type === "Rollup" && !columnData.rollupColumn) {
+      setError("Please specify a rollup column");
+      return false;
+    }
+
+    setError(null);
+    return true;
   };
 
   if (!isOpen) return null;
@@ -94,9 +140,16 @@ export const AddColumnSidebar: React.FC<AddColumnSidebarProps> = ({
             <Label htmlFor="columnType">Validation Type</Label>
             <Select
               value={columnData.type}
-              onValueChange={(value) =>
-                setColumnData({ ...columnData, type: value })
-              }
+              onValueChange={(value) => {
+                setColumnData({
+                  ...columnData,
+                  type: value,
+                  options: undefined,
+                  relationCanvas: undefined,
+                  rollupColumn: undefined,
+                });
+                setError(null);
+              }}
             >
               <SelectTrigger>
                 <SelectValue placeholder="Select type" />
@@ -110,7 +163,8 @@ export const AddColumnSidebar: React.FC<AddColumnSidebarProps> = ({
               </SelectContent>
             </Select>
           </div>
-          {columnData.type === "Select" || columnData.type === "Multiselect" ? (
+          {(columnData.type === "Select" ||
+            columnData.type === "Multiselect") && (
             <div>
               <Label htmlFor="options">Options (comma-separated)</Label>
               <Input
@@ -124,23 +178,40 @@ export const AddColumnSidebar: React.FC<AddColumnSidebarProps> = ({
                 }
               />
             </div>
-          ) : null}
-          {columnData.type === "Relation" ? (
+          )}
+          {columnData.type === "Relation" && (
             <div>
-              <Label htmlFor="relationDiagram">Relation Diagram</Label>
-              <Input
-                id="relationDiagram"
-                value={columnData.relationDiagram || ""}
-                onChange={(e) =>
-                  setColumnData({
-                    ...columnData,
-                    relationDiagram: e.target.value,
-                  })
-                }
-              />
+              <Label htmlFor="relationCanvas">Related Canvas</Label>
+              {canvases.length > 0 ? (
+                <Select
+                  value={columnData.relationCanvas || ""}
+                  onValueChange={(value) =>
+                    setColumnData({ ...columnData, relationCanvas: value })
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select related canvas" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {canvases.map((canvas) => (
+                      <SelectItem key={canvas.id} value={canvas.id}>
+                        {canvas.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              ) : (
+                <Alert variant="destructive">
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertTitle>No canvases available</AlertTitle>
+                  <AlertDescription>
+                    Create a new canvas in this folder to create a relation.
+                  </AlertDescription>
+                </Alert>
+              )}
             </div>
-          ) : null}
-          {columnData.type === "Rollup" ? (
+          )}
+          {columnData.type === "Rollup" && (
             <div>
               <Label htmlFor="rollupColumn">Rollup Column</Label>
               <Input
@@ -151,8 +222,15 @@ export const AddColumnSidebar: React.FC<AddColumnSidebarProps> = ({
                 }
               />
             </div>
-          ) : null}
+          )}
         </div>
+        {error && (
+          <Alert variant="destructive" className="mt-4">
+            <AlertCircle className="h-4 w-4" />
+            <AlertTitle>Error</AlertTitle>
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        )}
         <Button type="submit" className="mt-4 w-full">
           Add Column
         </Button>

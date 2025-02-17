@@ -1,51 +1,5 @@
 "use client";
 
-import { useState, useMemo } from "react";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableRow,
-  TableHeader,
-} from "@/components/ui/table";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-  DropdownMenuSeparator,
-} from "@/components/ui/dropdown-menu";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
-  ChevronDown,
-  ChevronUp,
-  ChevronRight,
-  MoreHorizontal,
-  Plus,
-  X,
-  Check,
-  MoreVertical,
-} from "lucide-react";
-import type { Node, Edge } from "reactflow";
-import type React from "react";
-import { AddColumnSidebar, type ColumnData } from "./add-column-sidebar";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -56,26 +10,72 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Switch } from "@/components/ui/switch";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import * as z from "zod";
 import { MultiSelect } from "@/components/ui/multi-select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
 import {
   AlignLeft,
   Calendar,
+  Check,
   CheckSquare,
+  ChevronDown,
+  ChevronRight,
+  ChevronUp,
+  Database,
+  File,
+  FileText,
+  Globe,
   Hash,
   Link,
-  Mail,
-  Phone,
-  Globe,
-  User,
   List,
-  FileText,
+  Mail,
+  MoreHorizontal,
+  MoreVertical,
+  Phone,
+  Plus,
   Type,
-  Database,
+  User,
+  X,
 } from "lucide-react";
+import type React from "react";
+import { useMemo, useState } from "react";
+import type { Edge, Node } from "reactflow";
+import * as z from "zod";
+import AddTableCellTrigger from "../canvas/FlowTable/add-table-cell-relation-trigger";
+import { AddColumnSidebar, type ColumnData } from "./add-column-sidebar";
 
 const getColumnIcon = (columnType: string) => {
   switch (columnType) {
@@ -123,6 +123,8 @@ interface TableViewProps {
   columns: ColumnData[];
   setColumns: React.Dispatch<React.SetStateAction<ColumnData[]>>;
   onAddColumn: (columnData: ColumnData) => void;
+  currentFolderCanvases: { id: string; name: string }[];
+  currentFolderId: string;
 }
 
 type SortDirection = "asc" | "desc" | null;
@@ -140,6 +142,8 @@ const TableView: React.FC<TableViewProps> = ({
   columns,
   setColumns,
   onAddColumn,
+  currentFolderCanvases,
+  currentFolderId,
 }) => {
   const [sortField, setSortField] = useState<SortField>(null);
   const [sortDirection, setSortDirection] = useState<SortDirection>(null);
@@ -254,7 +258,7 @@ const TableView: React.FC<TableViewProps> = ({
     };
 
     return sortNodes(hierarchy);
-  }, [nodes, sortField, sortDirection]); // Removed createHierarchy from dependencies
+  }, [nodes, sortField, sortDirection]);
 
   const deleteNode = (nodeId: string, deleteChildren = false) => {
     const nodesToDelete = new Set<string>([nodeId]);
@@ -361,7 +365,12 @@ const TableView: React.FC<TableViewProps> = ({
       .refine((value) => !isNaN(new Date(value).getTime()), "Invalid date"),
     "Last edited by": z.string(),
     User: z.string(),
-    Relation: z.string().nullable(),
+    Relation: z.array(
+      z.object({
+        title: z.string(),
+        type: z.string(),
+      })
+    ),
     Rollup: z.string().nullable(),
   };
 
@@ -398,7 +407,7 @@ const TableView: React.FC<TableViewProps> = ({
     };
   };
 
-  const handleEditChange = (field: string, value: string | string[]) => {
+  const handleEditChange = (field: string, value: string | any[]) => {
     const column = columns.find((col) => col.title === field);
     if (column) {
       const { isValid, errorMessage } = validateField(column.type, value);
@@ -590,6 +599,17 @@ const TableView: React.FC<TableViewProps> = ({
     toggleColumnVisibility(columnTitle);
   };
 
+  const getRelatedCanvasColumns = (canvasId: string) => {
+    const canvasDetails = localStorage.getItem(`canvas_${canvasId}`);
+
+    if (canvasDetails) {
+      const canvasData = JSON.parse(canvasDetails);
+      return canvasData?.columns;
+    }
+
+    return [];
+  };
+
   const renderHierarchy = (
     nodes: HierarchyNode[],
     level = 0
@@ -645,6 +665,7 @@ const TableView: React.FC<TableViewProps> = ({
                     )}
                   </span>
                 )}
+
                 {editingRow === node.id && column.title !== "id" ? (
                   <div>
                     {column.type === "Select" ? (
@@ -716,6 +737,24 @@ const TableView: React.FC<TableViewProps> = ({
                           validationErrors[column.title] ? "border-red-500" : ""
                         }
                       />
+                    ) : column.type === "Relation" ? (
+                      <>
+                        {" "}
+                        <AddTableCellTrigger
+                          value={
+                            Array.isArray(editedValues[column.title])
+                              ? editedValues[column.title]
+                              : []
+                          }
+                          label="Testing"
+                          columns={getRelatedCanvasColumns(
+                            column?.relationCanvas as string
+                          )}
+                          onSelectValue={(value) => {
+                            handleEditChange(column.title, value);
+                          }}
+                        />
+                      </>
                     ) : (
                       <Input
                         type={column.type === "Number" ? "number" : "text"}
@@ -762,6 +801,21 @@ const TableView: React.FC<TableViewProps> = ({
                               {node.data[column.title] || "—"}
                             </p>
                           </div>
+                        ) : column.type === "Relation" ? (
+                          <>
+                            {node.data[column.title] &&
+                            node.data[column.title].length > 0 ? (
+                              <div className="flex flex-wrap max-w-full">
+                                {node.data[column.title].map((item: any) => (
+                                  <p className="text-sm text-gray-600 flex mr-3 ">
+                                    <File className="h-4 w-4" /> {item.title}
+                                  </p>
+                                ))}
+                              </div>
+                            ) : (
+                              "—"
+                            )}
+                          </>
                         ) : Array.isArray(node.data[column.title]) ? (
                           node.data[column.title].join(", ")
                         ) : (
@@ -1045,6 +1099,8 @@ const TableView: React.FC<TableViewProps> = ({
         isOpen={isAddColumnSidebarOpen}
         onClose={() => setIsAddColumnSidebarOpen(false)}
         onAddColumn={handleAddColumn}
+        canvases={currentFolderCanvases}
+        currentFolderId={currentFolderId}
       />
       <AlertDialog
         open={!!deleteColumnDialog}

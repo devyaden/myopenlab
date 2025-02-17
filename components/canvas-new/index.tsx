@@ -93,6 +93,9 @@ export default function FigmaInterface({ canvasId }: FigmaInterfaceProps) {
     }[]
   >([]);
   const [currentFolder, setCurrentFolder] = useState<string | null>(null);
+  const [currentFolderCanvases, setCurrentFolderCanvases] = useState<
+    { id: string; name: string }[]
+  >([]);
 
   useEffect(() => {
     const savedFolders = localStorage.getItem("savedFolders");
@@ -124,14 +127,23 @@ export default function FigmaInterface({ canvasId }: FigmaInterfaceProps) {
     const savedCanvas = localStorage.getItem(`canvas_${canvasId}`);
     if (savedCanvas) {
       const parsedCanvas = JSON.parse(savedCanvas);
-      console.log("🚀 ~ useEffect ~ parsedCanvas:", parsedCanvas);
       setCurrentState(parsedCanvas.currentState);
       setColumns(parsedCanvas.columns);
       setProjectName(parsedCanvas.projectName);
-      setCurrentFolder(parsedCanvas.folderId); // Set currentFolder
+      setCurrentFolder(parsedCanvas.folderId);
       addToRecentDocuments(canvasId, parsedCanvas.projectName);
     }
   }, [canvasId, addToRecentDocuments]);
+
+  useEffect(() => {
+    // get all canvases from local storage and store them in currentFOlderCanvases state
+    const savedCanvases = JSON.parse(
+      localStorage.getItem("savedCanvases") || "[]"
+    );
+
+    setCurrentFolderCanvases(savedCanvases);
+    console.log("🚀 ~ useEffect ~ savedCanvases:", savedCanvases);
+  }, []);
 
   const updateHistory = useCallback(
     (newState: AppState) => {
@@ -336,7 +348,7 @@ export default function FigmaInterface({ canvasId }: FigmaInterfaceProps) {
           shape: type,
           from: "",
           to: "",
-          // Add default values for all columns
+
           ...columns.reduce(
             (acc, column) => ({
               ...acc,
@@ -954,6 +966,7 @@ export default function FigmaInterface({ canvasId }: FigmaInterfaceProps) {
                 onAddColumn={handleAddColumn}
                 columns={columns}
                 setColumns={setColumns}
+                currentFolderCanvases={currentFolderCanvases}
               />
               <RollupCalculator // Added RollupCalculator component
                 nodes={currentState.nodes}
