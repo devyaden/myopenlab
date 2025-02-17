@@ -124,7 +124,7 @@ interface TableViewProps {
   setColumns: React.Dispatch<React.SetStateAction<ColumnData[]>>;
   onAddColumn: (columnData: ColumnData) => void;
   currentFolderCanvases: { id: string; name: string }[];
-  currentFolderId: string;
+  canvasId: string;
 }
 
 type SortDirection = "asc" | "desc" | null;
@@ -143,7 +143,7 @@ const TableView: React.FC<TableViewProps> = ({
   setColumns,
   onAddColumn,
   currentFolderCanvases,
-  currentFolderId,
+  canvasId,
 }) => {
   const [sortField, setSortField] = useState<SortField>(null);
   const [sortDirection, setSortDirection] = useState<SortDirection>(null);
@@ -1100,7 +1100,7 @@ const TableView: React.FC<TableViewProps> = ({
         onClose={() => setIsAddColumnSidebarOpen(false)}
         onAddColumn={handleAddColumn}
         canvases={currentFolderCanvases}
-        currentFolderId={currentFolderId}
+        canvasId={canvasId}
       />
       <AlertDialog
         open={!!deleteColumnDialog}

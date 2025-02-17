@@ -1,6 +1,4 @@
-import type React from "react";
-import { useState, useRef } from "react";
-import { X, AlertCircle } from "lucide-react";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -11,14 +9,16 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { AlertCircle, X } from "lucide-react";
+import type React from "react";
+import { useMemo, useRef, useState } from "react";
 
 interface AddColumnSidebarProps {
   isOpen: boolean;
   onClose: () => void;
   onAddColumn: (columnData: ColumnData) => void;
   canvases: { id: string; name: string }[];
-  currentFolderId: string | null;
+  canvasId: string;
 }
 
 export interface ColumnData {
@@ -54,7 +54,7 @@ export const AddColumnSidebar: React.FC<AddColumnSidebarProps> = ({
   onClose,
   onAddColumn,
   canvases,
-  currentFolderId,
+  canvasId,
 }) => {
   const [columnData, setColumnData] = useState<ColumnData>({
     title: "",
@@ -82,7 +82,7 @@ export const AddColumnSidebar: React.FC<AddColumnSidebarProps> = ({
 
     if (columnData.type === "Relation") {
       if (!columnData.relationCanvas) {
-        if (canvases.length === 0) {
+        if (relationCanvases.length === 0) {
           setError(
             "No canvases found. Create a new canvas to create a relation."
           );
@@ -109,6 +109,10 @@ export const AddColumnSidebar: React.FC<AddColumnSidebarProps> = ({
     setError(null);
     return true;
   };
+
+  const relationCanvases = useMemo(() => {
+    return canvases.filter((canvas) => canvas.id !== canvasId);
+  }, [canvases, canvasId]);
 
   if (!isOpen) return null;
 
@@ -193,7 +197,7 @@ export const AddColumnSidebar: React.FC<AddColumnSidebarProps> = ({
                     <SelectValue placeholder="Select related canvas" />
                   </SelectTrigger>
                   <SelectContent>
-                    {canvases.map((canvas) => (
+                    {relationCanvases.map((canvas) => (
                       <SelectItem key={canvas.id} value={canvas.id}>
                         {canvas.name}
                       </SelectItem>

@@ -61,7 +61,7 @@ interface FigmaInterfaceProps {
   canvasId: string;
 }
 
-export default function FigmaInterface({ canvasId }: FigmaInterfaceProps) {
+export default function CanvasNew({ canvasId }: FigmaInterfaceProps) {
   const router = useRouter();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [selectedNode, setSelectedNode] = useState<string | null>(null);
@@ -967,6 +967,7 @@ export default function FigmaInterface({ canvasId }: FigmaInterfaceProps) {
                 columns={columns}
                 setColumns={setColumns}
                 currentFolderCanvases={currentFolderCanvases}
+                canvasId={canvasId}
               />
               <RollupCalculator // Added RollupCalculator component
                 nodes={currentState.nodes}
