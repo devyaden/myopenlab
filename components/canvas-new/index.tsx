@@ -142,7 +142,6 @@ export default function CanvasNew({ canvasId }: FigmaInterfaceProps) {
     );
 
     setCurrentFolderCanvases(savedCanvases);
-    console.log("🚀 ~ useEffect ~ savedCanvases:", savedCanvases);
   }, []);
 
   const updateHistory = useCallback(

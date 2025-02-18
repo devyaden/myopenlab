@@ -172,20 +172,6 @@ const TableView: React.FC<TableViewProps> = ({
     Record<string, string | null>
   >({});
 
-  const handleSort = (field: SortField) => {
-    if (sortField === field) {
-      if (sortDirection === "asc") {
-        setSortDirection("desc");
-      } else if (sortDirection === "desc") {
-        setSortField(null);
-        setSortDirection(null);
-      }
-    } else {
-      setSortField(field);
-      setSortDirection("asc");
-    }
-  };
-
   const getSortIcon = (field: SortField) => {
     if (sortField === field) {
       return sortDirection === "asc" ? (
@@ -365,12 +351,7 @@ const TableView: React.FC<TableViewProps> = ({
       .refine((value) => !isNaN(new Date(value).getTime()), "Invalid date"),
     "Last edited by": z.string(),
     User: z.string(),
-    Relation: z.array(
-      z.object({
-        title: z.string(),
-        type: z.string(),
-      })
-    ),
+    Relation: z.array(z.record(z.any())),
     Rollup: z.string().nullable(),
   };
 
@@ -524,7 +505,6 @@ const TableView: React.FC<TableViewProps> = ({
 
   const handleDeleteColumn = (columnTitle: string) => {
     setColumns(columns.filter((col) => col.title !== columnTitle));
-    // Remove the column data from all nodes
     const updatedNodes = nodes.map((node) => {
       const newData = { ...node.data };
       delete newData[columnTitle];
@@ -599,15 +579,25 @@ const TableView: React.FC<TableViewProps> = ({
     toggleColumnVisibility(columnTitle);
   };
 
-  const getRelatedCanvasColumns = (canvasId: string) => {
-    const canvasDetails = localStorage.getItem(`canvas_${canvasId}`);
+  const getRelatedCanvasNodes = (canvasId: string) => {
+    const savedCanvas = localStorage.getItem(`canvas_${canvasId}`);
 
-    if (canvasDetails) {
-      const canvasData = JSON.parse(canvasDetails);
-      return canvasData?.columns;
+    if (savedCanvas) {
+      const canvasData = JSON.parse(savedCanvas);
+
+      const columnsData = canvasData?.currentState?.nodes?.map((node: Node) => {
+        return { ...node.data, id: node.id };
+      });
+
+      const canvasDetails = {
+        canvasName: canvasData?.projectName,
+        columns: columnsData,
+      };
+
+      return canvasDetails;
     }
 
-    return [];
+    return null;
   };
 
   const renderHierarchy = (
@@ -747,7 +737,7 @@ const TableView: React.FC<TableViewProps> = ({
                               : []
                           }
                           label="Testing"
-                          columns={getRelatedCanvasColumns(
+                          relatedCanvasData={getRelatedCanvasNodes(
                             column?.relationCanvas as string
                           )}
                           onSelectValue={(value) => {
@@ -806,9 +796,9 @@ const TableView: React.FC<TableViewProps> = ({
                             {node.data[column.title] &&
                             node.data[column.title].length > 0 ? (
                               <div className="flex flex-wrap max-w-full">
-                                {node.data[column.title].map((item: any) => (
+                                {node.data[column.title]?.map((item: any) => (
                                   <p className="text-sm text-gray-600 flex mr-3 ">
-                                    <File className="h-4 w-4" /> {item.title}
+                                    <File className="h-4 w-4" /> {item.label}
                                   </p>
                                 ))}
                               </div>
