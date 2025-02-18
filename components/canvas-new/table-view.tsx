@@ -71,7 +71,7 @@ import {
   X,
 } from "lucide-react";
 import type React from "react";
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import type { Edge, Node } from "reactflow";
 import * as z from "zod";
 import AddTableCellTrigger from "../canvas/FlowTable/add-table-cell-relation-trigger";
@@ -125,6 +125,7 @@ interface TableViewProps {
   onAddColumn: (columnData: ColumnData) => void;
   currentFolderCanvases: { id: string; name: string }[];
   canvasId: string;
+  onSave: () => void;
 }
 
 type SortDirection = "asc" | "desc" | null;
@@ -144,6 +145,7 @@ const TableView: React.FC<TableViewProps> = ({
   onAddColumn,
   currentFolderCanvases,
   canvasId,
+  onSave,
 }) => {
   const [sortField, setSortField] = useState<SortField>(null);
   const [sortDirection, setSortDirection] = useState<SortDirection>(null);
@@ -208,8 +210,68 @@ const TableView: React.FC<TableViewProps> = ({
     return rootNodes;
   };
 
+  const insertRollupDataIntoNodes = (nodes: Node[]): Node[] => {
+    // Early return if no nodes or columns
+    if (!nodes.length || !columns.length) return nodes;
+
+    // Filter rollup columns once
+    const rollupColumns = columns.filter((col) => col.type === "Rollup");
+    if (!rollupColumns.length) return nodes;
+
+    // Get all canvas data in one go and handle potential errors
+    const rollupCanvases = rollupColumns
+      .map((col) => {
+        try {
+          const canvas = localStorage.getItem(`canvas_${col.rollupRelation}`);
+          if (!canvas) return null;
+
+          const parsedCanvas = JSON.parse(canvas);
+
+          return {
+            ...parsedCanvas,
+            id: col.rollupRelation,
+          };
+        } catch (error) {
+          console.error(
+            `Error processing canvas for column ${col.title}:`,
+            error
+          );
+          return null;
+        }
+      })
+      .filter(Boolean); // Remove null entries
+
+    // If no valid canvases found, return original nodes
+    if (!rollupCanvases.length) return nodes;
+
+    // Process all rollup columns in a single pass
+    return nodes.map((node, nodeIndex) => {
+      const newData = { ...node.data };
+
+      rollupColumns.forEach((column) => {
+        const columnCanvas = rollupCanvases.find(
+          (canvas) => canvas.id === column.rollupRelation
+        );
+
+        if (columnCanvas?.currentState?.nodes?.[nodeIndex]?.data) {
+          newData[column.title] =
+            columnCanvas.currentState.nodes[nodeIndex].data[
+              column.rollupColumn as string
+            ];
+        }
+      });
+
+      return {
+        ...node,
+        data: newData,
+      };
+    });
+  };
+
   const sortedHierarchy = useMemo(() => {
-    const hierarchy = createHierarchy(nodes);
+    const updatedNodes = insertRollupDataIntoNodes(nodes);
+
+    const hierarchy = createHierarchy(updatedNodes);
 
     if (!sortField || !sortDirection) return hierarchy;
 
@@ -265,6 +327,7 @@ const TableView: React.FC<TableViewProps> = ({
 
     const updatedNodes = nodes.filter((node) => !nodesToDelete.has(node.id));
     onNodesChange(updatedNodes);
+    onSave();
   };
 
   const addNewRow = () => {
@@ -284,6 +347,7 @@ const TableView: React.FC<TableViewProps> = ({
       parentNode:
         selectedParentId !== "no-parent" ? selectedParentId : undefined,
     };
+
     onNodesChange([...nodes, newNode] as Node[]);
     setNewTaskName("");
     setNewShapeType("rectangle");
@@ -294,6 +358,7 @@ const TableView: React.FC<TableViewProps> = ({
     if (newNode.parentNode) {
       setExpandedRows((prev) => new Set(prev).add(newNode.parentNode!));
     }
+    onSave();
   };
 
   const addNewColumn = () => {
@@ -427,6 +492,7 @@ const TableView: React.FC<TableViewProps> = ({
         setEditingRow(null);
         setEditedValues({});
         setValidationErrors({});
+        onSave();
       } else {
         alert("Please correct the invalid fields before saving.");
       }
@@ -501,6 +567,7 @@ const TableView: React.FC<TableViewProps> = ({
     }
     setEditingColumnTitle(null);
     setNewColumnTitle("");
+    onSave();
   };
 
   const handleDeleteColumn = (columnTitle: string) => {
@@ -512,6 +579,7 @@ const TableView: React.FC<TableViewProps> = ({
     });
     onNodesChange(updatedNodes);
     setDeleteColumnDialog(null);
+    onSave();
   };
 
   const handleDuplicateColumn = (columnTitle: string) => {
@@ -536,6 +604,7 @@ const TableView: React.FC<TableViewProps> = ({
         },
       }));
       onNodesChange(updatedNodes);
+      onSave();
     }
   };
 
@@ -599,6 +668,29 @@ const TableView: React.FC<TableViewProps> = ({
 
     return null;
   };
+
+  const getRelatedCanvasesWithColumns = useCallback(() => {
+    const currentCanvasDetails = localStorage.getItem(`canvas_${canvasId}`);
+    if (!currentCanvasDetails) return [];
+
+    const { columns = [] } = JSON.parse(currentCanvasDetails);
+    const relationColumns = columns.filter(
+      (col: any) => col.type === "Relation"
+    );
+
+    const uniqueCanvasIds = new Set(
+      relationColumns.map(({ relationCanvas }: any) => relationCanvas)
+    );
+
+    return Array.from(uniqueCanvasIds).flatMap((relationCanvas) => {
+      const canvasDetails = localStorage.getItem(`canvas_${relationCanvas}`);
+      if (!canvasDetails) return [];
+
+      const { projectName, columns } = JSON.parse(canvasDetails);
+
+      return { canvasName: projectName, columns, id: relationCanvas };
+    });
+  }, [canvasId]);
 
   const renderHierarchy = (
     nodes: HierarchyNode[],
@@ -1091,6 +1183,7 @@ const TableView: React.FC<TableViewProps> = ({
         onAddColumn={handleAddColumn}
         canvases={currentFolderCanvases}
         canvasId={canvasId}
+        relationCanvases={getRelatedCanvasesWithColumns()}
       />
       <AlertDialog
         open={!!deleteColumnDialog}

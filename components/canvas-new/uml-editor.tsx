@@ -64,6 +64,7 @@ interface UMLEditorProps {
   setColumns: React.Dispatch<React.SetStateAction<ColumnData[]>>;
   currentFolderCanvases: { id: string; name: string }[];
   canvasId: string;
+  onSave: () => void;
 }
 
 const sortNodes = (node: ReactFlowNode, nodes: ReactFlowNode[]) => {
@@ -121,6 +122,7 @@ export function UMLEditor({
   setColumns,
   currentFolderCanvases,
   canvasId,
+  onSave,
 }: UMLEditorProps) {
   const { getNode } = useReactFlow();
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
@@ -169,6 +171,7 @@ export function UMLEditor({
       onNodesChange(updatedNodes);
 
       const selectChange = changes.find((change) => change.type === "select");
+      onSave();
       if (selectChange) {
         const selectedNodeIds = updatedNodes
           .filter((node) => node.selected)
@@ -412,6 +415,7 @@ export function UMLEditor({
 
       onNodesChange(updatedNodes);
       onEdgesChange(updatedEdges);
+      onSave();
     },
     [nodes, edges, onNodesChange, onEdgesChange]
   );
@@ -654,6 +658,7 @@ export function UMLEditor({
           setColumns={setColumns}
           currentFolderCanvases={currentFolderCanvases}
           canvasId={canvasId}
+          onSave={onSave}
         />
       )}
     </div>

@@ -967,8 +967,9 @@ export default function CanvasNew({ canvasId }: FigmaInterfaceProps) {
                 setColumns={setColumns}
                 currentFolderCanvases={currentFolderCanvases}
                 canvasId={canvasId}
+                onSave={saveToLocalStorage}
               />
-              <RollupCalculator // Added RollupCalculator component
+              {/* <RollupCalculator // Added RollupCalculator component
                 nodes={currentState.nodes}
                 columns={columns}
                 onRollupChange={(nodeId, columnTitle, value) => {
@@ -984,7 +985,7 @@ export default function CanvasNew({ canvasId }: FigmaInterfaceProps) {
                     ),
                   }));
                 }}
-              />
+              /> */}
             </div>
           </div>
         </div>

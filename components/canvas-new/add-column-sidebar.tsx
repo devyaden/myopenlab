@@ -11,7 +11,8 @@ import {
 } from "@/components/ui/select";
 import { AlertCircle, X } from "lucide-react";
 import type React from "react";
-import { useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { ScrollArea } from "../ui/scroll-area";
 
 interface AddColumnSidebarProps {
   isOpen: boolean;
@@ -19,6 +20,7 @@ interface AddColumnSidebarProps {
   onAddColumn: (columnData: ColumnData) => void;
   canvases: { id: string; name: string }[];
   canvasId: string;
+  relationCanvases: any[];
 }
 
 export interface ColumnData {
@@ -27,6 +29,8 @@ export interface ColumnData {
   options?: string[];
   relationCanvas?: string;
   rollupColumn?: string;
+  rollupRelation?: string;
+  rollupRelationName?: string;
 }
 
 const validationTypes = [
@@ -55,24 +59,37 @@ export const AddColumnSidebar: React.FC<AddColumnSidebarProps> = ({
   onAddColumn,
   canvases,
   canvasId,
+  relationCanvases,
 }) => {
+  console.log("🚀 ~ canvases:", canvases);
+  console.log("🚀 ~ relationCanvases:", relationCanvases);
   const [columnData, setColumnData] = useState<ColumnData>({
     title: "",
     type: "Text",
   });
+
   const [error, setError] = useState<string | null>(null);
+  const [selectedRelationCanvas, setSelectedRelationCanvas] = useState<
+    any | null
+  >(null);
+
   const sidebarRef = useRef<HTMLDivElement>(null);
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!validateColumnData()) {
-      return;
-    }
-    onAddColumn(columnData);
-    setColumnData({ title: "", type: "Text" });
-    setError(null);
-    onClose();
-  };
+  const handleSubmit = useCallback(
+    (e: React.FormEvent) => {
+      e.preventDefault();
+
+      if (!validateColumnData()) {
+        return;
+      }
+      onAddColumn(columnData);
+      setColumnData({ title: "", type: "Text" });
+      setSelectedRelationCanvas(null);
+      setError(null);
+      onClose();
+    },
+    [columnData]
+  );
 
   const validateColumnData = (): boolean => {
     if (!columnData.title.trim()) {
@@ -82,7 +99,7 @@ export const AddColumnSidebar: React.FC<AddColumnSidebarProps> = ({
 
     if (columnData.type === "Relation") {
       if (!columnData.relationCanvas) {
-        if (relationCanvases.length === 0) {
+        if (otherCanvases.length === 0) {
           setError(
             "No canvases found. Create a new canvas to create a relation."
           );
@@ -110,9 +127,33 @@ export const AddColumnSidebar: React.FC<AddColumnSidebarProps> = ({
     return true;
   };
 
-  const relationCanvases = useMemo(() => {
+  const otherCanvases = useMemo(() => {
     return canvases.filter((canvas) => canvas.id !== canvasId);
   }, [canvases, canvasId]);
+
+  const handleRollupRelationChange = useCallback((value: string) => {
+    if (!value) return;
+
+    const selectedCanvas = relationCanvases.find((c) => c.id === value);
+    if (!selectedCanvas) return;
+
+    setSelectedRelationCanvas(selectedCanvas);
+
+    setColumnData((prevData) => ({
+      ...prevData,
+      rollupRelation: value,
+      rollupRelationName: selectedCanvas.canvasName,
+      rollupColumn: undefined,
+    }));
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      setSelectedRelationCanvas(null);
+      setColumnData({ title: "", type: "Text" });
+      setError(null);
+    };
+  }, []);
 
   if (!isOpen) return null;
 
@@ -186,7 +227,7 @@ export const AddColumnSidebar: React.FC<AddColumnSidebarProps> = ({
           {columnData.type === "Relation" && (
             <div>
               <Label htmlFor="relationCanvas">Related Canvas</Label>
-              {canvases.length > 0 ? (
+              {otherCanvases.length > 0 ? (
                 <Select
                   value={columnData.relationCanvas || ""}
                   onValueChange={(value) =>
@@ -197,7 +238,7 @@ export const AddColumnSidebar: React.FC<AddColumnSidebarProps> = ({
                     <SelectValue placeholder="Select related canvas" />
                   </SelectTrigger>
                   <SelectContent>
-                    {relationCanvases.map((canvas) => (
+                    {otherCanvases.map((canvas) => (
                       <SelectItem key={canvas.id} value={canvas.id}>
                         {canvas.name}
                       </SelectItem>
@@ -216,16 +257,72 @@ export const AddColumnSidebar: React.FC<AddColumnSidebarProps> = ({
             </div>
           )}
           {columnData.type === "Rollup" && (
-            <div>
-              <Label htmlFor="rollupColumn">Rollup Column</Label>
-              <Input
-                id="rollupColumn"
-                value={columnData.rollupColumn || ""}
-                onChange={(e) =>
-                  setColumnData({ ...columnData, rollupColumn: e.target.value })
-                }
-              />
-            </div>
+            <>
+              <div className="space-y-2">
+                <Label>Relation</Label>
+                <Select
+                  value={columnData.rollupRelation || ""}
+                  onValueChange={handleRollupRelationChange}
+                >
+                  <SelectTrigger className="w-full bg-background">
+                    <SelectValue placeholder="Select relation">
+                      {columnData.rollupRelationName || "Select relation"}
+                    </SelectValue>
+                  </SelectTrigger>
+                  <SelectContent>
+                    <ScrollArea className="h-[200px]">
+                      {Boolean(relationCanvases.length) ? (
+                        relationCanvases?.map((option) => (
+                          <SelectItem
+                            key={option.id}
+                            value={option.id}
+                            className="cursor-pointer"
+                          >
+                            {option.canvasName}
+                          </SelectItem>
+                        ))
+                      ) : (
+                        <p className="text-sm p-4 text-red-600 max-w-[200px]">
+                          No relation found. Please create a relation first!
+                        </p>
+                      )}
+                    </ScrollArea>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {selectedRelationCanvas && (
+                <div className="space-y-2">
+                  <Label htmlFor="rollupColumn">Property</Label>
+                  <Select
+                    value={columnData.rollupColumn || ""}
+                    onValueChange={(value) =>
+                      setColumnData({
+                        ...columnData,
+                        rollupColumn: value,
+                      })
+                    }
+                  >
+                    <SelectTrigger className="w-full bg-background">
+                      <SelectValue placeholder="Select column" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <ScrollArea className="h-[200px]">
+                        {selectedRelationCanvas?.columns?.map((column: any) => (
+                          <SelectItem
+                            key={column.title}
+                            value={column.title}
+                            className="cursor-pointer"
+                          >
+                            {column.title}
+                          </SelectItem>
+                        ))}
+                      </ScrollArea>
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+            </>
           )}
         </div>
         {error && (
