@@ -211,13 +211,10 @@ const TableView: React.FC<TableViewProps> = ({
   };
 
   const insertRollupDataIntoNodes = (nodes: Node[]): Node[] => {
-    if (!nodes.length || !columns.length) return nodes;
+    if (!nodes.length || !columns?.length) return nodes;
 
     const rollupColumns = columns.filter((col) => col.type === "Rollup");
     if (!rollupColumns.length) return nodes;
-
-    const relationColumns = columns.filter((col) => col.type === "Relation");
-    if (!relationColumns.length) return nodes;
 
     // Create a copy of nodes to modify
     const updatedNodes = nodes.map((node) => ({ ...node }));
@@ -226,50 +223,69 @@ const TableView: React.FC<TableViewProps> = ({
     updatedNodes.forEach((node) => {
       // Process each rollup column
       rollupColumns.forEach((rollupColumn) => {
-        // Find the relation column that this rollup depends on
-        const relatedColumn = relationColumns.find(
-          (col) => col.relationCanvas === rollupColumn.rollupRelation
-        );
-
-        if (!relatedColumn) return;
-
-        // Get the relation data from the current node
-        const relationData = node.data[relatedColumn.title];
-
-        if (
-          !relationData ||
-          !Array.isArray(relationData) ||
-          relationData.length === 0
-        ) {
-          // If no relation data, set rollup value to null or empty
+        if (!rollupColumn.rollupRelation || !rollupColumn.rollupColumn) {
           node.data[rollupColumn.title] = null;
           return;
         }
 
-        // Get the related canvas data from localStorage
+        // Find all relation columns that point to the rollup's target canvas
+        const relationColumns = columns.filter(
+          (col) =>
+            col.type === "Relation" &&
+            col.relationCanvas === rollupColumn.rollupRelation
+        );
+
+        if (!relationColumns.length) {
+          node.data[rollupColumn.title] = null;
+          return;
+        }
+
+        // Get the related canvas data
         const relatedCanvasData = localStorage.getItem(
           `canvas_${rollupColumn.rollupRelation}`
         );
-        if (!relatedCanvasData) return;
+
+        if (!relatedCanvasData) {
+          node.data[rollupColumn.title] = null;
+          return;
+        }
 
         const parsedRelatedCanvas = JSON.parse(relatedCanvasData);
+        console.log(
+          "🚀 ~ rollupColumns.forEach ~ parsedRelatedCanvas:",
+          parsedRelatedCanvas
+        );
         const relatedNodes = parsedRelatedCanvas?.currentState?.nodes || [];
 
-        // Get the first related node's ID
-        const firstRelatedNodeId = relationData[0].id;
+        // For each relation column that points to our target canvas
+        let rollupValue = null;
+        for (const relationColumn of relationColumns) {
+          const relationData = node.data[relationColumn.title];
 
-        // Find the related node
-        const relatedNode = relatedNodes.find(
-          (rNode: Node) => rNode.id === firstRelatedNodeId
-        );
+          // Skip if no relation data
+          if (!Array.isArray(relationData) || relationData.length === 0)
+            continue;
 
-        if (relatedNode && rollupColumn.rollupColumn) {
-          // Copy the exact value from the related node's specified column
-          node.data[rollupColumn.title] =
-            relatedNode.data[rollupColumn.rollupColumn];
-        } else {
-          node.data[rollupColumn.title] = null;
+          // Get all related nodes' values for the rollup column
+          const relatedValues = relationData
+            .map((relation) => {
+              const relatedNode = relatedNodes.find(
+                (rNode: Node) => rNode.id === relation.id
+              );
+              return relatedNode?.data[rollupColumn?.rollupColumn as string];
+            })
+            .filter((value) => value !== undefined && value !== null);
+
+          if (relatedValues.length > 0) {
+            // For now, we'll just take the first non-null value
+            // You could extend this to support different rollup operations (sum, average, etc.)
+            rollupValue = relatedValues[0];
+            break;
+          }
         }
+
+        // Set the rollup value
+        node.data[rollupColumn.title] = rollupValue;
       });
     });
 

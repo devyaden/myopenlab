@@ -2,7 +2,6 @@ import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableRow } from "@/components/ui/table";
 import { COLUMN_TYPES } from "@/lib/types/column-types.enum";
 import { Fragment } from "react";
-import AddTableCellTrigger from "./add-table-cell-relation-trigger";
 import FlowTableHeader from "./flowTableHead";
 
 interface SubTableProps {
