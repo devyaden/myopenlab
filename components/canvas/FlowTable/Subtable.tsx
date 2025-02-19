@@ -92,7 +92,6 @@ const SubTable: React.FC<SubTableProps> = ({
                           //     handleEdit(user.id, column.key, value);
                           //   }}
                           // />
-                          <></>
                         ) : column.validationType === COLUMN_TYPES.ROLLUP ? (
                           <span className="block min-h-[20px]">
                             {getRollupColumnValue(column, user, nodeIndex)}

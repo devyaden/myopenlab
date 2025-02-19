@@ -211,63 +211,70 @@ const TableView: React.FC<TableViewProps> = ({
   };
 
   const insertRollupDataIntoNodes = (nodes: Node[]): Node[] => {
-    // Early return if no nodes or columns
     if (!nodes.length || !columns.length) return nodes;
 
-    // Filter rollup columns once
     const rollupColumns = columns.filter((col) => col.type === "Rollup");
     if (!rollupColumns.length) return nodes;
 
-    // Get all canvas data in one go and handle potential errors
-    const rollupCanvases = rollupColumns
-      .map((col) => {
-        try {
-          const canvas = localStorage.getItem(`canvas_${col.rollupRelation}`);
-          if (!canvas) return null;
+    const relationColumns = columns.filter((col) => col.type === "Relation");
+    if (!relationColumns.length) return nodes;
 
-          const parsedCanvas = JSON.parse(canvas);
+    // Create a copy of nodes to modify
+    const updatedNodes = nodes.map((node) => ({ ...node }));
 
-          return {
-            ...parsedCanvas,
-            id: col.rollupRelation,
-          };
-        } catch (error) {
-          console.error(
-            `Error processing canvas for column ${col.title}:`,
-            error
-          );
-          return null;
-        }
-      })
-      .filter(Boolean); // Remove null entries
-
-    // If no valid canvases found, return original nodes
-    if (!rollupCanvases.length) return nodes;
-
-    // Process all rollup columns in a single pass
-    return nodes.map((node, nodeIndex) => {
-      const newData = { ...node.data };
-
-      rollupColumns.forEach((column) => {
-        const columnCanvas = rollupCanvases.find(
-          (canvas) => canvas.id === column.rollupRelation
+    // Process each node
+    updatedNodes.forEach((node) => {
+      // Process each rollup column
+      rollupColumns.forEach((rollupColumn) => {
+        // Find the relation column that this rollup depends on
+        const relatedColumn = relationColumns.find(
+          (col) => col.relationCanvas === rollupColumn.rollupRelation
         );
 
-        if (columnCanvas?.currentState?.nodes?.[nodeIndex]?.data) {
-          newData[column.title] =
-            columnCanvas.currentState.nodes[nodeIndex].data[
-              column.rollupColumn as string
-            ];
+        if (!relatedColumn) return;
+
+        // Get the relation data from the current node
+        const relationData = node.data[relatedColumn.title];
+
+        if (
+          !relationData ||
+          !Array.isArray(relationData) ||
+          relationData.length === 0
+        ) {
+          // If no relation data, set rollup value to null or empty
+          node.data[rollupColumn.title] = null;
+          return;
+        }
+
+        // Get the related canvas data from localStorage
+        const relatedCanvasData = localStorage.getItem(
+          `canvas_${rollupColumn.rollupRelation}`
+        );
+        if (!relatedCanvasData) return;
+
+        const parsedRelatedCanvas = JSON.parse(relatedCanvasData);
+        const relatedNodes = parsedRelatedCanvas?.currentState?.nodes || [];
+
+        // Get the first related node's ID
+        const firstRelatedNodeId = relationData[0].id;
+
+        // Find the related node
+        const relatedNode = relatedNodes.find(
+          (rNode: Node) => rNode.id === firstRelatedNodeId
+        );
+
+        if (relatedNode && rollupColumn.rollupColumn) {
+          // Copy the exact value from the related node's specified column
+          node.data[rollupColumn.title] =
+            relatedNode.data[rollupColumn.rollupColumn];
+        } else {
+          node.data[rollupColumn.title] = null;
         }
       });
-
-      return {
-        ...node,
-        data: newData,
-      };
     });
-  };
 
+    return updatedNodes;
+  };
   const sortedHierarchy = useMemo(() => {
     const updatedNodes = insertRollupDataIntoNodes(nodes);
 
@@ -1184,6 +1191,7 @@ const TableView: React.FC<TableViewProps> = ({
         canvases={currentFolderCanvases}
         canvasId={canvasId}
         relationCanvases={getRelatedCanvasesWithColumns()}
+        columns={columns}
       />
       <AlertDialog
         open={!!deleteColumnDialog}

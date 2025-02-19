@@ -21,6 +21,7 @@ interface AddColumnSidebarProps {
   canvases: { id: string; name: string }[];
   canvasId: string;
   relationCanvases: any[];
+  columns: any[];
 }
 
 export interface ColumnData {
@@ -60,9 +61,8 @@ export const AddColumnSidebar: React.FC<AddColumnSidebarProps> = ({
   canvases,
   canvasId,
   relationCanvases,
+  columns,
 }) => {
-  console.log("🚀 ~ canvases:", canvases);
-  console.log("🚀 ~ relationCanvases:", relationCanvases);
   const [columnData, setColumnData] = useState<ColumnData>({
     title: "",
     type: "Text",
@@ -97,6 +97,17 @@ export const AddColumnSidebar: React.FC<AddColumnSidebarProps> = ({
       return false;
     }
 
+    // Check for duplicate column titles
+    const isDuplicate = columns.some(
+      (column) =>
+        column.title.toLowerCase() === columnData.title.trim().toLowerCase()
+    );
+
+    if (isDuplicate) {
+      setError("A column with this title already exists");
+      return false;
+    }
+
     if (columnData.type === "Relation") {
       if (!columnData.relationCanvas) {
         if (otherCanvases.length === 0) {
@@ -125,6 +136,24 @@ export const AddColumnSidebar: React.FC<AddColumnSidebarProps> = ({
 
     setError(null);
     return true;
+  };
+
+  // Real-time validation as user types
+  const handleTitleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newTitle = e.target.value;
+    setColumnData({ ...columnData, title: newTitle });
+
+    if (newTitle.trim()) {
+      const isDuplicate = columns.some(
+        (column) => column.title.toLowerCase() === newTitle.trim().toLowerCase()
+      );
+
+      if (isDuplicate) {
+        setError("A column with this title already exists");
+      } else {
+        setError(null);
+      }
+    }
   };
 
   const otherCanvases = useMemo(() => {
@@ -175,9 +204,7 @@ export const AddColumnSidebar: React.FC<AddColumnSidebarProps> = ({
             <Input
               id="columnTitle"
               value={columnData.title}
-              onChange={(e) =>
-                setColumnData({ ...columnData, title: e.target.value })
-              }
+              onChange={handleTitleChange}
               required
             />
           </div>
