@@ -85,14 +85,15 @@ const SubTable: React.FC<SubTableProps> = ({
                     >
                       <>
                         {column.validationType === COLUMN_TYPES.RELATION ? (
-                          // <AddTableCellTrigger
-                          //   label="Testing"
-                          //   value={user[column.key]}
-                          //   onSelectValue={(value) => {
-                          //     handleEdit(user.id, column.key, value);
-                          //   }}
-                          // />
-                        ) : column.validationType === COLUMN_TYPES.ROLLUP ? (
+                          <></>
+                        ) : // <AddTableCellTrigger
+                        //   label="Testing"
+                        //   value={user[column.key]}
+                        //   onSelectValue={(value) => {
+                        //     handleEdit(user.id, column.key, value);
+                        //   }}
+                        // />
+                        column.validationType === COLUMN_TYPES.ROLLUP ? (
                           <span className="block min-h-[20px]">
                             {getRollupColumnValue(column, user, nodeIndex)}
                           </span>
