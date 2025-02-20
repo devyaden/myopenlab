@@ -1,17 +1,58 @@
 import { useState } from "react";
 import {
-  BaseEdge,
   EdgeLabelRenderer,
   getBezierPath,
   getSimpleBezierPath,
   getSmoothStepPath,
   getStraightPath,
+  Position,
 } from "reactflow";
 import "reactflow/dist/style.css";
 
-const CustomEdge = (params: any) => {
-  console.log("🚀 ~ CustomEdge ~ params:", params);
+const getDoubleLinePath = ({
+  sourceX,
+  sourceY,
+  sourcePosition,
+  targetX,
+  targetY,
+  targetPosition,
+}: {
+  sourceX: number;
+  sourceY: number;
+  sourcePosition?: Position;
+  targetX: number;
+  targetY: number;
+  targetPosition?: Position;
+}) => {
+  const offset = 5;
 
+  const [path1, labelX, labelY] = getSmoothStepPath({
+    sourceX,
+    sourceY,
+    sourcePosition,
+    targetX,
+    targetY,
+    targetPosition,
+  });
+
+  // Offset calculation for double-line effect
+  const isVertical = Math.abs(targetY - sourceY) > Math.abs(targetX - sourceX);
+  const offsetX = isVertical ? offset : 0;
+  const offsetY = isVertical ? 0 : offset;
+
+  const [path2] = getSmoothStepPath({
+    sourceX: sourceX + offsetX,
+    sourceY: sourceY + offsetY,
+    sourcePosition,
+    targetX: targetX + offsetX,
+    targetY: targetY + offsetY,
+    targetPosition,
+  });
+
+  return { path1, path2, labelX, labelY };
+};
+
+const CustomEdge = (params: any) => {
   const {
     id,
     sourceX,
@@ -23,24 +64,14 @@ const CustomEdge = (params: any) => {
     style = {},
     data,
     markerEnd,
-    type,
   } = params;
 
   const [isEditing, setIsEditing] = useState(false);
   const [labelText, setLabelText] = useState(data?.label || "");
 
-  const [edgePath, labelX, labelY] = getSmoothStepPath({
-    sourceX,
-    sourceY,
-    sourcePosition,
-    targetX,
-    targetY,
-    targetPosition,
-  });
+  const edgeType = style.edgeType || "default";
 
-  const edgeTpe = style.edgeType || "default";
-
-  const getEdgePath = (edgeType: string) => {
+  const getEdgePath = (edgeType: string): any => {
     const pathParams = {
       sourceX,
       sourceY,
@@ -52,26 +83,21 @@ const CustomEdge = (params: any) => {
 
     switch (edgeType) {
       case "default":
-        return getBezierPath(pathParams);
+        return getBezierPath(pathParams)[0];
       case "straight":
         return getStraightPath(pathParams)[0];
       case "step":
         return getSmoothStepPath({ ...pathParams, borderRadius: 0 })[0];
       case "smoothstep":
-        return getSmoothStepPath({
-          sourceX,
-          sourceY,
-          sourcePosition,
-          targetX,
-          targetY,
-          targetPosition,
-        })[0];
+        return getSmoothStepPath(pathParams)[0];
       case "simplebezier":
-        return getSimpleBezierPath(pathParams);
+        return getSimpleBezierPath(pathParams)[0];
       case "dashed":
-        return edgePath;
+        return getSmoothStepPath(pathParams)[0];
+      case "double":
+        return getDoubleLinePath(pathParams);
       default:
-        return edgePath;
+        return getSmoothStepPath(pathParams)[0];
     }
   };
 
@@ -91,14 +117,9 @@ const CustomEdge = (params: any) => {
     }
   };
 
-  console.log(
-    "------------------ path -----------------",
-    getEdgePath(edgeTpe)
-  );
-
   const labelStyles = {
     position: "absolute" as const,
-    transform: `translate(-50%, -50%) translate(${labelX}px,${labelY}px)`,
+    transform: `translate(-50%, -50%)`,
     fontSize: 12,
     pointerEvents: "all" as const,
     maxWidth: "200px",
@@ -123,40 +144,54 @@ const CustomEdge = (params: any) => {
     whiteSpace: "pre-wrap" as const,
   };
 
+  const edgePathData = getEdgePath(edgeType);
+
   return (
     <>
-      {/* Main edge path */}
-      {/* <path
-        id={id}
-        d={edgePath}
-        className="react-flow__edge-path"
-        strokeWidth={style.edgeType === "double" ? 2 : style.strokeWidth || 2}
-        strokeDasharray={style.strokeDasharray}
-        stroke={style.stroke || "#000"}
-        style={style}
-        markerEnd={markerEnd}
-        onDoubleClick={handleDoubleClick}
-      /> */}
-
-      <BaseEdge path={getEdgePath(edgeTpe) as string} markerEnd={markerEnd} />
-
-      {/* Parallel path for double line */}
-      {/* {style.edgeType === "double" && (
+      {edgeType === "double" ? (
+        <>
+          <path
+            id={`${id}-1`}
+            d={edgePathData.path1}
+            className="react-flow__edge-path"
+            strokeWidth={style.strokeWidth || 1}
+            stroke={style.stroke || "#000"}
+            style={{ ...style }}
+            markerEnd={markerEnd}
+            onDoubleClick={handleDoubleClick}
+          />
+          <path
+            id={`${id}-2`}
+            d={edgePathData.path2}
+            className="react-flow__edge-path"
+            strokeWidth={style.strokeWidth || 1}
+            stroke={style.stroke || "#000"}
+            style={style}
+            markerEnd={markerEnd}
+            onDoubleClick={handleDoubleClick}
+          />
+        </>
+      ) : (
         <path
-          d={getParallelPath(edgePath, 3)}
+          id={id}
+          d={edgePathData as string}
           className="react-flow__edge-path"
-          strokeWidth={2}
+          strokeWidth={style.strokeWidth || 2}
           stroke={style.stroke || "#000"}
-          style={{
-            ...style,
-            strokeDasharray: style.strokeDasharray,
-          }}
+          style={style}
           markerEnd={markerEnd}
+          onDoubleClick={handleDoubleClick}
         />
-      )} */}
+      )}
 
       <EdgeLabelRenderer>
-        <div style={labelStyles} className="nodrag nopan">
+        <div
+          style={{
+            ...labelStyles,
+            transform: `translate(-50%, -50%) translate(${edgePathData.labelX}px,${edgePathData.labelY}px)`,
+          }}
+          className="nodrag nopan"
+        >
           {isEditing ? (
             <textarea
               value={labelText}

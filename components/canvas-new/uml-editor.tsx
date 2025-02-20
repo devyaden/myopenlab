@@ -559,8 +559,6 @@ export function UMLEditor({
     };
   }, [handleKeyDown]);
 
-  console.log("----------------------- edges -----------------------", edges);
-
   return (
     <div className="w-full h-[calc(100vh-132px)]" ref={reactFlowWrapper}>
       {viewMode === "canvas" ? (
@@ -617,9 +615,7 @@ export function UMLEditor({
             }))}
             edges={edges.map((edge) => ({
               ...edge,
-              // type: edge.ty,
               type: "default",
-              // ariaLabel: "Hello",
               data: { ...edge.data, onLabelChange: onChangeEdgeLabel },
             }))}
             onNodesChange={handleNodesChange}
