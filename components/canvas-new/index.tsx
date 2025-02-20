@@ -778,15 +778,6 @@ export default function CanvasNew({ canvasId }: FigmaInterfaceProps) {
       });
     }
     localStorage.setItem("savedCanvases", JSON.stringify(savedCanvases));
-
-    // toast.success("Project saved successfully!", {
-    //   icon: "💾",
-    //   style: {
-    //     borderRadius: "10px",
-    //     background: "#333",
-    //     color: "#fff",
-    //   },
-    // });
   }, [projectName, currentState, columns, canvasId, currentFolder]);
 
   const restoreFromLocalStorage = useCallback(() => {

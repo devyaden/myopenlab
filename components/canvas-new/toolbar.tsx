@@ -160,7 +160,6 @@ export const Toolbar = React.memo(function Toolbar({
   edgeColor,
   setEdgeColor,
 }: ToolbarProps) {
-  console.log("🚀 ~ selectedEdge:", currentEdgeStyle);
   const fontFamilies = [
     "Arial",
     "Helvetica",

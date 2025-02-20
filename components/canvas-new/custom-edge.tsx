@@ -1,25 +1,33 @@
-"use client";
-
 import { useState } from "react";
-import { EdgeLabelRenderer, getSmoothStepPath } from "reactflow";
+import {
+  BaseEdge,
+  EdgeLabelRenderer,
+  getBezierPath,
+  getSimpleBezierPath,
+  getSmoothStepPath,
+  getStraightPath,
+} from "reactflow";
 import "reactflow/dist/style.css";
 
-const CustomEdge = ({
-  id,
-  sourceX,
-  sourceY,
-  targetX,
-  targetY,
-  sourcePosition,
-  targetPosition,
-  style = {},
-  data,
-  markerEnd,
-}: any) => {
+const CustomEdge = (params: any) => {
+  console.log("🚀 ~ CustomEdge ~ params:", params);
+
+  const {
+    id,
+    sourceX,
+    sourceY,
+    targetX,
+    targetY,
+    sourcePosition,
+    targetPosition,
+    style = {},
+    data,
+    markerEnd,
+    type,
+  } = params;
+
   const [isEditing, setIsEditing] = useState(false);
   const [labelText, setLabelText] = useState(data?.label || "");
-
-  const edgeType = data?.type || "default";
 
   const [edgePath, labelX, labelY] = getSmoothStepPath({
     sourceX,
@@ -30,15 +38,42 @@ const CustomEdge = ({
     targetPosition,
   });
 
-  let strokeDasharray;
-  switch (edgeType) {
-    case "dashed":
-      strokeDasharray = "5,5";
-      break;
-    case "dotted":
-      strokeDasharray = "1,5";
-      break;
-  }
+  const edgeTpe = style.edgeType || "default";
+
+  const getEdgePath = (edgeType: string) => {
+    const pathParams = {
+      sourceX,
+      sourceY,
+      sourcePosition,
+      targetX,
+      targetY,
+      targetPosition,
+    };
+
+    switch (edgeType) {
+      case "default":
+        return getBezierPath(pathParams);
+      case "straight":
+        return getStraightPath(pathParams)[0];
+      case "step":
+        return getSmoothStepPath({ ...pathParams, borderRadius: 0 })[0];
+      case "smoothstep":
+        return getSmoothStepPath({
+          sourceX,
+          sourceY,
+          sourcePosition,
+          targetX,
+          targetY,
+          targetPosition,
+        })[0];
+      case "simplebezier":
+        return getSimpleBezierPath(pathParams);
+      case "dashed":
+        return edgePath;
+      default:
+        return edgePath;
+    }
+  };
 
   const handleDoubleClick = (event: { preventDefault: () => void }) => {
     event.preventDefault();
@@ -56,31 +91,32 @@ const CustomEdge = ({
     }
   };
 
-  const labelStyles: any = {
-    position: "absolute",
+  console.log(
+    "------------------ path -----------------",
+    getEdgePath(edgeTpe)
+  );
+
+  const labelStyles = {
+    position: "absolute" as const,
     transform: `translate(-50%, -50%) translate(${labelX}px,${labelY}px)`,
     fontSize: 12,
-    pointerEvents: "all",
-    maxWidth: "200px", // Changed to maxWidth
-    wordWrap: "break-word",
-    // whiteSpace: "pre-wrap",
+    pointerEvents: "all" as const,
+    maxWidth: "200px",
+    wordWrap: "break-word" as const,
     textAlign: "center" as const,
     backgroundColor: "white",
-    padding: labelText.trim() ? "4px" : "0", // Conditional padding
+    padding: labelText.trim() ? "4px" : "0",
     borderRadius: "4px",
-    border: labelText.trim() ? "1px solid transparent" : "none", // Conditional border
-    display: labelText.trim() || isEditing ? "block" : "none", // Hide if no text and not editing
+    border: labelText.trim() ? "1px solid transparent" : "none",
+    display: labelText.trim() || isEditing ? "block" : "none",
   };
 
   const inputStyles = {
     width: "100%",
-    // minHeight: "24px",
     background: "white",
     borderRadius: "4px",
-    // padding: "2px 4px",
     outline: "none",
     textAlign: "center" as const,
-    // marginBottom: "12px",
     border: "1px solid #ccc",
     fontSize: "12px",
     wordWrap: "break-word" as const,
@@ -89,26 +125,36 @@ const CustomEdge = ({
 
   return (
     <>
-      <path
+      {/* Main edge path */}
+      {/* <path
         id={id}
         d={edgePath}
         className="react-flow__edge-path"
-        strokeWidth={2}
-        strokeDasharray={strokeDasharray}
-        stroke="#000"
+        strokeWidth={style.edgeType === "double" ? 2 : style.strokeWidth || 2}
+        strokeDasharray={style.strokeDasharray}
+        stroke={style.stroke || "#000"}
         style={style}
         markerEnd={markerEnd}
         onDoubleClick={handleDoubleClick}
-      />
-      {style.edgeType === "double" && (
+      /> */}
+
+      <BaseEdge path={getEdgePath(edgeTpe) as string} markerEnd={markerEnd} />
+
+      {/* Parallel path for double line */}
+      {/* {style.edgeType === "double" && (
         <path
-          d={edgePath}
+          d={getParallelPath(edgePath, 3)}
           className="react-flow__edge-path"
           strokeWidth={2}
-          stroke="#000"
-          style={{ ...style, transform: "translate(0, 3px)" }}
+          stroke={style.stroke || "#000"}
+          style={{
+            ...style,
+            strokeDasharray: style.strokeDasharray,
+          }}
+          markerEnd={markerEnd}
         />
-      )}
+      )} */}
+
       <EdgeLabelRenderer>
         <div style={labelStyles} className="nodrag nopan">
           {isEditing ? (

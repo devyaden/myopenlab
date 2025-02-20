@@ -617,6 +617,9 @@ export function UMLEditor({
             }))}
             edges={edges.map((edge) => ({
               ...edge,
+              // type: edge.ty,
+              type: "default",
+              // ariaLabel: "Hello",
               data: { ...edge.data, onLabelChange: onChangeEdgeLabel },
             }))}
             onNodesChange={handleNodesChange}
@@ -627,7 +630,7 @@ export function UMLEditor({
             onDragOver={onDragOver}
             onDrop={onDrop}
             nodeTypes={nodeTypes}
-            edgeTypes={{ double: CustomEdge }}
+            edgeTypes={{ default: CustomEdge }}
             fitView
             className="bg-white"
             multiSelectionKeyCode={["Meta", "Shift"]}
