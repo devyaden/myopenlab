@@ -49,7 +49,6 @@ import { Textarea } from "@/components/ui/textarea";
 import {
   AlignLeft,
   Calendar,
-  Check,
   CheckSquare,
   ChevronDown,
   ChevronRight,
@@ -153,8 +152,12 @@ const TableView: React.FC<TableViewProps> = ({
   const [newShapeType, setNewShapeType] = useState("rectangle");
   const [isAddingRow, setIsAddingRow] = useState(false);
   const [isAddColumnSidebarOpen, setIsAddColumnSidebarOpen] = useState(false);
-  const [editingRow, setEditingRow] = useState<string | null>(null);
-  const [editedValues, setEditedValues] = useState<Record<string, any>>({});
+  const [editingCell, setEditingCell] = useState<{
+    nodeId: string;
+    column: string;
+  } | null>(null);
+  const [editedValue, setEditedValue] = useState<any>(null);
+  const [validationError, setValidationError] = useState<string | null>(null);
   const [selectedParentId, setSelectedParentId] = useState<string | null>(null);
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -170,9 +173,6 @@ const TableView: React.FC<TableViewProps> = ({
   const [frozenColumns, setFrozenColumns] = useState<Set<string>>(new Set());
   const [hiddenColumns, setHiddenColumns] = useState<Set<string>>(new Set());
   const [isHiddenColumnsMenuOpen, setIsHiddenColumnsMenuOpen] = useState(false);
-  const [validationErrors, setValidationErrors] = useState<
-    Record<string, string | null>
-  >({});
 
   const getSortIcon = (field: SortField) => {
     if (sortField === field) {
@@ -201,14 +201,11 @@ const TableView: React.FC<TableViewProps> = ({
         const parent = nodeMap.get(node.parentNode);
         if (parent) {
           let child = nodeMap.get(node.id);
-
-          // @ts-expect-error parent is not null
           child = {
             ...child,
             data: { ...child?.data, parent: parent.data.label },
-          };
-
-          parent.children.push(child!);
+          } as HierarchyNode;
+          parent.children.push(child);
         }
       } else {
         rootNodes.push(nodeMap.get(node.id)!);
@@ -224,19 +221,15 @@ const TableView: React.FC<TableViewProps> = ({
     const rollupColumns = columns.filter((col) => col.type === "Rollup");
     if (!rollupColumns.length) return nodes;
 
-    // Create a copy of nodes to modify
     const updatedNodes = nodes.map((node) => ({ ...node }));
 
-    // Process each node
     updatedNodes.forEach((node) => {
-      // Process each rollup column
       rollupColumns.forEach((rollupColumn) => {
         if (!rollupColumn.rollupRelation || !rollupColumn.rollupColumn) {
           node.data[rollupColumn.title] = null;
           return;
         }
 
-        // Find all relation columns that point to the rollup's target canvas
         const relationColumns = columns.filter(
           (col) =>
             col.type === "Relation" &&
@@ -248,7 +241,6 @@ const TableView: React.FC<TableViewProps> = ({
           return;
         }
 
-        // Get the related canvas data
         const relatedCanvasData = localStorage.getItem(
           `canvas_${rollupColumn.rollupRelation}`
         );
@@ -259,37 +251,30 @@ const TableView: React.FC<TableViewProps> = ({
         }
 
         const parsedRelatedCanvas = JSON.parse(relatedCanvasData);
-
         const relatedNodes = parsedRelatedCanvas?.currentState?.nodes || [];
 
-        // For each relation column that points to our target canvas
         let rollupValue = null;
         for (const relationColumn of relationColumns) {
           const relationData = node.data[relationColumn.title];
 
-          // Skip if no relation data
           if (!Array.isArray(relationData) || relationData.length === 0)
             continue;
 
-          // Get all related nodes' values for the rollup column
           const relatedValues = relationData
             .map((relation) => {
               const relatedNode = relatedNodes.find(
                 (rNode: Node) => rNode.id === relation.id
               );
-              return relatedNode?.data[rollupColumn?.rollupColumn as string];
+              return relatedNode?.data[rollupColumn.rollupColumn as string];
             })
             .filter((value) => value !== undefined && value !== null);
 
           if (relatedValues.length > 0) {
-            // For now, we'll just take the first non-null value
-            // You could extend this to support different rollup operations (sum, average, etc.)
             rollupValue = relatedValues[0];
             break;
           }
         }
 
-        // Set the rollup value
         node.data[rollupColumn.title] = rollupValue;
       });
     });
@@ -299,7 +284,6 @@ const TableView: React.FC<TableViewProps> = ({
 
   const sortedHierarchy = useMemo(() => {
     const updatedNodes = insertRollupDataIntoNodes(nodes);
-
     const hierarchy = createHierarchy(updatedNodes);
 
     if (!sortField || !sortDirection) return hierarchy;
@@ -383,7 +367,6 @@ const TableView: React.FC<TableViewProps> = ({
     setSelectedParentId(null);
     setIsAddingRow(false);
 
-    // Expand the parent node if it exists
     if (newNode.parentNode) {
       setExpandedRows((prev) => new Set(prev).add(newNode.parentNode!));
     }
@@ -396,27 +379,6 @@ const TableView: React.FC<TableViewProps> = ({
 
   const handleAddColumn = (columnData: ColumnData) => {
     onAddColumn(columnData);
-  };
-
-  const handleDoubleClick = (nodeId: string) => {
-    setEditingRow(nodeId);
-    const node = nodes.find((n) => n.id === nodeId);
-    if (node) {
-      const initialValues = columns.reduce(
-        (acc, column) => {
-          if (column.title === "task") {
-            acc[column.title] = node.data.label;
-          } else if (column.title === "type") {
-            acc[column.title] = node.data.shape || node.type;
-          } else {
-            acc[column.title] = node.data[column.title] || "";
-          }
-          return acc;
-        },
-        {} as Record<string, any>
-      );
-      setEditedValues(initialValues);
-    }
   };
 
   const validationSchemas = {
@@ -467,7 +429,6 @@ const TableView: React.FC<TableViewProps> = ({
       type === "Created Time" ||
       type === "Last edited time"
     ) {
-      // Improved date and time validation
       const dateValue = new Date(value);
       if (isNaN(dateValue.getTime())) {
         return { isValid: false, errorMessage: "Invalid date or time" };
@@ -482,48 +443,30 @@ const TableView: React.FC<TableViewProps> = ({
     };
   };
 
-  const handleEditChange = (field: string, value: string | any[]) => {
-    const column = columns.find((col) => col.title === field);
-    if (column) {
-      const { isValid, errorMessage } = validateField(column.type, value);
-      setEditedValues((prev) => ({
-        ...prev,
-        [field]: value,
-      }));
-      setValidationErrors((prev) => ({
-        ...prev,
-        [field]: errorMessage,
-      }));
-    }
-  };
-
-  const handleSaveEdit = () => {
-    if (editingRow) {
-      const isValid = Object.entries(editedValues).every(([key, value]) => {
-        const column = columns.find((col) => col.title === key);
-        return column ? validateField(column.type, value).isValid : true;
-      });
-
+  const handleSave = (nodeId: string, column: string, value: any) => {
+    const columnDef = columns.find((col) => col.title === column);
+    if (columnDef) {
+      const { isValid, errorMessage } = validateField(columnDef.type, value);
       if (isValid) {
         const updatedNodes = nodes.map((node) => {
-          if (node.id === editingRow) {
-            const newData = {
-              ...node.data,
-              ...editedValues,
-              label: editedValues.task,
-              shape: editedValues.type,
-            };
+          if (node.id === nodeId) {
+            const newData = { ...node.data, [column]: value };
+            if (column === "task") {
+              newData.label = value;
+            } else if (column === "type") {
+              newData.shape = value;
+            }
             return { ...node, data: newData };
           }
           return node;
         });
         onNodesChange(updatedNodes);
-        setEditingRow(null);
-        setEditedValues({});
-        setValidationErrors({});
+        setEditingCell(null);
+        setEditedValue(null);
+        setValidationError(null);
         onSave();
       } else {
-        alert("Please correct the invalid fields before saving.");
+        setValidationError(errorMessage);
       }
     }
   };
@@ -547,7 +490,6 @@ const TableView: React.FC<TableViewProps> = ({
       if (newExpandedRows.has(nodeId)) {
         newExpandedRows.delete(nodeId);
       } else {
-        // Expand all parent nodes
         let currentNode = nodes.find((n) => n.id === nodeId);
         while (currentNode && currentNode.parentNode) {
           newExpandedRows.add(currentNode.parentNode);
@@ -565,11 +507,34 @@ const TableView: React.FC<TableViewProps> = ({
   };
 
   const handleDeleteConfirm = (deleteChildren: boolean) => {
-    if (nodeToDelete) {
-      deleteNode(nodeToDelete.id, deleteChildren);
+    try {
+      if (nodeToDelete) {
+        deleteNode(nodeToDelete.id, deleteChildren);
+
+        // Clean up expanded rows
+        setExpandedRows((prev) => {
+          const newExpandedRows = new Set(prev);
+          if (deleteChildren) {
+            const nodesToRemove = new Set<string>([nodeToDelete.id]);
+            const collectChildrenIds = (node: HierarchyNode) => {
+              node.children.forEach((child) => {
+                nodesToRemove.add(child.id);
+                collectChildrenIds(child);
+              });
+            };
+            collectChildrenIds(nodeToDelete);
+            nodesToRemove.forEach((id) => newExpandedRows.delete(id));
+          } else {
+            newExpandedRows.delete(nodeToDelete.id);
+          }
+          return newExpandedRows;
+        });
+      }
+    } finally {
+      // Ensure these states are always reset, even if an error occurs
+      setDeleteDialogOpen(false);
+      setNodeToDelete(null);
     }
-    setDeleteDialogOpen(false);
-    setNodeToDelete(null);
   };
 
   const isDefaultColumn = (columnTitle: string) => {
@@ -583,7 +548,6 @@ const TableView: React.FC<TableViewProps> = ({
           col.title === columnTitle ? { ...col, title: newTitle } : col
         )
       );
-      // Update all nodes to reflect the new column title
       const updatedNodes = nodes.map((node) => {
         const newData = { ...node.data };
         if (newData[columnTitle] !== undefined) {
@@ -624,7 +588,6 @@ const TableView: React.FC<TableViewProps> = ({
       const newColumn = { ...originalColumn, title: newTitle };
       setColumns([...columns, newColumn]);
 
-      // Duplicate the column data for all nodes
       const updatedNodes = nodes.map((node) => ({
         ...node,
         data: {
@@ -673,10 +636,6 @@ const TableView: React.FC<TableViewProps> = ({
     });
   };
 
-  const toggleHiddenColumn = (columnTitle: string) => {
-    toggleColumnVisibility(columnTitle);
-  };
-
   const getRelatedCanvasNodes = (canvasId: string) => {
     const savedCanvas = localStorage.getItem(`canvas_${canvasId}`);
 
@@ -721,6 +680,11 @@ const TableView: React.FC<TableViewProps> = ({
     });
   }, [canvasId]);
 
+  console.log(
+    "------------------------ columns ---------------------",
+    columns
+  );
+
   const renderHierarchy = (
     nodes: HierarchyNode[],
     level = 0
@@ -730,11 +694,7 @@ const TableView: React.FC<TableViewProps> = ({
       const hasChildren = node.children.length > 0;
 
       return [
-        <TableRow
-          key={node.id}
-          className="hover:bg-gray-50"
-          onDoubleClick={() => handleDoubleClick(node.id)}
-        >
+        <TableRow key={node.id} className="hover:bg-gray-50">
           {columns
             .filter(
               (column) =>
@@ -754,6 +714,19 @@ const TableView: React.FC<TableViewProps> = ({
                     ? "sticky left-0 bg-white z-10"
                     : ""
                 }
+                onDoubleClick={() => {
+                  if (column.title !== "id") {
+                    setEditingCell({ nodeId: node.id, column: column.title });
+                    setEditedValue(
+                      column.title === "task"
+                        ? node.data.label
+                        : column.title === "type"
+                          ? node.data.shape || node.type
+                          : node.data[column.title] || ""
+                    );
+                    setValidationError(null);
+                  }
+                }}
               >
                 {index === 0 && (
                   <span className="inline-flex items-center mr-2">
@@ -777,14 +750,16 @@ const TableView: React.FC<TableViewProps> = ({
                   </span>
                 )}
 
-                {editingRow === node.id && column.title !== "id" ? (
+                {editingCell?.nodeId === node.id &&
+                editingCell?.column === column.title ? (
                   <div>
                     {column.type === "Select" ? (
                       <Select
-                        value={editedValues[column.title] || "default"}
-                        onValueChange={(value) =>
-                          handleEditChange(column.title, value)
-                        }
+                        value={editedValue || ""}
+                        onValueChange={(value) => {
+                          setEditedValue(value);
+                          handleSave(node.id, column.title, value);
+                        }}
                       >
                         <SelectTrigger className="w-full">
                           <SelectValue placeholder="Select option" />
@@ -806,17 +781,18 @@ const TableView: React.FC<TableViewProps> = ({
                           label: option,
                           value: option,
                         }))}
-                        selected={editedValues[column.title] || []}
-                        onChange={(selected) =>
-                          handleEditChange(column.title, selected)
-                        }
+                        selected={editedValue || []}
+                        onChange={(selected) => {
+                          setEditedValue(selected);
+                          handleSave(node.id, column.title, selected);
+                        }}
                       />
                     ) : column.type === "Checkbox" ? (
                       <Switch
-                        checked={editedValues[column.title] === true}
+                        checked={editedValue === true}
                         onCheckedChange={(checked) => {
-                          // @ts-ignore
-                          handleEditChange(column.title, checked);
+                          setEditedValue(checked);
+                          handleSave(node.id, column.title, checked);
                         }}
                       />
                     ) : column.type === "Date" ||
@@ -825,62 +801,79 @@ const TableView: React.FC<TableViewProps> = ({
                       <Input
                         type="datetime-local"
                         value={
-                          editedValues[column.title]
-                            ? new Date(editedValues[column.title])
-                                .toISOString()
-                                .slice(0, 16)
+                          editedValue
+                            ? new Date(editedValue).toISOString().slice(0, 16)
                             : ""
                         }
-                        onChange={(e) =>
-                          handleEditChange(column.title, e.target.value)
+                        onChange={(e) => setEditedValue(e.target.value)}
+                        onBlur={() =>
+                          handleSave(node.id, column.title, editedValue)
                         }
-                        className={
-                          validationErrors[column.title] ? "border-red-500" : ""
-                        }
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            handleSave(node.id, column.title, editedValue);
+                          } else if (e.key === "Escape") {
+                            setEditingCell(null);
+                            setEditedValue(null);
+                            setValidationError(null);
+                          }
+                        }}
+                        className={validationError ? "border-red-500" : ""}
+                        autoFocus
                       />
                     ) : column.type === "Long Text" ? (
                       <Textarea
-                        value={editedValues[column.title] || ""}
-                        onChange={(e) =>
-                          handleEditChange(column.title, e.target.value)
+                        value={editedValue || ""}
+                        onChange={(e) => setEditedValue(e.target.value)}
+                        onBlur={() =>
+                          handleSave(node.id, column.title, editedValue)
                         }
-                        className={
-                          validationErrors[column.title] ? "border-red-500" : ""
-                        }
+                        onKeyDown={(e) => {
+                          if (e.key === "Escape") {
+                            setEditingCell(null);
+                            setEditedValue(null);
+                            setValidationError(null);
+                          }
+                        }}
+                        className={validationError ? "border-red-500" : ""}
+                        autoFocus
                       />
                     ) : column.type === "Relation" ? (
-                      <>
-                        {" "}
-                        <AddTableCellTrigger
-                          value={
-                            Array.isArray(editedValues[column.title])
-                              ? editedValues[column.title]
-                              : []
-                          }
-                          label="Testing"
-                          relatedCanvasData={getRelatedCanvasNodes(
-                            column?.relationCanvas as string
-                          )}
-                          onSelectValue={(value) => {
-                            handleEditChange(column.title, value);
-                          }}
-                        />
-                      </>
+                      <AddTableCellTrigger
+                        value={editedValue || []}
+                        label="Testing"
+                        relatedCanvasData={getRelatedCanvasNodes(
+                          column.relationCanvas as string
+                        )}
+                        onSelectValue={(value) => {
+                          setEditedValue(value);
+                          handleSave(node.id, column.title, value);
+                        }}
+                      />
                     ) : (
                       <Input
                         type={column.type === "Number" ? "number" : "text"}
-                        value={editedValues[column.title] || ""}
-                        onChange={(e) =>
-                          handleEditChange(column.title, e.target.value)
+                        value={editedValue || ""}
+                        onChange={(e) => setEditedValue(e.target.value)}
+                        onBlur={() =>
+                          handleSave(node.id, column.title, editedValue)
                         }
-                        className={
-                          validationErrors[column.title] ? "border-red-500" : ""
-                        }
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            handleSave(node.id, column.title, editedValue);
+                          } else if (e.key === "Escape") {
+                            setEditingCell(null);
+                            setEditedValue(null);
+                            setValidationError(null);
+                          }
+                        }}
+                        className={validationError ? "border-red-500" : ""}
+                        autoFocus
                       />
                     )}
-                    {validationErrors[column.title] && (
+                    {validationError && (
                       <p className="text-red-500 text-xs mt-1">
-                        {validationErrors[column.title]}
+                        {validationError}
                       </p>
                     )}
                   </div>
@@ -939,24 +932,18 @@ const TableView: React.FC<TableViewProps> = ({
               </TableCell>
             ))}
           <TableCell className="text-right sticky right-0 bg-white z-10">
-            {editingRow === node.id ? (
-              <Button variant="ghost" size="icon" onClick={handleSaveEdit}>
-                <Check className="h-4 w-4" />
-              </Button>
-            ) : (
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="icon" className="h-8 w-8">
-                    <MoreHorizontal className="h-4 w-4" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <DropdownMenuItem onClick={() => handleDeleteClick(node)}>
-                    Delete
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            )}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon" className="h-8 w-8">
+                  <MoreHorizontal className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={() => handleDeleteClick(node)}>
+                  Delete
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </TableCell>
         </TableRow>,
         ...(isExpanded && hasChildren
@@ -970,6 +957,8 @@ const TableView: React.FC<TableViewProps> = ({
     setEditingColumnTitle(columnTitle);
     setNewColumnTitle(columnTitle);
   };
+
+  console.log("-----------------", isHiddenColumnsMenuOpen);
 
   return (
     <div className="p-4 mx-auto">
@@ -1070,7 +1059,9 @@ const TableView: React.FC<TableViewProps> = ({
                             <DropdownMenuItem disabled>Filter</DropdownMenuItem>
                             {!hiddenColumns.has(column.title) && (
                               <DropdownMenuItem
-                                onClick={() => toggleHiddenColumn(column.title)}
+                                onClick={() =>
+                                  toggleColumnVisibility(column.title)
+                                }
                               >
                                 Hide in view
                               </DropdownMenuItem>
@@ -1215,6 +1206,7 @@ const TableView: React.FC<TableViewProps> = ({
         relationCanvases={getRelatedCanvasesWithColumns()}
         columns={columns}
       />
+
       <AlertDialog
         open={!!deleteColumnDialog}
         onOpenChange={() => setDeleteColumnDialog(null)}
@@ -1239,6 +1231,7 @@ const TableView: React.FC<TableViewProps> = ({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
       <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <DialogContent>
           <DialogHeader>
@@ -1272,6 +1265,7 @@ const TableView: React.FC<TableViewProps> = ({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
       <Dialog
         open={isHiddenColumnsMenuOpen}
         onOpenChange={setIsHiddenColumnsMenuOpen}

@@ -52,6 +52,7 @@ interface AppState {
 interface ColumnData {
   title: string;
   type: string;
+  options?: string[];
 }
 
 const MAX_HISTORY_SIZE = 50;
@@ -79,7 +80,22 @@ export default function CanvasNew({ canvasId }: FigmaInterfaceProps) {
   const [columns, setColumns] = useState<ColumnData[]>([
     { title: "id", type: "Text" },
     { title: "task", type: "Text" },
-    { title: "type", type: "Select" },
+    {
+      title: "type",
+      type: "Select",
+      options: [
+        "rectangle",
+        "rounded",
+        "circle",
+        "diamond",
+        "hexagon",
+        "triangle",
+        "useCase",
+        "actor",
+        "class",
+        "interface",
+      ],
+    },
     {
       title: "parent",
       type: "Text",

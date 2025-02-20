@@ -160,7 +160,7 @@ export const AddColumnSidebar: React.FC<AddColumnSidebarProps> = ({
     return canvases.filter((canvas) => canvas.id !== canvasId);
   }, [canvases, canvasId]);
 
-  const handleRollupRelationChange = useCallback((value: string) => {
+  const handleRollupRelationChange = (value: string) => {
     if (!value) return;
 
     const selectedCanvas = relationCanvases.find((c) => c.id === value);
@@ -174,7 +174,7 @@ export const AddColumnSidebar: React.FC<AddColumnSidebarProps> = ({
       rollupRelationName: selectedCanvas.canvasName,
       rollupColumn: undefined,
     }));
-  }, []);
+  };
 
   useEffect(() => {
     return () => {
