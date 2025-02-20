@@ -606,18 +606,25 @@ export default function CanvasNew({ canvasId }: FigmaInterfaceProps) {
 
   const onChangeEdgeStyle = useCallback(
     (style: string) => {
+      console.log("🚀 ~ CanvasNew ~ style:", style);
       if (selectedEdge) {
         updateState({
           edges: currentState.edges.map((edge) =>
             edge.id === selectedEdge
               ? {
                   ...edge,
-                  type: style,
-
+                  type:
+                    style === "default" ||
+                    style === "straight" ||
+                    style === "step" ||
+                    style === "smoothstep" ||
+                    style === "simplebezier"
+                      ? style
+                      : "smoothstep",
                   style: {
                     ...edge.style,
                     edgeType: style,
-                    strokeWidth: style === "double" ? 1 : 1,
+                    strokeWidth: style === "double" ? 3 : 2,
                     strokeDasharray:
                       style === "dashed"
                         ? "5,5"

@@ -559,6 +559,8 @@ export function UMLEditor({
     };
   }, [handleKeyDown]);
 
+  console.log("----------------------- edges -----------------------", edges);
+
   return (
     <div className="w-full h-[calc(100vh-132px)]" ref={reactFlowWrapper}>
       {viewMode === "canvas" ? (
@@ -615,7 +617,6 @@ export function UMLEditor({
             }))}
             edges={edges.map((edge) => ({
               ...edge,
-              type: "floating",
               data: { ...edge.data, onLabelChange: onChangeEdgeLabel },
             }))}
             onNodesChange={handleNodesChange}
@@ -626,7 +627,7 @@ export function UMLEditor({
             onDragOver={onDragOver}
             onDrop={onDrop}
             nodeTypes={nodeTypes}
-            edgeTypes={{ floating: CustomEdge }}
+            edgeTypes={{ double: CustomEdge }}
             fitView
             className="bg-white"
             multiSelectionKeyCode={["Meta", "Shift"]}
