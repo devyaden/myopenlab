@@ -80,6 +80,10 @@ export default function CanvasNew({ canvasId }: FigmaInterfaceProps) {
     { title: "id", type: "Text" },
     { title: "task", type: "Text" },
     { title: "type", type: "Select" },
+    {
+      title: "parent",
+      type: "Text",
+    },
   ]);
   const [showGrid, setShowGrid] = useState(true);
   const [showRulers, setShowRulers] = useState(false);

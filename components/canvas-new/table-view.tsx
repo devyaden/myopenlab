@@ -200,7 +200,15 @@ const TableView: React.FC<TableViewProps> = ({
       if (node.parentNode) {
         const parent = nodeMap.get(node.parentNode);
         if (parent) {
-          parent.children.push(nodeMap.get(node.id)!);
+          let child = nodeMap.get(node.id);
+
+          // @ts-expect-error parent is not null
+          child = {
+            ...child,
+            data: { ...child?.data, parent: parent.data.label },
+          };
+
+          parent.children.push(child!);
         }
       } else {
         rootNodes.push(nodeMap.get(node.id)!);
@@ -251,10 +259,7 @@ const TableView: React.FC<TableViewProps> = ({
         }
 
         const parsedRelatedCanvas = JSON.parse(relatedCanvasData);
-        console.log(
-          "🚀 ~ rollupColumns.forEach ~ parsedRelatedCanvas:",
-          parsedRelatedCanvas
-        );
+
         const relatedNodes = parsedRelatedCanvas?.currentState?.nodes || [];
 
         // For each relation column that points to our target canvas
@@ -291,6 +296,7 @@ const TableView: React.FC<TableViewProps> = ({
 
     return updatedNodes;
   };
+
   const sortedHierarchy = useMemo(() => {
     const updatedNodes = insertRollupDataIntoNodes(nodes);
 
@@ -567,7 +573,7 @@ const TableView: React.FC<TableViewProps> = ({
   };
 
   const isDefaultColumn = (columnTitle: string) => {
-    return ["task", "type"].includes(columnTitle);
+    return ["task", "type", "parent"].includes(columnTitle);
   };
 
   const handleColumnTitleEdit = (columnTitle: string, newTitle: string) => {
