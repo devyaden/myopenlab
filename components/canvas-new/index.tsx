@@ -8,7 +8,6 @@ import { toast } from "react-hot-toast";
 import type { Edge, Node } from "reactflow";
 import { MarkerType, ReactFlowProvider } from "reactflow";
 import { Header } from "./header";
-import { RollupCalculator } from "./rollup-calculator"; // Import RollupCalculator
 import { Sidebar } from "./sidebar";
 
 import { Toolbar } from "./toolbar";
@@ -96,6 +95,9 @@ export default function CanvasNew({ canvasId }: FigmaInterfaceProps) {
   const [currentFolderCanvases, setCurrentFolderCanvases] = useState<
     { id: string; name: string }[]
   >([]);
+
+  const [edgeWidth, setEdgeWidth] = useState(2);
+  const [edgeColor, setEdgeColor] = useState("#000000");
 
   useEffect(() => {
     const savedFolders = localStorage.getItem("savedFolders");
@@ -610,21 +612,19 @@ export default function CanvasNew({ canvasId }: FigmaInterfaceProps) {
             edge.id === selectedEdge
               ? {
                   ...edge,
-                  type:
-                    style === "default" ||
-                    style === "step" ||
-                    style === "smoothstep"
-                      ? style
-                      : edge.type,
+                  type: style,
+
                   style: {
                     ...edge.style,
                     edgeType: style,
+                    strokeWidth: style === "double" ? 1 : 1,
                     strokeDasharray:
                       style === "dashed"
                         ? "5,5"
                         : style === "dotted"
                           ? "1,5"
                           : undefined,
+                    className: style === "double" ? "double-line" : undefined,
                   },
                   markerEnd: { type: MarkerType.ArrowClosed },
                 }
@@ -809,6 +809,38 @@ export default function CanvasNew({ canvasId }: FigmaInterfaceProps) {
     }
   }, [canvasId]);
 
+  const handleEdgeWidthChange = useCallback(
+    (width: number) => {
+      setEdgeWidth(width);
+      // Update the selected edge's width
+      if (selectedEdge) {
+        const updatedEdges = currentState.edges.map((edge) =>
+          edge.id === selectedEdge
+            ? { ...edge, style: { ...edge.style, strokeWidth: width } }
+            : edge
+        );
+        updateState({ ...currentState, edges: updatedEdges });
+      }
+    },
+    [selectedEdge, currentState, updateState]
+  );
+
+  const handleEdgeColorChange = useCallback(
+    (color: string) => {
+      setEdgeColor(color);
+      // Update the selected edge's color
+      if (selectedEdge) {
+        const updatedEdges = currentState.edges.map((edge) =>
+          edge.id === selectedEdge
+            ? { ...edge, style: { ...edge.style, stroke: color } }
+            : edge
+        );
+        updateState({ ...currentState, edges: updatedEdges });
+      }
+    },
+    [selectedEdge, currentState, updateState]
+  );
+
   const handleCanvasNameChange = useCallback(
     (canvasId: string, newName: string) => {
       setProjectName(newName);
@@ -903,10 +935,8 @@ export default function CanvasNew({ canvasId }: FigmaInterfaceProps) {
           onPaste={pasteNodes}
           onLock={lockNode}
           onChangeShape={changeShape}
-          onRotateSwimlane={rotateSwimlane}
           shape={selectedStyle?.shape || "rectangle"}
           isLocked={selectedStyle?.locked || false}
-          isSwimlaneVertical={selectedStyle?.isVertical ?? true}
           borderStyle={selectedStyle?.borderStyle || "solid"}
           setBorderStyle={setBorderStyle}
           borderWidth={selectedStyle?.borderWidth || 2}
@@ -930,12 +960,13 @@ export default function CanvasNew({ canvasId }: FigmaInterfaceProps) {
           selectedEdge={selectedEdge}
           onChangeEdgeStyle={onChangeEdgeStyle}
           currentEdgeStyle={selectedEdgeData?.type || "default"}
-          onChangeEdgeLabel={(label) =>
-            selectedEdge && onChangeEdgeLabel(selectedEdge, label)
-          }
-          currentEdgeLabel={selectedEdgeData?.label || ""}
           viewMode={viewMode}
           onViewModeChange={setViewMode}
+          // edge styles
+          edgeWidth={edgeWidth}
+          setEdgeWidth={handleEdgeWidthChange}
+          edgeColor={edgeColor}
+          setEdgeColor={handleEdgeColorChange}
         />
         <div className="flex flex-1 overflow-hidden">
           <VerticalNav
@@ -968,23 +999,6 @@ export default function CanvasNew({ canvasId }: FigmaInterfaceProps) {
                 canvasId={canvasId}
                 onSave={saveToLocalStorage}
               />
-              {/* <RollupCalculator // Added RollupCalculator component
-                nodes={currentState.nodes}
-                columns={columns}
-                onRollupChange={(nodeId, columnTitle, value) => {
-                  setCurrentState((prevState) => ({
-                    ...prevState,
-                    nodes: prevState.nodes.map((node) =>
-                      node.id === nodeId
-                        ? {
-                            ...node,
-                            data: { ...node.data, [columnTitle]: value },
-                          }
-                        : node
-                    ),
-                  }));
-                }}
-              /> */}
             </div>
           </div>
         </div>

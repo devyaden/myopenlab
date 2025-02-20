@@ -83,3 +83,7 @@
     @apply bg-background text-yadn-primary-text;
   }
 }
+
+.double-line {
+  filter: drop-shadow(0 1px 0 currentColor);
+}

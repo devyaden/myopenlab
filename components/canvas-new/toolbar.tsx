@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/popover";
 import { Separator } from "@/components/ui/separator";
 import { Slider } from "@/components/ui/slider";
+import { Switch } from "@/components/ui/switch";
 import {
   AlignCenter,
   AlignJustify,
@@ -42,7 +43,6 @@ import {
   User,
 } from "lucide-react";
 import React from "react";
-import { Switch } from "@/components/ui/switch";
 
 interface ToolbarProps {
   fontFamily: string;
@@ -77,7 +77,6 @@ interface ToolbarProps {
       | "interface"
       | "swimlane"
   ) => void;
-  onRotateSwimlane: () => void;
   shape:
     | "rectangle"
     | "rounded"
@@ -91,7 +90,6 @@ interface ToolbarProps {
     | "interface"
     | "swimlane";
   isLocked: boolean;
-  isSwimlaneVertical: boolean;
   borderStyle: string;
   setBorderStyle: (style: string) => void;
   borderWidth: number;
@@ -109,10 +107,12 @@ interface ToolbarProps {
   selectedEdge: string | null;
   onChangeEdgeStyle: (style: string) => void;
   currentEdgeStyle: string;
-  onChangeEdgeLabel: (label: string) => void;
-  currentEdgeLabel: string;
   viewMode: "canvas" | "table";
   onViewModeChange: (mode: "canvas" | "table") => void;
+  edgeWidth: number;
+  setEdgeWidth: (width: number) => void;
+  edgeColor: string;
+  setEdgeColor: (color: string) => void;
 }
 
 export const Toolbar = React.memo(function Toolbar({
@@ -135,10 +135,7 @@ export const Toolbar = React.memo(function Toolbar({
   onPaste,
   onLock,
   onChangeShape,
-  onRotateSwimlane,
   shape,
-  isLocked,
-  isSwimlaneVertical,
   borderStyle,
   setBorderStyle,
   borderWidth,
@@ -156,11 +153,14 @@ export const Toolbar = React.memo(function Toolbar({
   selectedEdge,
   onChangeEdgeStyle,
   currentEdgeStyle,
-  onChangeEdgeLabel,
-  currentEdgeLabel,
   viewMode,
   onViewModeChange,
+  edgeWidth,
+  setEdgeWidth,
+  edgeColor,
+  setEdgeColor,
 }: ToolbarProps) {
+  console.log("🚀 ~ selectedEdge:", currentEdgeStyle);
   const fontFamilies = [
     "Arial",
     "Helvetica",
@@ -216,20 +216,32 @@ export const Toolbar = React.memo(function Toolbar({
   };
 
   const lineStyles = [
-    { name: "Straight", value: "default" },
+    { name: "Bezier", value: "default" },
+    { name: "Straight", value: "straight" },
     { name: "Step", value: "step" },
+    { name: "SmoothStep", value: "smoothstep" },
+    { name: "SimpleBezier", value: "simplebezier" },
     { name: "Smooth Step", value: "smoothstep" },
-    { name: "Bezier", value: "bezier" },
     { name: "Dashed", value: "dashed" },
     { name: "Dotted", value: "dotted" },
     { name: "Double", value: "double" },
-    { name: "Wavy", value: "wavy" },
   ];
 
   const getLineStyleIcon = (style: string) => {
     return (
       <svg width="100" height="20" viewBox="0 0 100 20" className="mr-2">
+        {/* Bezier (default) */}
         {style === "default" && (
+          <path
+            d="M0,10 C30,0 70,20 100,10"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+          />
+        )}
+
+        {/* Straight */}
+        {style === "straight" && (
           <line
             x1="0"
             y1="10"
@@ -239,30 +251,38 @@ export const Toolbar = React.memo(function Toolbar({
             strokeWidth="2"
           />
         )}
+
+        {/* Step */}
         {style === "step" && (
-          <polyline
-            points="0,10 50,10 50,5 100,5"
+          <path
+            d="M0,10 H25 V5 H75 V10 H100"
             fill="none"
             stroke="currentColor"
             strokeWidth="2"
           />
         )}
+
+        {/* SmoothStep */}
         {style === "smoothstep" && (
           <path
-            d="M0,10 C25,10 25,5 50,5 S75,0 100,0"
+            d="M0,10 C12.5,10 25,5 50,5 S87.5,0 100,0"
             fill="none"
             stroke="currentColor"
             strokeWidth="2"
           />
         )}
-        {style === "bezier" && (
+
+        {/* SimpleBezier */}
+        {style === "simplebezier" && (
           <path
-            d="M0,10 C25,0 75,20 100,10"
+            d="M0,10 Q50,0 100,10"
             fill="none"
             stroke="currentColor"
             strokeWidth="2"
           />
         )}
+
+        {/* Dashed */}
         {style === "dashed" && (
           <line
             x1="0"
@@ -271,9 +291,11 @@ export const Toolbar = React.memo(function Toolbar({
             y2="10"
             stroke="currentColor"
             strokeWidth="2"
-            strokeDasharray="5,5"
+            strokeDasharray="8,4"
           />
         )}
+
+        {/* Dotted */}
         {style === "dotted" && (
           <line
             x1="0"
@@ -282,41 +304,34 @@ export const Toolbar = React.memo(function Toolbar({
             y2="10"
             stroke="currentColor"
             strokeWidth="2"
-            strokeDasharray="1,5"
+            strokeDasharray="2,4"
           />
         )}
+
+        {/* Double */}
         {style === "double" && (
           <>
             <line
               x1="0"
-              y1="8"
+              y1="7"
               x2="100"
-              y2="8"
+              y2="7"
               stroke="currentColor"
-              strokeWidth="1"
+              strokeWidth="1.5"
             />
             <line
               x1="0"
-              y1="12"
+              y1="13"
               x2="100"
-              y2="12"
+              y2="13"
               stroke="currentColor"
-              strokeWidth="1"
+              strokeWidth="1.5"
             />
           </>
-        )}
-        {style === "wavy" && (
-          <path
-            d="M0,10 Q25,0 50,10 T100,10"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-          />
         )}
       </svg>
     );
   };
-
   return (
     <div className="flex items-center gap-2 p-2  overflow-x-auto border-b">
       <div className="flex items-center gap-2 border rounded-lg h-9">
@@ -691,6 +706,63 @@ export const Toolbar = React.memo(function Toolbar({
             </div>
           </DropdownMenuContent>
         </DropdownMenu>
+      </div>
+
+      <div className="flex items-center gap-2">
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              variant="outline"
+              size="sm"
+              className="rounded-lg"
+              disabled={!selectedEdge}
+            >
+              <svg
+                width="24"
+                height="24"
+                viewBox="0 0 24 24"
+                className="text-gray-600"
+              >
+                {getLineStyleIcon(selectedEdge ? currentEdgeStyle : "default")}
+              </svg>
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent>
+            {lineStyles.map((style) => (
+              <DropdownMenuItem
+                key={style.value}
+                onSelect={() => onChangeEdgeStyle(style.value)}
+              >
+                {getLineStyleIcon(style.value)}
+                {style.name}
+              </DropdownMenuItem>
+            ))}
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
+
+      <Separator orientation="vertical" className="h-6 hidden sm:block" />
+
+      <div className="flex items-center gap-2">
+        <Input
+          type="number"
+          min={1}
+          max={10}
+          value={edgeWidth}
+          onChange={(e) => setEdgeWidth(Number(e.target.value))}
+          className="w-16"
+          disabled={!selectedEdge}
+        />
+        <div className="relative">
+          <Input
+            type="color"
+            value={edgeColor}
+            onChange={(e) => setEdgeColor(e.target.value)}
+            className="w-8 h-8 p-0 border-0"
+            disabled={!selectedEdge}
+          />
+          {/* <Pipette className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 pointer-events-none" /> */}
+        </div>
       </div>
 
       <div className="flex items-center gap-2">
