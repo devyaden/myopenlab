@@ -383,7 +383,6 @@ export const GenericNode = memo(
                   whiteSpace: "normal",
                   wordWrap: "break-word",
                   display: "flex",
-                  justifyContent: "center",
                   alignItems: "center",
                 }}
               >
@@ -406,7 +405,6 @@ export const GenericNode = memo(
                 style={{
                   width: "100%",
                   height: "100%",
-                  display: "flex",
                   WebkitLineClamp: maxLines,
                   WebkitBoxOrient: "vertical",
                   overflow: "hidden",
@@ -414,8 +412,9 @@ export const GenericNode = memo(
                   ...getTextStyle(),
                   whiteSpace: "normal",
                   wordWrap: "break-word",
-                  justifyContent: "center",
+                  display: "flex",
                   alignItems: "center",
+                  justifyContent: data.style?.textAlign,
                 }}
               >
                 {labelValue}

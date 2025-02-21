@@ -13,7 +13,6 @@ import { Sidebar } from "./sidebar";
 import { Toolbar } from "./toolbar";
 import { UMLEditor } from "./uml-editor";
 import { VerticalNav } from "./vertical-nav";
-import { json } from "stream/consumers";
 
 interface NodeStyle {
   fontFamily: string;
