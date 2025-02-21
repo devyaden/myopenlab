@@ -1,7 +1,7 @@
 "use client";
 
 import { memo, useState, useEffect } from "react";
-import { Handle, Position, NodeResizer } from "reactflow"; //Fixed import
+import { Handle, Position, NodeResizer } from "reactflow";
 import Image from "next/image";
 
 interface ImageNodeProps {
@@ -28,13 +28,7 @@ export const ImageNode = memo(({ data, selected, style }: ImageNodeProps) => {
     });
   }, [style, data.width, data.height]);
 
-  const onResize = (
-    _: unknown,
-    newSize: {
-      width: number;
-      height: number;
-    }
-  ) => {
+  const onResize = (_: unknown, newSize: { width: number; height: number }) => {
     setSize({ width: newSize.width, height: newSize.height });
   };
 
@@ -48,7 +42,12 @@ export const ImageNode = memo(({ data, selected, style }: ImageNodeProps) => {
         keepAspectRatio
       />
       <div
-        style={{ width: size.width, height: size.height, position: "relative" }}
+        style={{
+          width: size.width,
+          height: size.height,
+          position: "relative",
+          border: "1px solid black", // Added to make node boundaries visible
+        }}
       >
         <Image
           src={data.src || "/placeholder.svg"}

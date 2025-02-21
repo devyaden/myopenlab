@@ -151,7 +151,7 @@ export default function CanvasNew({ canvasId }: FigmaInterfaceProps) {
     if (savedCanvas) {
       const parsedCanvas = JSON.parse(savedCanvas);
       setCurrentState(parsedCanvas.currentState);
-      setColumns(parsedCanvas.columns);
+      if (parsedCanvas.columns?.length) setColumns(parsedCanvas.columns);
       setProjectName(parsedCanvas.projectName);
       setCurrentFolder(parsedCanvas.folderId);
       addToRecentDocuments(canvasId, parsedCanvas.projectName);

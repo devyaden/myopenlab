@@ -216,11 +216,10 @@ export const Toolbar = React.memo(function Toolbar({
 
   const lineStyles = [
     { name: "Bezier", value: "default" },
+    { name: "SimpleBezier", value: "simplebezier" },
     { name: "Straight", value: "straight" },
     { name: "Step", value: "step" },
     { name: "SmoothStep", value: "smoothstep" },
-    { name: "SimpleBezier", value: "simplebezier" },
-    { name: "Smooth Step", value: "smoothstep" },
     { name: "Dashed", value: "dashed" },
     { name: "Dotted", value: "dotted" },
     { name: "Double", value: "double" },

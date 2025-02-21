@@ -46,16 +46,19 @@ export const GenericNode = memo(
     const [labelValue, setLabelValue] = useState(data.label);
     const [nodeSize, setNodeSize] = useState({ width: 100, height: 100 });
 
+    // Sync label with data changes
     useEffect(() => {
       setLabelValue(data.label);
     }, [data.label]);
 
+    // Handle double-click to enable editing
     const handleDoubleClick = useCallback(() => {
       if (!data.style?.locked) {
         setIsEditing(true);
       }
     }, [data.style?.locked]);
 
+    // Handle blur to exit editing mode
     const handleBlur = useCallback(() => {
       setIsEditing(false);
       if (data.onLabelChange) {
@@ -63,6 +66,7 @@ export const GenericNode = memo(
       }
     }, [data, id, labelValue]);
 
+    // Handle Enter key to exit editing mode
     const handleKeyDown = useCallback(
       (event: React.KeyboardEvent<HTMLInputElement>) => {
         if (event.key === "Enter") {
@@ -75,6 +79,7 @@ export const GenericNode = memo(
       [data, id, labelValue]
     );
 
+    // Update node size on resize
     const handleResize = useCallback(
       (evt: any, { width, height }: { width: number; height: number }) => {
         setNodeSize({ width, height });
@@ -82,6 +87,7 @@ export const GenericNode = memo(
       []
     );
 
+    // Define consistent text styles
     const getTextStyle = () => ({
       fontFamily: data.style?.fontFamily || "Arial",
       fontSize: `${data.style?.fontSize || 12}px`,
@@ -93,6 +99,15 @@ export const GenericNode = memo(
       lineHeight: `${data.style?.lineHeight || 1.2}`,
     });
 
+    // Calculate maximum lines for truncation
+    const calculateMaxLines = () => {
+      const fontSize = data.style?.fontSize || 12;
+      const lineHeight = data.style?.lineHeight || 1.2;
+      const textHeight = fontSize * lineHeight;
+      return Math.floor(nodeSize.height / textHeight);
+    };
+
+    // Base node style with centering
     const nodeStyle: React.CSSProperties = {
       width: nodeSize.width,
       height: nodeSize.height,
@@ -102,6 +117,7 @@ export const GenericNode = memo(
       overflow: "hidden",
     };
 
+    // Shape style with centering
     const shapeStyle: React.CSSProperties = {
       width: "100%",
       height: "100%",
@@ -110,6 +126,7 @@ export const GenericNode = memo(
       justifyContent: "center",
     };
 
+    // Common shape properties
     const shapeProps = {
       fill: data.style?.backgroundColor || "white",
       stroke: data.style?.borderColor || "#000000",
@@ -122,6 +139,33 @@ export const GenericNode = memo(
             : undefined,
     };
 
+    // Render text within SVG using foreignObject
+    const renderTextWithForeignObject = (
+      x: number,
+      y: number,
+      width: number,
+      height: number
+    ) => (
+      <foreignObject x={x} y={y} width={width} height={height}>
+        <div
+          style={{
+            width: "100%",
+            height: "100%",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            ...getTextStyle(),
+            whiteSpace: "normal",
+            wordWrap: "break-word",
+            overflow: "hidden",
+          }}
+        >
+          {labelValue}
+        </div>
+      </foreignObject>
+    );
+
+    // Render different shapes with text alignment and truncation
     const renderShape = () => {
       const svgStyle: React.CSSProperties = {
         width: "100%",
@@ -130,9 +174,7 @@ export const GenericNode = memo(
         maxHeight: "100%",
       };
 
-      const textProps = {
-        style: getTextStyle(),
-      };
+      const maxLines = calculateMaxLines();
 
       switch (data.shape) {
         case "circle":
@@ -144,16 +186,7 @@ export const GenericNode = memo(
               preserveAspectRatio="xMidYMid meet"
             >
               <ellipse cx="50" cy="50" rx="45" ry="45" {...shapeProps} />
-              <text
-                x="50"
-                y="50"
-                dominantBaseline="middle"
-                textAnchor="middle"
-                style={textProps.style}
-                fill={data.style?.textColor || "#000000"}
-              >
-                {labelValue}
-              </text>
+              {renderTextWithForeignObject(10, 10, 80, 80)}
             </svg>
           );
         case "diamond":
@@ -164,16 +197,7 @@ export const GenericNode = memo(
               preserveAspectRatio="xMidYMid meet"
             >
               <polygon points="50,5 95,50 50,95 5,50" {...shapeProps} />
-              <text
-                x="50"
-                y="50"
-                dominantBaseline="middle"
-                textAnchor="middle"
-                style={textProps.style}
-                fill={data.style?.textColor || "#000000"}
-              >
-                {labelValue}
-              </text>
+              {renderTextWithForeignObject(10, 10, 80, 80)}
             </svg>
           );
         case "hexagon":
@@ -187,16 +211,7 @@ export const GenericNode = memo(
                 points="25,5 75,5 95,50 75,95 25,95 5,50"
                 {...shapeProps}
               />
-              <text
-                x="50"
-                y="50"
-                dominantBaseline="middle"
-                textAnchor="middle"
-                style={textProps.style}
-                fill={data.style?.textColor || "#000000"}
-              >
-                {labelValue}
-              </text>
+              {renderTextWithForeignObject(10, 10, 80, 80)}
             </svg>
           );
         case "triangle":
@@ -207,23 +222,14 @@ export const GenericNode = memo(
               preserveAspectRatio="xMidYMid meet"
             >
               <polygon points="50,5 95,95 5,95" {...shapeProps} />
-              <text
-                x="50"
-                y="60"
-                dominantBaseline="middle"
-                textAnchor="middle"
-                style={textProps.style}
-                fill={data.style?.textColor || "#000000"}
-              >
-                {labelValue}
-              </text>
+              {renderTextWithForeignObject(20, 40, 60, 50)}
             </svg>
           );
         case "actor":
           return (
             <svg
               style={svgStyle}
-              viewBox="0 0 100 100"
+              viewBox="0 0 100 120"
               preserveAspectRatio="xMidYMid meet"
             >
               <circle cx="50" cy="20" r="15" {...shapeProps} />
@@ -259,16 +265,7 @@ export const GenericNode = memo(
                 stroke={data.style?.borderColor || "#000000"}
                 strokeWidth={data.style?.borderWidth || 1}
               />
-              <text
-                x="50"
-                y="95"
-                dominantBaseline="middle"
-                textAnchor="middle"
-                style={textProps.style}
-                fill={data.style?.textColor || "#000000"}
-              >
-                {labelValue}
-              </text>
+              {renderTextWithForeignObject(10, 90, 80, 30)}
             </svg>
           );
         case "class":
@@ -285,12 +282,25 @@ export const GenericNode = memo(
               <div
                 className="border-b-2 p-2 font-bold"
                 style={{
-                  ...getTextStyle(),
                   borderColor: data.style?.borderColor || "#000000",
                   backgroundColor: data.style?.backgroundColor || "white",
                 }}
               >
-                {labelValue}
+                <div
+                  style={{
+                    width: "100%",
+                    display: "-webkit-box",
+                    WebkitLineClamp: maxLines,
+                    WebkitBoxOrient: "vertical",
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    ...getTextStyle(),
+                    whiteSpace: "normal",
+                    wordWrap: "break-word",
+                  }}
+                >
+                  {labelValue}
+                </div>
               </div>
               <div
                 className="border-b-2 p-2"
@@ -329,8 +339,22 @@ export const GenericNode = memo(
               >
                 «interface»
               </div>
-              <div className="p-2" style={getTextStyle()}>
-                {labelValue}
+              <div className="p-2">
+                <div
+                  style={{
+                    width: "100%",
+                    display: "-webkit-box",
+                    WebkitLineClamp: maxLines,
+                    WebkitBoxOrient: "vertical",
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    ...getTextStyle(),
+                    whiteSpace: "normal",
+                    wordWrap: "break-word",
+                  }}
+                >
+                  {labelValue}
+                </div>
               </div>
             </div>
           );
@@ -339,7 +363,6 @@ export const GenericNode = memo(
             <div
               style={{
                 ...shapeStyle,
-                ...getTextStyle(),
                 borderRadius: "8px",
                 borderColor: data.style?.borderColor || "#000000",
                 borderStyle: data.style?.borderStyle || "solid",
@@ -347,7 +370,25 @@ export const GenericNode = memo(
                 backgroundColor: data.style?.backgroundColor || "white",
               }}
             >
-              {labelValue}
+              <div
+                style={{
+                  width: "100%",
+                  height: "100%",
+                  // display: "-webkit-box",
+                  WebkitLineClamp: maxLines,
+                  WebkitBoxOrient: "vertical",
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                  ...getTextStyle(),
+                  whiteSpace: "normal",
+                  wordWrap: "break-word",
+                  display: "flex",
+                  justifyContent: "center",
+                  alignItems: "center",
+                }}
+              >
+                {labelValue}
+              </div>
             </div>
           );
         default:
@@ -355,14 +396,30 @@ export const GenericNode = memo(
             <div
               style={{
                 ...shapeStyle,
-                ...getTextStyle(),
                 borderColor: data.style?.borderColor || "#000000",
                 borderStyle: data.style?.borderStyle || "solid",
                 borderWidth: `${data.style?.borderWidth || 1}px`,
                 backgroundColor: data.style?.backgroundColor || "white",
               }}
             >
-              {labelValue}
+              <div
+                style={{
+                  width: "100%",
+                  height: "100%",
+                  display: "flex",
+                  WebkitLineClamp: maxLines,
+                  WebkitBoxOrient: "vertical",
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                  ...getTextStyle(),
+                  whiteSpace: "normal",
+                  wordWrap: "break-word",
+                  justifyContent: "center",
+                  alignItems: "center",
+                }}
+              >
+                {labelValue}
+              </div>
             </div>
           );
       }
@@ -380,6 +437,7 @@ export const GenericNode = memo(
           style={{ ...nodeStyle, ...shapeStyle }}
           className={`${data.style?.locked ? "cursor-not-allowed" : "cursor-pointer"}`}
         >
+          {/* Target Handles */}
           <Handle
             type="target"
             position={Position.Top}
@@ -409,6 +467,7 @@ export const GenericNode = memo(
             id="d"
           />
 
+          {/* Source Handles */}
           <Handle
             type="source"
             position={Position.Top}
@@ -438,6 +497,7 @@ export const GenericNode = memo(
             id="h"
           />
 
+          {/* Render editable input or shape */}
           {isEditing ? (
             <input
               type="text"

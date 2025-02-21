@@ -146,6 +146,7 @@ const TableView: React.FC<TableViewProps> = ({
   canvasId,
   onSave,
 }) => {
+  console.log("🚀 ~ columns:", columns);
   const [sortField, setSortField] = useState<SortField>(null);
   const [sortDirection, setSortDirection] = useState<SortDirection>(null);
   const [newTaskName, setNewTaskName] = useState("");
@@ -315,6 +316,7 @@ const TableView: React.FC<TableViewProps> = ({
 
   const sortedHierarchy = useMemo(() => {
     const updatedNodes = insertRollupDataIntoNodes(nodes);
+
     const hierarchy = createHierarchy(updatedNodes);
 
     if (!sortField || !sortDirection) return hierarchy;
