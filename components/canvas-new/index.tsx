@@ -13,6 +13,7 @@ import { Sidebar } from "./sidebar";
 import { Toolbar } from "./toolbar";
 import { UMLEditor } from "./uml-editor";
 import { VerticalNav } from "./vertical-nav";
+import { json } from "stream/consumers";
 
 interface NodeStyle {
   fontFamily: string;
@@ -804,6 +805,7 @@ export default function CanvasNew({ canvasId }: FigmaInterfaceProps) {
     const savedCanvas = localStorage.getItem(`canvas_${canvasId}`);
     if (savedCanvas) {
       const parsedCanvas = JSON.parse(savedCanvas);
+
       setCurrentState(parsedCanvas.currentState);
       setColumns(parsedCanvas.columns);
       setProjectName(parsedCanvas.projectName);
@@ -862,6 +864,23 @@ export default function CanvasNew({ canvasId }: FigmaInterfaceProps) {
   const handleCanvasNameChange = useCallback(
     (canvasId: string, newName: string) => {
       setProjectName(newName);
+
+      // change name in cvanvas obect in localstorage
+      const currentCanvas = localStorage.getItem(`canvas_${canvasId}`);
+
+      if (currentCanvas) {
+        const parsedCanvas = JSON.parse(currentCanvas);
+
+        const updatedCanvas = {
+          ...parsedCanvas,
+          projectName: newName,
+        };
+
+        localStorage.setItem(
+          `canvas_${canvasId}`,
+          JSON.stringify(updatedCanvas)
+        );
+      }
 
       const updatedFolders = folders.map((folder) => ({
         ...folder,

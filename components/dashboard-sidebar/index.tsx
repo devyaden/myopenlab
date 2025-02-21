@@ -99,14 +99,18 @@ export function SidebarDashboard({
     description: string,
     folderId?: string | null
   ) => {
-    console.log("🚀 ~ folderId:", folderId);
     const newCanvas = {
       id: Date.now().toString(),
+      projectName: name,
       name,
       description,
       folderId,
+      columns: [],
+      currentState: { nodes: [], edges: [], nodeStyles: {}, edgeStyles: {} },
     };
     let updatedFolders;
+
+    localStorage.setItem(`canvas_${newCanvas.id}`, JSON.stringify(newCanvas));
 
     if (folderId && folderId !== "0") {
       const targetFolder = folders.find((folder) => folder.id === folderId);
