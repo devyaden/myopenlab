@@ -711,8 +711,6 @@ const TableView: React.FC<TableViewProps> = ({
     });
   }, [canvasId]);
 
-  console.log("---- columns ----", columns);
-
   const renderHierarchy = (
     nodes: HierarchyNode[],
     level = 0
