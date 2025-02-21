@@ -223,6 +223,9 @@ const TableView: React.FC<TableViewProps> = ({
 
     const updatedNodes = nodes.map((node) => ({ ...node }));
 
+    // Cache related canvas data to avoid multiple localStorage reads
+    const relatedCanvasCache: Record<string, any> = {};
+
     updatedNodes.forEach((node) => {
       rollupColumns.forEach((rollupColumn) => {
         if (!rollupColumn.rollupRelation || !rollupColumn.rollupColumn) {
@@ -230,6 +233,7 @@ const TableView: React.FC<TableViewProps> = ({
           return;
         }
 
+        // Get all relation columns that connect to the canvas referenced by this rollup
         const relationColumns = columns.filter(
           (col) =>
             col.type === "Relation" &&
@@ -241,41 +245,68 @@ const TableView: React.FC<TableViewProps> = ({
           return;
         }
 
-        const relatedCanvasData = localStorage.getItem(
-          `canvas_${rollupColumn.rollupRelation}`
-        );
-
-        if (!relatedCanvasData) {
-          node.data[rollupColumn.title] = null;
-          return;
+        // Get or cache related canvas data
+        if (!relatedCanvasCache[rollupColumn.rollupRelation]) {
+          const relatedCanvasData = localStorage.getItem(
+            `canvas_${rollupColumn.rollupRelation}`
+          );
+          if (!relatedCanvasData) {
+            node.data[rollupColumn.title] = null;
+            return;
+          }
+          relatedCanvasCache[rollupColumn.rollupRelation] =
+            JSON.parse(relatedCanvasData);
         }
 
-        const parsedRelatedCanvas = JSON.parse(relatedCanvasData);
-        const relatedNodes = parsedRelatedCanvas?.currentState?.nodes || [];
+        const relatedNodes =
+          relatedCanvasCache[rollupColumn.rollupRelation]?.currentState
+            ?.nodes || [];
 
-        let rollupValue = null;
-        for (const relationColumn of relationColumns) {
+        // Collect all related values across all relation columns
+        const allRelatedValues: any[] = [];
+
+        relationColumns.forEach((relationColumn) => {
           const relationData = node.data[relationColumn.title];
 
-          if (!Array.isArray(relationData) || relationData.length === 0)
-            continue;
-
-          const relatedValues = relationData
-            .map((relation) => {
-              const relatedNode = relatedNodes.find(
-                (rNode: Node) => rNode.id === relation.id
+          if (Array.isArray(relationData) && relationData.length > 0) {
+            // Map each relation to its corresponding value
+            const values = relationData
+              .map((relation) => {
+                const relatedNode = relatedNodes.find(
+                  (rNode: Node) => rNode.id === relation.id
+                );
+                if (relatedNode) {
+                  return {
+                    value:
+                      relatedNode.data[rollupColumn.rollupColumn as string],
+                    label: relation.label, // Preserve the label from the relation
+                  };
+                }
+                return null;
+              })
+              .filter(
+                (value) =>
+                  value !== null &&
+                  value.value !== undefined &&
+                  value.value !== null
               );
-              return relatedNode?.data[rollupColumn.rollupColumn as string];
-            })
-            .filter((value) => value !== undefined && value !== null);
 
-          if (relatedValues.length > 0) {
-            rollupValue = relatedValues[0];
-            break;
+            allRelatedValues.push(...values);
           }
-        }
+        });
 
-        node.data[rollupColumn.title] = rollupValue;
+        // Store all related values for this rollup column
+        if (allRelatedValues.length > 0) {
+          // Format the values for display
+          const formattedValues = allRelatedValues.map((item) => ({
+            value: item.value,
+            label: item.label,
+          }));
+
+          node.data[rollupColumn.title] = formattedValues;
+        } else {
+          node.data[rollupColumn.title] = null;
+        }
       });
     });
 
@@ -680,10 +711,7 @@ const TableView: React.FC<TableViewProps> = ({
     });
   }, [canvasId]);
 
-  console.log(
-    "------------------------ columns ---------------------",
-    columns
-  );
+  console.log("---- columns ----", columns);
 
   const renderHierarchy = (
     nodes: HierarchyNode[],
@@ -850,6 +878,25 @@ const TableView: React.FC<TableViewProps> = ({
                           handleSave(node.id, column.title, value);
                         }}
                       />
+                    ) : column.type === "Rollup" ? (
+                      <>
+                        {node.data[column.title] ? (
+                          <div className="flex flex-wrap gap-1">
+                            {node.data[column.title].map(
+                              (item: any, index: number) => (
+                                <span
+                                  key={index}
+                                  className="text-sm text-gray-600"
+                                >
+                                  {item.label}: {item.value}
+                                </span>
+                              )
+                            )}
+                          </div>
+                        ) : (
+                          "—"
+                        )}
+                      </>
                     ) : (
                       <Input
                         type={column.type === "Number" ? "number" : "text"}
@@ -905,6 +952,25 @@ const TableView: React.FC<TableViewProps> = ({
                               {node.data[column.title] || "—"}
                             </p>
                           </div>
+                        ) : column.type === "Rollup" ? (
+                          <>
+                            {node.data[column.title] ? (
+                              <div className="flex flex-wrap gap-1">
+                                {node.data[column.title].map(
+                                  (item: any, index: number) => (
+                                    <span
+                                      key={index}
+                                      className="text-sm text-gray-600"
+                                    >
+                                      {item.value}
+                                    </span>
+                                  )
+                                )}
+                              </div>
+                            ) : (
+                              "—"
+                            )}
+                          </>
                         ) : column.type === "Relation" ? (
                           <>
                             {node.data[column.title] &&
@@ -957,8 +1023,6 @@ const TableView: React.FC<TableViewProps> = ({
     setEditingColumnTitle(columnTitle);
     setNewColumnTitle(columnTitle);
   };
-
-  console.log("-----------------", isHiddenColumnsMenuOpen);
 
   return (
     <div className="p-4 mx-auto">
