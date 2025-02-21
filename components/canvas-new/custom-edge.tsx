@@ -102,12 +102,9 @@ const CustomEdge = (params: any) => {
   };
 
   const handleDoubleClick = (event: { preventDefault: () => void }) => {
-    console.log("🚀 ~ CustomEdge ~ event:", event);
     event.preventDefault();
     setIsEditing(true);
   };
-
-  console.log("------- isEditing", isEditing);
 
   const handleLabelChange = (event: { target: { value: any } }) => {
     setLabelText(event.target.value);
