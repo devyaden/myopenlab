@@ -14,6 +14,7 @@ import { Toolbar } from "./toolbar";
 import { UMLEditor } from "./uml-editor";
 import { VerticalNav } from "./vertical-nav";
 import useUndoable from "use-undoable";
+import { ImportModal } from "./import-modal";
 
 interface NodeStyle {
   fontFamily: string;
@@ -67,6 +68,7 @@ export default function CanvasNew({ canvasId }: FigmaInterfaceProps) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [selectedNode, setSelectedNode] = useState<string | null>(null);
   const [selectedNodes, setSelectedNodes] = useState<string[]>([]);
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   // const [currentState, setCurrentState] = useState<AppState>({
   //   nodes: [],
   //   edges: [],
@@ -918,6 +920,46 @@ export default function CanvasNew({ canvasId }: FigmaInterfaceProps) {
     ? currentState.edges.find((edge) => edge.id === selectedEdge)?.data
     : null;
 
+  const bringForward = useCallback(() => {
+    if (selectedNodes.length > 0) {
+      const updatedNodes = [...currentState.nodes];
+      selectedNodes.forEach((nodeId) => {
+        const index = updatedNodes.findIndex((node) => node.id === nodeId);
+        if (index < updatedNodes.length - 1) {
+          const temp = updatedNodes[index];
+          updatedNodes[index] = updatedNodes[index + 1];
+          updatedNodes[index + 1] = temp;
+        }
+      });
+      updateState({ nodes: updatedNodes });
+    }
+  }, [selectedNodes, currentState.nodes, updateState]);
+
+  const sendBackward = useCallback(() => {
+    if (selectedNodes.length > 0) {
+      const updatedNodes = [...currentState.nodes];
+      selectedNodes.forEach((nodeId) => {
+        const index = updatedNodes.findIndex((node) => node.id === nodeId);
+        if (index > 0) {
+          const temp = updatedNodes[index];
+          updatedNodes[index] = updatedNodes[index - 1];
+          updatedNodes[index - 1] = temp;
+        }
+      });
+      updateState({ nodes: updatedNodes });
+    }
+  }, [selectedNodes, currentState.nodes, updateState]);
+
+  // Add this function inside the FigmaInterface component
+  const handleImportCanvas = useCallback(
+    (importedData: any) => {
+      setCurrentState(importedData);
+      setColumns(importedData.columns || []);
+      toast.success("Canvas imported successfully!");
+    },
+    [setCurrentState]
+  );
+
   return (
     <ReactFlowProvider>
       <div className="min-h-screen bg-white flex flex-col w-screen">
@@ -946,6 +988,9 @@ export default function CanvasNew({ canvasId }: FigmaInterfaceProps) {
           onSave={saveToLocalStorage}
           onRestore={restoreFromLocalStorage}
           onBackToDashboard={() => router.push("/")}
+          onImportCanvas={handleImportCanvas}
+          onBringForward={bringForward}
+          onSendBackward={sendBackward}
         />
         <Toolbar
           key={selectedNode || selectedEdge || "no-selection"}

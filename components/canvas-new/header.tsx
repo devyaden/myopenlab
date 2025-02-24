@@ -28,6 +28,8 @@ import { toast } from "react-hot-toast";
 import type React from "react";
 import { toPng, toJpeg, toSvg } from "html-to-image";
 import { jsPDF } from "jspdf";
+import { ImportModal } from "./import-modal";
+import { Dialog } from "../ui/dialog";
 
 const MAX_TITLE_LENGTH = 50;
 
@@ -50,6 +52,9 @@ interface HeaderProps {
   onRestore: () => void;
   onBackToDashboard: () => void;
   currentState: any;
+  onImportCanvas: (data: any) => void;
+  onBringForward: () => void;
+  onSendBackward: () => void;
 }
 
 export function Header({
@@ -71,10 +76,14 @@ export function Header({
   onRestore,
   onBackToDashboard,
   currentState,
+  onImportCanvas,
+  onBringForward,
+  onSendBackward,
 }: HeaderProps) {
   const [documentStatus, setDocumentStatus] = useState("Draft");
   const [isEditing, setIsEditing] = useState(false);
   const [titleError, setTitleError] = useState(false);
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
 
   const handleTitleDoubleClick = () => {
     setIsEditing(true);
@@ -218,7 +227,7 @@ export function Header({
         console.log("Creating new document");
         break;
       case "Open":
-        // Implement open document logic
+        setIsImportModalOpen(true);
         console.log("Opening document");
         break;
       case "Save":
@@ -305,12 +314,10 @@ export function Header({
         console.log("Inserting component");
         break;
       case "Bring Forward":
-        // Implement bring forward logic
-        console.log("Bringing forward");
+        onBringForward();
         break;
       case "Send Backward":
-        // Implement send backward logic
-        console.log("Sending backward");
+        onSendBackward();
         break;
       case "Group":
         // Implement group logic
@@ -590,6 +597,11 @@ export function Header({
           </Avatar>
         </div>
       </div>
+      <ImportModal
+        isOpen={isImportModalOpen}
+        onClose={() => setIsImportModalOpen(false)}
+        onImport={onImportCanvas}
+      />
     </div>
   );
 }
