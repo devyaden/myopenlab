@@ -13,6 +13,7 @@ import { Sidebar } from "./sidebar";
 import { Toolbar } from "./toolbar";
 import { UMLEditor } from "./uml-editor";
 import { VerticalNav } from "./vertical-nav";
+import useUndoable from "use-undoable";
 
 interface NodeStyle {
   fontFamily: string;
@@ -66,11 +67,19 @@ export default function CanvasNew({ canvasId }: FigmaInterfaceProps) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [selectedNode, setSelectedNode] = useState<string | null>(null);
   const [selectedNodes, setSelectedNodes] = useState<string[]>([]);
-  const [currentState, setCurrentState] = useState<AppState>({
-    nodes: [],
-    edges: [],
-    nodeStyles: {},
-  });
+  // const [currentState, setCurrentState] = useState<AppState>({
+  //   nodes: [],
+  //   edges: [],
+  //   nodeStyles: {},
+  // });
+
+  const [currentState, setCurrentState, { undo, redo, canUndo, canRedo }] =
+    useUndoable<AppState>({
+      nodes: [],
+      edges: [],
+      nodeStyles: {},
+    });
+
   const [history, setHistory] = useState<AppState[]>([]);
   const [historyIndex, setHistoryIndex] = useState(-1);
   const [selectedEdge, setSelectedEdge] = useState<string | null>(null);
@@ -281,21 +290,21 @@ export default function CanvasNew({ canvasId }: FigmaInterfaceProps) {
     [updateState]
   );
 
-  const undo = useCallback(() => {
-    if (historyIndex > 0) {
-      const newIndex = historyIndex - 1;
-      setHistoryIndex(newIndex);
-      setCurrentState(history[newIndex]);
-    }
-  }, [history, historyIndex]);
+  // const undo = useCallback(() => {
+  //   if (historyIndex > 0) {
+  //     const newIndex = historyIndex - 1;
+  //     setHistoryIndex(newIndex);
+  //     setCurrentState(history[newIndex]);
+  //   }
+  // }, [history, historyIndex]);
 
-  const redo = useCallback(() => {
-    if (historyIndex < history.length - 1) {
-      const newIndex = historyIndex + 1;
-      setHistoryIndex(newIndex);
-      setCurrentState(history[newIndex]);
-    }
-  }, [history, historyIndex]);
+  // const redo = useCallback(() => {
+  //   if (historyIndex < history.length - 1) {
+  //     const newIndex = historyIndex + 1;
+  //     setHistoryIndex(newIndex);
+  //     setCurrentState(history[newIndex]);
+  //   }
+  // }, [history, historyIndex]);
 
   const copySelectedNodes = useCallback(() => {
     const nodesToCopy = currentState.nodes
@@ -915,6 +924,8 @@ export default function CanvasNew({ canvasId }: FigmaInterfaceProps) {
         <Header
           onUndo={undo}
           onRedo={redo}
+          canUndo={canUndo}
+          canRedo={canRedo}
           onCut={() => {
             copySelectedNodes();
             deleteSelectedNodes();
@@ -967,6 +978,8 @@ export default function CanvasNew({ canvasId }: FigmaInterfaceProps) {
           selectedNode={selectedNode}
           onUndo={undo}
           onRedo={redo}
+          canUndo={canUndo}
+          canRedo={canRedo}
           onCopy={copySelectedNodes}
           onPaste={pasteNodes}
           onLock={lockNode}

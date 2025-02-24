@@ -113,6 +113,8 @@ interface ToolbarProps {
   setEdgeWidth: (width: number) => void;
   edgeColor: string;
   setEdgeColor: (color: string) => void;
+  canUndo: boolean;
+  canRedo: boolean;
 }
 
 export const Toolbar = React.memo(function Toolbar({
@@ -159,6 +161,8 @@ export const Toolbar = React.memo(function Toolbar({
   setEdgeWidth,
   edgeColor,
   setEdgeColor,
+  canUndo,
+  canRedo,
 }: ToolbarProps) {
   const fontFamilies = [
     "Arial",
@@ -333,11 +337,11 @@ export const Toolbar = React.memo(function Toolbar({
   return (
     <div className="flex items-center gap-2 p-2  overflow-x-auto border-b">
       <div className="flex items-center gap-2 border rounded-lg h-9">
-        <Button variant="ghost" size="sm" onClick={onUndo}>
+        <Button variant="ghost" size="sm" onClick={onUndo} disabled={!canUndo}>
           <CornerUpLeft className="h-3 w-3" />
         </Button>
         <Separator orientation="vertical" className="h-6" />
-        <Button variant="ghost" size="sm" onClick={onRedo}>
+        <Button variant="ghost" size="sm" onClick={onRedo} disabled={!canRedo}>
           <CornerUpRight className="h-3 w-3 " />
         </Button>
       </div>
