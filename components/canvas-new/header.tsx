@@ -522,7 +522,7 @@ export function Header({
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent>
-                    {item.options.map((option) => {
+                    {item.options.map((option: any) => {
                       if (typeof option === "object" && option.submenu) {
                         return (
                           <DropdownMenu key={option.label}>
@@ -532,7 +532,7 @@ export function Header({
                               <ChevronDown className="ml-auto h-4 w-4" />
                             </DropdownMenuTrigger>
                             <DropdownMenuContent side="right" align="start">
-                              {option.submenu.map((subOption) => (
+                              {option.submenu.map((subOption: any) => (
                                 <DropdownMenuItem
                                   key={subOption.label}
                                   onSelect={() =>
@@ -549,8 +549,10 @@ export function Header({
                       }
                       return (
                         <DropdownMenuItem
-                          key={option}
-                          onSelect={() => handleMenuAction(option)}
+                          key={
+                            typeof option === "string" ? option : option.label
+                          }
+                          onSelect={() => handleMenuAction(option as string)}
                         >
                           {option}
                         </DropdownMenuItem>
