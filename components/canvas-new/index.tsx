@@ -924,8 +924,7 @@ export default function CanvasNew({ canvasId }: FigmaInterfaceProps) {
         <Header
           onUndo={undo}
           onRedo={redo}
-          canUndo={canUndo}
-          canRedo={canRedo}
+          currentState={currentState}
           onCut={() => {
             copySelectedNodes();
             deleteSelectedNodes();

@@ -641,7 +641,7 @@ export function UMLEditor({
             }}
           >
             <Background variant={background} />
-            <Controls showZoom={false} />
+            {/* <Controls showZoom={false} /> */}
             {showRulers && <MeasureRuler />}
 
             <MiniMap />

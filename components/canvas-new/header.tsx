@@ -16,11 +16,18 @@ import {
   Send,
   RotateCcw,
   Save,
+  FileImage,
+  FileText,
+  FileJson,
+  Download,
+  DownloadCloud,
 } from "lucide-react";
 import Image from "next/image";
 import { useState } from "react";
 import { toast } from "react-hot-toast";
 import type React from "react";
+import { toPng, toJpeg, toSvg } from "html-to-image";
+import { jsPDF } from "jspdf";
 
 const MAX_TITLE_LENGTH = 50;
 
@@ -42,6 +49,7 @@ interface HeaderProps {
   onSave: () => void;
   onRestore: () => void;
   onBackToDashboard: () => void;
+  currentState: any;
 }
 
 export function Header({
@@ -62,6 +70,7 @@ export function Header({
   onSave,
   onRestore,
   onBackToDashboard,
+  currentState,
 }: HeaderProps) {
   const [documentStatus, setDocumentStatus] = useState("Draft");
   const [isEditing, setIsEditing] = useState(false);
@@ -93,8 +102,117 @@ export function Header({
     }
   };
 
+  const exportAsImage = async (format: "png" | "jpeg" | "svg") => {
+    try {
+      const element = document.querySelector(".react-flow") as HTMLElement;
+      if (!element) {
+        toast.error("No diagram found to export");
+        return;
+      }
+
+      let dataUrl;
+      switch (format) {
+        case "png":
+          dataUrl = await toPng(element, {
+            quality: 1,
+            backgroundColor: "#ffffff",
+          });
+          break;
+        case "jpeg":
+          dataUrl = await toJpeg(element, {
+            quality: 0.95,
+            backgroundColor: "#ffffff",
+          });
+          break;
+        case "svg":
+          dataUrl = await toSvg(element, { backgroundColor: "#ffffff" });
+          break;
+      }
+
+      // Create a download link
+      const link = document.createElement("a");
+      link.download = `${projectName}.${format}`;
+      link.href = dataUrl;
+      link.click();
+
+      toast.success(`Exported as ${format.toUpperCase()}`);
+    } catch (error) {
+      console.error("Export failed:", error);
+      toast.error("Export failed");
+    }
+  };
+
+  const exportAsPDF = async () => {
+    try {
+      const element = document.querySelector(".react-flow") as HTMLElement;
+      if (!element) {
+        toast.error("No diagram found to export");
+        return;
+      }
+
+      const dataUrl = await toPng(element, {
+        quality: 1,
+        backgroundColor: "#ffffff",
+      });
+
+      const pdf = new jsPDF({
+        orientation: "landscape",
+        unit: "px",
+        format: [element.clientWidth, element.clientHeight],
+      });
+
+      pdf.addImage(
+        dataUrl,
+        "PNG",
+        0,
+        0,
+        element.clientWidth,
+        element.clientHeight
+      );
+      pdf.save(`${projectName}.pdf`);
+
+      toast.success("Exported as PDF");
+    } catch (error) {
+      console.error("PDF export failed:", error);
+      toast.error("PDF export failed");
+    }
+  };
+
+  const exportAsJSON = () => {
+    try {
+      const dataStr = JSON.stringify(currentState, null, 2);
+      const dataUri =
+        "data:application/json;charset=utf-8," + encodeURIComponent(dataStr);
+
+      const link = document.createElement("a");
+      link.download = `${projectName}.json`;
+      link.href = dataUri;
+      link.click();
+
+      toast.success("Exported as JSON");
+    } catch (error) {
+      console.error("JSON export failed:", error);
+      toast.error("JSON export failed");
+    }
+  };
+
   const handleMenuAction = (action: string) => {
     switch (action) {
+      case "Export as PNG":
+        exportAsImage("png");
+        break;
+      case "Export as JPEG":
+        exportAsImage("jpeg");
+        break;
+      case "Export as SVG":
+        exportAsImage("svg");
+        break;
+      case "Export as PDF":
+        exportAsPDF();
+        break;
+      case "Export as JSON":
+        exportAsJSON();
+        break;
       case "New":
         // Implement new document creation logic
         console.log("Creating new document");
@@ -339,7 +457,22 @@ export function Header({
               {[
                 {
                   name: "File",
-                  options: ["New", "Open", "Save", "Save As"],
+                  options: [
+                    "New",
+                    "Open",
+                    "Save",
+
+                    {
+                      label: "Save As",
+                      submenu: [
+                        { label: "Export as PNG", icon: FileImage },
+                        { label: "Export as JPEG", icon: FileImage },
+                        { label: "Export as SVG", icon: FileImage },
+                        { label: "Export as PDF", icon: FileText },
+                        { label: "Export as JSON", icon: FileJson },
+                      ],
+                    },
+                  ],
                 },
                 {
                   name: "Edit",
@@ -389,14 +522,40 @@ export function Header({
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent>
-                    {item.options.map((option) => (
-                      <DropdownMenuItem
-                        key={option}
-                        onSelect={() => handleMenuAction(option)}
-                      >
-                        {option}
-                      </DropdownMenuItem>
-                    ))}
+                    {item.options.map((option) => {
+                      if (typeof option === "object" && option.submenu) {
+                        return (
+                          <DropdownMenu key={option.label}>
+                            <DropdownMenuTrigger className="w-full px-2 py-1.5 text-sm hover:bg-accent hover:text-accent-foreground cursor-default flex items-center">
+                              <DownloadCloud className="mr-2 h-4 w-4" />
+                              {option.label}
+                              <ChevronDown className="ml-auto h-4 w-4" />
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent side="right" align="start">
+                              {option.submenu.map((subOption) => (
+                                <DropdownMenuItem
+                                  key={subOption.label}
+                                  onSelect={() =>
+                                    handleMenuAction(subOption.label)
+                                  }
+                                >
+                                  <subOption.icon className="mr-2 h-4 w-4" />
+                                  {subOption.label}
+                                </DropdownMenuItem>
+                              ))}
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        );
+                      }
+                      return (
+                        <DropdownMenuItem
+                          key={option}
+                          onSelect={() => handleMenuAction(option)}
+                        >
+                          {option}
+                        </DropdownMenuItem>
+                      );
+                    })}
                   </DropdownMenuContent>
                 </DropdownMenu>
               ))}
