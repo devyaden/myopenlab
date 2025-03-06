@@ -78,6 +78,7 @@ const config = {
           "primary-text": "#344054",
           "primary-green": "#34C759",
           "primary-red": "#FF3B30",
+          "primary-gray": "#F3F3F3",
         },
       },
       borderRadius: {

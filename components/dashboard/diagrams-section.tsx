@@ -37,7 +37,7 @@ export function DiagramsSection() {
   ];
 
   return (
-    <div className="bg-yadn-pink-light">
+    <div className="bg-yadn-primary-gray">
       <div className="px-4 md:px-8 py-4 md:py-8">
         <h1 className="text-lg md:text-xl font-semibold mb-4 md:mb-6">
           Jumping Into Something New

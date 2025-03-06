@@ -20,7 +20,7 @@ export default function Dashboard() {
         />
 
         <main className="flex-grow overflow-auto">
-          <DashboardNavMenu />
+          {/* <DashboardNavMenu /> */}
           <DiagramsSection />
           <RecentDocuments />
         </main>
