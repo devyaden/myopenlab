@@ -12,7 +12,7 @@ type UserContextType = {
     data: SignupFormData,
     password: string
   ) => Promise<{ error?: string }>;
-  signIn: (email: string, password: string) => Promise<{ error?: string }>;
+  signIn: (email: string, password: string) => Promise<any>;
   checkIfEmailExists: (email: string) => Promise<boolean>;
   signInWithGoogle: () => Promise<void>;
   signOut: () => Promise<void>;
@@ -34,9 +34,9 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
   const fetchUserData = async (userId: string | undefined) => {
     if (!userId) return;
     const { data, error } = await supabase
-      .from("users")
+      .from("user")
       .select("*")
-      .eq("auth_id", userId)
+      .eq("id", userId)
       .single();
     if (error) toast.error("Failed to get user details");
 
@@ -102,7 +102,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
 
   const checkIfEmailExists = async (email: string) => {
     const { data, error } = await supabase
-      .from("users")
+      .from("user")
       .select("*")
       .eq("email", email);
 
@@ -125,7 +125,8 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
       throw error;
     }
 
-    redirect("/protected");
+    // redirect("/protected");
+    window.location.href = "/protected";
   };
 
   const signInWithGoogle = async () => {
@@ -149,7 +150,8 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
   const signOut = async () => {
     await supabase.auth.signOut();
     setUser(null);
-    redirect("/authentication");
+
+    window.location.href = "/authentication";
   };
 
   const forgotPassword = async (email: string) => {

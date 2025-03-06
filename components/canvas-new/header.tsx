@@ -8,28 +8,26 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { toJpeg, toPng, toSvg } from "html-to-image";
+import { jsPDF } from "jspdf";
 import {
   ChevronDown,
   ChevronLeft,
+  DownloadCloud,
+  FileImage,
+  FileJson,
+  FileText,
   Link2,
   Menu,
-  Send,
-  RotateCcw,
   Save,
-  FileImage,
-  FileText,
-  FileJson,
-  Download,
-  DownloadCloud,
+  Send,
 } from "lucide-react";
 import Image from "next/image";
+import type React from "react";
 import { useState } from "react";
 import { toast } from "react-hot-toast";
-import type React from "react";
-import { toPng, toJpeg, toSvg } from "html-to-image";
-import { jsPDF } from "jspdf";
+import { LoadingSpinner } from "../loading-spinner";
 import { ImportModal } from "./import-modal";
-import { Dialog } from "../ui/dialog";
 
 const MAX_TITLE_LENGTH = 50;
 
@@ -49,12 +47,12 @@ interface HeaderProps {
   projectName: string;
   setProjectName: (name: string) => void;
   onSave: () => void;
-  onRestore: () => void;
   onBackToDashboard: () => void;
   currentState: any;
   onImportCanvas: (data: any) => void;
   onBringForward: () => void;
   onSendBackward: () => void;
+  saveLoading: boolean;
 }
 
 export function Header({
@@ -73,12 +71,12 @@ export function Header({
   projectName,
   setProjectName,
   onSave,
-  onRestore,
   onBackToDashboard,
   currentState,
   onImportCanvas,
   onBringForward,
   onSendBackward,
+  saveLoading,
 }: HeaderProps) {
   const [documentStatus, setDocumentStatus] = useState("Draft");
   const [isEditing, setIsEditing] = useState(false);
@@ -361,7 +359,7 @@ export function Header({
   };
 
   return (
-    <div className="border-b border-gray-200 ">
+    <div className="border-b border-gray-200 py-2 ">
       <div className="flex items-center px-4 ">
         <div className="flex items-center gap-4 ">
           <Button
@@ -425,7 +423,7 @@ export function Header({
                 <span className="text-red-500 text-xs">Title too long</span>
               )}
 
-              <DropdownMenu>
+              {/* <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button
                     variant="ghost"
@@ -457,7 +455,7 @@ export function Header({
                     Published
                   </DropdownMenuItem>
                 </DropdownMenuContent>
-              </DropdownMenu>
+              </DropdownMenu> */}
             </div>
 
             <nav className="flex items-center gap-4 overflow-x-auto">
@@ -468,7 +466,6 @@ export function Header({
                     "New",
                     "Open",
                     "Save",
-
                     {
                       label: "Save As",
                       submenu: [
@@ -574,13 +571,14 @@ export function Header({
 
         <div className="ml-auto flex items-center gap-2 ">
           <Button variant="outline" size="sm" onClick={onSave}>
-            <Save className="w-4 h-4 mr-2" />
+            {saveLoading ? (
+              <LoadingSpinner />
+            ) : (
+              <Save className="w-4 h-4 mr-2" />
+            )}
             Save
           </Button>
-          <Button variant="outline" size="sm" onClick={onRestore}>
-            <RotateCcw className="w-4 h-4 mr-2" />
-            Restore
-          </Button>
+
           <div className="inline-flex rounded-lg overflow-hidden border border-yadn-pink h-10">
             <button className="bg-yadn-pink hover:bg-yadn-pink text-white px-4 py-2  flex items-center gap-2">
               <Send className="w-5 h-5" />

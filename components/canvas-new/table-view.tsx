@@ -46,6 +46,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
+import { CanvasData } from "@/types/store";
 import {
   AlignLeft,
   Calendar,
@@ -70,11 +71,11 @@ import {
   X,
 } from "lucide-react";
 import type React from "react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import type { Edge, Node } from "reactflow";
 import * as z from "zod";
 import AddTableCellTrigger from "../canvas/FlowTable/add-table-cell-relation-trigger";
-import { AddColumnSidebar, type ColumnData } from "./add-column-sidebar";
+import { AddColumnSidebar } from "./add-column-sidebar";
 
 const getColumnIcon = (columnType: string) => {
   switch (columnType) {
@@ -114,17 +115,26 @@ const getColumnIcon = (columnType: string) => {
   }
 };
 
+interface ColumnData {
+  id?: string;
+  title: string;
+  type: string;
+  options?: string[];
+  related_canvas?: { canvas_data: CanvasData; name: string };
+  rollupRelation?: string;
+  rollupColumn?: string;
+}
+
 interface TableViewProps {
   nodes: Node[];
   edges: Edge[];
   onNodesChange: (nodes: Node[]) => void;
   onEdgesChange: (edges: Edge[]) => void;
-  columns: ColumnData[];
-  setColumns: React.Dispatch<React.SetStateAction<ColumnData[]>>;
+  columns: any[];
+  setColumns: (columns: ColumnData[]) => void;
   onAddColumn: (columnData: ColumnData) => void;
   currentFolderCanvases: { id: string; name: string }[];
   canvasId: string;
-  onSave: () => void;
 }
 
 type SortDirection = "asc" | "desc" | null;
@@ -144,7 +154,6 @@ const TableView: React.FC<TableViewProps> = ({
   onAddColumn,
   currentFolderCanvases,
   canvasId,
-  onSave,
 }) => {
   const [sortField, setSortField] = useState<SortField>(null);
   const [sortDirection, setSortDirection] = useState<SortDirection>(null);
@@ -215,106 +224,62 @@ const TableView: React.FC<TableViewProps> = ({
     return rootNodes;
   };
 
-  const insertRollupDataIntoNodes = (nodes: Node[]): Node[] => {
-    if (!nodes.length || !columns?.length) return nodes;
+  const insertRollupDataIntoNodes = (): Node[] => {
+    if (!nodes?.length || !columns?.length) {
+      console.log("No nodes or columns provided.");
+      return nodes;
+    }
 
     const rollupColumns = columns.filter((col) => col.type === "Rollup");
-    if (!rollupColumns.length) return nodes;
+    if (!rollupColumns.length) {
+      console.log("No rollup columns found.");
+      return nodes;
+    }
 
-    const updatedNodes = nodes.map((node) => ({ ...node }));
+    // Create a lookup map for relation columns to avoid redundant `.find()` calls
+    const relationColumnMap = new Map(
+      columns
+        .filter((col) => col.type === "Relation" && col.related_canvas_id)
+        .map((col) => [col.related_canvas_id, col])
+    );
 
-    // Cache related canvas data to avoid multiple localStorage reads
-    const relatedCanvasCache: Record<string, any> = {};
+    return nodes.map((node) => {
+      rollupColumns.forEach((column) => {
+        const relatedCanvas = column?.rollup_column?.canvas;
+        if (!relatedCanvas?.canvas_data?.[0]?.nodes) return;
 
-    updatedNodes.forEach((node) => {
-      rollupColumns.forEach((rollupColumn) => {
-        if (!rollupColumn.rollupRelation || !rollupColumn.rollupColumn) {
-          node.data[rollupColumn.title] = null;
-          return;
-        }
+        const relatedCanvasNodes = relatedCanvas.canvas_data[0].nodes;
+        const rollupColumnSourceTitle = column?.title;
+        const rollupColumnTargetTitle = column?.rollup_column?.title;
 
-        // Get all relation columns that connect to the canvas referenced by this rollup
-        const relationColumns = columns.filter(
-          (col) =>
-            col.type === "Relation" &&
-            col.relationCanvas === rollupColumn.rollupRelation
+        // Lookup relationColumn from precomputed map
+        const relationColumn = relationColumnMap.get(relatedCanvas.id);
+        if (!relationColumn) return;
+
+        const relationColumnTitle = relationColumn.title;
+        const currentRelationColumnData = node.data[relationColumnTitle]?.map(
+          (n: Node) => n.id
         );
+        if (!currentRelationColumnData?.length) return;
 
-        if (!relationColumns.length) {
-          node.data[rollupColumn.title] = null;
-          return;
-        }
-
-        // Get or cache related canvas data
-        if (!relatedCanvasCache[rollupColumn.rollupRelation]) {
-          const relatedCanvasData = localStorage.getItem(
-            `canvas_${rollupColumn.rollupRelation}`
-          );
-          if (!relatedCanvasData) {
-            node.data[rollupColumn.title] = null;
-            return;
-          }
-          relatedCanvasCache[rollupColumn.rollupRelation] =
-            JSON.parse(relatedCanvasData);
-        }
-
-        const relatedNodes =
-          relatedCanvasCache[rollupColumn.rollupRelation]?.currentState
-            ?.nodes || [];
-
-        // Collect all related values across all relation columns
-        const allRelatedValues: any[] = [];
-
-        relationColumns.forEach((relationColumn) => {
-          const relationData = node.data[relationColumn.title];
-
-          if (Array.isArray(relationData) && relationData.length > 0) {
-            // Map each relation to its corresponding value
-            const values = relationData
-              .map((relation) => {
-                const relatedNode = relatedNodes.find(
-                  (rNode: Node) => rNode.id === relation.id
-                );
-                if (relatedNode) {
-                  return {
-                    value:
-                      relatedNode.data[rollupColumn.rollupColumn as string],
-                    label: relation.label, // Preserve the label from the relation
-                  };
-                }
-                return null;
-              })
-              .filter(
-                (value) =>
-                  value !== null &&
-                  value.value !== undefined &&
-                  value.value !== null
-              );
-
-            allRelatedValues.push(...values);
-          }
-        });
-
-        // Store all related values for this rollup column
-        if (allRelatedValues.length > 0) {
-          // Format the values for display
-          const formattedValues = allRelatedValues.map((item) => ({
-            value: item.value,
-            label: item.label,
+        // Use a Set for faster lookup when filtering nodes
+        const relationIdSet = new Set(currentRelationColumnData);
+        const rollupData = relatedCanvasNodes
+          .filter((n: Node) => relationIdSet.has(n.id))
+          .map((filteredNode: Node) => ({
+            label: filteredNode.data[rollupColumnSourceTitle],
+            value: filteredNode.data[rollupColumnTargetTitle],
           }));
 
-          node.data[rollupColumn.title] = formattedValues;
-        } else {
-          node.data[rollupColumn.title] = null;
-        }
+        node.data[column.title] = rollupData;
       });
-    });
 
-    return updatedNodes;
+      return node;
+    });
   };
 
   const sortedHierarchy = useMemo(() => {
-    const updatedNodes = insertRollupDataIntoNodes(nodes);
+    const updatedNodes = insertRollupDataIntoNodes();
 
     const hierarchy = createHierarchy(updatedNodes);
 
@@ -351,7 +316,7 @@ const TableView: React.FC<TableViewProps> = ({
     };
 
     return sortNodes(hierarchy);
-  }, [nodes, sortField, sortDirection]);
+  }, [nodes, sortField, sortDirection, columns]);
 
   const deleteNode = (nodeId: string, deleteChildren = false) => {
     const nodesToDelete = new Set<string>([nodeId]);
@@ -372,7 +337,6 @@ const TableView: React.FC<TableViewProps> = ({
 
     const updatedNodes = nodes.filter((node) => !nodesToDelete.has(node.id));
     onNodesChange(updatedNodes);
-    onSave();
   };
 
   const addNewRow = () => {
@@ -402,14 +366,13 @@ const TableView: React.FC<TableViewProps> = ({
     if (newNode.parentNode) {
       setExpandedRows((prev) => new Set(prev).add(newNode.parentNode!));
     }
-    onSave();
   };
 
   const addNewColumn = () => {
     setIsAddColumnSidebarOpen(true);
   };
 
-  const handleAddColumn = (columnData: ColumnData) => {
+  const handleAddColumn = (columnData: any) => {
     onAddColumn(columnData);
   };
 
@@ -496,7 +459,6 @@ const TableView: React.FC<TableViewProps> = ({
         setEditingCell(null);
         setEditedValue(null);
         setValidationError(null);
-        onSave();
       } else {
         setValidationError(errorMessage);
       }
@@ -592,7 +554,6 @@ const TableView: React.FC<TableViewProps> = ({
     }
     setEditingColumnTitle(null);
     setNewColumnTitle("");
-    onSave();
   };
 
   const handleDeleteColumn = (columnTitle: string) => {
@@ -604,7 +565,6 @@ const TableView: React.FC<TableViewProps> = ({
     });
     onNodesChange(updatedNodes);
     setDeleteColumnDialog(null);
-    onSave();
   };
 
   const handleDuplicateColumn = (columnTitle: string) => {
@@ -628,7 +588,6 @@ const TableView: React.FC<TableViewProps> = ({
         },
       }));
       onNodesChange(updatedNodes);
-      onSave();
     }
   };
 
@@ -668,49 +627,34 @@ const TableView: React.FC<TableViewProps> = ({
     });
   };
 
-  const getRelatedCanvasNodes = (canvasId: string) => {
-    const savedCanvas = localStorage.getItem(`canvas_${canvasId}`);
+  const getRelatedCanvasNodes = (canvas_data: any) => {
+    if (!canvas_data) return null;
 
-    if (savedCanvas) {
-      const canvasData = JSON.parse(savedCanvas);
+    const columnsData = canvas_data?.[0]?.nodes?.map((node: Node) => {
+      return { ...node.data, id: node.id };
+    });
 
-      const columnsData = canvasData?.currentState?.nodes?.map((node: Node) => {
-        return { ...node.data, id: node.id };
-      });
+    const canvasDetails = {
+      canvasName: canvas_data.name,
+      columns: columnsData,
+    };
 
-      const canvasDetails = {
-        canvasName: canvasData?.projectName,
-        columns: columnsData,
-      };
-
-      return canvasDetails;
-    }
-
-    return null;
+    return canvasDetails;
   };
 
   const getRelatedCanvasesWithColumns = useCallback(() => {
-    const currentCanvasDetails = localStorage.getItem(`canvas_${canvasId}`);
-    if (!currentCanvasDetails) return [];
+    const relationColumns = columns.filter((col) => col.type === "Relation");
 
-    const { columns = [] } = JSON.parse(currentCanvasDetails);
-    const relationColumns = columns.filter(
-      (col: any) => col.type === "Relation"
-    );
+    if (relationColumns.length === 0) return [];
 
-    const uniqueCanvasIds = new Set(
-      relationColumns.map(({ relationCanvas }: any) => relationCanvas)
-    );
-
-    return Array.from(uniqueCanvasIds).flatMap((relationCanvas) => {
-      const canvasDetails = localStorage.getItem(`canvas_${relationCanvas}`);
-      if (!canvasDetails) return [];
-
-      const { projectName, columns } = JSON.parse(canvasDetails);
-
-      return { canvasName: projectName, columns, id: relationCanvas };
+    return relationColumns.map((column) => {
+      return {
+        canvasName: column.related_canvas?.name,
+        columns: column.related_canvas?.columns,
+        id: column.related_canvas?.id,
+      };
     });
-  }, [canvasId]);
+  }, [{ ...columns }, canvasId]);
 
   const renderHierarchy = (
     nodes: HierarchyNode[],
@@ -792,7 +736,7 @@ const TableView: React.FC<TableViewProps> = ({
                           <SelectValue placeholder="Select option" />
                         </SelectTrigger>
                         <SelectContent>
-                          {column.options?.map((option) => (
+                          {column.options?.map((option: any) => (
                             <SelectItem
                               key={option}
                               value={option || "default"}
@@ -804,7 +748,7 @@ const TableView: React.FC<TableViewProps> = ({
                       </Select>
                     ) : column.type === "Multiselect" ? (
                       <MultiSelect
-                        options={(column.options || []).map((option) => ({
+                        options={(column.options || []).map((option: any) => ({
                           label: option,
                           value: option,
                         }))}
@@ -869,9 +813,10 @@ const TableView: React.FC<TableViewProps> = ({
                       <AddTableCellTrigger
                         value={editedValue || []}
                         label="Testing"
-                        relatedCanvasData={getRelatedCanvasNodes(
-                          column.relationCanvas as string
-                        )}
+                        relatedCanvasData={getRelatedCanvasNodes({
+                          ...column.related_canvas?.canvas_data,
+                          name: column.related_canvas?.name,
+                        })}
                         onSelectValue={(value) => {
                           setEditedValue(value);
                           handleSave(node.id, column.title, value);
@@ -887,7 +832,7 @@ const TableView: React.FC<TableViewProps> = ({
                                   key={index}
                                   className="text-sm text-gray-600"
                                 >
-                                  {item.label}: {item.value}
+                                  {item.value ?? "undefined"}
                                 </span>
                               )
                             )}

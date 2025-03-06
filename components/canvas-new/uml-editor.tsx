@@ -10,7 +10,6 @@ import {
 import ReactFlow, {
   Background,
   BackgroundVariant,
-  Controls,
   MarkerType,
   MiniMap,
   addEdge,
@@ -26,7 +25,7 @@ import ReactFlow, {
   type Node as ReactFlowNode,
 } from "reactflow";
 import "reactflow/dist/style.css";
-import type { ColumnData } from "./add-column-sidebar";
+
 import CustomEdge from "./custom-edge";
 import MeasureRuler from "./measure-ruler";
 import { GenericNode } from "./nodes/generic-node";
@@ -42,6 +41,12 @@ const nodeTypes = {
   textNode: TextNode,
   imageNode: ImageNode,
 };
+
+interface ColumnData {
+  id: string;
+  name: string;
+  type: "text" | "number" | "date";
+}
 
 interface UMLEditorProps {
   nodes: Node[];
@@ -59,12 +64,11 @@ interface UMLEditorProps {
   onChangeEdgeLabel: (edgeId: string, label: string) => void;
   onAddImage: (position?: any) => void;
   viewMode: "canvas" | "table";
-  onAddColumn: (columnData: ColumnData) => void;
-  columns: ColumnData[];
-  setColumns: React.Dispatch<React.SetStateAction<ColumnData[]>>;
+  onAddColumn: (columnData: any) => void;
+  columns: any[];
+  setColumns: (columns: any[]) => void;
   currentFolderCanvases: { id: string; name: string }[];
   canvasId: string;
-  onSave: () => void;
 }
 
 const sortNodes = (node: ReactFlowNode, nodes: ReactFlowNode[]) => {
@@ -122,7 +126,6 @@ export function UMLEditor({
   setColumns,
   currentFolderCanvases,
   canvasId,
-  onSave,
 }: UMLEditorProps) {
   const { getNode } = useReactFlow();
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
@@ -171,7 +174,7 @@ export function UMLEditor({
       onNodesChange(updatedNodes);
 
       const selectChange = changes.find((change) => change.type === "select");
-      onSave();
+
       if (selectChange) {
         const selectedNodeIds = updatedNodes
           .filter((node) => node.selected)
@@ -415,7 +418,6 @@ export function UMLEditor({
 
       onNodesChange(updatedNodes);
       onEdgesChange(updatedEdges);
-      onSave();
     },
     [nodes, edges, onNodesChange, onEdgesChange]
   );
@@ -658,7 +660,6 @@ export function UMLEditor({
           setColumns={setColumns}
           currentFolderCanvases={currentFolderCanvases}
           canvasId={canvasId}
-          onSave={onSave}
         />
       )}
     </div>

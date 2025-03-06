@@ -1,4 +1,5 @@
 "use client";
+
 import { CreateNewModal } from "@/components/dashboard-sidebar/create-new-modal";
 import {
   AlertDialog,
@@ -41,11 +42,16 @@ import {
   FileText,
   Folder,
   MoreVertical,
+  PlusCircle,
   Trash,
 } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { CreateCanvasModal } from "./create-canvas-modal";
+
+import { Canvas, Folder as FolderType } from "@/types/sidebar";
+import { useSidebarStore } from "@/lib/store/useSidebar";
+import { useUser } from "@/lib/contexts/userContext";
 
 interface SidebarDashboardProps {
   onCanvasNameChange: (canvasId: string, newName: string) => void;
@@ -54,13 +60,18 @@ interface SidebarDashboardProps {
 export function SidebarDashboard({
   onCanvasNameChange,
 }: SidebarDashboardProps) {
-  const [folders, setFolders] = useState<
-    {
-      id: string;
-      name: string;
-      canvases: { id: string; name: string; description: string }[];
-    }[]
-  >([]);
+  const {
+    folders,
+    createFolder,
+    createCanvas,
+    updateFolder,
+    updateCanvas,
+    deleteFolder,
+    deleteCanvas,
+    getFolders,
+  } = useSidebarStore();
+
+  const { user } = useUser();
 
   const [isCreateCanvasModalOpen, setIsCreateCanvasModalOpen] = useState(false);
   const [isCreateNewModalOpen, setIsCreateNewModalOpen] = useState(false);
@@ -74,93 +85,27 @@ export function SidebarDashboard({
   } | null>(null);
   const [openFolders, setOpenFolders] = useState<string[]>([]);
 
-  useEffect(() => {
-    const savedFolders = localStorage.getItem("savedFolders");
-    if (savedFolders) {
-      setFolders(JSON.parse(savedFolders));
-    }
-  }, []);
-
-  const handleCreateFolder = (name: string) => {
+  const handleCreateFolder = async (name: string) => {
     if (name.trim()) {
-      const newFolder = {
-        id: Date.now().toString(),
-        name: name.trim(),
-        canvases: [],
-      };
-      const updatedFolders = [...folders, newFolder];
-      setFolders(updatedFolders);
-      localStorage.setItem("savedFolders", JSON.stringify(updatedFolders));
+      await createFolder(name, user?.id as string);
     }
   };
 
-  const handleCreateCanvas = (
+  const handleCreateCanvas = async (
     name: string,
     description: string,
     folderId?: string | null
   ) => {
-    const newCanvas = {
-      id: Date.now().toString(),
-      projectName: name,
+    await createCanvas(
       name,
       description,
-      folderId,
-      columns: [],
-      currentState: { nodes: [], edges: [], nodeStyles: {}, edgeStyles: {} },
-    };
-    let updatedFolders;
-
-    localStorage.setItem(`canvas_${newCanvas.id}`, JSON.stringify(newCanvas));
-
-    if (folderId && folderId !== "0") {
-      const targetFolder = folders.find((folder) => folder.id === folderId);
-      if (
-        targetFolder &&
-        targetFolder.canvases.some((canvas) => canvas.name === name)
-      ) {
-        // Canvas with the same name already exists in this folder
-        return false;
-      }
-
-      updatedFolders = folders.map((folder) => {
-        if (folder.id === folderId) {
-          return {
-            ...folder,
-            canvases: [...folder.canvases, newCanvas],
-          };
-        }
-        return folder;
-      });
-    } else {
-      // If no folder is selected or "0" is selected, create a new "root" canvas
-      if (
-        folders.some(
-          (folder) =>
-            folder.name === "Root" &&
-            folder.canvases.some((canvas) => canvas.name === name)
-        )
-      ) {
-        return false;
-      }
-      const rootFolder = folders.find((folder) => folder.name === "Root");
-      if (rootFolder) {
-        updatedFolders = folders.map((folder) =>
-          folder.name === "Root"
-            ? { ...folder, canvases: [...folder.canvases, newCanvas] }
-            : folder
-        );
-      } else {
-        updatedFolders = [
-          ...folders,
-          { id: Date.now().toString(), name: "Root", canvases: [newCanvas] },
-        ];
-      }
-    }
-    setFolders(updatedFolders);
-    localStorage.setItem("savedFolders", JSON.stringify(updatedFolders));
-    onCanvasNameChange(newCanvas.id, name);
+      user?.id as string,
+      folderId as string
+    );
+    onCanvasNameChange(Date.now().toString(), name); // Using timestamp as temp ID
     return true;
   };
+
   const handleEdit = (id: string, name: string, type: "folder" | "canvas") => {
     setEditingItemId(id);
     setEditingItemName(name);
@@ -172,86 +117,38 @@ export function SidebarDashboard({
     setIsDeleteDialogOpen(true);
   };
 
-  const confirmEdit = () => {
+  const confirmEdit = async () => {
     if (editingItemId) {
-      const updatedFolders = folders.map((folder) => {
-        if (folder.id === editingItemId) {
-          return { ...folder, name: editingItemName };
-        }
-        return {
-          ...folder,
-          canvases: folder.canvases.map((canvas) =>
-            canvas.id === editingItemId
-              ? { ...canvas, name: editingItemName }
-              : canvas
-          ),
-        };
-      });
-      setFolders(updatedFolders);
-      localStorage.setItem("savedFolders", JSON.stringify(updatedFolders));
-
-      // Update savedCanvases if it's a canvas
-      const savedCanvases = JSON.parse(
-        localStorage.getItem("savedCanvases") || "[]"
-      );
-      const updatedCanvases = savedCanvases.map(
-        (canvas: { id: string; name: string }) =>
-          canvas.id === editingItemId
-            ? { ...canvas, name: editingItemName }
-            : canvas
-      );
-      localStorage.setItem("savedCanvases", JSON.stringify(updatedCanvases));
-
+      const isFolder = folders.some((f) => f.id === editingItemId);
+      if (isFolder) {
+        await updateFolder(editingItemId, editingItemName);
+      } else {
+        await updateCanvas(editingItemId, editingItemName);
+        onCanvasNameChange(editingItemId, editingItemName);
+      }
       setIsEditDialogOpen(false);
       setEditingItemId(null);
       setEditingItemName("");
     }
   };
 
-  const confirmDelete = () => {
+  const confirmDelete = async () => {
     if (itemToDelete) {
       if (itemToDelete.type === "folder") {
-        const updatedFolders = folders.filter(
-          (folder) => folder.id !== itemToDelete.id
-        );
-        setFolders(updatedFolders);
-        localStorage.setItem("savedFolders", JSON.stringify(updatedFolders));
-
-        // Remove all canvases in the deleted folder from savedCanvases
-        const savedCanvases = JSON.parse(
-          localStorage.getItem("savedCanvases") || "[]"
-        );
-        const deletedFolder = folders.find(
-          (folder) => folder.id === itemToDelete.id
-        );
-        const updatedCanvases = savedCanvases.filter(
-          (canvas: { id: string }) =>
-            !deletedFolder?.canvases.some((c) => c.id === canvas.id)
-        );
-        localStorage.setItem("savedCanvases", JSON.stringify(updatedCanvases));
+        await deleteFolder(itemToDelete.id);
       } else {
-        const updatedFolders = folders.map((folder) => ({
-          ...folder,
-          canvases: folder.canvases.filter(
-            (canvas) => canvas.id !== itemToDelete.id
-          ),
-        }));
-        setFolders(updatedFolders);
-        localStorage.setItem("savedFolders", JSON.stringify(updatedFolders));
-
-        // Remove the canvas from savedCanvases
-        const savedCanvases = JSON.parse(
-          localStorage.getItem("savedCanvases") || "[]"
-        );
-        const updatedCanvases = savedCanvases.filter(
-          (canvas: { id: string }) => canvas.id !== itemToDelete.id
-        );
-        localStorage.setItem("savedCanvases", JSON.stringify(updatedCanvases));
+        await deleteCanvas(itemToDelete.id);
       }
       setIsDeleteDialogOpen(false);
       setItemToDelete(null);
     }
   };
+
+  useEffect(() => {
+    if (user) {
+      getFolders(user.id);
+    }
+  }, [user]);
 
   return (
     <Sidebar className="border-r border-gray-200">
@@ -281,101 +178,123 @@ export function SidebarDashboard({
       <SidebarContent className="px-1 bg-white">
         <div className="mt-4 mb-2">
           <h2 className="px-3 text-base font-medium">Folders</h2>
-          {folders.map((folder) => (
-            <Collapsible
-              key={folder.id}
-              open={openFolders.includes(folder.id)}
-              onOpenChange={(isOpen) => {
-                setOpenFolders((prev) =>
-                  isOpen
-                    ? [...prev, folder.id]
-                    : prev.filter((id) => id !== folder.id)
-                );
-              }}
-            >
-              <div className="flex items-center justify-between w-full px-3 py-2 text-[15px] rounded-lg group hover:bg-[#f1f3f4]">
-                <CollapsibleTrigger asChild>
-                  <button className="flex items-center flex-grow">
-                    <ChevronRight
-                      className={`mr-2 h-4 w-4 transition-transform duration-200 ${
-                        openFolders.includes(folder.id)
-                          ? "transform rotate-90"
-                          : ""
-                      }`}
-                    />
-                    <Folder className="mr-2 h-4 w-4" />
-                    {folder.name}
-                  </button>
-                </CollapsibleTrigger>
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-                      <MoreVertical className="h-4 w-4" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
-                    <DropdownMenuItem
-                      onSelect={() =>
-                        handleEdit(folder.id, folder.name, "folder")
-                      }
-                    >
-                      <Edit className="mr-2 h-4 w-4" />
-                      Edit
-                    </DropdownMenuItem>
-                    <DropdownMenuItem
-                      onSelect={() => handleDelete(folder.id, "folder")}
-                    >
-                      <Trash className="mr-2 h-4 w-4" />
-                      Delete
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </div>
-              <CollapsibleContent>
-                {folder.canvases.map((canvas) => (
-                  <div
-                    key={canvas.id}
-                    className="flex items-center justify-between w-full px-3 py-2 text-[15px] rounded-lg group hover:bg-[#f1f3f4] ml-6"
-                  >
-                    <Link
-                      href={`/protected/canvas-new/${canvas.id}`}
-                      className="flex items-center flex-grow"
-                    >
-                      <FileText className="mr-2 h-4 w-4" />
-                      {canvas.name}
-                    </Link>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-8 w-8 p-0"
+
+          {folders.length === 0 ? (
+            <div className="flex flex-col items-center justify-center p-6 text-center">
+              <Folder className="h-12 w-12 text-gray-400 mb-2" />
+              <p className="text-gray-500 mb-4">No folders yet</p>
+              <Button
+                onClick={() => setIsCreateNewModalOpen(true)}
+                variant="outline"
+                className="flex items-center"
+              >
+                <PlusCircle className="mr-2 h-4 w-4" />
+                Create your first folder
+              </Button>
+            </div>
+          ) : (
+            folders.map((folder: FolderType) => (
+              <Collapsible
+                key={folder.id}
+                open={openFolders.includes(folder.id)}
+                onOpenChange={(isOpen) => {
+                  setOpenFolders((prev) =>
+                    isOpen
+                      ? [...prev, folder.id]
+                      : prev.filter((id) => id !== folder.id)
+                  );
+                }}
+              >
+                <div className="flex items-center justify-between w-full px-3 py-2 text-[15px] rounded-lg group hover:bg-[#f1f3f4]">
+                  <CollapsibleTrigger asChild>
+                    <button className="flex items-center flex-grow">
+                      <ChevronRight
+                        className={`mr-2 h-4 w-4 transition-transform duration-200 ${
+                          openFolders.includes(folder.id)
+                            ? "transform rotate-90"
+                            : ""
+                        }`}
+                      />
+                      <Folder className="mr-2 h-4 w-4" />
+                      {folder.name}
+                    </button>
+                  </CollapsibleTrigger>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                        <MoreVertical className="h-4 w-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem
+                        onSelect={() =>
+                          handleEdit(folder.id, folder.name, "folder")
+                        }
+                      >
+                        <Edit className="mr-2 h-4 w-4" />
+                        Edit
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        onSelect={() => handleDelete(folder.id, "folder")}
+                      >
+                        <Trash className="mr-2 h-4 w-4" />
+                        Delete
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
+                <CollapsibleContent>
+                  {folder.canvases?.length === 0 ? (
+                    <div className="ml-6 px-3 py-2 text-sm text-gray-500">
+                      No canvases in this folder
+                    </div>
+                  ) : (
+                    folder.canvases?.map((canvas: Canvas) => (
+                      <div
+                        key={canvas.id}
+                        className="flex items-center justify-between w-full px-3 py-2 text-[15px] rounded-lg group hover:bg-[#f1f3f4] ml-6"
+                      >
+                        <Link
+                          href={`/protected/canvas-new/${canvas.id}`}
+                          className="flex items-center flex-grow"
                         >
-                          <MoreVertical className="h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem
-                          onSelect={() =>
-                            handleEdit(canvas.id, canvas.name, "canvas")
-                          }
-                        >
-                          <Edit className="mr-2 h-4 w-4" />
-                          Edit
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          onSelect={() => handleDelete(canvas.id, "canvas")}
-                        >
-                          <Trash className="mr-2 h-4 w-4" />
-                          Delete
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </div>
-                ))}
-              </CollapsibleContent>
-            </Collapsible>
-          ))}
+                          <FileText className="mr-2 h-4 w-4" />
+                          {canvas.name}
+                        </Link>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-8 w-8 p-0"
+                            >
+                              <MoreVertical className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem
+                              onSelect={() =>
+                                handleEdit(canvas.id, canvas.name, "canvas")
+                              }
+                            >
+                              <Edit className="mr-2 h-4 w-4" />
+                              Edit
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onSelect={() => handleDelete(canvas.id, "canvas")}
+                            >
+                              <Trash className="mr-2 h-4 w-4" />
+                              Delete
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </div>
+                    ))
+                  )}
+                </CollapsibleContent>
+              </Collapsible>
+            ))
+          )}
         </div>
       </SidebarContent>
       <CreateCanvasModal
@@ -387,6 +306,7 @@ export function SidebarDashboard({
         isOpen={isCreateNewModalOpen}
         onClose={() => setIsCreateNewModalOpen(false)}
         onCreateFolder={handleCreateFolder}
+        // @ts-ignore
         onCreateCanvas={handleCreateCanvas}
         folders={folders}
         onCanvasNameChange={onCanvasNameChange}

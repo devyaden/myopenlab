@@ -1,6 +1,7 @@
 "use client";
 
 import { Input } from "@/components/ui/input";
+import { useCanvasStore } from "@/lib/store/useCanvas";
 import { useRouter } from "next/navigation";
 import type React from "react";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -9,12 +10,9 @@ import type { Edge, Node } from "reactflow";
 import { MarkerType, ReactFlowProvider } from "reactflow";
 import { Header } from "./header";
 import { Sidebar } from "./sidebar";
-
 import { Toolbar } from "./toolbar";
 import { UMLEditor } from "./uml-editor";
 import { VerticalNav } from "./vertical-nav";
-import useUndoable from "use-undoable";
-import { ImportModal } from "./import-modal";
 
 interface NodeStyle {
   fontFamily: string;
@@ -57,8 +55,6 @@ interface ColumnData {
   options?: string[];
 }
 
-const MAX_HISTORY_SIZE = 50;
-
 interface FigmaInterfaceProps {
   canvasId: string;
 }
@@ -68,53 +64,70 @@ export default function CanvasNew({ canvasId }: FigmaInterfaceProps) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [selectedNode, setSelectedNode] = useState<string | null>(null);
   const [selectedNodes, setSelectedNodes] = useState<string[]>([]);
-  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
-  // const [currentState, setCurrentState] = useState<AppState>({
-  //   nodes: [],
-  //   edges: [],
-  //   nodeStyles: {},
-  // });
 
-  const [currentState, setCurrentState, { undo, redo, canUndo, canRedo }] =
-    useUndoable<AppState>({
-      nodes: [],
-      edges: [],
-      nodeStyles: {},
-    });
+  const {
+    loadCanvas,
+    name: projectName,
+    setName: setProjectName,
+    nodes,
+    setNodes,
+    edges,
+    setEdges,
+    nodeStyles,
+    updateNodeStyle,
+    undo,
+    redo,
+    canUndo,
+    canRedo,
+    saveLoading,
+    saveCanvas,
+    columns,
+    setColumns,
+    folderCanvases,
+  } = useCanvasStore();
 
-  const [history, setHistory] = useState<AppState[]>([]);
-  const [historyIndex, setHistoryIndex] = useState(-1);
+  const currentState: {
+    nodes: Node[];
+    edges: Edge[];
+    nodeStyles: Record<string, NodeStyle>;
+  } = {
+    nodes,
+    edges,
+    nodeStyles,
+  };
+
   const [selectedEdge, setSelectedEdge] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<"canvas" | "table">("canvas");
   const clipboardRef = useRef<Node[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [columns, setColumns] = useState<ColumnData[]>([
-    { title: "id", type: "Text" },
-    { title: "task", type: "Text" },
-    {
-      title: "type",
-      type: "Select",
-      options: [
-        "rectangle",
-        "rounded",
-        "circle",
-        "diamond",
-        "hexagon",
-        "triangle",
-        "useCase",
-        "actor",
-        "class",
-        "interface",
-      ],
-    },
-    {
-      title: "parent",
-      type: "Text",
-    },
-  ]);
+  // const [columns, setColumns] = useState<ColumnData[]>([
+  //   { title: "id", type: "Text" },
+  //   { title: "task", type: "Text" },
+  //   {
+  //     title: "type",
+  //     type: "Select",
+  //     options: [
+  //       "rectangle",
+  //       "rounded",
+  //       "circle",
+  //       "diamond",
+  //       "hexagon",
+  //       "triangle",
+  //       "useCase",
+  //       "actor",
+  //       "class",
+  //       "interface",
+  //     ],
+  //   },
+  //   {
+  //     title: "parent",
+  //     type: "Text",
+  //   },
+  // ]);
+
   const [showGrid, setShowGrid] = useState(true);
   const [showRulers, setShowRulers] = useState(false);
-  const [projectName, setProjectName] = useState<string>("Untitled Project");
+  // const [projectName, setProjectName] = useState<string>("Untitled Project");
   const [folders, setFolders] = useState<
     {
       id: string;
@@ -129,13 +142,6 @@ export default function CanvasNew({ canvasId }: FigmaInterfaceProps) {
 
   const [edgeWidth, setEdgeWidth] = useState(2);
   const [edgeColor, setEdgeColor] = useState("#000000");
-
-  useEffect(() => {
-    const savedFolders = localStorage.getItem("savedFolders");
-    if (savedFolders) {
-      setFolders(JSON.parse(savedFolders));
-    }
-  }, []);
 
   const addToRecentDocuments = useCallback(
     (canvasId: string, canvasName: string) => {
@@ -156,64 +162,17 @@ export default function CanvasNew({ canvasId }: FigmaInterfaceProps) {
     []
   );
 
-  useEffect(() => {
-    const savedCanvas = localStorage.getItem(`canvas_${canvasId}`);
-    if (savedCanvas) {
-      const parsedCanvas = JSON.parse(savedCanvas);
-      setCurrentState(parsedCanvas.currentState);
-      if (parsedCanvas.columns?.length) setColumns(parsedCanvas.columns);
-      setProjectName(parsedCanvas.projectName);
-      setCurrentFolder(parsedCanvas.folderId);
-      addToRecentDocuments(canvasId, parsedCanvas.projectName);
-    }
-  }, [canvasId, addToRecentDocuments]);
+  const updateState = useCallback((newState: Partial<AppState>) => {
+    if (newState.nodes) setNodes(newState.nodes);
+    if (newState.edges) setEdges(newState.edges);
 
-  useEffect(() => {
-    // get all canvases from local storage and store them in currentFOlderCanvases state
-    const savedCanvases = JSON.parse(
-      localStorage.getItem("savedCanvases") || "[]"
-    );
-
-    setCurrentFolderCanvases(savedCanvases);
-  }, []);
-
-  const updateHistory = useCallback(
-    (newState: AppState) => {
-      setHistory((prevHistory) => {
-        const newHistory = [
-          ...prevHistory.slice(0, historyIndex + 1),
-          newState,
-        ].slice(-MAX_HISTORY_SIZE);
-        setHistoryIndex(newHistory.length - 1);
-        return newHistory;
-      });
-    },
-    [historyIndex]
-  );
-
-  const updateState = useCallback(
-    (newState: Partial<AppState>) => {
-      setCurrentState((prevState) => {
-        const updatedState = { ...prevState, ...newState };
-        setHistory((prevHistory) => {
-          const newHistory = [
-            ...prevHistory.slice(0, historyIndex + 1),
-            updatedState,
-          ];
-          setHistoryIndex(newHistory.length - 1);
-          return newHistory.slice(-MAX_HISTORY_SIZE);
+    if (newState.nodeStyles) {
+      newState.nodeStyles &&
+        Object.entries(newState.nodeStyles).forEach(([nodeId, style]) => {
+          updateNodeStyle(nodeId, style);
         });
-        return updatedState;
-      });
-    },
-    [historyIndex]
-  );
-
-  useEffect(() => {
-    if (history.length === 0) {
-      updateHistory(currentState);
     }
-  }, [currentState, history.length, updateHistory]);
+  }, []);
 
   const getNodeStyle = useCallback(
     (nodeId: string): NodeStyle => {
@@ -240,39 +199,6 @@ export default function CanvasNew({ canvasId }: FigmaInterfaceProps) {
     [currentState.nodeStyles]
   );
 
-  const updateNodeStyle = useCallback(
-    (nodeId: string, styleUpdate: Partial<NodeStyle>) => {
-      updateState({
-        nodeStyles: {
-          ...currentState.nodeStyles,
-          [nodeId]: {
-            ...getNodeStyle(nodeId),
-            ...styleUpdate,
-          },
-        },
-        nodes: currentState.nodes.map((node) =>
-          node.id === nodeId
-            ? {
-                ...node,
-                data: {
-                  ...node.data,
-                  style:
-                    node.type === "textNode"
-                      ? { ...getNodeStyle(nodeId), ...styleUpdate }
-                      : {
-                          ...getNodeStyle(nodeId),
-                          ...styleUpdate,
-                          shape: node.data.shape,
-                        },
-                },
-              }
-            : node
-        ),
-      });
-    },
-    [currentState.nodeStyles, currentState.nodes, getNodeStyle, updateState]
-  );
-
   const onNodeSelect = useCallback((nodeIds: string[]) => {
     setSelectedNodes(nodeIds);
     setSelectedNode(nodeIds.length === 1 ? nodeIds[0] : null);
@@ -291,22 +217,6 @@ export default function CanvasNew({ canvasId }: FigmaInterfaceProps) {
     },
     [updateState]
   );
-
-  // const undo = useCallback(() => {
-  //   if (historyIndex > 0) {
-  //     const newIndex = historyIndex - 1;
-  //     setHistoryIndex(newIndex);
-  //     setCurrentState(history[newIndex]);
-  //   }
-  // }, [history, historyIndex]);
-
-  // const redo = useCallback(() => {
-  //   if (historyIndex < history.length - 1) {
-  //     const newIndex = historyIndex + 1;
-  //     setHistoryIndex(newIndex);
-  //     setCurrentState(history[newIndex]);
-  //   }
-  // }, [history, historyIndex]);
 
   const copySelectedNodes = useCallback(() => {
     const nodesToCopy = currentState.nodes
@@ -433,13 +343,6 @@ export default function CanvasNew({ canvasId }: FigmaInterfaceProps) {
     },
     [currentState.nodes, updateState]
   );
-
-  const rotateSwimlane = useCallback(() => {
-    if (selectedNode) {
-      const currentStyle = getNodeStyle(selectedNode);
-      updateNodeStyle(selectedNode, { isVertical: !currentStyle.isVertical });
-    }
-  }, [selectedNode, updateNodeStyle, getNodeStyle]);
 
   const onLabelChange = useCallback(
     (nodeId: string, newLabel: string) => {
@@ -637,7 +540,6 @@ export default function CanvasNew({ canvasId }: FigmaInterfaceProps) {
 
   const onChangeEdgeStyle = useCallback(
     (style: string) => {
-      console.log("🚀 ~ CanvasNew ~ style:", style);
       if (selectedEdge) {
         updateState({
           edges: currentState.edges.map((edge) =>
@@ -739,19 +641,13 @@ export default function CanvasNew({ canvasId }: FigmaInterfaceProps) {
     fileInputRef.current?.click();
   }, []);
 
-  const handleAddColumn = useCallback((columnData: ColumnData) => {
-    setColumns((prevColumns) => [...prevColumns, columnData]);
-    setCurrentState((prevState) => ({
-      ...prevState,
-      nodes: prevState.nodes.map((node) => ({
-        ...node,
-        data: {
-          ...node.data,
-          [columnData.title]: "",
-        },
-      })),
-    }));
-  }, []);
+  const handleAddColumn = useCallback(
+    (columnData: ColumnData) => {
+      const newColumns = [...columns, columnData];
+      setColumns(newColumns);
+    },
+    [columns, setColumns]
+  );
 
   const toggleSidebar = useCallback(() => {
     setIsSidebarOpen((prev) => !prev);
@@ -776,68 +672,6 @@ export default function CanvasNew({ canvasId }: FigmaInterfaceProps) {
   const handleToggleRulers = useCallback(() => {
     setShowRulers((prev) => !prev);
   }, []);
-
-  const saveToLocalStorage = useCallback(() => {
-    const dataToSave = {
-      projectName,
-      currentState,
-      columns,
-      folderId: currentFolder, // Added folderId
-    };
-    localStorage.setItem(`canvas_${canvasId}`, JSON.stringify(dataToSave));
-
-    // Update the savedCanvases list
-    const savedCanvases = JSON.parse(
-      localStorage.getItem("savedCanvases") || "[]"
-    );
-    const existingCanvasIndex = savedCanvases.findIndex(
-      (canvas: { id: string }) => canvas.id === canvasId
-    );
-    if (existingCanvasIndex !== -1) {
-      savedCanvases[existingCanvasIndex] = {
-        id: canvasId,
-        name: projectName,
-        lastModified: new Date().toISOString(),
-        folderId: currentFolder, // Added folderId
-      };
-    } else {
-      savedCanvases.push({
-        id: canvasId,
-        name: projectName,
-        lastModified: new Date().toISOString(),
-        folderId: currentFolder, // Added folderId
-      });
-    }
-    localStorage.setItem("savedCanvases", JSON.stringify(savedCanvases));
-  }, [projectName, currentState, columns, canvasId, currentFolder]);
-
-  const restoreFromLocalStorage = useCallback(() => {
-    const savedCanvas = localStorage.getItem(`canvas_${canvasId}`);
-    if (savedCanvas) {
-      const parsedCanvas = JSON.parse(savedCanvas);
-
-      setCurrentState(parsedCanvas.currentState);
-      setColumns(parsedCanvas.columns);
-      setProjectName(parsedCanvas.projectName);
-      setCurrentFolder(parsedCanvas.folderId); // Set currentFolder
-
-      // Update the lastModified date in the savedCanvases list
-      const savedCanvases = JSON.parse(
-        localStorage.getItem("savedCanvases") || "[]"
-      );
-      const updatedCanvases = savedCanvases.map(
-        (canvas: { id: string; lastModified: string }) =>
-          canvas.id === canvasId
-            ? { ...canvas, lastModified: new Date().toISOString() }
-            : canvas
-      );
-      localStorage.setItem("savedCanvases", JSON.stringify(updatedCanvases));
-
-      toast.success("Project restored successfully!");
-    } else {
-      toast.error("No saved project found!");
-    }
-  }, [canvasId]);
 
   const handleEdgeWidthChange = useCallback(
     (width: number) => {
@@ -951,14 +785,24 @@ export default function CanvasNew({ canvasId }: FigmaInterfaceProps) {
   }, [selectedNodes, currentState.nodes, updateState]);
 
   // Add this function inside the FigmaInterface component
-  const handleImportCanvas = useCallback(
-    (importedData: any) => {
-      setCurrentState(importedData);
-      setColumns(importedData.columns || []);
-      toast.success("Canvas imported successfully!");
-    },
-    [setCurrentState]
-  );
+  const handleImportCanvas = useCallback((importedData: any) => {
+    // setCurrentState(importedData);
+    setColumns(importedData.columns || []);
+    toast.success("Canvas imported successfully!");
+  }, []);
+
+  useEffect(() => {
+    if (canvasId) {
+      useCanvasStore.persist.setOptions({
+        name: `canvas_${canvasId}`,
+      });
+
+      useCanvasStore.persist.rehydrate();
+      localStorage.removeItem("canvas-store");
+
+      loadCanvas(canvasId);
+    }
+  }, [canvasId]);
 
   return (
     <ReactFlowProvider>
@@ -983,14 +827,14 @@ export default function CanvasNew({ canvasId }: FigmaInterfaceProps) {
           projectName={projectName}
           setProjectName={(newName) => {
             setProjectName(newName);
-            handleCanvasNameChange(canvasId, newName); // Pass canvasId here
+            handleCanvasNameChange(canvasId, newName);
           }}
-          onSave={saveToLocalStorage}
-          onRestore={restoreFromLocalStorage}
           onBackToDashboard={() => router.push("/")}
           onImportCanvas={handleImportCanvas}
           onBringForward={bringForward}
           onSendBackward={sendBackward}
+          saveLoading={saveLoading}
+          onSave={saveCanvas}
         />
         <Toolbar
           key={selectedNode || selectedEdge || "no-selection"}
@@ -1088,9 +932,8 @@ export default function CanvasNew({ canvasId }: FigmaInterfaceProps) {
                 onAddColumn={handleAddColumn}
                 columns={columns}
                 setColumns={setColumns}
-                currentFolderCanvases={currentFolderCanvases}
+                currentFolderCanvases={folderCanvases}
                 canvasId={canvasId}
-                onSave={saveToLocalStorage}
               />
             </div>
           </div>

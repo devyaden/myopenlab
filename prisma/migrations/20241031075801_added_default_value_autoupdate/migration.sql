@@ -1,5 +1,0 @@
--- AlterTable
-ALTER TABLE "canvas" ALTER COLUMN "updated_at" SET DEFAULT CURRENT_TIMESTAMP;
-
--- AlterTable
-ALTER TABLE "node_connections" ALTER COLUMN "updated_at" SET DEFAULT CURRENT_TIMESTAMP;

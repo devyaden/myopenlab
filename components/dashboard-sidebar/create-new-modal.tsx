@@ -115,7 +115,7 @@ export function CreateNewModal({
     handleClose();
   };
 
-  const handleCreateCanvas = (data: CanvasFormValues) => {
+  const handleCreateCanvas = async (data: CanvasFormValues) => {
     const selectedFolder = folders.find(
       (folder) => folder.id === data.folderId
     );
@@ -130,7 +130,7 @@ export function CreateNewModal({
       });
       return;
     }
-    const success = onCreateCanvas(
+    const success = await onCreateCanvas(
       data.name,
       data.description || "",
       data.folderId

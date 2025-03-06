@@ -13,25 +13,16 @@ import { AlertCircle, X } from "lucide-react";
 import type React from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ScrollArea } from "../ui/scroll-area";
+import { ColumnDefinition } from "@/types/store";
 
 interface AddColumnSidebarProps {
   isOpen: boolean;
   onClose: () => void;
-  onAddColumn: (columnData: ColumnData) => void;
+  onAddColumn: (columnData: ColumnDefinition) => void;
   canvases: { id: string; name: string }[];
   canvasId: string;
   relationCanvases: any[];
   columns: any[];
-}
-
-export interface ColumnData {
-  title: string;
-  type: string;
-  options?: string[];
-  relationCanvas?: string;
-  rollupColumn?: string;
-  rollupRelation?: string;
-  rollupRelationName?: string;
 }
 
 const validationTypes = [
@@ -63,7 +54,7 @@ export const AddColumnSidebar: React.FC<AddColumnSidebarProps> = ({
   relationCanvases,
   columns,
 }) => {
-  const [columnData, setColumnData] = useState<ColumnData>({
+  const [columnData, setColumnData] = useState<ColumnDefinition>({
     title: "",
     type: "Text",
   });
@@ -82,6 +73,7 @@ export const AddColumnSidebar: React.FC<AddColumnSidebarProps> = ({
       if (!validateColumnData()) {
         return;
       }
+
       onAddColumn(columnData);
       setColumnData({ title: "", type: "Text" });
       setSelectedRelationCanvas(null);
@@ -109,7 +101,7 @@ export const AddColumnSidebar: React.FC<AddColumnSidebarProps> = ({
     }
 
     if (columnData.type === "Relation") {
-      if (!columnData.relationCanvas) {
+      if (!columnData.related_canvas_id) {
         if (otherCanvases.length === 0) {
           setError(
             "No canvases found. Create a new canvas to create a relation."
@@ -129,7 +121,7 @@ export const AddColumnSidebar: React.FC<AddColumnSidebarProps> = ({
       return false;
     }
 
-    if (columnData.type === "Rollup" && !columnData.rollupColumn) {
+    if (columnData.type === "Rollup" && !columnData.rollup_column_id) {
       setError("Please specify a rollup column");
       return false;
     }
@@ -217,8 +209,8 @@ export const AddColumnSidebar: React.FC<AddColumnSidebarProps> = ({
                   ...columnData,
                   type: value,
                   options: undefined,
-                  relationCanvas: undefined,
-                  rollupColumn: undefined,
+                  related_canvas_id: undefined,
+                  rollup_target_column: undefined,
                 });
                 setError(null);
               }}
@@ -256,9 +248,9 @@ export const AddColumnSidebar: React.FC<AddColumnSidebarProps> = ({
               <Label htmlFor="relationCanvas">Related Canvas</Label>
               {otherCanvases.length > 0 ? (
                 <Select
-                  value={columnData.relationCanvas || ""}
+                  value={columnData.related_canvas_id || ""}
                   onValueChange={(value) =>
-                    setColumnData({ ...columnData, relationCanvas: value })
+                    setColumnData({ ...columnData, related_canvas_id: value })
                   }
                 >
                   <SelectTrigger>
@@ -288,11 +280,12 @@ export const AddColumnSidebar: React.FC<AddColumnSidebarProps> = ({
               <div className="space-y-2">
                 <Label>Relation</Label>
                 <Select
-                  value={columnData.rollupRelation || ""}
+                  value={columnData.rollup_column_id || ""}
                   onValueChange={handleRollupRelationChange}
                 >
                   <SelectTrigger className="w-full bg-background">
                     <SelectValue placeholder="Select relation">
+                      {/* @ts-ignore */}
                       {columnData.rollupRelationName || "Select relation"}
                     </SelectValue>
                   </SelectTrigger>
@@ -322,11 +315,11 @@ export const AddColumnSidebar: React.FC<AddColumnSidebarProps> = ({
                 <div className="space-y-2">
                   <Label htmlFor="rollupColumn">Property</Label>
                   <Select
-                    value={columnData.rollupColumn || ""}
+                    value={columnData.rollup_column_id || ""}
                     onValueChange={(value) =>
                       setColumnData({
                         ...columnData,
-                        rollupColumn: value,
+                        rollup_column_id: value,
                       })
                     }
                   >
@@ -337,8 +330,8 @@ export const AddColumnSidebar: React.FC<AddColumnSidebarProps> = ({
                       <ScrollArea className="h-[200px]">
                         {selectedRelationCanvas?.columns?.map((column: any) => (
                           <SelectItem
-                            key={column.title}
-                            value={column.title}
+                            key={column.id}
+                            value={column.id}
                             className="cursor-pointer"
                           >
                             {column.title}

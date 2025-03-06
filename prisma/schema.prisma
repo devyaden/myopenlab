@@ -8,142 +8,127 @@ datasource db {
 }
 
 model User {
-  id             Int     @id @default(autoincrement())
-  email          String  @unique
-  username       String  @unique
-  name           String?
-  auth_id        String?
-  // company details
-  company_name   String?
-  company_email  String?
-  company_sector String?
-  user_position  String?
-  company_size   String?
+  email           String?       @unique
+  name            String?
+  id              String        @id @db.Uuid
+  company_email   String?
+  company_name    String?
+  company_sector  String?
+  company_size    String?
+  user_position   String?
+  username        String?       @unique
+  created_at      DateTime      @default(now())
+  updated_at      DateTime      @default(now()) @updatedAt
+  canvases        Canvas[]
+  shared_canvases CanvasShare[]
+  folders         Folder[]
 
-  folders    Folder[]
-  created_at DateTime @default(now())
-  updated_at DateTime @default(now()) @updatedAt
-
-  @@index([email])
-  @@map("users")
+  @@map("user")
 }
 
 model Folder {
-  id          Int      @id @default(autoincrement())
-  name        String
-  description String?
-  user_id     Int
-  user        User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
-  canvases    Canvas[]
-  created_at  DateTime @default(now())
-  updated_at  DateTime @default(now()) @updatedAt
+  name       String
+  id         String   @id @default(uuid()) @db.Uuid
+  created_at DateTime @default(now())
+  parent_id  String?  @db.Uuid
+  updated_at DateTime @default(now()) @updatedAt
+  user_id    String   @db.Uuid
+  canvases   Canvas[]
+  parent     Folder?  @relation("FolderHierarchy", fields: [parent_id], references: [id])
+  children   Folder[] @relation("FolderHierarchy")
+  user       User     @relation(fields: [user_id], references: [id])
 
-  @@index([user_id])
-  @@map("folders")
+  @@map("folder")
 }
 
 model Canvas {
-  id               Int        @id @default(autoincrement())
-  name             String
-  description      String?
-  flow_data        Json
-  folder_id        Int
-  folder           Folder     @relation(fields: [folder_id], references: [id], onDelete: Cascade)
-  nodes            Node[]
-  columns          Column[]
-  rollups          Rollup[]
-  source_relations Relation[] @relation("SourceCanvas")
-  target_relations Relation[] @relation("TargetCanvas")
-  column_order     Json?      @default("[]")
-  created_at       DateTime   @default(now())
-  updated_at       DateTime   @default(now()) @updatedAt
+  name            String
+  description     String?
+  id              String             @id @default(uuid()) @db.Uuid
+  created_at      DateTime           @default(now())
+  folder_id       String?            @db.Uuid
+  updated_at      DateTime           @default(now()) @updatedAt
+  user_id         String             @db.Uuid
+  folder          Folder?            @relation(fields: [folder_id], references: [id])
+  user            User               @relation(fields: [user_id], references: [id])
+  data            CanvasData?
+  history         CanvasHistory[]
+  settings        CanvasSettings?
+  shares          CanvasShare[]
+  columns         ColumnDefinition[]
+  related_columns ColumnDefinition[] @relation("RelatedColumn")
 
-  @@index([folder_id])
-  @@map("canvases")
+  @@map("canvas")
 }
 
-model Node {
-  id          Int      @id @default(autoincrement())
-  canvas_id   Int
-  node_id     String
-  canvas      Canvas   @relation(fields: [canvas_id], references: [id], onDelete: Cascade)
-  flow_data   Json
-  custom_data Json
-  created_at  DateTime @default(now())
-  updated_at  DateTime @default(now()) @updatedAt
+model CanvasData {
+  nodes      Json
+  edges      Json
+  styles     Json
+  version    Int      @default(1)
+  canvas_id  String   @unique @db.Uuid
+  updated_at DateTime @default(now()) @updatedAt
+  canvas     Canvas   @relation(fields: [canvas_id], references: [id])
 
-  @@index([canvas_id])
-  @@map("nodes")
+  @@map("canvas_data")
 }
 
-model Column {
-  id          Int        @id @default(autoincrement())
-  name        String
-  key         String
-  canvas_id   Int
-  canvas      Canvas     @relation(fields: [canvas_id], references: [id], onDelete: Cascade)
-  data_type   ColumnType
-  is_required Boolean    @default(false)
-  validation  Json?
-  order       Int        @default(0)
-  created_at  DateTime   @default(now())
-  updated_at  DateTime   @default(now()) @updatedAt
+model CanvasHistory {
+  data       Json
+  version    Int
+  id         String   @id @default(uuid()) @db.Uuid
+  canvas_id  String   @db.Uuid
+  created_at DateTime @default(now())
+  canvas     Canvas   @relation(fields: [canvas_id], references: [id])
 
-  @@index([canvas_id])
-  @@map("columns")
+  @@map("canvas_history")
 }
 
-model Rollup {
-  id               Int         @id @default(autoincrement())
-  name             String
-  canvas_id        Int
-  canvas           Canvas      @relation(fields: [canvas_id], references: [id], onDelete: Cascade)
-  relation_id      Int
-  relation         Relation    @relation(fields: [relation_id], references: [id], onDelete: Cascade)
-  target_column_id Int?
-  target_column    String
-  aggregation      RollupType?
-  created_at       DateTime    @default(now())
-  updated_at       DateTime    @default(now()) @updatedAt
+model ColumnDefinition {
+  title                String
+  type                 String
+  options              Json?
+  required             Boolean            @default(false)
+  order                Int
+  id                   String             @id @default(uuid()) @db.Uuid
+  canvas_id            String             @db.Uuid
+  created_at           DateTime           @default(now())
+  updated_at           DateTime           @default(now()) @updatedAt
+  related_canvas_id    String?            @db.Uuid
+  relation_row_ids     String[]
+  rollup_column_id     String?            @db.Uuid
+  canvas               Canvas             @relation(fields: [canvas_id], references: [id])
+  related_canvas       Canvas?            @relation("RelatedColumn", fields: [related_canvas_id], references: [id])
+  rollup_target_column ColumnDefinition?  @relation("RollupReference", fields: [rollup_column_id], references: [id])
+  referencing_rollups  ColumnDefinition[] @relation("RollupReference")
 
-  @@index([canvas_id])
-  @@index([relation_id])
-  @@map("rollups")
+  @@map("column_definition")
 }
 
-model Relation {
-  id               Int      @id @default(autoincrement())
-  name             String   @default("Relation")
-  source_canvas_id Int
-  source_canvas    Canvas   @relation("SourceCanvas", fields: [source_canvas_id], references: [id], onDelete: Cascade)
-  target_canvas_id Int
-  target_canvas    Canvas   @relation("TargetCanvas", fields: [target_canvas_id], references: [id], onDelete: Cascade)
-  rollups          Rollup[]
-  created_at       DateTime @default(now())
-  updated_at       DateTime @default(now()) @updatedAt
+model CanvasSettings {
+  theme        String?
+  id           String   @id @default(uuid()) @db.Uuid
+  canvas_id    String   @unique @db.Uuid
+  grid_size    Int      @default(15)
+  show_grid    Boolean  @default(true)
+  show_rulers  Boolean  @default(false)
+  snap_to_grid Boolean  @default(true)
+  updated_at   DateTime @default(now()) @updatedAt
+  canvas       Canvas   @relation(fields: [canvas_id], references: [id])
 
-  @@index([source_canvas_id])
-  @@index([target_canvas_id])
-  @@map("relations")
+  @@map("canvas_settings")
 }
 
-enum ColumnType {
-  STRING
-  NUMBER
-  BOOLEAN
-  DATE
-  RELATION
-  ROLLUP
+model CanvasShare {
+  role       String
+  id         String   @id @default(uuid()) @db.Uuid
+  canvas_id  String   @db.Uuid
+  created_at DateTime @default(now())
+  updated_at DateTime @default(now()) @updatedAt
+  user_id    String   @db.Uuid
+  canvas     Canvas   @relation(fields: [canvas_id], references: [id])
+  user       User     @relation(fields: [user_id], references: [id])
 
-  @@map("column_type")
-}
-
-enum RollupType {
-  COUNT
-  SUM
-  AVERAGE
-  MIN
-  MAX
-
-  @@map("rollup_type")
+  @@unique([canvas_id, user_id])
+  @@map("canvas_share")
 }

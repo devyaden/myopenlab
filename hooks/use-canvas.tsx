@@ -58,7 +58,6 @@ const useCanvas = () => {
 
   const onAddNode = useCallback(
     async (nodeData: Partial<Node<NodeData>>) => {
-      console.log("🚀 ~ nodeData:", nodeData);
       const id = nodeData?.id ?? nanoid();
       const newNode: Node = {
         id,
