@@ -74,10 +74,6 @@ export const useCanvasStore = create<CanvasStore>()(
       // Initialize history state
       let history: HistoryState = initialHistoryState;
 
-      console.log(
-        "🚀 ~ file: useCanvas.ts ~ line 77 ~ useCanvasStore ~ history",
-        history
-      );
       // Helper to extract undoable state from the current state
       const getUndoableState = (state = get()): UndoableState => ({
         nodes: state.nodes,
@@ -92,7 +88,6 @@ export const useCanvasStore = create<CanvasStore>()(
       // Add a change to the history
       const addToHistory = (newPresent: UndoableState) => {
         const { past, present } = history;
-        console.log("🚀 ~ addToHistory ~ past, present:", past, present);
 
         if (JSON.stringify(present) !== JSON.stringify(newPresent)) {
           history = {
