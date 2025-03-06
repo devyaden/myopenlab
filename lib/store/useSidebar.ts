@@ -1,9 +1,9 @@
 import { SidebarActions, SidebarStore } from "@/types/sidebar";
 import { toast } from "react-hot-toast";
+import { v4 as uuidv4 } from "uuid";
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import { createClient } from "../supabase/client";
-import { v4 as uuidv4 } from "uuid";
+import { supabase } from "../supabase/client";
 
 const initialState: Omit<SidebarStore, keyof SidebarActions> = {
   folders: [],
@@ -12,8 +12,6 @@ const initialState: Omit<SidebarStore, keyof SidebarActions> = {
   isLoading: false,
   error: null,
 };
-
-const supabase = createClient();
 
 export const useSidebarStore = create<SidebarStore>()(
   persist(
@@ -315,9 +313,9 @@ export const useSidebarStore = create<SidebarStore>()(
 );
 
 // Subscribe to store changes for debugging
-if (process.env.NODE_ENV === "development") {
-  useSidebarStore.subscribe(console.log);
-}
+// if (process.env.NODE_ENV === "development") {
+//   useSidebarStore.subscribe(console.log);
+// }
 
 // Initialize real-time sync
 // useSidebarStore.subscribe((state) => {

@@ -57,9 +57,7 @@ interface SidebarDashboardProps {
   onCanvasNameChange: (canvasId: string, newName: string) => void;
 }
 
-export function SidebarDashboard({
-  onCanvasNameChange,
-}: SidebarDashboardProps) {
+export function UserSidebar({ onCanvasNameChange }: SidebarDashboardProps) {
   const {
     folders,
     createFolder,

@@ -74,8 +74,8 @@ import type React from "react";
 import { useCallback, useMemo, useState } from "react";
 import type { Edge, Node } from "reactflow";
 import * as z from "zod";
-import AddTableCellTrigger from "../canvas/FlowTable/add-table-cell-relation-trigger";
 import { AddColumnSidebar } from "./add-column-sidebar";
+import AddTableCellTrigger from "./add-table-cell-relation-trigger";
 
 const getColumnIcon = (columnType: string) => {
   switch (columnType) {

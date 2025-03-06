@@ -31,7 +31,7 @@ export const HeaderSidebar = () => {
       <div className="flex items-center gap-4 flex-1">
         <Link href="/" className="flex items-center gap-2">
           <Image
-            src="/assets/global/app-logo.png"
+            src="/assets/global/app-logo-white.svg"
             alt="Logo"
             width={32}
             height={32}

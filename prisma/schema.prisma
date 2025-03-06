@@ -11,6 +11,8 @@ model User {
   email           String?       @unique
   name            String?
   id              String        @id @db.Uuid
+  role            String        @default("user")
+  avatar_url      String?
   company_email   String?
   company_name    String?
   company_sector  String?

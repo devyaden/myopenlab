@@ -3,6 +3,7 @@ export interface SignupPersonalInfo {
   name?: string;
   email?: string;
   username?: string;
+  role?: string;
 }
 
 export interface SignupCompanyInfo {

@@ -38,14 +38,58 @@ export const updateSession = async (request: NextRequest) => {
     // This will refresh session if expired - required for Server Components
     // https://supabase.com/docs/guides/auth/server-side/nextjs
     const user = await supabase.auth.getUser();
+    const { data: databaseUser, error } = await supabase
+      .from("user")
+      .select()
+      .eq("id", user?.data?.user?.id)
+      .single();
+
+    if (error) {
+      console.log("🚀 ~ updateSession ~ error", error);
+      return NextResponse.next({
+        request: {
+          headers: request.headers,
+        },
+      });
+    }
+
+    const userRole = databaseUser?.role; // this can be admin | user
+
+    const isAuthenticated = user && !user.error;
+    const isAdminRoute = request.nextUrl.pathname.startsWith("/admin");
+    const isUserRoute = request.nextUrl.pathname.startsWith("/protected");
 
     // protected routes
-    if (request.nextUrl.pathname.startsWith("/protected") && user.error) {
+    if (isUserRoute && user.error) {
       return NextResponse.redirect(new URL("/authentication", request.url));
     }
 
-    if (request.nextUrl.pathname === "/" && !user.error) {
+    if (isAdminRoute && user.error) {
+      return NextResponse.redirect(new URL("/authentication", request.url));
+    }
+
+    if (isAdminRoute && userRole === "user") {
       return NextResponse.redirect(new URL("/protected", request.url));
+    }
+
+    if (isUserRoute && userRole === "admin") {
+      return NextResponse.redirect(new URL("/admin", request.url));
+    }
+
+    if (
+      request.nextUrl.pathname === "/" &&
+      !user.error &&
+      userRole === "user"
+    ) {
+      return NextResponse.redirect(new URL("/protected", request.url));
+    }
+
+    if (
+      request.nextUrl.pathname === "/" &&
+      !user.error &&
+      userRole === "admin"
+    ) {
+      return NextResponse.redirect(new URL("/admin", request.url));
     }
 
     return response;

@@ -1,14 +1,12 @@
 import type { RealtimeChannel } from "@supabase/supabase-js";
 import { toast } from "react-hot-toast";
-import { createClient } from "./client";
+import { supabase } from "./client";
 
 interface SyncCallbacks {
   onCanvasUpdate?: (data: any) => void;
   onFolderUpdate?: (data: any) => void;
   onError?: (error: any) => void;
 }
-
-const supabase = createClient();
 
 export class RealtimeSync {
   private channel: RealtimeChannel | null = null;

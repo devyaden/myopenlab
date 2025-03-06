@@ -1,8 +1,8 @@
-import { createClient } from "@/lib/supabase/client";
 import { User } from "@supabase/supabase-js";
 import { redirect } from "next/navigation";
 import { createContext, useContext, useEffect, useState } from "react";
 import { toast } from "react-hot-toast";
+import { supabase } from "../supabase/client";
 import { SignupFormData } from "../types/forms.types";
 
 type UserContextType = {
@@ -29,7 +29,6 @@ const UserContext = createContext<UserContextType | undefined>(undefined);
 export function UserProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
-  const supabase = createClient();
 
   const fetchUserData = async (userId: string | undefined) => {
     if (!userId) return;
@@ -130,6 +129,8 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
   };
 
   const signInWithGoogle = async () => {
+    // check user email in database first, if email exists then log in with google, otherwise error
+
     const { error, data } = await supabase.auth.signInWithOAuth({
       provider: "google",
       options: {

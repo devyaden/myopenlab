@@ -8,7 +8,7 @@ import { toast } from "react-hot-toast";
 import { v4 as uuidv4 } from "uuid";
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
-import { createClient } from "../supabase/client";
+import { supabase } from "../supabase/client";
 
 const initialUndoableState: UndoableState = {
   nodes: [],
@@ -65,8 +65,6 @@ const initialHistoryState: HistoryState = {
 };
 
 const MAX_HISTORY_LENGTH = 50; // Limit history to prevent memory issues
-
-const supabase = createClient();
 
 export const useCanvasStore = create<CanvasStore>()(
   persist(

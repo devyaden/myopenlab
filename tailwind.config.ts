@@ -77,6 +77,7 @@ const config = {
           "button-blue": "#3C41C2",
           "primary-text": "#344054",
           "primary-green": "#34C759",
+          "primary-red": "#FF3B30",
         },
       },
       borderRadius: {
