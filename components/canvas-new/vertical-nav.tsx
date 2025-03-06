@@ -22,7 +22,7 @@ export function VerticalNav({ className, onToggleSidebar }: VerticalNavProps) {
     <div
       className={`w-[72px] border-r border-gray-200 flex flex-col items-center py-4 gap-2 ${className} z-30 bg-white`}
     >
-      <Button
+      {/* <Button
         variant="outline"
         size="icon"
         className="h-12 w-12 rounded-lg hover:bg-gray-100 mb-2"
@@ -36,13 +36,14 @@ export function VerticalNav({ className, onToggleSidebar }: VerticalNavProps) {
         className="h-12 w-12 rounded-lg hover:bg-gray-100"
       >
         <PanelsTopLeft className="!h-6 !w-6" />
-      </Button>
+      </Button> */}
       <Button
         variant="outline"
         size="icon"
-        className="h-12 w-12 rounded-lg hover:bg-gray-100"
+        className="h-12 w-12 rounded-lg hover:bg-gray-100 border-yadn-pink"
+        onClick={onToggleSidebar}
       >
-        <Blocks className="!h-6 !w-6" />
+        <Shapes className="!h-6 !w-6 text-yadn-pink" />
       </Button>
       <Button
         variant="outline"
@@ -51,42 +52,13 @@ export function VerticalNav({ className, onToggleSidebar }: VerticalNavProps) {
       >
         <Printer className="!h-6 !w-6" />
       </Button>
-      <Button
-        variant="outline"
-        size="icon"
-        className="h-12 w-12 rounded-lg hover:bg-gray-100"
-      >
-        <Shapes className="!h-6 !w-6" />
-      </Button>
-      <Button
-        variant="outline"
-        size="icon"
-        className="h-12 w-12 rounded-lg hover:bg-gray-100"
-      >
-        <Image className="!h-6 !w-6" />
-      </Button>
-      <Separator className="my-4" />
-      <Button
-        variant="outline"
-        size="icon"
-        className="h-12 w-12 rounded-lg hover:bg-gray-100"
-      >
-        <WandSparkles className="!h-6 !w-6" />
-      </Button>
-      <Button
-        variant="outline"
-        size="icon"
-        className="h-12 w-12 rounded-lg hover:bg-gray-100"
-      >
-        <Database className="!h-6 !w-6" />
-      </Button>
 
       <Button
         variant="outline"
         size="icon"
         className="h-12 w-12 rounded-lg hover:bg-gray-100"
       >
-        <Rocket className="!h-6 !w-6" />
+        <Image className="!h-6 !w-6" />
       </Button>
     </div>
   );
