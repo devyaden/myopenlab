@@ -37,14 +37,30 @@ export const updateSession = async (request: NextRequest) => {
 
     // This will refresh session if expired - required for Server Components
     // https://supabase.com/docs/guides/auth/server-side/nextjs
-    const user = await supabase.auth.getUser();
-    const { data: databaseUser, error } = await supabase
-      .from("user")
-      .select()
-      .eq("id", user?.data?.user?.id)
-      .single();
+    const {
+      data: { user },
+      error,
+    } = await supabase.auth.getUser();
 
     if (error) {
+      return NextResponse.next({
+        request: {
+          headers: request.headers,
+        },
+      });
+    }
+
+    // if (!user.data?.user) {
+    //   return NextResponse.redirect(new URL("/authentication", request.url));
+    // }
+
+    const { data: databaseUser, error: dbUserError } = await supabase
+      .from("user")
+      .select()
+      .eq("id", user?.id)
+      .single();
+
+    if (dbUserError) {
       console.log("🚀 ~ updateSession ~ error", error);
       return NextResponse.next({
         request: {
@@ -55,16 +71,16 @@ export const updateSession = async (request: NextRequest) => {
 
     const userRole = databaseUser?.role; // this can be admin | user
 
-    const isAuthenticated = user && !user.error;
+    const isAuthenticated = user && !error;
     const isAdminRoute = request.nextUrl.pathname.startsWith("/admin");
     const isUserRoute = request.nextUrl.pathname.startsWith("/protected");
 
     // protected routes
-    if (isUserRoute && user.error) {
+    if (isUserRoute && error) {
       return NextResponse.redirect(new URL("/authentication", request.url));
     }
 
-    if (isAdminRoute && user.error) {
+    if (isAdminRoute && error) {
       return NextResponse.redirect(new URL("/authentication", request.url));
     }
 
@@ -76,18 +92,18 @@ export const updateSession = async (request: NextRequest) => {
       return NextResponse.redirect(new URL("/admin", request.url));
     }
 
-    if (
-      request.nextUrl.pathname === "/" &&
-      !user.error &&
-      userRole === "user"
-    ) {
+    if (request.nextUrl.pathname === "/" && !error && userRole === "user") {
       return NextResponse.redirect(new URL("/protected", request.url));
     }
 
+    if (request.nextUrl.pathname === "/" && !error && userRole === "admin") {
+      return NextResponse.redirect(new URL("/admin", request.url));
+    }
+
     if (
-      request.nextUrl.pathname === "/" &&
-      !user.error &&
-      userRole === "admin"
+      request.nextUrl.pathname === "/protected" &&
+      userRole === "admin" &&
+      isAuthenticated
     ) {
       return NextResponse.redirect(new URL("/admin", request.url));
     }
