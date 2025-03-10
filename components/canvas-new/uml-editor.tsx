@@ -34,6 +34,7 @@ import { SwimlaneNode } from "./nodes/swimlane-node";
 import { TextNode } from "./nodes/text-node";
 import TableView from "./table-view";
 import { UMLToolbar } from "./uml-toolbar";
+import { CANVAS_TYPE } from "@/types/store";
 
 const nodeTypes = {
   genericNode: GenericNode,
@@ -41,12 +42,6 @@ const nodeTypes = {
   textNode: TextNode,
   imageNode: ImageNode,
 };
-
-interface ColumnData {
-  id: string;
-  name: string;
-  type: "text" | "number" | "date";
-}
 
 interface UMLEditorProps {
   nodes: Node[];
@@ -69,6 +64,7 @@ interface UMLEditorProps {
   setColumns: (columns: any[]) => void;
   currentFolderCanvases: { id: string; name: string }[];
   canvasId: string;
+  canvasType: CANVAS_TYPE | null;
 }
 
 const sortNodes = (node: ReactFlowNode, nodes: ReactFlowNode[]) => {
@@ -126,6 +122,7 @@ export function UMLEditor({
   setColumns,
   currentFolderCanvases,
   canvasId,
+  canvasType,
 }: UMLEditorProps) {
   const { getNode } = useReactFlow();
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
@@ -563,7 +560,7 @@ export function UMLEditor({
 
   return (
     <div className="w-full h-[calc(100vh-132px)]" ref={reactFlowWrapper}>
-      {viewMode === "canvas" ? (
+      {viewMode === "canvas" && canvasType === CANVAS_TYPE.HYBRID ? (
         <>
           <UMLToolbar
             onZoomIn={handleZoomIn}

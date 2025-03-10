@@ -47,17 +47,13 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { CreateCanvasModal } from "./create-canvas-modal";
 
-import { Canvas, Folder as FolderType } from "@/types/sidebar";
-import { useSidebarStore } from "@/lib/store/useSidebar";
 import { useUser } from "@/lib/contexts/userContext";
+import { useSidebarStore } from "@/lib/store/useSidebar";
+import { Canvas, Folder as FolderType } from "@/types/sidebar";
+import { CANVAS_TYPE } from "@/types/store";
 
-interface SidebarDashboardProps {
-  onCanvasNameChange: (canvasId: string, newName: string) => void;
-}
-
-export function UserSidebar({ onCanvasNameChange }: SidebarDashboardProps) {
+export function UserSidebar() {
   const {
     folders,
     createFolder,
@@ -71,7 +67,6 @@ export function UserSidebar({ onCanvasNameChange }: SidebarDashboardProps) {
 
   const { user } = useUser();
 
-  const [isCreateCanvasModalOpen, setIsCreateCanvasModalOpen] = useState(false);
   const [isCreateNewModalOpen, setIsCreateNewModalOpen] = useState(false);
   const [editingItemId, setEditingItemId] = useState<string | null>(null);
   const [editingItemName, setEditingItemName] = useState("");
@@ -92,15 +87,17 @@ export function UserSidebar({ onCanvasNameChange }: SidebarDashboardProps) {
   const handleCreateCanvas = async (
     name: string,
     description: string,
+    type: CANVAS_TYPE,
     folderId?: string | null
   ) => {
     await createCanvas(
       name,
       description,
       user?.id as string,
-      folderId as string
+      folderId as string,
+      type
     );
-    onCanvasNameChange(Date.now().toString(), name); // Using timestamp as temp ID
+
     return true;
   };
 
@@ -122,7 +119,6 @@ export function UserSidebar({ onCanvasNameChange }: SidebarDashboardProps) {
         await updateFolder(editingItemId, editingItemName);
       } else {
         await updateCanvas(editingItemId, editingItemName);
-        onCanvasNameChange(editingItemId, editingItemName);
       }
       setIsEditDialogOpen(false);
       setEditingItemId(null);
@@ -295,11 +291,7 @@ export function UserSidebar({ onCanvasNameChange }: SidebarDashboardProps) {
           )}
         </div>
       </SidebarContent>
-      <CreateCanvasModal
-        isOpen={isCreateCanvasModalOpen}
-        onClose={() => setIsCreateCanvasModalOpen(false)}
-        onCreateCanvas={handleCreateCanvas}
-      />
+
       <CreateNewModal
         isOpen={isCreateNewModalOpen}
         onClose={() => setIsCreateNewModalOpen(false)}
@@ -307,7 +299,6 @@ export function UserSidebar({ onCanvasNameChange }: SidebarDashboardProps) {
         // @ts-ignore
         onCreateCanvas={handleCreateCanvas}
         folders={folders}
-        onCanvasNameChange={onCanvasNameChange}
       />
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
         <DialogContent>

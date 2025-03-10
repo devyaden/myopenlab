@@ -13,6 +13,8 @@ import { Sidebar } from "./sidebar";
 import { Toolbar } from "./toolbar";
 import { UMLEditor } from "./uml-editor";
 import { VerticalNav } from "./vertical-nav";
+import { LoadingSpinner } from "../loading-spinner";
+import { CANVAS_TYPE } from "@/types/store";
 
 interface NodeStyle {
   fontFamily: string;
@@ -84,7 +86,10 @@ export default function CanvasNew({ canvasId }: FigmaInterfaceProps) {
     columns,
     setColumns,
     folderCanvases,
+    isLoading,
+    canvas_type,
   } = useCanvasStore();
+  console.log("🚀 ~ CanvasNew ~ canvas_type:", canvas_type);
 
   const currentState: {
     nodes: Node[];
@@ -804,6 +809,17 @@ export default function CanvasNew({ canvasId }: FigmaInterfaceProps) {
     }
   }, [canvasId]);
 
+  if (isLoading) {
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-background">
+        <div className="flex flex-col items-center space-y-4">
+          <LoadingSpinner size={36} />
+          <p className="text-primary">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <ReactFlowProvider>
       <div className="min-h-screen bg-white flex flex-col w-screen">
@@ -836,79 +852,89 @@ export default function CanvasNew({ canvasId }: FigmaInterfaceProps) {
           saveLoading={saveLoading}
           onSave={saveCanvas}
         />
-        <Toolbar
-          key={selectedNode || selectedEdge || "no-selection"}
-          fontFamily={selectedStyle?.fontFamily || "Arial"}
-          setFontFamily={(font) =>
-            selectedNode && updateNodeStyle(selectedNode, { fontFamily: font })
-          }
-          fontSize={selectedStyle?.fontSize || 12}
-          setFontSize={(size) =>
-            selectedNode && updateNodeStyle(selectedNode, { fontSize: size })
-          }
-          isBold={selectedStyle?.isBold || false}
-          setIsBold={(bold) =>
-            selectedNode && updateNodeStyle(selectedNode, { isBold: bold })
-          }
-          isItalic={selectedStyle?.isItalic || false}
-          setIsItalic={(italic) =>
-            selectedNode && updateNodeStyle(selectedNode, { isItalic: italic })
-          }
-          isUnderline={selectedStyle?.isUnderline || false}
-          setIsUnderline={(underline) =>
-            selectedNode &&
-            updateNodeStyle(selectedNode, { isUnderline: underline })
-          }
-          textAlign={selectedStyle?.textAlign || "left"}
-          setTextAlign={(align) =>
-            selectedNode && updateNodeStyle(selectedNode, { textAlign: align })
-          }
-          selectedNode={selectedNode}
-          onUndo={undo}
-          onRedo={redo}
-          canUndo={canUndo}
-          canRedo={canRedo}
-          onCopy={copySelectedNodes}
-          onPaste={pasteNodes}
-          onLock={lockNode}
-          onChangeShape={changeShape}
-          shape={selectedStyle?.shape || "rectangle"}
-          isLocked={selectedStyle?.locked || false}
-          borderStyle={selectedStyle?.borderStyle || "solid"}
-          setBorderStyle={setBorderStyle}
-          borderWidth={selectedStyle?.borderWidth || 2}
-          setBorderWidth={setBorderWidth}
-          isSwimlane={selectedStyle?.shape === "swimlane"}
-          onDelete={
-            selectedNodes.length > 0
-              ? deleteSelectedNodes
-              : selectedEdge
-                ? deleteSelectedEdges
-                : () => {}
-          }
-          backgroundColor={selectedStyle?.backgroundColor || "#ffffff"}
-          setBackgroundColor={setBackgroundColor}
-          borderColor={selectedStyle?.borderColor || "#000000"}
-          setBorderColor={setBorderColor}
-          textColor={selectedStyle?.textColor || "#000000"}
-          setTextColor={setTextColor}
-          lineHeight={selectedStyle?.lineHeight || 1.2}
-          setLineHeight={setLineHeight}
-          selectedEdge={selectedEdge}
-          onChangeEdgeStyle={onChangeEdgeStyle}
-          currentEdgeStyle={selectedEdgeData?.type || "default"}
-          viewMode={viewMode}
-          onViewModeChange={setViewMode}
-          // edge styles
-          edgeWidth={edgeWidth}
-          setEdgeWidth={handleEdgeWidthChange}
-          edgeColor={edgeColor}
-          setEdgeColor={handleEdgeColorChange}
-        />
+
+        {/* conditional rendering based on canvas type */}
+
+        {canvas_type === CANVAS_TYPE.HYBRID && (
+          <Toolbar
+            key={selectedNode || selectedEdge || "no-selection"}
+            fontFamily={selectedStyle?.fontFamily || "Arial"}
+            setFontFamily={(font) =>
+              selectedNode &&
+              updateNodeStyle(selectedNode, { fontFamily: font })
+            }
+            fontSize={selectedStyle?.fontSize || 12}
+            setFontSize={(size) =>
+              selectedNode && updateNodeStyle(selectedNode, { fontSize: size })
+            }
+            isBold={selectedStyle?.isBold || false}
+            setIsBold={(bold) =>
+              selectedNode && updateNodeStyle(selectedNode, { isBold: bold })
+            }
+            isItalic={selectedStyle?.isItalic || false}
+            setIsItalic={(italic) =>
+              selectedNode &&
+              updateNodeStyle(selectedNode, { isItalic: italic })
+            }
+            isUnderline={selectedStyle?.isUnderline || false}
+            setIsUnderline={(underline) =>
+              selectedNode &&
+              updateNodeStyle(selectedNode, { isUnderline: underline })
+            }
+            textAlign={selectedStyle?.textAlign || "left"}
+            setTextAlign={(align) =>
+              selectedNode &&
+              updateNodeStyle(selectedNode, { textAlign: align })
+            }
+            selectedNode={selectedNode}
+            onUndo={undo}
+            onRedo={redo}
+            canUndo={canUndo}
+            canRedo={canRedo}
+            onCopy={copySelectedNodes}
+            onPaste={pasteNodes}
+            onLock={lockNode}
+            onChangeShape={changeShape}
+            shape={selectedStyle?.shape || "rectangle"}
+            isLocked={selectedStyle?.locked || false}
+            borderStyle={selectedStyle?.borderStyle || "solid"}
+            setBorderStyle={setBorderStyle}
+            borderWidth={selectedStyle?.borderWidth || 2}
+            setBorderWidth={setBorderWidth}
+            isSwimlane={selectedStyle?.shape === "swimlane"}
+            onDelete={
+              selectedNodes.length > 0
+                ? deleteSelectedNodes
+                : selectedEdge
+                  ? deleteSelectedEdges
+                  : () => {}
+            }
+            backgroundColor={selectedStyle?.backgroundColor || "#ffffff"}
+            setBackgroundColor={setBackgroundColor}
+            borderColor={selectedStyle?.borderColor || "#000000"}
+            setBorderColor={setBorderColor}
+            textColor={selectedStyle?.textColor || "#000000"}
+            setTextColor={setTextColor}
+            lineHeight={selectedStyle?.lineHeight || 1.2}
+            setLineHeight={setLineHeight}
+            selectedEdge={selectedEdge}
+            onChangeEdgeStyle={onChangeEdgeStyle}
+            currentEdgeStyle={selectedEdgeData?.type || "default"}
+            viewMode={viewMode}
+            onViewModeChange={setViewMode}
+            // edge styles
+            edgeWidth={edgeWidth}
+            setEdgeWidth={handleEdgeWidthChange}
+            edgeColor={edgeColor}
+            setEdgeColor={handleEdgeColorChange}
+          />
+        )}
+
         <div className="flex flex-1 overflow-hidden">
           <VerticalNav
             className="hidden md:flex"
             onToggleSidebar={toggleSidebar}
+            canvasType={canvas_type}
           />
           <div className="flex-1 flex flex-col md:flex-row relative">
             <Sidebar onDragStart={onDragStart} isVisible={isSidebarOpen} />
@@ -934,6 +960,7 @@ export default function CanvasNew({ canvasId }: FigmaInterfaceProps) {
                 setColumns={setColumns}
                 currentFolderCanvases={folderCanvases}
                 canvasId={canvasId}
+                canvasType={canvas_type}
               />
             </div>
           </div>

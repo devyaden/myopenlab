@@ -56,6 +56,7 @@ const initialState: Omit<CanvasStore, keyof CanvasActions> = {
   isDirty: false,
   lastSaved: null,
   folderCanvases: [],
+  canvas_type: null,
 };
 
 const initialHistoryState: HistoryState = {
@@ -459,6 +460,7 @@ export const useCanvasStore = create<CanvasStore>()(
                 version: canvasData?.version || 1,
                 isDirty: false,
                 lastSaved: new Date(),
+                canvas_type: canvas.canvas_type,
               };
 
               // Reset history when loading a new canvas

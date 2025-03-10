@@ -4,6 +4,7 @@ import { v4 as uuidv4 } from "uuid";
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { supabase } from "../supabase/client";
+import { CANVAS_TYPE } from "@/types/store";
 
 const initialState: Omit<SidebarStore, keyof SidebarActions> = {
   folders: [],
@@ -136,13 +137,20 @@ export const useSidebarStore = create<SidebarStore>()(
         }
       },
 
-      createCanvas: async (name, description, userId, folderId) => {
+      createCanvas: async (
+        name,
+        description,
+        userId,
+        folderId,
+        canavs_type
+      ) => {
         const state = get();
         const newCanvas = {
           id: uuidv4(),
           name,
           description,
           folderId: folderId || null,
+          canavs_type: canavs_type || CANVAS_TYPE.HYBRID,
           createdAt: new Date(),
           updatedAt: new Date(),
         };
@@ -163,6 +171,7 @@ export const useSidebarStore = create<SidebarStore>()(
             description: newCanvas.description,
             folder_id: newCanvas.folderId,
             user_id: userId,
+            canvas_type: newCanvas.canavs_type,
           });
 
           if (error) throw error;

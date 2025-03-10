@@ -1,3 +1,5 @@
+import { CANVAS_TYPE } from "./store";
+
 export interface Canvas {
   id: string;
   name: string;
@@ -38,7 +40,8 @@ export interface SidebarActions {
     name: string,
     description: string,
     userId: string,
-    folderId?: string
+    folderId?: string,
+    canvas_type?: CANVAS_TYPE
   ) => Promise<void>;
   updateCanvas: (
     id: string,

@@ -1,5 +1,11 @@
 import type { Edge, Node } from "reactflow";
 
+export enum CANVAS_TYPE {
+  HYBRID = "hybrid",
+  TABLE = "table",
+  DOCUMENT = "document",
+}
+
 export interface NodeStyle {
   fontFamily: string;
   fontSize: number;
@@ -70,6 +76,7 @@ export interface CanvasState extends CanvasData {
   saveLoading: boolean;
   error: string | null;
   isDirty: boolean;
+  canvas_type: CANVAS_TYPE | null;
   lastSaved: Date | null;
   updated_at: Date | null;
   created_at: Date | null;

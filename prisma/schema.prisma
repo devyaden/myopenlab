@@ -59,6 +59,7 @@ model Canvas {
   shares          CanvasShare[]
   columns         ColumnDefinition[]
   related_columns ColumnDefinition[] @relation("RelatedColumn")
+  canvas_type     String             @default("hybrid")
 
   @@map("canvas")
 }
