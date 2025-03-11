@@ -27,8 +27,6 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { FileText, Folder } from "lucide-react";
-import * as React from "react";
 import { useForm } from "react-hook-form";
 import * as z from "zod";
 
@@ -53,6 +51,8 @@ interface CreateNewModalProps {
     name: string;
     canvases: { id: string; name: string }[];
   }[];
+
+  type: "folder" | "canvas" | null;
 }
 
 const folderSchema = z.object({
@@ -86,12 +86,8 @@ export function CreateNewModal({
   onCreateFolder,
   onCreateCanvas,
   folders,
+  type,
 }: CreateNewModalProps) {
-  const [step, setStep] = React.useState(1);
-  const [type, setType] = React.useState<"folder" | "canvas" | "table" | null>(
-    null
-  );
-
   const folderForm = useForm<FolderFormValues>({
     resolver: zodResolver(folderSchema),
     defaultValues: {
@@ -112,8 +108,6 @@ export function CreateNewModal({
   const resetForms = () => {
     folderForm.reset();
     canvasForm.reset();
-    setStep(1);
-    setType(null);
   };
 
   const handleClose = () => {
@@ -161,44 +155,13 @@ export function CreateNewModal({
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
           <DialogTitle>
-            {step === 1
-              ? "Create New"
-              : type === "folder"
-                ? "Create New Folder"
-                : "Create New Canvas"}
+            {type === "folder" ? "Create New Folder" : "Create New Canvas"}
           </DialogTitle>
           <DialogDescription>
-            {step === 1
-              ? "Choose what you want to create"
-              : "Enter the details for your new item"}
+            {"Enter the details for your new item"}
           </DialogDescription>
         </DialogHeader>
-        {step === 1 ? (
-          <div className="grid grid-cols-2 gap-4 py-4">
-            <Button
-              onClick={() => {
-                setType("folder");
-                setStep(2);
-              }}
-              variant="outline"
-              className="h-24 flex flex-col items-center justify-center"
-            >
-              <Folder className="h-8 w-8 mb-2" />
-              Create New Folder
-            </Button>
-            <Button
-              onClick={() => {
-                setType("canvas");
-                setStep(2);
-              }}
-              variant="outline"
-              className="h-24 flex flex-col items-center justify-center"
-            >
-              <FileText className="h-8 w-8 mb-2" />
-              Create New Canvas
-            </Button>
-          </div>
-        ) : type === "folder" ? (
+        {type === "folder" ? (
           <Form {...folderForm}>
             <form
               onSubmit={folderForm.handleSubmit(handleCreateFolder)}
@@ -218,13 +181,6 @@ export function CreateNewModal({
                 )}
               />
               <DialogFooter>
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => setStep(1)}
-                >
-                  Back
-                </Button>
                 <Button type="submit">Create Folder</Button>
               </DialogFooter>
             </form>
@@ -322,13 +278,6 @@ export function CreateNewModal({
                 )}
               />
               <DialogFooter>
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => setStep(1)}
-                >
-                  Back
-                </Button>
                 <Button type="submit">Create Canvas</Button>
               </DialogFooter>
             </form>

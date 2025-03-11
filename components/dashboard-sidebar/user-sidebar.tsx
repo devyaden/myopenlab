@@ -41,8 +41,14 @@ import {
   Edit,
   FileText,
   Folder,
+  Home,
   MoreVertical,
   PlusCircle,
+  Share2,
+  Star,
+  Clock,
+  File,
+  Plus,
   Trash,
 } from "lucide-react";
 import Link from "next/link";
@@ -52,6 +58,7 @@ import { useUser } from "@/lib/contexts/userContext";
 import { useSidebarStore } from "@/lib/store/useSidebar";
 import { Canvas, Folder as FolderType } from "@/types/sidebar";
 import { CANVAS_TYPE } from "@/types/store";
+import { create } from "domain";
 
 export function UserSidebar() {
   const {
@@ -67,7 +74,9 @@ export function UserSidebar() {
 
   const { user } = useUser();
 
-  const [isCreateNewModalOpen, setIsCreateNewModalOpen] = useState(false);
+  const [createNewModalType, setCreateNewModalType] = useState<
+    "folder" | "canvas" | null
+  >(null);
   const [editingItemId, setEditingItemId] = useState<string | null>(null);
   const [editingItemName, setEditingItemName] = useState("");
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
@@ -77,11 +86,15 @@ export function UserSidebar() {
     type: "folder" | "canvas";
   } | null>(null);
   const [openFolders, setOpenFolders] = useState<string[]>([]);
+  const [showDocumentDropdown, setShowDocumentDropdown] = useState(false);
+  const [showShareWithMeDropdown, setShowShareWithMeDropdown] = useState(false);
 
   const handleCreateFolder = async (name: string) => {
     if (name.trim()) {
       await createFolder(name, user?.id as string);
     }
+
+    setCreateNewModalType(null);
   };
 
   const handleCreateCanvas = async (
@@ -98,6 +111,7 @@ export function UserSidebar() {
       type
     );
 
+    setCreateNewModalType(null);
     return true;
   };
 
@@ -145,45 +159,108 @@ export function UserSidebar() {
   }, [user]);
 
   return (
-    <Sidebar className="border-r border-gray-200">
-      <SidebarHeader className="p-4 md:pt-24 bg-white">
+    <Sidebar className="border-r border-gray-100 bg-white w-64">
+      <SidebarHeader className="p-4 bg-white pt-24">
         <Button
-          onClick={() => setIsCreateNewModalOpen(true)}
-          className="w-full bg-yadn-pink hover:bg-yadn-pink/90 text-white rounded-xl py-3 px-4 text-base font-normal flex items-center justify-center"
+          // onClick={() => setIsCreateNewModalOpen(true)}
+          className="w-full bg-pink-500 hover:bg-pink-600 text-white rounded-md py-2 px-4 text-sm font-medium flex items-center justify-center"
         >
-          <svg
-            width="16"
-            height="16"
-            viewBox="0 0 16 16"
-            fill="none"
-            className="mr-2"
-          >
-            <path
-              d="M8 1.14286V14.8571M1.14286 8H14.8571"
-              stroke="currentColor"
-              strokeWidth="1.71429"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          </svg>
-          New
+          <Plus className="mr-2 h-4 w-4" />
+          Create New
         </Button>
       </SidebarHeader>
-      <SidebarContent className="px-1 bg-white">
-        <div className="mt-4 mb-2">
-          <h2 className="px-3 text-base font-medium">Folders</h2>
+
+      <SidebarContent className="px-2 bg-white">
+        <div className="space-y-1 mt-2">
+          <Link
+            href="/dashboard"
+            className="flex items-center px-3 py-2 text-sm text-gray-700 rounded-md hover:bg-gray-100"
+          >
+            <Home className="mr-3 h-4 w-4 text-gray-500" />
+            Home
+          </Link>
+
+          <Link
+            href="/recent"
+            className="flex items-center px-3 py-2 text-sm text-gray-700 rounded-md hover:bg-gray-100"
+          >
+            <Clock className="mr-3 h-4 w-4 text-gray-500" />
+            Recent
+          </Link>
+
+          <Link
+            href="/starred"
+            className="flex items-center px-3 py-2 text-sm text-gray-700 rounded-md hover:bg-gray-100"
+          >
+            <Star className="mr-3 h-4 w-4 text-gray-500" />
+            Starred
+          </Link>
+
+          <Collapsible
+            open={showDocumentDropdown}
+            onOpenChange={setShowDocumentDropdown}
+          >
+            <CollapsibleTrigger className="flex items-center justify-between w-full px-3 py-2 text-sm text-gray-700 rounded-md hover:bg-gray-100">
+              <div className="flex items-center">
+                <File className="mr-3 h-4 w-4 text-gray-500" />
+                Document
+              </div>
+              <ChevronRight
+                className={`h-4 w-4 text-gray-500 transition-transform duration-200 ${
+                  showDocumentDropdown ? "transform rotate-90" : ""
+                }`}
+              />
+            </CollapsibleTrigger>
+            <CollapsibleContent className="pl-10">
+              {/* Document content can go here */}
+            </CollapsibleContent>
+          </Collapsible>
+
+          <Collapsible
+            open={showShareWithMeDropdown}
+            onOpenChange={setShowShareWithMeDropdown}
+          >
+            <CollapsibleTrigger className="flex items-center justify-between w-full px-3 py-2 text-sm text-gray-700 rounded-md hover:bg-gray-100">
+              <div className="flex items-center">
+                <Share2 className="mr-3 h-4 w-4 text-gray-500" />
+                Share with me
+              </div>
+              <ChevronRight
+                className={`h-4 w-4 text-gray-500 transition-transform duration-200 ${
+                  showShareWithMeDropdown ? "transform rotate-90" : ""
+                }`}
+              />
+            </CollapsibleTrigger>
+            <CollapsibleContent className="pl-10">
+              {/* Shared content can go here */}
+            </CollapsibleContent>
+          </Collapsible>
+        </div>
+
+        <div className="mt-8">
+          <div className="flex items-center justify-between px-3 py-2">
+            <h2 className="text-sm font-medium text-gray-900">Folders</h2>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-6 w-6 p-0 rounded-full"
+              onClick={() => setCreateNewModalType("folder")}
+            >
+              <PlusCircle className="h-4 w-4 text-gray-500" />
+            </Button>
+          </div>
 
           {folders.length === 0 ? (
             <div className="flex flex-col items-center justify-center p-6 text-center">
-              <Folder className="h-12 w-12 text-gray-400 mb-2" />
-              <p className="text-gray-500 mb-4">No folders yet</p>
+              <p className="text-gray-500 text-sm mb-2">No folders yet</p>
               <Button
-                onClick={() => setIsCreateNewModalOpen(true)}
+                onClick={() => setCreateNewModalType("folder")}
                 variant="outline"
-                className="flex items-center"
+                size="sm"
+                className="flex items-center text-xs"
               >
-                <PlusCircle className="mr-2 h-4 w-4" />
-                Create your first folder
+                <PlusCircle className="mr-1 h-3 w-3" />
+                Create folder
               </Button>
             </div>
           ) : (
@@ -199,24 +276,28 @@ export function UserSidebar() {
                   );
                 }}
               >
-                <div className="flex items-center justify-between w-full px-3 py-2 text-[15px] rounded-lg group hover:bg-[#f1f3f4]">
+                <div className="flex items-center justify-between w-full px-3 py-2 rounded-md group hover:bg-gray-100">
                   <CollapsibleTrigger asChild>
-                    <button className="flex items-center flex-grow">
+                    <button className="flex items-center flex-grow text-sm text-gray-700">
                       <ChevronRight
-                        className={`mr-2 h-4 w-4 transition-transform duration-200 ${
+                        className={`mr-2 h-4 w-4 text-gray-500 transition-transform duration-200 ${
                           openFolders.includes(folder.id)
                             ? "transform rotate-90"
                             : ""
                         }`}
                       />
-                      <Folder className="mr-2 h-4 w-4" />
+                      <Folder className="mr-2 h-4 w-4 text-gray-500" />
                       {folder.name}
                     </button>
                   </CollapsibleTrigger>
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-                        <MoreVertical className="h-4 w-4" />
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-6 w-6 p-0 opacity-0 group-hover:opacity-100"
+                      >
+                        <MoreVertical className="h-4 w-4 text-gray-500" />
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
@@ -239,20 +320,20 @@ export function UserSidebar() {
                 </div>
                 <CollapsibleContent>
                   {folder.canvases?.length === 0 ? (
-                    <div className="ml-6 px-3 py-2 text-sm text-gray-500">
-                      No canvases in this folder
+                    <div className="pl-10 pr-3 py-1 text-xs text-gray-500">
+                      No files in this folder
                     </div>
                   ) : (
                     folder.canvases?.map((canvas: Canvas) => (
                       <div
                         key={canvas.id}
-                        className="flex items-center justify-between w-full px-3 py-2 text-[15px] rounded-lg group hover:bg-[#f1f3f4] ml-6"
+                        className="flex items-center justify-between w-full px-3 py-1 rounded-md group hover:bg-gray-100 pl-6 pr-4"
                       >
                         <Link
                           href={`/protected/canvas-new/${canvas.id}`}
-                          className="flex items-center flex-grow"
+                          className="flex items-center flex-grow text-sm text-gray-700"
                         >
-                          <FileText className="mr-2 h-4 w-4" />
+                          <FileText className="mr-2 h-4 w-4 text-gray-500" />
                           {canvas.name}
                         </Link>
                         <DropdownMenu>
@@ -260,9 +341,9 @@ export function UserSidebar() {
                             <Button
                               variant="ghost"
                               size="sm"
-                              className="h-8 w-8 p-0"
+                              className="h-6 w-6 p-0 opacity-0 group-hover:opacity-100"
                             >
-                              <MoreVertical className="h-4 w-4" />
+                              <MoreVertical className="h-4 w-4 text-gray-500" />
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
@@ -285,6 +366,13 @@ export function UserSidebar() {
                       </div>
                     ))
                   )}
+                  <button
+                    className="flex items-center text-sm text-gray-500 px-3 py-1 pl-7 hover:bg-gray-100 rounded-md w-full"
+                    onClick={() => setCreateNewModalType("canvas")}
+                  >
+                    <Plus className="mr-1 h-3 w-3" />
+                    Add File
+                  </button>
                 </CollapsibleContent>
               </Collapsible>
             ))
@@ -293,12 +381,13 @@ export function UserSidebar() {
       </SidebarContent>
 
       <CreateNewModal
-        isOpen={isCreateNewModalOpen}
-        onClose={() => setIsCreateNewModalOpen(false)}
+        isOpen={Boolean(createNewModalType)}
+        onClose={() => setCreateNewModalType(null)}
         onCreateFolder={handleCreateFolder}
         // @ts-ignore
         onCreateCanvas={handleCreateCanvas}
         folders={folders}
+        type={createNewModalType}
       />
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
         <DialogContent>
