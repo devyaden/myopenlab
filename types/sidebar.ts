@@ -5,6 +5,7 @@ export interface Canvas {
   name: string;
   description?: string;
   folderId?: string | null;
+  canvas_type: CANVAS_TYPE;
   createdAt: Date;
   updatedAt: Date;
 }

@@ -1,7 +1,5 @@
-import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
-import { Plus } from "lucide-react";
 import Image from "next/image";
 
 export function DiagramsSection() {
@@ -45,7 +43,7 @@ export function DiagramsSection() {
 
         <div className="">
           <ScrollArea className="w-full whitespace-nowrap rounded-lg">
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-8 gap-2 pb-4">
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7 gap-2 pb-4">
               {templates.map((template) => (
                 <Card
                   key={template.title}
@@ -64,21 +62,6 @@ export function DiagramsSection() {
                   </div>
                 </Card>
               ))}
-
-              <div className="flex flex-col space-y-4">
-                <Button variant="outline" className="justify-start">
-                  <Plus className="mr-2 h-4 w-4" />
-                  More Templates
-                </Button>
-                <Button variant="outline" className="justify-start">
-                  <Plus className="mr-2 h-4 w-4" />
-                  Blank Whiteboard
-                </Button>
-                <Button variant="outline" className="justify-start">
-                  <Plus className="mr-2 h-4 w-4" />
-                  Blank Diagram
-                </Button>
-              </div>
             </div>
             <ScrollBar orientation="horizontal" />
           </ScrollArea>

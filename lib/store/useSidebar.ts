@@ -142,7 +142,7 @@ export const useSidebarStore = create<SidebarStore>()(
         description,
         userId,
         folderId,
-        canavs_type
+        canvas_type
       ) => {
         const state = get();
         const newCanvas = {
@@ -150,7 +150,7 @@ export const useSidebarStore = create<SidebarStore>()(
           name,
           description,
           folderId: folderId || null,
-          canavs_type: canavs_type || CANVAS_TYPE.HYBRID,
+          canvas_type: canvas_type || CANVAS_TYPE.HYBRID,
           createdAt: new Date(),
           updatedAt: new Date(),
         };
@@ -171,7 +171,7 @@ export const useSidebarStore = create<SidebarStore>()(
             description: newCanvas.description,
             folder_id: newCanvas.folderId,
             user_id: userId,
-            canvas_type: newCanvas.canavs_type,
+            canvas_type: newCanvas.canvas_type,
           });
 
           if (error) throw error;

@@ -330,7 +330,11 @@ export function UserSidebar() {
                         className="flex items-center justify-between w-full px-3 py-1 rounded-md group hover:bg-gray-100 pl-6 pr-4"
                       >
                         <Link
-                          href={`/protected/canvas-new/${canvas.id}`}
+                          href={
+                            canvas.canvas_type === CANVAS_TYPE.DOCUMENT
+                              ? `/protected/document-editor/${canvas.id}`
+                              : `/protected/canvas-new/${canvas.id}`
+                          }
                           className="flex items-center flex-grow text-sm text-gray-700"
                         >
                           <FileText className="mr-2 h-4 w-4 text-gray-500" />

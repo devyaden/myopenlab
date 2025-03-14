@@ -27,7 +27,7 @@ export const HeaderSidebar = () => {
   const { signOut } = useUser();
 
   return (
-    <header className="flex items-center justify-between gap-4 bg-yadn-dark-background px-6 z-50 py-4">
+    <header className="flex items-center justify-between gap-4 bg-yadn-dark-background px-6 z-50 py-4 min-w-full">
       <div className="flex items-center gap-4 flex-1">
         <Link href="/" className="flex items-center gap-2">
           <Image
