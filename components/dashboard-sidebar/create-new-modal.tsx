@@ -29,6 +29,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import * as z from "zod";
+import { useState } from "react";
 
 export enum CANVAS_TYPE {
   HYBRID = "hybrid",
@@ -88,6 +89,8 @@ export function CreateNewModal({
   folders,
   type,
 }: CreateNewModalProps) {
+  const [step, setStep] = useState<"select" | "form">("select");
+
   const folderForm = useForm<FolderFormValues>({
     resolver: zodResolver(folderSchema),
     defaultValues: {
@@ -112,6 +115,7 @@ export function CreateNewModal({
 
   const handleClose = () => {
     resetForms();
+    setStep("select");
     onClose();
   };
 
@@ -150,138 +154,220 @@ export function CreateNewModal({
     }
   };
 
+  const handleTypeSelect = (selectedType: CANVAS_TYPE) => {
+    canvasForm.setValue("canvas_type", selectedType);
+    setStep("form");
+  };
+
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="sm:max-w-[425px]">
+      <DialogContent
+        className={`${step === "select" ? "max-w-2xl" : "max-w-md"}`}
+      >
         <DialogHeader>
           <DialogTitle>
-            {type === "folder" ? "Create New Folder" : "Create New Canvas"}
+            {step === "select"
+              ? "Create New"
+              : type === "folder"
+                ? "Create New Folder"
+                : "Create New Canvas"}
           </DialogTitle>
           <DialogDescription>
-            {"Enter the details for your new item"}
+            {step === "select"
+              ? "Select the type of item you want to create"
+              : "Enter the details for your new item"}
           </DialogDescription>
         </DialogHeader>
-        {type === "folder" ? (
-          <Form {...folderForm}>
-            <form
-              onSubmit={folderForm.handleSubmit(handleCreateFolder)}
-              className="space-y-8"
+
+        {step === "select" ? (
+          <div className="grid grid-cols-3 gap-4 py-4">
+            <div
+              className="flex flex-col items-center justify-center p-6 bg-gray-50 rounded-lg hover:bg-gray-100 cursor-pointer transition-colors"
+              onClick={() => handleTypeSelect(CANVAS_TYPE.HYBRID)}
             >
-              <FormField
-                control={folderForm.control}
-                name="name"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Folder Name</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Enter folder name" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <DialogFooter>
-                <Button type="submit">Create Folder</Button>
-              </DialogFooter>
-            </form>
-          </Form>
+              <div className="mb-4">
+                <svg
+                  width="24"
+                  height="24"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  className="text-gray-600"
+                >
+                  <rect x="3" y="3" width="18" height="18" rx="2" />
+                  <path d="M9 3v18M3 9h18" />
+                </svg>
+              </div>
+              <span className="font-medium text-center">New Canvas</span>
+              <span className="text-xs text-center text-muted-foreground mt-1">
+                Canvas will be the drawing board to draw diagram
+              </span>
+            </div>
+
+            <div
+              className="flex flex-col items-center justify-center p-6 bg-gray-50 rounded-lg hover:bg-gray-100 cursor-pointer transition-colors"
+              onClick={() => handleTypeSelect(CANVAS_TYPE.TABLE)}
+            >
+              <div className="mb-4">
+                <svg
+                  width="24"
+                  height="24"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  className="text-gray-600"
+                >
+                  <rect x="3" y="3" width="18" height="18" rx="2" />
+                  <line x1="3" y1="9" x2="21" y2="9" />
+                  <line x1="3" y1="15" x2="21" y2="15" />
+                  <line x1="9" y1="3" x2="9" y2="21" />
+                  <line x1="15" y1="3" x2="15" y2="21" />
+                </svg>
+              </div>
+              <span className="font-medium text-center">Create Table</span>
+              <span className="text-xs text-center text-muted-foreground mt-1">
+                Table will be the visual Table to Add Values into The Table
+              </span>
+            </div>
+
+            <div
+              className="flex flex-col items-center justify-center p-6 bg-gray-50 rounded-lg hover:bg-gray-100 cursor-pointer transition-colors"
+              onClick={() => handleTypeSelect(CANVAS_TYPE.DOCUMENT)}
+            >
+              <div className="mb-4">
+                <svg
+                  width="24"
+                  height="24"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  className="text-gray-600"
+                >
+                  <rect x="3" y="3" width="18" height="18" rx="2" />
+                  <line x1="8" y1="10" x2="16" y2="10" />
+                  <line x1="8" y1="14" x2="16" y2="14" />
+                  <line x1="8" y1="18" x2="12" y2="18" />
+                </svg>
+              </div>
+              <span className="font-medium text-center">Create Document</span>
+              <span className="text-xs text-center text-muted-foreground mt-1">
+                Table will be the visual Table to Add Values into The Table
+              </span>
+            </div>
+          </div>
         ) : (
-          <Form {...canvasForm}>
-            <form
-              onSubmit={canvasForm.handleSubmit(handleCreateCanvas)}
-              className="space-y-8"
-            >
-              <FormField
-                control={canvasForm.control}
-                name="name"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Canvas Name</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Enter canvas name" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={canvasForm.control}
-                name="description"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Description</FormLabel>
-                    <FormControl>
-                      <Textarea
-                        placeholder="Enter canvas description"
-                        {...field}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={canvasForm.control}
-                name="canvas_type"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Canvas Type</FormLabel>
-                    <Select
-                      onValueChange={field.onChange}
-                      defaultValue={field.value}
+          <>
+            {type === "folder" ? (
+              <Form {...folderForm}>
+                <form
+                  onSubmit={folderForm.handleSubmit(handleCreateFolder)}
+                  className="space-y-8"
+                >
+                  <FormField
+                    control={folderForm.control}
+                    name="name"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Folder Name</FormLabel>
+                        <FormControl>
+                          <Input placeholder="Enter folder name" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <DialogFooter>
+                    <Button
+                      variant="outline"
+                      type="button"
+                      onClick={() => setStep("select")}
                     >
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select canvas type" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        <SelectItem value={CANVAS_TYPE.HYBRID}>
-                          Hybrid
-                        </SelectItem>
-                        <SelectItem value={CANVAS_TYPE.TABLE}>Table</SelectItem>
-                        <SelectItem value={CANVAS_TYPE.DOCUMENT}>
-                          Document
-                        </SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={canvasForm.control}
-                name="folderId"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Folder</FormLabel>
-                    <Select
-                      onValueChange={field.onChange}
-                      defaultValue={field.value || undefined}
+                      Back
+                    </Button>
+                    <Button type="submit">Create Folder</Button>
+                  </DialogFooter>
+                </form>
+              </Form>
+            ) : (
+              <Form {...canvasForm}>
+                <form
+                  onSubmit={canvasForm.handleSubmit(handleCreateCanvas)}
+                  className="space-y-8"
+                >
+                  <FormField
+                    control={canvasForm.control}
+                    name="name"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Canvas Name</FormLabel>
+                        <FormControl>
+                          <Input placeholder="Enter canvas name" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={canvasForm.control}
+                    name="description"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Description</FormLabel>
+                        <FormControl>
+                          <Textarea
+                            placeholder="Enter canvas description"
+                            {...field}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={canvasForm.control}
+                    name="folderId"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Folder</FormLabel>
+                        <Select
+                          onValueChange={field.onChange}
+                          defaultValue={field.value || undefined}
+                        >
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select a folder (optional)" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="0">No folder</SelectItem>
+                            {folders.map((folder) => (
+                              <SelectItem key={folder.id} value={folder.id}>
+                                {folder.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <DialogFooter>
+                    <Button
+                      variant="outline"
+                      type="button"
+                      onClick={() => setStep("select")}
                     >
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select a folder (optional)" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        <SelectItem value="0">No folder</SelectItem>
-                        {folders.map((folder) => (
-                          <SelectItem key={folder.id} value={folder.id}>
-                            {folder.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <DialogFooter>
-                <Button type="submit">Create Canvas</Button>
-              </DialogFooter>
-            </form>
-          </Form>
+                      Back
+                    </Button>
+                    <Button type="submit">Create Canvas</Button>
+                  </DialogFooter>
+                </form>
+              </Form>
+            )}
+          </>
         )}
       </DialogContent>
     </Dialog>
