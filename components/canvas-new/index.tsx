@@ -89,7 +89,6 @@ export default function CanvasNew({ canvasId }: FigmaInterfaceProps) {
     isLoading,
     canvas_type,
   } = useCanvasStore();
-  console.log("🚀 ~ CanvasNew ~ canvas_type:", canvas_type);
 
   const currentState: {
     nodes: Node[];

@@ -89,6 +89,8 @@ export function CreateNewModal({
   folders,
   type,
 }: CreateNewModalProps) {
+  console.log("------ type -------", type);
+
   const [step, setStep] = useState<"select" | "form">("select");
 
   const folderForm = useForm<FolderFormValues>({
@@ -179,7 +181,7 @@ export function CreateNewModal({
           </DialogDescription>
         </DialogHeader>
 
-        {step === "select" ? (
+        {type === "canvas" ? (
           <div className="grid grid-cols-3 gap-4 py-4">
             <div
               className="flex flex-col items-center justify-center p-6 bg-gray-50 rounded-lg hover:bg-gray-100 cursor-pointer transition-colors"
