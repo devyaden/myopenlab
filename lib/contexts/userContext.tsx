@@ -134,7 +134,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
     const { error, data } = await supabase.auth.signInWithOAuth({
       provider: "google",
       options: {
-        redirectTo: `http://localhost:3000/auth/callback`,
+        redirectTo: `${process.env.NEXT_PUBLIC_SERVER_URL}/auth/callback`,
       },
     });
 

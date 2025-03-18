@@ -814,7 +814,7 @@ const TableView: React.FC<TableViewProps> = ({
                             setValidationError(null);
                           }
                         }}
-                        className={validationError ? "border-red-500" : ""}
+                        className={`focus-visible:ring-0 ${validationError ? "border-red-500" : ""}`}
                         autoFocus
                       />
                     ) : column.type === "Long Text" ? (
@@ -883,7 +883,7 @@ const TableView: React.FC<TableViewProps> = ({
                             setValidationError(null);
                           }
                         }}
-                        className={validationError ? "border-red-500" : ""}
+                        className={`focus-visible:ring-0 ${validationError ? "border-red-500" : ""}`}
                         autoFocus
                       />
                     )}
@@ -1078,7 +1078,7 @@ const TableView: React.FC<TableViewProps> = ({
                                     }}
                                     onClick={(e) => e.stopPropagation()}
                                     autoFocus
-                                    className="h-7 w-32"
+                                    className="h-7 w-32 focus-visible:ring-0"
                                   />
                                 ) : (
                                   <div className="flex items-center">
@@ -1097,12 +1097,7 @@ const TableView: React.FC<TableViewProps> = ({
                               >
                                 Edit property
                               </DropdownMenuItem>
-                              <DropdownMenuItem disabled>
-                                Set up AI autofill
-                                <span className="ml-2 text-xs bg-blue-100 text-blue-600 px-1 rounded">
-                                  New
-                                </span>
-                              </DropdownMenuItem>
+
                               <DropdownMenuItem
                                 onClick={() => {
                                   setSortField(column.title as SortField);
@@ -1119,9 +1114,7 @@ const TableView: React.FC<TableViewProps> = ({
                               >
                                 Sort descending
                               </DropdownMenuItem>
-                              <DropdownMenuItem disabled>
-                                Filter
-                              </DropdownMenuItem>
+
                               {!hiddenColumns.has(column.title) && (
                                 <DropdownMenuItem
                                   onClick={() =>
@@ -1131,13 +1124,13 @@ const TableView: React.FC<TableViewProps> = ({
                                   Hide in view
                                 </DropdownMenuItem>
                               )}
-                              <DropdownMenuItem
+                              {/* <DropdownMenuItem
                                 onClick={() => toggleFrozenColumn(column.title)}
                               >
                                 {frozenColumns.has(column.title)
                                   ? "Unfreeze column"
                                   : "Freeze up to column"}
-                              </DropdownMenuItem>
+                              </DropdownMenuItem> */}
                               <DropdownMenuItem
                                 onClick={() =>
                                   handleDuplicateColumn(column.title)
@@ -1155,8 +1148,8 @@ const TableView: React.FC<TableViewProps> = ({
                                   Delete property
                                 </DropdownMenuItem>
                               )}
-                              <DropdownMenuSeparator />
-                              <div className="p-2">
+
+                              {/* <div className="p-2">
                                 <div className="flex items-center justify-between">
                                   <Label htmlFor={`wrap-${column.title}`}>
                                     Wrap column
@@ -1169,7 +1162,7 @@ const TableView: React.FC<TableViewProps> = ({
                                     }
                                   />
                                 </div>
-                              </div>
+                              </div> */}
                             </DropdownMenuContent>
                           </DropdownMenu>
                         </TableHead>
@@ -1212,7 +1205,7 @@ const TableView: React.FC<TableViewProps> = ({
                   placeholder="Enter task name"
                   value={newTaskName}
                   onChange={(e) => setNewTaskName(e.target.value)}
-                  className="flex-grow"
+                  className="flex-grow focus-visible:ring-0"
                 />
                 <Select value={newShapeType} onValueChange={setNewShapeType}>
                   <SelectTrigger className="w-[180px]">
@@ -1226,7 +1219,7 @@ const TableView: React.FC<TableViewProps> = ({
                     ))}
                   </SelectContent>
                 </Select>
-                <Select
+                {/* <Select
                   value={selectedParentId || "no-parent"}
                   onValueChange={setSelectedParentId}
                 >
@@ -1244,7 +1237,7 @@ const TableView: React.FC<TableViewProps> = ({
                       </SelectItem>
                     ))}
                   </SelectContent>
-                </Select>
+                </Select> */}
                 <Button onClick={addNewRow}>Add</Button>
                 <Button
                   variant="ghost"
