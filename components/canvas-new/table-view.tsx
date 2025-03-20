@@ -68,6 +68,7 @@ import {
   MoreVertical,
   Phone,
   Plus,
+  PlusIcon,
   Trash2,
   Type,
   User,
@@ -80,6 +81,14 @@ import * as z from "zod";
 import { AddColumnSidebar } from "./add-column-sidebar";
 import AddTableCellTrigger from "./add-table-cell-relation-trigger";
 import { Checkbox } from "../ui/checkbox";
+// Additions for row reordering
+import { DndContext, closestCenter } from "@dnd-kit/core";
+import {
+  SortableContext,
+  useSortable,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 
 const getColumnIcon = (columnType: string) => {
   switch (columnType) {
@@ -148,6 +157,375 @@ interface HierarchyNode extends Node {
   children: HierarchyNode[];
 }
 
+// Component for sortable table rows (for row reordering)
+const SortableTableRow: React.FC<{
+  node: HierarchyNode;
+  level: number;
+  columns: any[];
+  editingCell: { nodeId: string; column: string } | null;
+  editedValue: any;
+  validationError: string | null;
+  setEditingCell: (cell: { nodeId: string; column: string } | null) => void;
+  setEditedValue: (value: any) => void;
+  setValidationError: (error: string | null) => void;
+  handleSave: (nodeId: string, column: string, value: any) => void;
+  toggleRowExpansion: (nodeId: string) => void;
+  handleDeleteClick: (node: HierarchyNode) => void;
+  selectedNodes: string[];
+  setSelectedNodes: (nodes: string[]) => void;
+  expandedRows: Set<string>;
+  hiddenColumns: Set<string>;
+  frozenColumns: Set<string>;
+  columnWrapping: Set<string>;
+  getRelatedCanvasNodes: any;
+}> = ({
+  node,
+  level,
+  columns,
+  editingCell,
+  editedValue,
+  validationError,
+  setEditingCell,
+  setEditedValue,
+  setValidationError,
+  handleSave,
+  toggleRowExpansion,
+  handleDeleteClick,
+  selectedNodes,
+  setSelectedNodes,
+  expandedRows,
+  hiddenColumns,
+  frozenColumns,
+  columnWrapping,
+  getRelatedCanvasNodes,
+}) => {
+  const { attributes, listeners, setNodeRef, transform, transition } =
+    useSortable({ id: node.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+  };
+
+  const isExpanded = expandedRows.has(node.id);
+  const hasChildren = node.children.length > 0;
+  const isSelected = selectedNodes.includes(node.id);
+
+  return (
+    <TableRow
+      ref={setNodeRef}
+      style={style}
+      {...attributes}
+      className={`hover:bg-gray-100 ${isSelected ? "bg-gray-50" : "bg-white"} border-b border-gray-200`}
+    >
+      <TableCell className="p-2 w-16">
+        <div className="flex items-center space-x-2">
+          <div {...listeners}>
+            <GripVertical className="h-4 w-4 text-gray-400 cursor-move" />
+          </div>
+          <Checkbox
+            checked={selectedNodes.includes(node.id)}
+            className="border-gray-400"
+            onCheckedChange={(checked) => {
+              if (checked) {
+                setSelectedNodes([...selectedNodes, node.id]);
+              } else {
+                setSelectedNodes(selectedNodes.filter((id) => id !== node.id));
+              }
+            }}
+          />
+        </div>
+      </TableCell>
+      {columns
+        .filter(
+          (column) => !hiddenColumns.has(column.title) && column.title !== "id"
+        )
+        .map((column, index) => (
+          <TableCell
+            key={`${node.id}-${column.title}`}
+            style={{
+              paddingLeft: index === 0 ? `${level * 20 + 16}px` : undefined,
+              whiteSpace: columnWrapping.has(column.title)
+                ? "normal"
+                : "nowrap",
+            }}
+            className={`p-2 text-gray-700 ${
+              frozenColumns.has(column.title)
+                ? "sticky left-0 bg-gray-50 z-10"
+                : ""
+            }`}
+            onDoubleClick={() => {
+              if (column.title !== "id") {
+                setEditingCell({ nodeId: node.id, column: column.title });
+                setEditedValue(
+                  column.title === "task"
+                    ? node.data.label
+                    : column.title === "type"
+                      ? node.data.shape || node.type
+                      : node.data[column.title] || ""
+                );
+                setValidationError(null);
+              }
+            }}
+          >
+            {index === 0 && (
+              <span className="inline-flex items-center mr-2">
+                {hasChildren && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-5 w-5 p-0"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      toggleRowExpansion(node.id);
+                    }}
+                  >
+                    {isExpanded ? (
+                      <ChevronDown className="h-4 w-4 text-gray-400" />
+                    ) : (
+                      <ChevronRight className="h-4 w-4 text-gray-400" />
+                    )}
+                  </Button>
+                )}
+              </span>
+            )}
+
+            {editingCell?.nodeId === node.id &&
+            editingCell?.column === column.title ? (
+              <div>
+                {column.type === "Select" ? (
+                  <Select
+                    value={editedValue || ""}
+                    onValueChange={(value) => {
+                      setEditedValue(value);
+                      handleSave(node.id, column.title, value);
+                    }}
+                  >
+                    <SelectTrigger className="w-full border-gray-300">
+                      <SelectValue placeholder="Select option" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {column.options?.map((option: any) => (
+                        <SelectItem key={option} value={option || "default"}>
+                          {option || "Default"}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                ) : column.type === "Multiselect" ? (
+                  <MultiSelect
+                    options={(column.options || []).map((option: any) => ({
+                      label: option,
+                      value: option,
+                    }))}
+                    selected={editedValue || []}
+                    onChange={(selected) => {
+                      setEditedValue(selected);
+                      handleSave(node.id, column.title, selected);
+                    }}
+                  />
+                ) : column.type === "Checkbox" ? (
+                  <Switch
+                    checked={editedValue === true}
+                    onCheckedChange={(checked) => {
+                      setEditedValue(checked);
+                      handleSave(node.id, column.title, checked);
+                    }}
+                  />
+                ) : column.type === "Date" ||
+                  column.type === "Created Time" ||
+                  column.type === "Last edited time" ? (
+                  <Input
+                    type="datetime-local"
+                    value={
+                      editedValue
+                        ? new Date(editedValue).toISOString().slice(0, 16)
+                        : ""
+                    }
+                    onChange={(e) => setEditedValue(e.target.value)}
+                    onBlur={() =>
+                      handleSave(node.id, column.title, editedValue)
+                    }
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        handleSave(node.id, column.title, editedValue);
+                      } else if (e.key === "Escape") {
+                        setEditingCell(null);
+                        setEditedValue(null);
+                        setValidationError(null);
+                      }
+                    }}
+                    className={`border-gray-300 focus-visible:ring-0 ${validationError ? "border-red-500" : ""}`}
+                    autoFocus
+                  />
+                ) : column.type === "Long Text" ? (
+                  <Textarea
+                    value={editedValue || ""}
+                    onChange={(e) => setEditedValue(e.target.value)}
+                    onBlur={() =>
+                      handleSave(node.id, column.title, editedValue)
+                    }
+                    onKeyDown={(e) => {
+                      if (e.key === "Escape") {
+                        setEditingCell(null);
+                        setEditedValue(null);
+                        setValidationError(null);
+                      }
+                    }}
+                    className={`border-gray-300 ${validationError ? "border-red-500" : ""}`}
+                    autoFocus
+                  />
+                ) : column.type === "Relation" ? (
+                  <AddTableCellTrigger
+                    value={editedValue || []}
+                    label="Testing"
+                    relatedCanvasData={getRelatedCanvasNodes({
+                      ...column.related_canvas?.canvas_data,
+                      name: column.related_canvas?.name,
+                    })}
+                    onSelectValue={(value) => {
+                      setEditedValue(value);
+                      handleSave(node.id, column.title, value);
+                    }}
+                  />
+                ) : column.type === "Rollup" ? (
+                  <>
+                    {node.data[column.title] ? (
+                      <div className="flex flex-wrap gap-1">
+                        {node.data[column.title].map(
+                          (item: any, index: number) => (
+                            <span key={index} className="text-sm text-gray-600">
+                              {item.value ?? "undefined"}
+                            </span>
+                          )
+                        )}
+                      </div>
+                    ) : (
+                      <span className="text-gray-400"></span>
+                    )}
+                  </>
+                ) : (
+                  <Input
+                    type={column.type === "Number" ? "number" : "text"}
+                    value={editedValue || ""}
+                    onChange={(e) => setEditedValue(e.target.value)}
+                    onBlur={() =>
+                      handleSave(node.id, column.title, editedValue)
+                    }
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        handleSave(node.id, column.title, editedValue);
+                      } else if (e.key === "Escape") {
+                        setEditingCell(null);
+                        setEditedValue(null);
+                        setValidationError(null);
+                      }
+                    }}
+                    className={`border-gray-300 focus-visible:ring-0 ${validationError ? "border-red-500" : ""}`}
+                    autoFocus
+                  />
+                )}
+                {validationError && (
+                  <p className="text-red-500 text-xs mt-1">{validationError}</p>
+                )}
+              </div>
+            ) : (
+              <>
+                {column.title === "task" &&
+                  (node.data.label || <span className="text-gray-400"></span>)}
+                {column.title === "type" &&
+                  (node.data.shape || node.type || (
+                    <span className="text-gray-400"></span>
+                  ))}
+                {!["task", "type"].includes(column.title) && (
+                  <>
+                    {column.type === "Checkbox" ? (
+                      <Switch
+                        checked={node.data[column.title] === true}
+                        disabled
+                      />
+                    ) : column.type === "Date" ||
+                      column.type === "Created Time" ||
+                      column.type === "Last edited time" ? (
+                      node.data[column.title] &&
+                      !isNaN(new Date(node.data[column.title]).getTime()) ? (
+                        new Date(node.data[column.title]).toLocaleString()
+                      ) : (
+                        <span className="text-gray-400"></span>
+                      )
+                    ) : column.type === "Long Text" ? (
+                      <div className="max-w-[300px] max-h-[4.5em] overflow-hidden">
+                        <p className="line-clamp-3">
+                          {node.data[column.title] || (
+                            <span className="text-gray-400"></span>
+                          )}
+                        </p>
+                      </div>
+                    ) : column.type === "Rollup" ? (
+                      <>
+                        {node.data[column.title] ? (
+                          <div className="flex flex-wrap gap-1">
+                            {node.data[column.title].map(
+                              (item: any, index: number) => (
+                                <span
+                                  key={index}
+                                  className="text-sm text-gray-600"
+                                >
+                                  {item.value}
+                                </span>
+                              )
+                            )}
+                          </div>
+                        ) : (
+                          <span className="text-gray-400"></span>
+                        )}
+                      </>
+                    ) : column.type === "Relation" ? (
+                      <>
+                        {node.data[column.title] &&
+                        node.data[column.title].length > 0 ? (
+                          <div className="flex flex-wrap max-w-full">
+                            {node.data[column.title]?.map((item: any) => (
+                              <p className="text-sm text-gray-600 flex mr-3">
+                                <File className="h-4 w-4 mr-1" /> {item.label}
+                              </p>
+                            ))}
+                          </div>
+                        ) : (
+                          <span className="text-gray-400"></span>
+                        )}
+                      </>
+                    ) : Array.isArray(node.data[column.title]) ? (
+                      node.data[column.title].join(", ")
+                    ) : (
+                      node.data[column.title] || (
+                        <span className="text-gray-400"></span>
+                      )
+                    )}
+                  </>
+                )}
+              </>
+            )}
+          </TableCell>
+        ))}
+      <TableCell className="text-right p-2 sticky right-0 bg-white z-10">
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" size="icon" className="h-8 w-8">
+              <MoreHorizontal className="h-4 w-4 text-gray-400" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem onClick={() => handleDeleteClick(node)}>
+              Delete
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </TableCell>
+    </TableRow>
+  );
+};
+
 const TableView: React.FC<TableViewProps> = ({
   nodes,
   edges,
@@ -186,9 +564,55 @@ const TableView: React.FC<TableViewProps> = ({
   const [frozenColumns, setFrozenColumns] = useState<Set<string>>(new Set());
   const [hiddenColumns, setHiddenColumns] = useState<Set<string>>(new Set());
   const [isHiddenColumnsMenuOpen, setIsHiddenColumnsMenuOpen] = useState(false);
-
+  // State for bulk deletion
   const [selectedNodes, setSelectedNodes] = useState<string[]>([]);
-  console.log("🚀 ~ selectedNodes:", selectedNodes);
+  const [deleteSelectedDialogOpen, setDeleteSelectedDialogOpen] =
+    useState(false);
+
+  const [hiddenNodeIds, setHiddenNodeIds] = useState<Set<string>>(new Set());
+
+  const getAllDescendantIds = (nodeId: string, allNodes: Node[]): string[] => {
+    const descendants: string[] = [];
+    const collect = (id: string) => {
+      allNodes.forEach((node) => {
+        if (node.parentNode === id) {
+          descendants.push(node.id);
+          collect(node.id);
+        }
+      });
+    };
+    collect(nodeId);
+    return descendants;
+  };
+
+  const handleHideSelected = () => {
+    const toHide = new Set<string>();
+    selectedNodes.forEach((nodeId) => {
+      toHide.add(nodeId);
+      const descendants = getAllDescendantIds(nodeId, nodes);
+      descendants.forEach((id) => toHide.add(id));
+    });
+    // @ts-ignore
+    setHiddenNodeIds((prev) => new Set([...prev, ...toHide]));
+    setSelectedNodes([]); // Clear selection after hiding
+  };
+
+  const handleDuplicateSelected = () => {
+    let updatedNodes = [...nodes];
+    selectedNodes.forEach((nodeId) => {
+      const nodeToDuplicate = nodes.find((n) => n.id === nodeId);
+      if (nodeToDuplicate) {
+        const newNode = {
+          ...nodeToDuplicate,
+          id: `node-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+          data: { ...nodeToDuplicate.data },
+        };
+        const index = updatedNodes.findIndex((n) => n.id === nodeId);
+        updatedNodes.splice(index + 1, 0, newNode);
+      }
+    });
+    onNodesChange(updatedNodes);
+  };
 
   const getSortIcon = (field: SortField) => {
     if (sortField === field) {
@@ -231,7 +655,11 @@ const TableView: React.FC<TableViewProps> = ({
     return rootNodes;
   };
 
-  const insertRollupDataIntoNodes = (): Node[] => {
+  const visibleNodes = useMemo(() => {
+    return nodes.filter((node) => !hiddenNodeIds.has(node.id));
+  }, [nodes, hiddenNodeIds]);
+
+  const insertRollupDataIntoNodes = (nodes: Node[]): Node[] => {
     if (!nodes?.length || !columns?.length) {
       console.log("No nodes or columns provided.");
       return nodes;
@@ -243,7 +671,6 @@ const TableView: React.FC<TableViewProps> = ({
       return nodes;
     }
 
-    // Create a lookup map for relation columns to avoid redundant `.find()` calls
     const relationColumnMap = new Map(
       columns
         .filter((col) => col.type === "Relation" && col.related_canvas_id)
@@ -259,7 +686,6 @@ const TableView: React.FC<TableViewProps> = ({
         const rollupColumnSourceTitle = column?.title;
         const rollupColumnTargetTitle = column?.rollup_column?.title;
 
-        // Lookup relationColumn from precomputed map
         const relationColumn = relationColumnMap.get(relatedCanvas.id);
         if (!relationColumn) return;
 
@@ -269,7 +695,6 @@ const TableView: React.FC<TableViewProps> = ({
         );
         if (!currentRelationColumnData?.length) return;
 
-        // Use a Set for faster lookup when filtering nodes
         const relationIdSet = new Set(currentRelationColumnData);
         const rollupData = relatedCanvasNodes
           .filter((n: Node) => relationIdSet.has(n.id))
@@ -286,10 +711,8 @@ const TableView: React.FC<TableViewProps> = ({
   };
 
   const sortedHierarchy = useMemo(() => {
-    const updatedNodes = insertRollupDataIntoNodes();
-
+    const updatedNodes = insertRollupDataIntoNodes(visibleNodes); // Changed from nodes to visibleNodes
     const hierarchy = createHierarchy(updatedNodes);
-
     if (!sortField || !sortDirection) return hierarchy;
 
     const sortNodes = (nodes: HierarchyNode[]): HierarchyNode[] => {
@@ -297,7 +720,6 @@ const TableView: React.FC<TableViewProps> = ({
         .sort((a, b) => {
           let aValue: string | number = "";
           let bValue: string | number = "";
-
           switch (sortField) {
             case "id":
               aValue = a.id;
@@ -312,7 +734,6 @@ const TableView: React.FC<TableViewProps> = ({
               bValue = b.data.shape || b.type || "";
               break;
           }
-
           const sortOrder = sortDirection === "asc" ? 1 : -1;
           return aValue > bValue ? sortOrder : -sortOrder;
         })
@@ -321,9 +742,25 @@ const TableView: React.FC<TableViewProps> = ({
           children: sortNodes(node.children),
         }));
     };
-
     return sortNodes(hierarchy);
-  }, [nodes, sortField, sortDirection, columns]);
+  }, [visibleNodes, sortField, sortDirection, columns]);
+  // For bulk deletion: Get all visible nodes for "Select All" functionality
+  const flattenHierarchy = (
+    nodes: HierarchyNode[],
+    level = 0
+  ): { node: HierarchyNode; level: number }[] => {
+    return nodes.flatMap((node) => {
+      const isExpanded = expandedRows.has(node.id);
+      return [
+        { node, level },
+        ...(isExpanded ? flattenHierarchy(node.children, level + 1) : []),
+      ];
+    });
+  };
+
+  const visibleNodeIds = flattenHierarchy(sortedHierarchy).map(
+    ({ node }) => node.id
+  );
 
   const deleteNode = (nodeId: string, deleteChildren = false) => {
     const nodesToDelete = new Set<string>([nodeId]);
@@ -512,7 +949,6 @@ const TableView: React.FC<TableViewProps> = ({
       if (nodeToDelete) {
         deleteNode(nodeToDelete.id, deleteChildren);
 
-        // Clean up expanded rows
         setExpandedRows((prev) => {
           const newExpandedRows = new Set(prev);
           if (deleteChildren) {
@@ -532,10 +968,76 @@ const TableView: React.FC<TableViewProps> = ({
         });
       }
     } finally {
-      // Ensure these states are always reset, even if an error occurs
       setDeleteDialogOpen(false);
       setNodeToDelete(null);
     }
+  };
+
+  // Row reordering handler
+  const handleDragEnd = (event: any) => {
+    const { active, over } = event;
+
+    // If no movement occurred, do nothing
+    if (!over || active.id === over.id) return;
+
+    // Find the dragged node and the target node
+    const activeNode = nodes.find((n) => n.id === active.id);
+    const overNode = nodes.find((n) => n.id === over.id);
+
+    if (!activeNode || !overNode) return;
+
+    // Ensure both nodes are siblings (same parent)
+    const parentId = activeNode.parentNode || null;
+    if (parentId !== (overNode.parentNode || null)) {
+      console.warn("Cannot reorder nodes with different parents.");
+      return;
+    }
+
+    // Get all siblings (nodes with the same parent)
+    const siblings = nodes.filter((n) => (n.parentNode || null) === parentId);
+    const siblingIds = siblings.map((n) => n.id);
+
+    // Determine old and new indices within siblings
+    const oldIndex = siblingIds.indexOf(active.id);
+    const newIndex = siblingIds.indexOf(over.id);
+
+    if (oldIndex === -1 || newIndex === -1) {
+      console.error("Could not find indices for reordering.");
+      return;
+    }
+
+    // Reorder the siblings array
+    const updatedSiblings = [...siblings];
+    const [movedNode] = updatedSiblings.splice(oldIndex, 1); // Remove the dragged node
+    updatedSiblings.splice(newIndex, 0, movedNode); // Insert it at the new position
+
+    // Rebuild the full nodes array with the updated sibling order
+    const updatedNodes = [...nodes];
+    const siblingIndices = siblings.map((s) =>
+      nodes.findIndex((n) => n.id === s.id)
+    );
+
+    // Replace old sibling nodes with the reordered ones
+    updatedSiblings.forEach((sibling, index) => {
+      updatedNodes[siblingIndices[index]] = sibling;
+    });
+
+    // Update the state to trigger a re-render with the new order
+    onNodesChange(updatedNodes);
+  };
+  // Bulk deletion handler
+  const handleDeleteSelected = () => {
+    const updatedNodes = nodes.filter(
+      (node) => !selectedNodes.includes(node.id)
+    );
+    onNodesChange(updatedNodes);
+    setExpandedRows((prev) => {
+      const newExpandedRows = new Set(prev);
+      selectedNodes.forEach((id) => newExpandedRows.delete(id));
+      return newExpandedRows;
+    });
+    setSelectedNodes([]);
+    setDeleteSelectedDialogOpen(false);
   };
 
   const isDefaultColumn = (columnTitle: string) => {
@@ -672,315 +1174,28 @@ const TableView: React.FC<TableViewProps> = ({
       const hasChildren = node.children.length > 0;
 
       return [
-        <TableRow key={node.id} className="hover:bg-gray-50">
-          <TableCell className="border-r-4 border-white p-0  ">
-            <div className="flex items-center justify-around  px-4">
-              <GripVertical className="h-5 w-5 text-yadn-dark-gray" />
-              <Checkbox
-                checked={selectedNodes.includes(node.id)}
-                className="border-yadn-dark-gray"
-                onCheckedChange={(e) => {
-                  if (e) {
-                    setSelectedNodes([...selectedNodes, node.id]);
-                  } else {
-                    setSelectedNodes(
-                      selectedNodes.filter((id) => id !== node.id)
-                    );
-                  }
-                }}
-              />
-            </div>
-          </TableCell>
-          {columns
-            .filter(
-              (column) =>
-                !hiddenColumns.has(column.title) && column.title !== "id"
-            )
-            .map((column, index) => (
-              <TableCell
-                key={`${node.id}-${column.title}`}
-                style={{
-                  paddingLeft: index === 0 ? `${level * 20 + 16}px` : undefined,
-                  whiteSpace: columnWrapping.has(column.title)
-                    ? "normal"
-                    : "nowrap",
-                }}
-                className={`border-r-4 border-white ${
-                  frozenColumns.has(column.title)
-                    ? "sticky left-0 bg-white z-10"
-                    : ""
-                }`}
-                onDoubleClick={() => {
-                  if (column.title !== "id") {
-                    setEditingCell({ nodeId: node.id, column: column.title });
-                    setEditedValue(
-                      column.title === "task"
-                        ? node.data.label
-                        : column.title === "type"
-                          ? node.data.shape || node.type
-                          : node.data[column.title] || ""
-                    );
-                    setValidationError(null);
-                  }
-                }}
-              >
-                {index === 0 && (
-                  <span className="inline-flex items-center mr-2">
-                    {hasChildren && (
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-5 w-5 p-0"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          toggleRowExpansion(node.id);
-                        }}
-                      >
-                        {isExpanded ? (
-                          <ChevronDown className="h-4 w-4" />
-                        ) : (
-                          <ChevronRight className="h-4 w-4" />
-                        )}
-                      </Button>
-                    )}
-                  </span>
-                )}
-
-                {editingCell?.nodeId === node.id &&
-                editingCell?.column === column.title ? (
-                  <div>
-                    {column.type === "Select" ? (
-                      <Select
-                        value={editedValue || ""}
-                        onValueChange={(value) => {
-                          setEditedValue(value);
-                          handleSave(node.id, column.title, value);
-                        }}
-                      >
-                        <SelectTrigger className="w-full">
-                          <SelectValue placeholder="Select option" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {column.options?.map((option: any) => (
-                            <SelectItem
-                              key={option}
-                              value={option || "default"}
-                            >
-                              {option || "Default"}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    ) : column.type === "Multiselect" ? (
-                      <MultiSelect
-                        options={(column.options || []).map((option: any) => ({
-                          label: option,
-                          value: option,
-                        }))}
-                        selected={editedValue || []}
-                        onChange={(selected) => {
-                          setEditedValue(selected);
-                          handleSave(node.id, column.title, selected);
-                        }}
-                      />
-                    ) : column.type === "Checkbox" ? (
-                      <Switch
-                        checked={editedValue === true}
-                        onCheckedChange={(checked) => {
-                          setEditedValue(checked);
-                          handleSave(node.id, column.title, checked);
-                        }}
-                      />
-                    ) : column.type === "Date" ||
-                      column.type === "Created Time" ||
-                      column.type === "Last edited time" ? (
-                      <Input
-                        type="datetime-local"
-                        value={
-                          editedValue
-                            ? new Date(editedValue).toISOString().slice(0, 16)
-                            : ""
-                        }
-                        onChange={(e) => setEditedValue(e.target.value)}
-                        onBlur={() =>
-                          handleSave(node.id, column.title, editedValue)
-                        }
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter") {
-                            handleSave(node.id, column.title, editedValue);
-                          } else if (e.key === "Escape") {
-                            setEditingCell(null);
-                            setEditedValue(null);
-                            setValidationError(null);
-                          }
-                        }}
-                        className={`focus-visible:ring-0 ${validationError ? "border-red-500" : ""}`}
-                        autoFocus
-                      />
-                    ) : column.type === "Long Text" ? (
-                      <Textarea
-                        value={editedValue || ""}
-                        onChange={(e) => setEditedValue(e.target.value)}
-                        onBlur={() =>
-                          handleSave(node.id, column.title, editedValue)
-                        }
-                        onKeyDown={(e) => {
-                          if (e.key === "Escape") {
-                            setEditingCell(null);
-                            setEditedValue(null);
-                            setValidationError(null);
-                          }
-                        }}
-                        className={validationError ? "border-red-500" : ""}
-                        autoFocus
-                      />
-                    ) : column.type === "Relation" ? (
-                      <AddTableCellTrigger
-                        value={editedValue || []}
-                        label="Testing"
-                        relatedCanvasData={getRelatedCanvasNodes({
-                          ...column.related_canvas?.canvas_data,
-                          name: column.related_canvas?.name,
-                        })}
-                        onSelectValue={(value) => {
-                          setEditedValue(value);
-                          handleSave(node.id, column.title, value);
-                        }}
-                      />
-                    ) : column.type === "Rollup" ? (
-                      <>
-                        {node.data[column.title] ? (
-                          <div className="flex flex-wrap gap-1">
-                            {node.data[column.title].map(
-                              (item: any, index: number) => (
-                                <span
-                                  key={index}
-                                  className="text-sm text-gray-600"
-                                >
-                                  {item.value ?? "undefined"}
-                                </span>
-                              )
-                            )}
-                          </div>
-                        ) : (
-                          "—"
-                        )}
-                      </>
-                    ) : (
-                      <Input
-                        type={column.type === "Number" ? "number" : "text"}
-                        value={editedValue || ""}
-                        onChange={(e) => setEditedValue(e.target.value)}
-                        onBlur={() =>
-                          handleSave(node.id, column.title, editedValue)
-                        }
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter") {
-                            handleSave(node.id, column.title, editedValue);
-                          } else if (e.key === "Escape") {
-                            setEditingCell(null);
-                            setEditedValue(null);
-                            setValidationError(null);
-                          }
-                        }}
-                        className={`focus-visible:ring-0 ${validationError ? "border-red-500" : ""}`}
-                        autoFocus
-                      />
-                    )}
-                    {validationError && (
-                      <p className="text-red-500 text-xs mt-1">
-                        {validationError}
-                      </p>
-                    )}
-                  </div>
-                ) : (
-                  <>
-                    {column.title === "task" && node.data.label}
-                    {column.title === "type" && (node.data.shape || node.type)}
-                    {!["task", "type"].includes(column.title) && (
-                      <>
-                        {column.type === "Checkbox" ? (
-                          <Switch
-                            checked={node.data[column.title] === true}
-                            disabled
-                          />
-                        ) : column.type === "Date" ||
-                          column.type === "Created Time" ||
-                          column.type === "Last edited time" ? (
-                          node.data[column.title] &&
-                          !isNaN(
-                            new Date(node.data[column.title]).getTime()
-                          ) ? (
-                            new Date(node.data[column.title]).toLocaleString()
-                          ) : (
-                            "—"
-                          )
-                        ) : column.type === "Long Text" ? (
-                          <div className="max-w-[300px] max-h-[4.5em] overflow-hidden">
-                            <p className="line-clamp-3">
-                              {node.data[column.title] || "—"}
-                            </p>
-                          </div>
-                        ) : column.type === "Rollup" ? (
-                          <>
-                            {node.data[column.title] ? (
-                              <div className="flex flex-wrap gap-1">
-                                {node.data[column.title].map(
-                                  (item: any, index: number) => (
-                                    <span
-                                      key={index}
-                                      className="text-sm text-gray-600"
-                                    >
-                                      {item.value}
-                                    </span>
-                                  )
-                                )}
-                              </div>
-                            ) : (
-                              "—"
-                            )}
-                          </>
-                        ) : column.type === "Relation" ? (
-                          <>
-                            {node.data[column.title] &&
-                            node.data[column.title].length > 0 ? (
-                              <div className="flex flex-wrap max-w-full">
-                                {node.data[column.title]?.map((item: any) => (
-                                  <p className="text-sm text-gray-600 flex mr-3 ">
-                                    <File className="h-4 w-4" /> {item.label}
-                                  </p>
-                                ))}
-                              </div>
-                            ) : (
-                              "—"
-                            )}
-                          </>
-                        ) : Array.isArray(node.data[column.title]) ? (
-                          node.data[column.title].join(", ")
-                        ) : (
-                          node.data[column.title] || "—"
-                        )}
-                      </>
-                    )}
-                  </>
-                )}
-              </TableCell>
-            ))}
-          <TableCell className="text-right sticky right-0 bg-white z-10">
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon" className="h-8 w-8">
-                  <MoreHorizontal className="h-4 w-4" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={() => handleDeleteClick(node)}>
-                  Delete
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </TableCell>
-        </TableRow>,
+        <SortableTableRow
+          key={node.id}
+          node={node}
+          level={level}
+          columns={columns}
+          editingCell={editingCell}
+          editedValue={editedValue}
+          validationError={validationError}
+          setEditingCell={setEditingCell}
+          setEditedValue={setEditedValue}
+          setValidationError={setValidationError}
+          handleSave={handleSave}
+          toggleRowExpansion={toggleRowExpansion}
+          handleDeleteClick={handleDeleteClick}
+          selectedNodes={selectedNodes}
+          setSelectedNodes={setSelectedNodes}
+          expandedRows={expandedRows}
+          hiddenColumns={hiddenColumns}
+          frozenColumns={frozenColumns}
+          columnWrapping={columnWrapping}
+          getRelatedCanvasNodes={getRelatedCanvasNodes}
+        />,
         ...(isExpanded && hasChildren
           ? renderHierarchy(node.children, level + 1)
           : []),
@@ -996,41 +1211,66 @@ const TableView: React.FC<TableViewProps> = ({
   return (
     <>
       <div className="w-full bg-white">
-        <div className="flex items-center justify-between px-8 py-4 border-b border-gray-100">
-          <div className="text-base text-gray-700 font-medium">Table Name</div>
-          <div className="flex items-center">
+        <div className="flex items-center justify-between px-8 py-2 border-b border-gray-100">
+          <div className="text-base text-gray-700 font-medium"></div>
+          <div className="flex items-center gap-2">
             <Button
               variant="outline"
-              className="text-gray-500 font-medium text-sm  hover:bg-gray-50 rounded-md"
+              className="text-gray-500 font-medium text-sm hover:bg-gray-50 ml-2 rounded-md"
+              onClick={() => setDeleteSelectedDialogOpen(true)}
+              disabled={selectedNodes.length === 0}
+            >
+              <Trash2 className="h-4 w-4 mr-2" />
+              Delete
+            </Button>
+            <Button
+              variant="outline"
+              className="text-gray-500 font-medium text-sm hover:bg-gray-50 rounded-md"
+              onClick={handleHideSelected}
+              disabled={selectedNodes.length === 0}
             >
               Hide
             </Button>
             <Button
               variant="outline"
-              className="text-gray-500 font-medium text-sm  hover:bg-gray-50 ml-2 rounded-md"
+              className="text-gray-500 font-medium text-sm hover:bg-gray-50 ml-2 rounded-md"
+              onClick={handleDuplicateSelected}
+              disabled={selectedNodes.length === 0}
             >
               <Copy className="h-4 w-4 mr-2" />
               Duplicate
             </Button>
-            <Button
-              variant="outline"
-              className="text-gray-500 font-medium text-sm  hover:bg-gray-50 ml-2 rounded-md"
-            >
-              <Trash2 className="h-4 w-4 mr-2" />
-              Delete
-            </Button>
           </div>
         </div>
       </div>
-      <div className="p-4 mx-auto bg-gray-50 min-h-full">
-        <div className="rounded-lg border bg-white overflow-hidden">
+      <div className="p-4 mx-auto bg-gray-50 min-h-full flex">
+        <div className="rounded-lg border bg-white overflow-hidden flex-1">
           <div className="overflow-x-auto">
             <div className="overflow-y-auto max-h-[calc(100vh-300px)]">
               <Table>
                 <TableHeader>
                   <TableRow className="hover:bg-transparent bg-yadn-secondary-gray">
-                    <TableHead className="border-r-4 border-white"></TableHead>
-
+                    <TableHead>
+                      {/* Select All checkbox */}
+                      <Checkbox
+                        ref={(el) => {
+                          if (el) {
+                            // @ts-ignore
+                            el.indeterminate =
+                              selectedNodes.length > 0 &&
+                              selectedNodes.length < visibleNodeIds.length;
+                          }
+                        }}
+                        checked={selectedNodes.length === visibleNodeIds.length}
+                        onCheckedChange={(checked) => {
+                          if (checked) {
+                            setSelectedNodes(visibleNodeIds);
+                          } else {
+                            setSelectedNodes([]);
+                          }
+                        }}
+                      />
+                    </TableHead>
                     {columns
                       .filter(
                         (column) =>
@@ -1040,7 +1280,7 @@ const TableView: React.FC<TableViewProps> = ({
                       .map((column) => (
                         <TableHead
                           key={column.title}
-                          className={`group  border-r-4 border-white  ${frozenColumns.has(column.title) ? "sticky left-0 bg-white z-10" : ""}`}
+                          className={`group  ${frozenColumns.has(column.title) ? "sticky left-0 bg-yadn-primary-gray z-10" : ""}`}
                         >
                           <DropdownMenu>
                             <DropdownMenuTrigger
@@ -1082,9 +1322,9 @@ const TableView: React.FC<TableViewProps> = ({
                                   />
                                 ) : (
                                   <div className="flex items-center">
-                                    {getColumnIcon(column.type)}
+                                    {/* {getColumnIcon(column.type)} */}
                                     <span>{column.title}</span>
-                                    {getSortIcon(column.title as SortField)}
+                                    {/* {getSortIcon(column.title as SortField)} */}
                                   </div>
                                 )}
                               </div>
@@ -1097,7 +1337,6 @@ const TableView: React.FC<TableViewProps> = ({
                               >
                                 Edit property
                               </DropdownMenuItem>
-
                               <DropdownMenuItem
                                 onClick={() => {
                                   setSortField(column.title as SortField);
@@ -1114,7 +1353,6 @@ const TableView: React.FC<TableViewProps> = ({
                               >
                                 Sort descending
                               </DropdownMenuItem>
-
                               {!hiddenColumns.has(column.title) && (
                                 <DropdownMenuItem
                                   onClick={() =>
@@ -1124,13 +1362,6 @@ const TableView: React.FC<TableViewProps> = ({
                                   Hide in view
                                 </DropdownMenuItem>
                               )}
-                              {/* <DropdownMenuItem
-                                onClick={() => toggleFrozenColumn(column.title)}
-                              >
-                                {frozenColumns.has(column.title)
-                                  ? "Unfreeze column"
-                                  : "Freeze up to column"}
-                              </DropdownMenuItem> */}
                               <DropdownMenuItem
                                 onClick={() =>
                                   handleDuplicateColumn(column.title)
@@ -1148,26 +1379,11 @@ const TableView: React.FC<TableViewProps> = ({
                                   Delete property
                                 </DropdownMenuItem>
                               )}
-
-                              {/* <div className="p-2">
-                                <div className="flex items-center justify-between">
-                                  <Label htmlFor={`wrap-${column.title}`}>
-                                    Wrap column
-                                  </Label>
-                                  <Switch
-                                    id={`wrap-${column.title}`}
-                                    checked={columnWrapping.has(column.title)}
-                                    onCheckedChange={() =>
-                                      toggleColumnWrapping(column.title)
-                                    }
-                                  />
-                                </div>
-                              </div> */}
                             </DropdownMenuContent>
                           </DropdownMenu>
                         </TableHead>
                       ))}
-                    <TableHead className="w-[100px] text-right sticky right-0  z-10">
+                    <TableHead className="w-[100px] text-right sticky right-0 z-10">
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                           <Button
@@ -1194,7 +1410,20 @@ const TableView: React.FC<TableViewProps> = ({
                     </TableHead>
                   </TableRow>
                 </TableHeader>
-                <TableBody>{renderHierarchy(sortedHierarchy)}</TableBody>
+                <TableBody>
+                  {/* Wrap table body with DndContext and SortableContext for row reordering */}
+                  <DndContext
+                    collisionDetection={closestCenter}
+                    onDragEnd={handleDragEnd}
+                  >
+                    <SortableContext
+                      items={sortedHierarchy.map((node) => node.id)}
+                      strategy={verticalListSortingStrategy}
+                    >
+                      {renderHierarchy(sortedHierarchy)}
+                    </SortableContext>
+                  </DndContext>
+                </TableBody>
               </Table>
             </div>
           </div>
@@ -1219,25 +1448,6 @@ const TableView: React.FC<TableViewProps> = ({
                     ))}
                   </SelectContent>
                 </Select>
-                {/* <Select
-                  value={selectedParentId || "no-parent"}
-                  onValueChange={setSelectedParentId}
-                >
-                  <SelectTrigger className="w-[180px]">
-                    <SelectValue placeholder="Select parent (optional)" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="no-parent">No parent</SelectItem>
-                    {nodes.map((node) => (
-                      <SelectItem
-                        key={node.id}
-                        value={node.id || `node-${node.id}`}
-                      >
-                        {node.data.label || `Node ${node.id}`}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select> */}
                 <Button onClick={addNewRow}>Add</Button>
                 <Button
                   variant="ghost"
@@ -1259,6 +1469,7 @@ const TableView: React.FC<TableViewProps> = ({
             )}
           </div>
         </div>
+
         <AddColumnSidebar
           isOpen={isAddColumnSidebarOpen}
           onClose={() => setIsAddColumnSidebarOpen(false)}
@@ -1327,6 +1538,29 @@ const TableView: React.FC<TableViewProps> = ({
             </DialogFooter>
           </DialogContent>
         </Dialog>
+
+        {/* Bulk deletion confirmation dialog */}
+        <AlertDialog
+          open={deleteSelectedDialogOpen}
+          onOpenChange={setDeleteSelectedDialogOpen}
+        >
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Delete Selected Nodes</AlertDialogTitle>
+              <AlertDialogDescription>
+                Are you sure you want to delete the selected nodes? This action
+                cannot be undone. Children of deleted nodes will become
+                top-level nodes unless also selected.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction onClick={handleDeleteSelected}>
+                Delete
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
 
         <Dialog
           open={isHiddenColumnsMenuOpen}

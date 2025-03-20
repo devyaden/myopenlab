@@ -331,7 +331,7 @@ export default function Editor(): JSX.Element {
     onFitToScreen: () => {},
     onToggleGrid: () => {},
     onToggleRulers: () => {},
-    onBackToDashboard: () => (window.location.href = "/dashboard"),
+    onBackToDashboard: () => (window.location.href = "/protected"),
     currentState: editor.getEditorState(),
     onImportCanvas: () => {},
     onBringForward: () => {},

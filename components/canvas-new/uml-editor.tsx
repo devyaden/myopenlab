@@ -573,6 +573,7 @@ export function UMLEditor({
               setBackground(background)
             }
           />
+
           <ReactFlow
             nodes={nodes.map((node) => ({
               ...node,
