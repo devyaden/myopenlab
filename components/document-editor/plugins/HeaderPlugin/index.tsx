@@ -48,8 +48,7 @@ interface HeaderProps {
   onCopy: () => void;
   onPaste: () => void;
   onDelete: () => void;
-  onZoomIn: () => void;
-  onZoomOut: () => void;
+
   onFitToScreen: () => void;
   onToggleGrid: () => void;
   onToggleRulers: () => void;
@@ -72,11 +71,6 @@ export default function HeaderPlugin({
   onCopy,
   onPaste,
   onDelete,
-  onZoomIn,
-  onZoomOut,
-  onFitToScreen,
-  onToggleGrid,
-  onToggleRulers,
   projectName,
   setProjectName,
   onSave,
@@ -87,7 +81,6 @@ export default function HeaderPlugin({
   onSendBackward,
   saveLoading,
 }: HeaderProps) {
-  const [documentStatus, setDocumentStatus] = useState("Draft");
   const [isEditing, setIsEditing] = useState(false);
   const [titleError, setTitleError] = useState(false);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
@@ -98,19 +91,94 @@ export default function HeaderPlugin({
   const renderContainerRef = useRef(null);
 
   const handleTitleDoubleClick = () => {
-    // Handle title double click
+    setIsEditing(true);
   };
 
   const handleTitleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    // Handle title change
+    const newTitle = e.target.value;
+    if (newTitle.length > MAX_TITLE_LENGTH) {
+      setTitleError(true);
+    } else {
+      setTitleError(false);
+      setProjectName(newTitle);
+    }
   };
 
   const handleTitleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    // Handle title keydown events
+    if (e.key === "Enter") {
+      if (!titleError) {
+        setIsEditing(false);
+        toast.success("Title updated successfully");
+      }
+    } else if (e.key === "Escape") {
+      setIsEditing(false);
+      setTitleError(false);
+    }
   };
 
   const exportAsImage = async (format: "png" | "jpeg" | "svg") => {
-    // Export as image logic
+    try {
+      setExportLoading(true);
+      toast.loading(`Exporting as ${format.toUpperCase()}...`);
+
+      if (!pages || pages.length === 0) {
+        toast.error("No pages found to export");
+        setExportLoading(false);
+        return;
+      }
+
+      // @ts-ignore
+      const currentPageIndex = pages.findIndex((p) => p.isCurrent);
+
+      // Process each page sequentially
+      for (let i = 0; i < pages.length; i++) {
+        const page = pages[i];
+
+        // Switch to this page to ensure it's rendered
+        setCurrentPage(i);
+
+        // Wait for the page to render
+        await new Promise((resolve) => setTimeout(resolve, 500));
+
+        // Get the page element
+        const pageElement = document.querySelector(".a4-page");
+
+        if (!pageElement) {
+          console.error("Could not find page element");
+          continue;
+        }
+
+        // @ts-ignore
+        const canvas = await html2canvas(pageElement, {
+          scale: 2, // Higher scale for better quality
+          useCORS: true,
+          logging: false,
+          allowTaint: true,
+          backgroundColor: "#ffffff",
+        });
+
+        // Convert canvas to image
+        const imgData = canvas.toDataURL(`image/${format}`, 1.0);
+
+        // Create a link for downloading
+        const link = document.createElement("a");
+        link.href = imgData;
+        link.download = `${projectName || "document"}-${i + 1}.${format}`;
+        link.click();
+      }
+
+      // Restore the original page
+      setCurrentPage(currentPageIndex >= 0 ? currentPageIndex : 0);
+
+      toast.dismiss();
+      toast.success(`${format.toUpperCase()} exported successfully`);
+    } catch (error) {
+      console.error(`Error exporting ${format.toUpperCase()}:`, error);
+      toast.dismiss();
+      toast.error(`Failed to export ${format.toUpperCase()}`);
+    } finally {
+      setExportLoading(false);
+    }
   };
 
   // Update the PDF export function to use the correct page size for each page
@@ -214,7 +282,55 @@ export default function HeaderPlugin({
   };
 
   const exportAsJSON = async () => {
-    // impement export as json here
+    try {
+      setExportLoading(true);
+      toast.loading("Preparing JSON export...");
+
+      if (!currentState) {
+        toast.dismiss();
+        toast.error("No content to export");
+        setExportLoading(false);
+        return;
+      }
+
+      // Extract pages data from page manager if available
+      const exportData = {
+        projectName,
+        pages:
+          pages?.map((page) => ({
+            pageSize: page.pageSize || PAGE_SIZES.A4,
+            content: page.content,
+          })) || [],
+        state: currentState,
+      };
+
+      // Create a formatted JSON string
+      const jsonData = JSON.stringify(exportData, null, 2);
+
+      // Create a blob for downloading
+      const blob = new Blob([jsonData], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+
+      // Create download link and trigger it
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `${projectName || "document"}.json`;
+      document.body.appendChild(link);
+      link.click();
+
+      // Clean up
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+
+      toast.dismiss();
+      toast.success("JSON exported successfully");
+    } catch (error) {
+      console.error("Error exporting JSON:", error);
+      toast.dismiss();
+      toast.error("Failed to export JSON");
+    } finally {
+      setExportLoading(false);
+    }
   };
 
   const handleMenuAction = (action: string) => {
@@ -228,9 +344,7 @@ export default function HeaderPlugin({
       case "Export as JPEG":
         exportAsImage("jpeg");
         break;
-      case "Export as SVG":
-        exportAsImage("svg");
-        break;
+
       case "Export as JSON":
         exportAsJSON();
         break;
@@ -331,40 +445,6 @@ export default function HeaderPlugin({
               {titleError && (
                 <span className="text-red-500 text-xs">Title too long</span>
               )}
-
-              {/* <DropdownMenu>
-                   <DropdownMenuTrigger asChild>
-                     <Button
-                       variant="ghost"
-                       size="sm"
-                       className="px-2 hidden sm:flex items-center justify-center text-center"
-                     >
-                       <div className="h-2 w-2 bg-yadn-pink rounded-full" />
-                       {documentStatus}
-                       <ChevronDown className="h-3 w-3" />
-                     </Button>
-                   </DropdownMenuTrigger>
-                   <DropdownMenuContent>
-                     <DropdownMenuItem onSelect={() => setDocumentStatus("Draft")}>
-                       Draft
-                     </DropdownMenuItem>
-                     <DropdownMenuItem
-                       onSelect={() => setDocumentStatus("In Review")}
-                     >
-                       In Review
-                     </DropdownMenuItem>
-                     <DropdownMenuItem
-                       onSelect={() => setDocumentStatus("Approved")}
-                     >
-                       Approved
-                     </DropdownMenuItem>
-                     <DropdownMenuItem
-                       onSelect={() => setDocumentStatus("Published")}
-                     >
-                       Published
-                     </DropdownMenuItem>
-                   </DropdownMenuContent>
-                 </DropdownMenu> */}
             </div>
 
             <nav className="flex items-center gap-4 overflow-x-auto">
@@ -372,49 +452,40 @@ export default function HeaderPlugin({
                 {
                   name: "File",
                   options: [
-                    "New",
-                    "Open",
-                    "Save",
                     {
                       label: "Save As",
                       submenu: [
-                        { label: "Export as PNG", icon: FileImage },
-                        { label: "Export as JPEG", icon: FileImage },
-                        { label: "Export as SVG", icon: FileImage },
                         {
                           label: "Export as PDF",
                           icon: FileText,
                           loading: exportLoading,
                         },
-                        { label: "Export as JSON", icon: FileJson },
+                        {
+                          label: "Export as PNG",
+                          icon: FileImage,
+                          loading: exportLoading,
+                        },
+                        {
+                          label: "Export as JPEG",
+                          icon: FileImage,
+                          loading: exportLoading,
+                        },
+
+                        // {
+                        //   label: "Export as JSON",
+                        //   icon: FileJson,
+                        //   loading: exportLoading,
+                        // },
                       ],
                     },
+                    "Save",
                   ],
                 },
                 {
                   name: "Edit",
                   options: ["Undo", "Redo", "Cut", "Copy", "Paste", "Delete"],
                 },
-                {
-                  name: "Select",
-                  options: [
-                    "Select All",
-                    "Select None",
-                    "Inverse Selection",
-                    "Same Type",
-                  ],
-                },
 
-                {
-                  name: "Arrange",
-                  options: [
-                    "Bring Forward",
-                    "Send Backward",
-                    "Group",
-                    "Ungroup",
-                    "Align",
-                  ],
-                },
                 {
                   name: "Share",
                   options: ["Invite to Project", "Share Link"],

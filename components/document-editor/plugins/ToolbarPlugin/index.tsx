@@ -86,7 +86,10 @@ import {
   formatParagraph,
   formatQuote,
 } from "./utils";
-import { Lock, LockOpen } from "lucide-react";
+import { Lock, LockOpen, FileLineChartIcon as FlowChart } from "lucide-react";
+import { INSERT_REACT_FLOW_COMMAND } from "../ReactflowPlugin";
+import { reactFlowDiagrams } from "../../data/reactflowData";
+import ReactFlow, { Background, ReactFlowProvider } from "reactflow";
 
 const rootTypeToRootName = {
   root: "Root",
@@ -296,6 +299,30 @@ function Divider(): JSX.Element {
   return <div className="divider" />;
 }
 
+function FlowPreview({ nodes, edges }: { nodes: any[]; edges: any[] }) {
+  return (
+    <ReactFlowProvider>
+      <div className="h-48 w-full border border-gray-200 rounded overflow-hidden">
+        <ReactFlow
+          nodes={nodes}
+          edges={edges}
+          fitView
+          fitViewOptions={{ padding: 0.2 }}
+          zoomOnScroll={false}
+          panOnScroll={false}
+          nodesDraggable={false}
+          nodesConnectable={false}
+          elementsSelectable={false}
+          preventScrolling={true}
+          proOptions={{ hideAttribution: true }}
+        >
+          <Background gap={12} size={1} />
+        </ReactFlow>
+      </div>
+    </ReactFlowProvider>
+  );
+}
+
 function FontDropDown({
   editor,
   value,
@@ -500,6 +527,7 @@ export default function ToolbarPlugin({
   const [modal, showModal] = useModal();
   const [isEditable, setIsEditable] = useState(() => editor.isEditable());
   const { toolbarState, updateToolbarState } = useToolbarState();
+  const [setShowFlowDropdown, showFlowDropdown] = useState(false);
 
   const $updateToolbar = useCallback(() => {
     const selection = $getSelection();
@@ -743,6 +771,10 @@ export default function ToolbarPlugin({
   );
   const insertGifOnClick = (payload: InsertImagePayload) => {
     activeEditor.dispatchCommand(INSERT_IMAGE_COMMAND, payload);
+  };
+
+  const onInsertReactFlow = (diagram: (typeof reactFlowDiagrams)[0]) => {
+    editor.dispatchCommand(INSERT_REACT_FLOW_COMMAND, diagram);
   };
 
   const canViewerSeeInsertCodeButton = !toolbarState.isImageCaption;
@@ -1230,6 +1262,78 @@ export default function ToolbarPlugin({
       />
 
       <Divider />
+
+      <DropDown
+        disabled={!isEditable}
+        buttonClassName="toolbar-item spaced"
+        buttonLabel="Insert Canvas"
+        buttonAriaLabel="Insert specialized editor node"
+        buttonIconClassName="icon plus"
+      >
+        <div className="grid grid-cols-1 gap-4 px-4 py-2 w-[400px] max-h-[500px] overflow-y-auto">
+          {reactFlowDiagrams.map((diagram, index) => {
+            return (
+              <DropDownItem
+                key={index?.toString()}
+                onClick={() => onInsertReactFlow(diagram)}
+                className="w-full"
+              >
+                <div className="mb-2">
+                  <div className="text-sm font-medium">{diagram.title}</div>
+                  {diagram.description && (
+                    <div className="text-xs text-gray-500">
+                      {diagram.description}
+                    </div>
+                  )}
+                </div>
+                <FlowPreview {...diagram.flowData} />
+              </DropDownItem>
+            );
+          })}
+        </div>
+      </DropDown>
+      {/* <div
+        className="relative flex border-l border-gray-300 pl-2 ml-1"
+        ref={flowDropdownRef}
+      >
+        <button
+          className="p-1 rounded flex items-center"
+          onClick={() => setShowFlowDropdown(!showFlowDropdown)}
+          title="Insert Flow Diagram"
+        >
+          <FlowChart size={16} />
+          <span className="ml-1 text-xs">Flow</span>
+        </button>
+
+        {showFlowDropdown && (
+          <div className="absolute top-full left-0 mt-1 bg-white border border-gray-200 shadow-lg rounded-md z-20 w-96">
+            <div className="p-2 border-b border-gray-200">
+              <h3 className="text-sm font-medium">Insert Flow Diagram</h3>
+            </div>
+            <div className="max-h-96 overflow-y-auto">
+              {reactFlowDiagrams.map((diagram) => (
+                <div
+                  key={diagram.id}
+                  className="p-2 hover:bg-gray-100 cursor-pointer"
+                  onClick={() => onInsertReactFlow(diagram)}
+                >
+                  <div className="flex flex-col">
+                    <span className="text-sm font-medium">{diagram.title}</span>
+                    <span className="text-xs text-gray-500 mb-2">
+                      {diagram.description}
+                    </span>
+                    <FlowPreview
+                      nodes={diagram.flowData.nodes}
+                      edges={diagram.flowData.edges}
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div> */}
+
       <button
         className={
           "toolbar-item spaced " + (toolbarState.isLink ? "active" : "")

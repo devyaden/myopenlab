@@ -8,8 +8,8 @@ import {
   useEffect,
   useReducer,
 } from "react";
+import { useDocumentStore } from "@/lib/store/useDocument";
 
-// Update the Page type to include pageSize
 export type Page = {
   id: string;
   title: string;
@@ -17,7 +17,6 @@ export type Page = {
   pageSize: PageSize;
 };
 
-// Add PageSize type and constants
 export type PageSize = {
   name: string;
   width: string;
@@ -32,7 +31,6 @@ export const PAGE_SIZES = {
   A5: { name: "A5", width: "148mm", height: "210mm" },
 };
 
-// Update PageAction to include UPDATE_PAGE_SIZE
 type PageAction =
   | { type: "ADD_PAGE"; payload: { afterIndex: number } }
   | { type: "REMOVE_PAGE"; payload: { index: number } }
@@ -40,9 +38,9 @@ type PageAction =
   | { type: "UPDATE_PAGE_TITLE"; payload: { index: number; title: string } }
   | { type: "UPDATE_PAGE_CONTENT"; payload: { index: number; content: string } }
   | { type: "UPDATE_PAGE_SIZE"; payload: { index: number; pageSize: PageSize } }
-  | { type: "SET_PAGE_CONTENT_LOADED"; payload: { loaded: boolean } };
+  | { type: "SET_PAGE_CONTENT_LOADED"; payload: { loaded: boolean } }
+  | { type: "SET_PAGES"; payload: { pages: Page[] } }; // Added SET_PAGES action
 
-// Define state type
 type PageState = {
   pages: Page[];
   currentPageIndex: number;
@@ -50,7 +48,6 @@ type PageState = {
   isDeletingPage: boolean;
 };
 
-// Reducer function to handle all state updates
 function pageReducer(state: PageState, action: PageAction): PageState {
   switch (action.type) {
     case "ADD_PAGE": {
@@ -60,12 +57,10 @@ function pageReducer(state: PageState, action: PageAction): PageState {
         id: newPageId,
         title: `Page ${state.pages.length + 1}`,
         content: null,
-        pageSize: PAGE_SIZES.A4, // Default to A4
+        pageSize: PAGE_SIZES.A4,
       };
-
       const newPages = [...state.pages];
       newPages.splice(afterIndex + 1, 0, newPage);
-
       return {
         ...state,
         pages: newPages,
@@ -73,28 +68,16 @@ function pageReducer(state: PageState, action: PageAction): PageState {
         isPageContentLoaded: false,
       };
     }
-
     case "REMOVE_PAGE": {
       const { index } = action.payload;
-
-      if (state.pages.length <= 1) {
-        return state; // Don't remove the last page
-      }
-
-      // Create a new array without the page at the specified index
+      if (state.pages.length <= 1) return state;
       const newPages = state.pages.filter((_, i) => i !== index);
-
-      // Calculate new current page index
       let newCurrentIndex = state.currentPageIndex;
       if (index === state.currentPageIndex) {
-        // If we're removing the current page, move to the previous page
-        // unless we're at the first page, then move to the next page (which will be index 0)
         newCurrentIndex = index === 0 ? 0 : index - 1;
       } else if (index < state.currentPageIndex) {
-        // If we're removing a page before the current page, adjust the index
         newCurrentIndex = state.currentPageIndex - 1;
       }
-
       return {
         ...state,
         pages: newPages,
@@ -103,85 +86,57 @@ function pageReducer(state: PageState, action: PageAction): PageState {
         isDeletingPage: true,
       };
     }
-
     case "SET_CURRENT_PAGE": {
       const { index } = action.payload;
-
-      if (state.isDeletingPage || index < 0 || index >= state.pages.length) {
+      if (state.isDeletingPage || index < 0 || index >= state.pages.length)
         return state;
-      }
-
-      return {
-        ...state,
-        currentPageIndex: index,
-        isPageContentLoaded: false,
-      };
+      return { ...state, currentPageIndex: index, isPageContentLoaded: false };
     }
-
     case "UPDATE_PAGE_TITLE": {
       const { index, title } = action.payload;
-
-      if (index < 0 || index >= state.pages.length) {
-        return state;
-      }
-
+      if (index < 0 || index >= state.pages.length) return state;
       const newPages = [...state.pages];
       newPages[index] = { ...newPages[index], title };
-
-      return {
-        ...state,
-        pages: newPages,
-      };
+      return { ...state, pages: newPages };
     }
-
     case "UPDATE_PAGE_CONTENT": {
       const { index, content } = action.payload;
-
-      if (state.isDeletingPage || index < 0 || index >= state.pages.length) {
+      if (state.isDeletingPage || index < 0 || index >= state.pages.length)
         return state;
-      }
-
       const newPages = [...state.pages];
       newPages[index] = { ...newPages[index], content };
-
-      return {
-        ...state,
-        pages: newPages,
-      };
+      return { ...state, pages: newPages };
     }
-
     case "UPDATE_PAGE_SIZE": {
       const { index, pageSize } = action.payload;
-
-      if (state.isDeletingPage || index < 0 || index >= state.pages.length) {
+      if (state.isDeletingPage || index < 0 || index >= state.pages.length)
         return state;
-      }
-
       const newPages = [...state.pages];
       newPages[index] = { ...newPages[index], pageSize };
-
-      return {
-        ...state,
-        pages: newPages,
-      };
+      return { ...state, pages: newPages };
     }
-
     case "SET_PAGE_CONTENT_LOADED": {
       const { loaded } = action.payload;
-
       return {
         ...state,
         isPageContentLoaded: loaded,
         isDeletingPage: loaded ? false : state.isDeletingPage,
       };
     }
-
+    case "SET_PAGES": {
+      const { pages } = action.payload;
+      return {
+        ...state,
+        pages,
+        currentPageIndex: 0,
+        isPageContentLoaded: false,
+      };
+    }
     default:
       return state;
   }
 }
 
-// Update the PageContextType to include updatePageSize
 type PageContextType = {
   pages: Page[];
   currentPageIndex: number;
@@ -194,6 +149,7 @@ type PageContextType = {
   getCurrentPageContent: () => string | null;
   getCurrentPageSize: () => PageSize;
   isPageContentLoaded: boolean;
+  setPages: (pages: Page[]) => void; // Added setPages
 };
 
 const PageContext = createContext<PageContextType | null>(null);
@@ -211,7 +167,6 @@ type PageManagerProviderProps = {
 };
 
 export function PageManagerProvider({ children }: PageManagerProviderProps) {
-  // Initial state
   const initialState: PageState = {
     pages: [
       { id: "page-1", title: "Page 1", content: null, pageSize: PAGE_SIZES.A4 },
@@ -221,85 +176,67 @@ export function PageManagerProvider({ children }: PageManagerProviderProps) {
     isDeletingPage: false,
   };
 
-  // Use reducer for state management
   const [state, dispatch] = useReducer(pageReducer, initialState);
   const { pages, currentPageIndex, isPageContentLoaded } = state;
 
-  // Create a new page after the current page
   const addPage = useCallback(() => {
-    dispatch({
-      type: "ADD_PAGE",
-      payload: { afterIndex: currentPageIndex },
-    });
+    dispatch({ type: "ADD_PAGE", payload: { afterIndex: currentPageIndex } });
   }, [currentPageIndex]);
 
   const removePage = useCallback((index: number) => {
-    dispatch({
-      type: "REMOVE_PAGE",
-      payload: { index },
-    });
+    dispatch({ type: "REMOVE_PAGE", payload: { index } });
   }, []);
 
   const setCurrentPage = useCallback((index: number) => {
-    dispatch({
-      type: "SET_CURRENT_PAGE",
-      payload: { index },
-    });
+    dispatch({ type: "SET_CURRENT_PAGE", payload: { index } });
   }, []);
 
   const updatePageTitle = useCallback((index: number, title: string) => {
-    dispatch({
-      type: "UPDATE_PAGE_TITLE",
-      payload: { index, title },
-    });
+    dispatch({ type: "UPDATE_PAGE_TITLE", payload: { index, title } });
   }, []);
 
   const updatePageContent = useCallback((index: number, content: string) => {
-    dispatch({
-      type: "UPDATE_PAGE_CONTENT",
-      payload: { index, content },
-    });
+    dispatch({ type: "UPDATE_PAGE_CONTENT", payload: { index, content } });
   }, []);
 
-  // Add the updatePageSize function to the provider
   const updatePageSize = useCallback((index: number, pageSize: PageSize) => {
-    dispatch({
-      type: "UPDATE_PAGE_SIZE",
-      payload: { index, pageSize },
-    });
+    dispatch({ type: "UPDATE_PAGE_SIZE", payload: { index, pageSize } });
   }, []);
 
-  // Add getCurrentPageSize function
+  const setPages = useCallback((pages: Page[]) => {
+    dispatch({ type: "SET_PAGES", payload: { pages } });
+  }, []);
+
   const getCurrentPageSize = useCallback((): PageSize => {
-    if (currentPageIndex >= 0 && currentPageIndex < pages.length) {
-      return pages[currentPageIndex].pageSize || PAGE_SIZES.A4;
-    }
-    return PAGE_SIZES.A4;
+    return currentPageIndex >= 0 && currentPageIndex < pages.length
+      ? pages[currentPageIndex].pageSize || PAGE_SIZES.A4
+      : PAGE_SIZES.A4;
   }, [currentPageIndex, pages]);
 
   const getCurrentPageContent = useCallback((): string | null => {
-    if (currentPageIndex >= 0 && currentPageIndex < pages.length) {
-      return pages[currentPageIndex].content;
-    }
-    return null;
+    return currentPageIndex >= 0 && currentPageIndex < pages.length
+      ? pages[currentPageIndex].content
+      : null;
   }, [currentPageIndex, pages]);
 
-  // When page content is loaded into the editor, mark it as loaded
   useEffect(() => {
     if (!isPageContentLoaded) {
-      // Use a timeout to allow the editor to properly load content
       const timeoutId = setTimeout(() => {
         dispatch({
           type: "SET_PAGE_CONTENT_LOADED",
           payload: { loaded: true },
         });
       }, 100);
-
       return () => clearTimeout(timeoutId);
     }
   }, [isPageContentLoaded]);
 
-  // Update the context provider value to include the new functions
+  // Sync pages with document store
+  const { updateEditorState } = useDocumentStore();
+  useEffect(() => {
+    updateEditorState(JSON.stringify({ pages }));
+  }, [pages, updateEditorState]);
+
   return (
     <PageContext.Provider
       value={{
@@ -314,6 +251,7 @@ export function PageManagerProvider({ children }: PageManagerProviderProps) {
         getCurrentPageContent,
         getCurrentPageSize,
         isPageContentLoaded,
+        setPages,
       }}
     >
       {children}

@@ -1,7 +1,6 @@
 "use client";
 
-import type { JSX } from "react";
-
+import { useDocumentStore } from "@/lib/store/useDocument";
 import { AutoFocusPlugin } from "@lexical/react/LexicalAutoFocusPlugin";
 import { CharacterLimitPlugin } from "@lexical/react/LexicalCharacterLimitPlugin";
 import { CheckListPlugin } from "@lexical/react/LexicalCheckListPlugin";
@@ -21,20 +20,20 @@ import { TabIndentationPlugin } from "@lexical/react/LexicalTabIndentationPlugin
 import { TablePlugin } from "@lexical/react/LexicalTablePlugin";
 import { useLexicalEditable } from "@lexical/react/useLexicalEditable";
 import { CAN_USE_DOM } from "@lexical/utils";
-// Make sure useCallback is imported
+import { DELETE_WORD_COMMAND, REDO_COMMAND, UNDO_COMMAND } from "lexical";
+import type { JSX } from "react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createWebsocketProvider } from "./collaboration";
 import { usePageManager } from "./components/PageManager";
 import { useSettings } from "./context/SettingsContext";
 import { useSharedHistoryContext } from "./context/SharedHistoryContext";
-import ActionsPlugin from "./plugins/ActionsPlugin";
+import { useDocumentEditorBridge } from "./hooks/useDocumentEditor";
 import AutocompletePlugin from "./plugins/AutocompletePlugin";
 import AutoEmbedPlugin from "./plugins/AutoEmbedPlugin";
 import AutoLinkPlugin from "./plugins/AutoLinkPlugin";
 import CodeActionMenuPlugin from "./plugins/CodeActionMenuPlugin";
 import CodeHighlightPlugin from "./plugins/CodeHighlightPlugin";
 import CollapsiblePlugin from "./plugins/CollapsiblePlugin";
-import CommentPlugin from "./plugins/CommentPlugin";
 import ComponentPickerPlugin from "./plugins/ComponentPickerPlugin";
 import ContextMenuPlugin from "./plugins/ContextMenuPlugin";
 import DragDropPaste from "./plugins/DragDropPastePlugin";
@@ -58,6 +57,7 @@ import MentionsPlugin from "./plugins/MentionsPlugin";
 import PageBreakPlugin from "./plugins/PageBreakPlugin";
 import PageNavigationPlugin from "./plugins/PageNavigationPlugin";
 import PollPlugin from "./plugins/PollPlugin";
+import ReactFlowPlugin from "./plugins/ReactflowPlugin";
 import ShortcutsPlugin from "./plugins/ShortcutsPlugin";
 import SpecialTextPlugin from "./plugins/SpecialTextPlugin";
 import SpeechToTextPlugin from "./plugins/SpeechToTextPlugin";
@@ -73,10 +73,9 @@ import YouTubePlugin from "./plugins/YouTubePlugin";
 import ContentEditable from "./ui/ContentEditable";
 
 const skipCollaborationInit =
-  // @ts-expect-error
+  // @ts-ignore
   window.parent != null && window.parent.frames.right === window;
 
-// Define a simple empty editor state JSON
 const EMPTY_EDITOR_STATE = JSON.stringify({
   root: {
     children: [
@@ -127,7 +126,6 @@ export default function Editor(): JSX.Element {
       : "Enter some plain text...";
   const [floatingAnchorElem, setFloatingAnchorElem] =
     useState<HTMLDivElement | null>(null);
-
   const [isSmallWidthViewport, setIsSmallWidthViewport] =
     useState<boolean>(false);
   const [editor] = useLexicalComposerContext();
@@ -141,33 +139,77 @@ export default function Editor(): JSX.Element {
     getCurrentPageContent,
     getCurrentPageSize,
     isPageContentLoaded,
+    setPages,
   } = usePageManager();
 
-  // Track if we need to save the current page
+  const { saveDocument } = useDocumentEditorBridge();
+  const { name, saveLoading, lexical_state, isLoading } = useDocumentStore();
+  const isPagesInitializedRef = useRef(false); // Tracks if pages are initialized
+
+  // Sync pages with lexical_state when document loads
+  useEffect(() => {
+    if (!isLoading && !isPagesInitializedRef.current) {
+      if (lexical_state) {
+        try {
+          const parsed = JSON.parse(lexical_state);
+          if (parsed.pages) {
+            setPages(parsed.pages); // Load pages from saved state
+          } else {
+            // Handle older single-page state
+            setPages([
+              {
+                id: "page-1",
+                title: "Page 1",
+                content: lexical_state,
+                pageSize: { name: "A4", width: "210mm", height: "297mm" },
+              },
+            ]);
+          }
+        } catch (error) {
+          console.error("Error parsing lexical_state:", error);
+          setPages([
+            {
+              id: "page-1",
+              title: "Page 1",
+              content: null,
+              pageSize: { name: "A4", width: "210mm", height: "297mm" },
+            },
+          ]);
+        }
+      } else {
+        // New document: start with one empty page
+        setPages([
+          {
+            id: "page-1",
+            title: "Page 1",
+            content: null,
+            pageSize: { name: "A4", width: "210mm", height: "297mm" },
+          },
+        ]);
+      }
+      isPagesInitializedRef.current = true; // Mark as initialized
+    }
+  }, [isLoading, lexical_state, setPages]);
+
   const needToSaveRef = useRef(true);
-  // Track the last saved page index
   const lastSavedPageIndexRef = useRef(currentPageIndex);
-  // Track whether we're currently clearing the editor
   const isClearingEditorRef = useRef(false);
-  // Track the previous page index for comparison
   const prevPageIndexRef = useRef(currentPageIndex);
 
-  // Replace with a memoized callback using useCallback
   const onRef = useCallback((_floatingAnchorElem: HTMLDivElement) => {
     if (_floatingAnchorElem !== null) {
       setFloatingAnchorElem(_floatingAnchorElem);
     }
   }, []);
 
-  // Save the current page content before switching pages
   useEffect(() => {
-    // Skip saving if we're just initializing
+    if (isLoading) return;
+
     if (prevPageIndexRef.current === currentPageIndex) {
       prevPageIndexRef.current = currentPageIndex;
       return;
     }
 
-    // If we're changing pages, save the content of the previous page
     if (
       lastSavedPageIndexRef.current !== currentPageIndex &&
       needToSaveRef.current
@@ -179,22 +221,16 @@ export default function Editor(): JSX.Element {
           updatePageContent(lastSavedPageIndexRef.current, jsonString);
         });
       };
-
       saveContent();
     }
 
-    // Update the last saved page index
     lastSavedPageIndexRef.current = currentPageIndex;
     prevPageIndexRef.current = currentPageIndex;
-
-    // After page change, we'll need to save again before the next change
     needToSaveRef.current = true;
-  }, [currentPageIndex, editor, updatePageContent]);
+  }, [currentPageIndex, editor, updatePageContent, isLoading]);
 
-  // Save content before unmounting
   useEffect(() => {
     return () => {
-      // Save the current page content when unmounting
       editor.update(() => {
         const editorState = editor.getEditorState();
         const jsonString = JSON.stringify(editorState);
@@ -203,38 +239,28 @@ export default function Editor(): JSX.Element {
     };
   }, [currentPageIndex, editor, updatePageContent]);
 
-  // Function to clear and set the editor content
   const setEditorContent = useCallback(
     (content: string | null) => {
       if (isClearingEditorRef.current) return;
-
       isClearingEditorRef.current = true;
 
-      // For new pages or pages without content, set an empty editor state
       if (!content) {
         try {
-          // Parse our predefined empty state
           const emptyState = editor.parseEditorState(EMPTY_EDITOR_STATE);
           editor.setEditorState(emptyState);
         } catch (error) {
           console.error("Error creating empty editor state:", error);
-          // If that fails, just clear the editor using the ClearEditorPlugin
-          // The plugin will handle this automatically
           editor.update(() => {
             const root = editor.getRootElement();
-            if (root) {
-              root.innerText = "";
-            }
+            if (root) root.innerText = "";
           });
         }
       } else {
-        // For existing pages with content, load the content
         try {
           const editorState = editor.parseEditorState(content);
           editor.setEditorState(editorState);
         } catch (error) {
           console.error("Error parsing editor state:", error);
-          // If there's an error, try to set an empty state
           try {
             const emptyState = editor.parseEditorState(EMPTY_EDITOR_STATE);
             editor.setEditorState(emptyState);
@@ -244,7 +270,6 @@ export default function Editor(): JSX.Element {
         }
       }
 
-      // Reset the flag after operation is complete
       setTimeout(() => {
         isClearingEditorRef.current = false;
       }, 100);
@@ -252,14 +277,10 @@ export default function Editor(): JSX.Element {
     [editor]
   );
 
-  // Load content for the current page
   useEffect(() => {
-    // Only load content if we've changed pages or content needs to be loaded
     if (!isPageContentLoaded && !isClearingEditorRef.current) {
       const content = getCurrentPageContent();
       setEditorContent(content);
-
-      // After loading content, we don't need to save immediately
       needToSaveRef.current = false;
     }
   }, [
@@ -269,10 +290,8 @@ export default function Editor(): JSX.Element {
     setEditorContent,
   ]);
 
-  // Auto-save content periodically
   useEffect(() => {
     const autoSaveInterval = setInterval(() => {
-      // Only auto-save if we're not in the middle of clearing the editor
       if (!isClearingEditorRef.current) {
         editor.update(() => {
           const editorState = editor.getEditorState();
@@ -280,8 +299,7 @@ export default function Editor(): JSX.Element {
           updatePageContent(currentPageIndex, jsonString);
         });
       }
-    }, 5000); // Save every 5 seconds
-
+    }, 5000);
     return () => clearInterval(autoSaveInterval);
   }, [currentPageIndex, editor, updatePageContent]);
 
@@ -289,24 +307,41 @@ export default function Editor(): JSX.Element {
     const updateViewPortWidth = () => {
       const isNextSmallWidthViewport =
         CAN_USE_DOM && window.matchMedia("(max-width: 1025px)").matches;
-
       if (isNextSmallWidthViewport !== isSmallWidthViewport) {
         setIsSmallWidthViewport(isNextSmallWidthViewport);
       }
     };
     updateViewPortWidth();
     window.addEventListener("resize", updateViewPortWidth);
-
-    return () => {
-      window.removeEventListener("resize", updateViewPortWidth);
-    };
+    return () => window.removeEventListener("resize", updateViewPortWidth);
   }, [isSmallWidthViewport]);
+
+  const headerProps = {
+    projectName: name,
+    setProjectName: useDocumentStore.getState().setName,
+    onSave: saveDocument,
+    saveLoading: saveLoading,
+    onInsertImage: () => {},
+    onUndo: () => editor.dispatchCommand(UNDO_COMMAND, undefined),
+    onRedo: () => editor.dispatchCommand(REDO_COMMAND, undefined),
+    onCut: () => document.execCommand("cut"),
+    onCopy: () => document.execCommand("copy"),
+    onPaste: () => document.execCommand("paste"),
+    onDelete: () => editor.dispatchCommand(DELETE_WORD_COMMAND, false),
+    onFitToScreen: () => {},
+    onToggleGrid: () => {},
+    onToggleRulers: () => {},
+    onBackToDashboard: () => (window.location.href = "/dashboard"),
+    currentState: editor.getEditorState(),
+    onImportCanvas: () => {},
+    onBringForward: () => {},
+    onSendBackward: () => {},
+  };
 
   return (
     <>
       {/* @ts-ignore */}
-      <HeaderPlugin projectName="Document Editor" />
-
+      <HeaderPlugin {...headerProps} />
       {isRichText && (
         <ToolbarPlugin
           editor={editor}
@@ -315,31 +350,29 @@ export default function Editor(): JSX.Element {
           setIsLinkEditMode={setIsLinkEditMode}
         />
       )}
-
       <PageNavigationPlugin />
-
       {isRichText && (
         <ShortcutsPlugin
           editor={activeEditor}
           setIsLinkEditMode={setIsLinkEditMode}
         />
       )}
-
       <div
         className="editor-container"
         style={{ height: "calc(100vh - 210px)", overflowY: "auto" }}
       >
         <div className="page-container">
           <div
-            className="a4-page"
             style={{
               width: getCurrentPageSize().width,
-              minHeight: getCurrentPageSize().height,
+              height: getCurrentPageSize().height,
               margin: "0 auto",
               padding: "20mm",
               backgroundColor: "white",
               boxShadow: "0 0 10px rgba(0, 0, 0, 0.1)",
               position: "relative",
+              overflow: "hidden",
+              marginBottom: "44px",
             }}
           >
             {isMaxLength && <MaxLengthPlugin maxLength={30} />}
@@ -356,9 +389,7 @@ export default function Editor(): JSX.Element {
             <KeywordsPlugin />
             <SpeechToTextPlugin />
             <AutoLinkPlugin />
-            <CommentPlugin
-              providerFactory={isCollab ? createWebsocketProvider : undefined}
-            />
+            <ReactFlowPlugin />
             {isRichText ? (
               <>
                 {isCollab ? (
@@ -452,16 +483,9 @@ export default function Editor(): JSX.Element {
             <div>{showTableOfContents && <TableOfContentsPlugin />}</div>
             {shouldUseLexicalContextMenu && <ContextMenuPlugin />}
             {shouldAllowHighlightingWithBrackets && <SpecialTextPlugin />}
-            {/* <ActionsPlugin
-              isRichText={isRichText}
-              shouldPreserveNewLinesInMarkdown={
-                shouldPreserveNewLinesInMarkdown
-              }
-            /> */}
           </div>
         </div>
       </div>
-
       {showTreeView && <TreeViewPlugin />}
     </>
   );

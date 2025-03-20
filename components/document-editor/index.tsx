@@ -1,6 +1,6 @@
 "use client";
 
-import type { JSX } from "react";
+import { useEffect, type JSX } from "react";
 
 import { $createLinkNode } from "@lexical/link";
 import { $createListItemNode, $createListNode } from "@lexical/list";
@@ -27,31 +27,12 @@ import { parseAllowedFontSize } from "./plugins/ToolbarPlugin/fontSize";
 import PlaygroundEditorTheme from "./themes/PlaygroundEditorTheme";
 import { parseAllowedColor } from "./ui/ColorPicker";
 import { PageManagerProvider } from "./components/PageManager";
-
-console.warn(
-  "If you are profiling the playground app, please ensure you turn off the debug view. You can disable it by pressing on the settings control in the bottom-left of your screen and toggling the debug view setting."
-);
+import { useDocumentStore } from "@/lib/store/useDocument";
 
 function $prepopulatedRichText() {
   const root = $getRoot();
   if (root.getFirstChild() === null) {
     const heading = $createHeadingNode("h1");
-    heading.append($createTextNode("Welcome to the document editor"));
-    root.append(heading);
-
-    const paragraph = $createParagraphNode();
-    paragraph.append(
-      $createTextNode(
-        "This is a multi-page editor with A4 page size support. You can add new pages using the page controls."
-      )
-    );
-    root.append(paragraph);
-
-    const paragraph2 = $createParagraphNode();
-    paragraph2.append(
-      $createTextNode("Try formatting your text with the toolbar above.")
-    );
-    root.append(paragraph2);
   }
 }
 
@@ -120,19 +101,21 @@ function buildImportMap(): DOMConversionMap {
   return importMap;
 }
 
-function App(): JSX.Element {
+function App({ canvasId }: { canvasId: string }): JSX.Element {
   const {
     settings: { isCollab, emptyEditor, measureTypingPerf },
   } = useSettings();
 
+  const { loadDocument, lexical_state } = useDocumentStore();
+
+  useEffect(() => {
+    loadDocument(canvasId);
+  }, [canvasId, loadDocument]);
+
   const initialConfig = {
-    editorState: isCollab
-      ? null
-      : emptyEditor
-        ? undefined
-        : $prepopulatedRichText,
+    editorState: lexical_state ? lexical_state : null,
     html: { import: buildImportMap() },
-    namespace: "Playground",
+    namespace: "Yadn Document Builder",
     nodes: [...PlaygroundNodes],
     onError: (error: Error) => {
       throw error;
@@ -157,11 +140,15 @@ function App(): JSX.Element {
   );
 }
 
-export default function PlaygroundApp(): JSX.Element {
+export default function PlaygroundApp({
+  canvasId,
+}: {
+  canvasId: string;
+}): JSX.Element {
   return (
     <SettingsContext>
       <FlashMessageContext>
-        <App />
+        <App canvasId={canvasId} />
       </FlashMessageContext>
     </SettingsContext>
   );

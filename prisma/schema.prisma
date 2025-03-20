@@ -54,6 +54,7 @@ model Canvas {
   folder          Folder?            @relation(fields: [folder_id], references: [id])
   user            User               @relation(fields: [user_id], references: [id])
   data            CanvasData?
+  document_data   DocumentData?
   history         CanvasHistory[]
   settings        CanvasSettings?
   shares          CanvasShare[]
@@ -134,4 +135,14 @@ model CanvasShare {
 
   @@unique([canvas_id, user_id])
   @@map("canvas_share")
+}
+
+model DocumentData {
+  lexical_state Json // Stores the Lexical editor state
+  version       Int      @default(1)
+  canvas_id     String   @unique @db.Uuid
+  updated_at    DateTime @default(now()) @updatedAt
+  canvas        Canvas   @relation(fields: [canvas_id], references: [id], onDelete: Cascade)
+
+  @@map("document_data")
 }

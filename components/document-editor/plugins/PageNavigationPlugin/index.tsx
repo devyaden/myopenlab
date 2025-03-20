@@ -35,10 +35,7 @@ export default function PageNavigationPlugin(): JSX.Element {
     getCurrentPageSize,
   } = usePageManager();
 
-  // Force re-render when pages change
   const [, forceUpdate] = useState({});
-
-  // Update component when pages change
   useEffect(() => {
     forceUpdate({});
   }, [pages]);
@@ -52,7 +49,6 @@ export default function PageNavigationPlugin(): JSX.Element {
       getCurrentPageSize()
     );
 
-  // Update the title input and page size when the current page changes
   useEffect(() => {
     setPageTitle(pages[currentPageIndex]?.title || "");
     setCurrentPageSize(getCurrentPageSize());
@@ -72,60 +68,35 @@ export default function PageNavigationPlugin(): JSX.Element {
     updatePageSize(currentPageIndex, newSize);
   };
 
-  // Calculate if we're on the last page
   const isLastPage = currentPageIndex >= pages.length - 1;
-  // Calculate if we're on the first page
   const isFirstPage = currentPageIndex <= 0;
 
-  // Handle page deletion with confirmation
   const handleDeletePage = () => {
     setIsDeleteDialogOpen(true);
   };
 
   const confirmDelete = () => {
-    console.log(`Deleting page at index ${currentPageIndex}`);
     removePage(currentPageIndex);
-    // Force update after deletion
     setTimeout(() => forceUpdate({}), 50);
     setIsDeleteDialogOpen(false);
   };
 
   return (
-    <div
-      className="page-navigation"
-      style={{
-        display: "flex",
-        justifyContent: "space-between",
-        alignItems: "center",
-        padding: "10px 20px",
-        backgroundColor: "#f5f5f5",
-        borderBottom: "1px solid #e0e0e0",
-      }}
-    >
-      <div
-        className="page-title-and-size"
-        style={{ display: "flex", alignItems: "center", gap: "10px" }}
-      >
+    <div className="fixed bottom-0 left-0 w-full bg-gray-100 border-t border-gray-300 shadow-md p-2 flex justify-between items-center text-sm z-50">
+      <div className="flex items-center gap-2">
         <input
           type="text"
           value={pageTitle}
           onChange={handleTitleChange}
-          placeholder="Page Title"
-          style={{
-            padding: "5px 10px",
-            border: "1px solid #ccc",
-            borderRadius: "4px",
-            fontSize: "14px",
-            width: "200px",
-          }}
+          placeholder="Title"
+          className="px-2 py-1 border rounded text-xs w-[150px]"
         />
-
         <Select
           value={currentPageSize.name}
           onValueChange={handlePageSizeChange}
         >
-          <SelectTrigger className="w-[120px]">
-            <SelectValue placeholder="Page Size" />
+          <SelectTrigger className="w-[100px] text-xs px-2 py-1">
+            <SelectValue placeholder="Size" />
           </SelectTrigger>
           <SelectContent>
             {Object.values(PAGE_SIZES).map((size) => (
@@ -137,55 +108,33 @@ export default function PageNavigationPlugin(): JSX.Element {
         </Select>
       </div>
 
-      <div
-        className="page-controls"
-        style={{ display: "flex", alignItems: "center", gap: "10px" }}
-      >
+      <div className="flex items-center gap-2">
         <button
           onClick={() => !isFirstPage && setCurrentPage(currentPageIndex - 1)}
           disabled={isFirstPage}
-          style={{
-            padding: "5px 10px",
-            backgroundColor: isFirstPage ? "#e0e0e0" : "#f0f0f0",
-            border: "1px solid #ccc",
-            borderRadius: "4px",
-            cursor: isFirstPage ? "not-allowed" : "pointer",
-          }}
+          className={`px-2 py-1 border rounded text-xs ${
+            isFirstPage ? "bg-gray-200 cursor-not-allowed" : "bg-gray-300"
+          }`}
         >
-          Previous
+          Prev
         </button>
-
-        <span style={{ margin: "0 10px" }}>
-          Page {currentPageIndex + 1} of {pages.length}
+        <span className="text-xs">
+          {currentPageIndex + 1} / {pages.length}
         </span>
-
         <button
           onClick={() => !isLastPage && setCurrentPage(currentPageIndex + 1)}
           disabled={isLastPage}
-          style={{
-            padding: "5px 10px",
-            backgroundColor: isLastPage ? "#e0e0e0" : "#f0f0f0",
-            border: "1px solid #ccc",
-            borderRadius: "4px",
-            cursor: isLastPage ? "not-allowed" : "pointer",
-          }}
+          className={`px-2 py-1 border rounded text-xs ${
+            isLastPage ? "bg-gray-200 cursor-not-allowed" : "bg-gray-300"
+          }`}
         >
           Next
         </button>
-
         <button
           onClick={addPage}
-          style={{
-            padding: "5px 10px",
-            backgroundColor: "#4caf50",
-            color: "white",
-            border: "none",
-            borderRadius: "4px",
-            marginLeft: "10px",
-            cursor: "pointer",
-          }}
+          className="px-2 py-1 bg-green-500 text-white text-xs rounded"
         >
-          Add Page
+          +
         </button>
 
         <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
@@ -193,24 +142,20 @@ export default function PageNavigationPlugin(): JSX.Element {
             <button
               onClick={handleDeletePage}
               disabled={pages.length <= 1}
-              style={{
-                padding: "5px 10px",
-                backgroundColor: pages.length <= 1 ? "#e0e0e0" : "#f44336",
-                color: pages.length <= 1 ? "#999" : "white",
-                border: "none",
-                borderRadius: "4px",
-                cursor: pages.length <= 1 ? "not-allowed" : "pointer",
-              }}
+              className={`px-2 py-1 text-xs rounded ${
+                pages.length <= 1
+                  ? "bg-gray-200 cursor-not-allowed"
+                  : "bg-red-500 text-white"
+              }`}
             >
-              Delete Page
+              🗑
             </button>
           </DialogTrigger>
           <DialogContent>
             <DialogHeader>
               <DialogTitle>Delete Page</DialogTitle>
               <DialogDescription>
-                Are you sure you want to delete this page? This action cannot be
-                undone.
+                Are you sure? This action cannot be undone.
               </DialogDescription>
             </DialogHeader>
             <DialogFooter>
