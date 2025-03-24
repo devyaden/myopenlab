@@ -27,15 +27,18 @@ export const HeaderSidebar = () => {
   const { signOut, user } = useUser();
 
   return (
-    <header className="flex items-center justify-between gap-4 bg-yadn-dark-background px-6 z-50 py-4 min-w-full">
-      <div className="flex items-center gap-4 flex-1">
-        <Link href="/" className="flex items-center gap-2">
+    <header className="flex items-center justify-between gap-4 bg-yadn-dark-background px-6 z-50 py-4 min-w-full h-16">
+      <div className="flex items-center gap-4 flex-1 ">
+        <Link
+          href="/"
+          className="flex items-center gap-2 justify-center !h-full"
+        >
           <Image
             src="/assets/global/app-logo-white.svg"
             alt="Logo"
             width={32}
-            height={32}
-            className="h-8 w-full"
+            height={16}
+            className="h-8 w-full mb-3"
           />
         </Link>
 
@@ -103,8 +106,10 @@ export const HeaderSidebar = () => {
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
               <DropdownMenuItem>
-                <User className="mr-2 h-4 w-4" />
-                <span>Profile</span>
+                <Link href={"/protected/profile"} className="flex items-center">
+                  <User className="mr-2 h-4 w-4" />
+                  <span>Profile</span>
+                </Link>
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => signOut()}>
                 <LogOut className="mr-2 h-4 w-4" />

@@ -1,22 +1,12 @@
-import { User } from "@supabase/supabase-js";
 import { redirect } from "next/navigation";
 import { createContext, useContext, useEffect, useState } from "react";
 import { toast } from "react-hot-toast";
 import { supabase } from "../supabase/client";
 import { SignupFormData } from "../types/forms.types";
+import { User } from "@/types/auth";
 
 type UserContextType = {
-  user: {
-    id: string;
-    email: string;
-    username: string;
-    name: string;
-    company_name: string;
-    company_email: string;
-    company_sector: string;
-    company_size: string;
-    user_position: string;
-  } | null;
+  user: User | null;
   loading: boolean;
   signUp: (
     data: SignupFormData,
