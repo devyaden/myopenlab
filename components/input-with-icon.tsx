@@ -57,7 +57,7 @@ export const InputWithIcon = React.forwardRef<
             ref={ref}
             type={currentType}
             className={cn(
-              "w-full",
+              "w-full focus-visible:ring-0",
               icon && "rtl:pr-10 ltr:pl-10",
               showPasswordToggle && "ltr:pr-10 rtl:pl-10",
               error && "border-red-500 ring-1 ring-red-500",
