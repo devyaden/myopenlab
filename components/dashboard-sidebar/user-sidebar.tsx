@@ -38,17 +38,17 @@ import {
 } from "@/components/ui/sidebar";
 import {
   ChevronRight,
+  Clock,
   Edit,
+  File,
   FileText,
   Folder,
   Home,
   MoreVertical,
+  Plus,
   PlusCircle,
   Share2,
   Star,
-  Clock,
-  File,
-  Plus,
   Trash,
 } from "lucide-react";
 import Link from "next/link";
@@ -58,7 +58,6 @@ import { useUser } from "@/lib/contexts/userContext";
 import { useSidebarStore } from "@/lib/store/useSidebar";
 import { Canvas, Folder as FolderType } from "@/types/sidebar";
 import { CANVAS_TYPE } from "@/types/store";
-import { create } from "domain";
 
 export function UserSidebar() {
   const {

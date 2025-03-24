@@ -49,6 +49,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
         const {
           data: { session },
         } = await supabase.auth.getSession();
+
         await fetchUserData(session?.user?.id);
 
         const {
