@@ -30,6 +30,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import * as z from "zod";
 import { useState, useEffect } from "react";
+import { InputWithIcon } from "../input-with-icon";
 
 export enum CANVAS_TYPE {
   HYBRID = "hybrid",
@@ -289,14 +290,17 @@ export function CreateNewModal({
                   <FormItem>
                     <FormLabel>Folder Name</FormLabel>
                     <FormControl>
-                      <Input placeholder="Enter folder name" {...field} />
+                      <InputWithIcon
+                        placeholder="Enter folder name"
+                        {...field}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
               />
               <DialogFooter>
-                {step !== "select" && (
+                {/* {step !== "select" && (
                   <Button
                     variant="outline"
                     type="button"
@@ -304,7 +308,7 @@ export function CreateNewModal({
                   >
                     Back
                   </Button>
-                )}
+                )} */}
                 <Button type="submit">Create Folder</Button>
               </DialogFooter>
             </form>

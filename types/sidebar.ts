@@ -25,6 +25,8 @@ export interface SidebarState {
   selectedCanvasId: string | null;
   isLoading: boolean;
   error: string | null;
+  folderLoading: boolean;
+  canvasLoading: boolean;
 }
 
 export interface SidebarActions {

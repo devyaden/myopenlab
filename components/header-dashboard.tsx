@@ -26,7 +26,6 @@ import Link from "next/link";
 
 export const HeaderSidebar = () => {
   const { signOut, user } = useUser();
-  console.log("🚀 ~ HeaderSidebar ~ user:", user);
   const avatarUrl = STORAGE_URL + `avatars/` + user?.avatar_url;
 
   return (

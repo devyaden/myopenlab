@@ -12,6 +12,8 @@ const initialState: Omit<SidebarStore, keyof SidebarActions> = {
   selectedCanvasId: null,
   isLoading: false,
   error: null,
+  folderLoading: false,
+  canvasLoading: false,
 };
 
 export const useSidebarStore = create<SidebarStore>()(
@@ -39,7 +41,11 @@ export const useSidebarStore = create<SidebarStore>()(
       },
 
       createFolder: async (name, userId, parentId) => {
+        set({ folderLoading: true });
+
+        await supabase.auth.refreshSession();
         const state = get();
+
         const newFolder = {
           id: uuidv4(),
           name,
@@ -72,6 +78,8 @@ export const useSidebarStore = create<SidebarStore>()(
             error: "Failed to create folder",
           });
           toast.error("Failed to create folder");
+        } finally {
+          set({ folderLoading: false });
         }
       },
 
