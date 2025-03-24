@@ -822,7 +822,7 @@ export default function CanvasNew({ canvasId }: FigmaInterfaceProps) {
 
   return (
     <ReactFlowProvider>
-      <div className="min-h-screen bg-white flex flex-col w-screen">
+      <div className="h-screen bg-white flex flex-col w-screen">
         <Header
           onUndo={undo}
           onRedo={redo}
@@ -936,7 +936,7 @@ export default function CanvasNew({ canvasId }: FigmaInterfaceProps) {
             onToggleSidebar={toggleSidebar}
             canvasType={canvas_type}
           />
-          <div className="flex-1 flex flex-col md:flex-row relative">
+          <div className="flex-1 flex flex-col md:flex-row relative ">
             <Sidebar onDragStart={onDragStart} isVisible={isSidebarOpen} />
             <div className="flex-1 relative">
               <UMLEditor
