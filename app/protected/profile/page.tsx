@@ -2,6 +2,8 @@
 
 import type React from "react";
 
+import { InputWithIcon } from "@/components/input-with-icon";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -10,6 +12,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useUser } from "@/lib/contexts/userContext";
 import { supabase } from "@/lib/supabase/client";
@@ -18,12 +21,8 @@ import { Camera, Check, Loader2, Lock, Mail, UserIcon } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
-import { z } from "zod";
-
-import { InputWithIcon } from "@/components/input-with-icon";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Separator } from "@/components/ui/separator";
 import { toast } from "react-hot-toast";
+import { z } from "zod";
 
 // Profile form schema
 const profileFormSchema = z.object({

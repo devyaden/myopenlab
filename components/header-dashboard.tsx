@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { useUser } from "@/lib/contexts/userContext";
+import { STORAGE_URL } from "@/utils/constants";
 import {
   Bell,
   Crown,
@@ -25,6 +26,7 @@ import Link from "next/link";
 
 export const HeaderSidebar = () => {
   const { signOut, user } = useUser();
+  const avatarUrl = STORAGE_URL + `avatars/` + user?.avatar_url;
 
   return (
     <header className="flex items-center justify-between gap-4 bg-yadn-dark-background px-6 z-50 py-4 min-w-full h-16">
@@ -86,11 +88,10 @@ export const HeaderSidebar = () => {
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Avatar className="h-8 w-8 cursor-pointer">
-                <AvatarImage
-                  src="/placeholder.svg?height=32&width=32"
-                  alt="User"
-                />
-                <AvatarFallback>U</AvatarFallback>
+                <AvatarImage src={avatarUrl} alt="User" />
+                <AvatarFallback className="bg-yadn-pink text-white text-2xl">
+                  {user?.name?.charAt(0) || user?.username?.charAt(0) || "U"}
+                </AvatarFallback>
               </Avatar>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-56">
