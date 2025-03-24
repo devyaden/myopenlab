@@ -143,19 +143,19 @@ export default function Editor(): JSX.Element {
   } = usePageManager();
 
   const { saveDocument } = useDocumentEditorBridge();
-  const { name, saveLoading, lexical_state, isLoading } = useDocumentStore();
-  const isPagesInitializedRef = useRef(false); // Tracks if pages are initialized
+  const { name, saveLoading, lexical_state, isLoading, folderCanvases } =
+    useDocumentStore();
 
-  // Sync pages with lexical_state when document loads
+  const isPagesInitializedRef = useRef(false);
+
   useEffect(() => {
     if (!isLoading && !isPagesInitializedRef.current) {
       if (lexical_state) {
         try {
           const parsed = JSON.parse(lexical_state);
           if (parsed.pages) {
-            setPages(parsed.pages); // Load pages from saved state
+            setPages(parsed.pages);
           } else {
-            // Handle older single-page state
             setPages([
               {
                 id: "page-1",
@@ -348,6 +348,7 @@ export default function Editor(): JSX.Element {
           activeEditor={activeEditor}
           setActiveEditor={setActiveEditor}
           setIsLinkEditMode={setIsLinkEditMode}
+          folderCanvases={folderCanvases}
         />
       )}
       <PageNavigationPlugin />
@@ -361,7 +362,7 @@ export default function Editor(): JSX.Element {
         className="editor-container"
         style={{ height: "calc(100vh - 210px)", overflowY: "auto" }}
       >
-        <div className="page-container">
+        <div className="page-container a4-page">
           <div
             style={{
               width: getCurrentPageSize().width,

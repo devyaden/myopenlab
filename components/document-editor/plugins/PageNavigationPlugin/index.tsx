@@ -1,8 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useLexicalComposerContext } from "@lexical/react/LexicalComposerContext";
-import type React from "react";
+import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
@@ -12,7 +10,6 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
 import {
   Select,
   SelectContent,
@@ -20,6 +17,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useLexicalComposerContext } from "@lexical/react/LexicalComposerContext";
+import type React from "react";
+import { useEffect, useState } from "react";
 import { PAGE_SIZES, usePageManager } from "../../components/PageManager";
 
 export default function PageNavigationPlugin(): JSX.Element {
@@ -82,7 +82,7 @@ export default function PageNavigationPlugin(): JSX.Element {
   };
 
   return (
-    <div className="fixed bottom-0 left-0 w-full bg-gray-100 border-t border-gray-300 shadow-md p-2 flex justify-between items-center text-sm z-50">
+    <div className=" w-full bg-gray-100 border-t border-gray-300 shadow-md p-2 flex justify-between items-center text-sm z-50">
       <div className="flex items-center gap-2">
         <input
           type="text"
@@ -95,7 +95,7 @@ export default function PageNavigationPlugin(): JSX.Element {
           value={currentPageSize.name}
           onValueChange={handlePageSizeChange}
         >
-          <SelectTrigger className="w-[100px] text-xs px-2 py-1">
+          <SelectTrigger className="w-[100px] text-xs px-2 py-1 h-7">
             <SelectValue placeholder="Size" />
           </SelectTrigger>
           <SelectContent>

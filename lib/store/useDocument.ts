@@ -3,6 +3,7 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { supabase } from "../supabase/client";
+import toast from "react-hot-toast";
 
 interface DocumentState {
   id: string;
@@ -16,6 +17,7 @@ interface DocumentState {
   error: string | null;
   isDirty: boolean;
   lastSaved: Date | null;
+  folderCanvases: any[];
   setName: (name: string) => void;
   setDescription: (description: string) => void;
   updateEditorState: (editorState: any) => void;
@@ -23,6 +25,7 @@ interface DocumentState {
   saveDocument: () => Promise<void>;
   syncChanges: () => Promise<void>;
   resetState: () => void;
+  loadFolderCanvases: (folderId: string) => Promise<void>;
 }
 
 const initialState: DocumentState = {
@@ -44,6 +47,8 @@ const initialState: DocumentState = {
   saveDocument: async () => {},
   syncChanges: async () => Promise.resolve(),
   resetState: () => {},
+  loadFolderCanvases: async () => {},
+  folderCanvases: [],
 };
 
 export const useDocumentStore = create<DocumentState>()(
@@ -80,7 +85,7 @@ export const useDocumentStore = create<DocumentState>()(
           try {
             const { data: canvas, error: canvasError } = await supabase
               .from("canvas")
-              .select("id, name, description")
+              .select("id, name, description, folder_id")
               .eq("id", canvasId)
               .single();
             if (canvasError) throw canvasError;
@@ -111,6 +116,8 @@ export const useDocumentStore = create<DocumentState>()(
                 ? new Date(documentData.updated_at)
                 : null,
             });
+
+            get().loadFolderCanvases(canvas.folder_id);
           } catch (error) {
             console.error("Error loading document:", error);
             set({
@@ -206,6 +213,39 @@ export const useDocumentStore = create<DocumentState>()(
         },
         resetState: () => {
           set(initialState);
+        },
+
+        loadFolderCanvases: async (folderId) => {
+          set({ isLoading: true, error: null });
+
+          try {
+            const { data, error } = await supabase
+              .from("canvas")
+              .select(
+                "id, name, description, updated_at, canvas_data:canvas_data(*)"
+              )
+              .eq("folder_id", folderId)
+              .eq("canvas_type", "hybrid")
+              .order("updated_at", { ascending: false });
+
+            if (error) throw error;
+
+            set({
+              folderCanvases: data.map((canvas) => ({
+                id: canvas.id,
+                title: canvas.name,
+                description: canvas.description || "",
+                flowData: canvas.canvas_data?.[0],
+                updated_at: new Date(canvas.updated_at),
+              })),
+            });
+          } catch (error) {
+            console.error("Error loading folder canvases:", error);
+            set({ error: "Failed to load folder canvases" });
+            toast.error("Failed to load folder canvases");
+          } finally {
+            set({ isLoading: false });
+          }
         },
       };
     },

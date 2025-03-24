@@ -9,7 +9,7 @@ import {
   type SerializedLexicalNode,
   type Spread,
 } from "lexical";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRef } from "react";
 import ReactFlow, {
   Background,
@@ -18,6 +18,7 @@ import ReactFlow, {
   useNodesState,
   useEdgesState,
   ReactFlowProvider,
+  useReactFlow,
 } from "reactflow";
 import "reactflow/dist/style.css";
 
@@ -138,6 +139,11 @@ function FlowRenderer({
   onNodesChange: any;
   onEdgesChange: any;
 }) {
+  const { fitView } = useReactFlow();
+
+  useEffect(() => {
+    fitView && fitView();
+  }, [nodes, edges]);
   return (
     <ReactFlow
       nodes={nodes}
@@ -146,6 +152,18 @@ function FlowRenderer({
       onEdgesChange={onEdgesChange}
       fitView
       attributionPosition="bottom-right"
+      // fitViewOptions={{ padding: 1 }}
+      edgesFocusable={false}
+      nodesDraggable={false}
+      nodesConnectable={false}
+      nodesFocusable={false}
+      draggable={false}
+      panOnDrag={false}
+      elementsSelectable={false}
+      // Optional if you also want to lock zooming
+      zoomOnDoubleClick={false}
+      // minZoom={0.2}
+      // maxZoom={0.2}
     ></ReactFlow>
   );
 }

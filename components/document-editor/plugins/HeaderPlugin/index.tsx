@@ -193,6 +193,8 @@ export default function HeaderPlugin({
         return;
       }
 
+      debugger;
+
       // @ts-ignore
       const currentPageIndex = pages.findIndex((p) => p.isCurrent);
 
