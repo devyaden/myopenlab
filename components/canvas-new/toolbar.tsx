@@ -76,6 +76,7 @@ interface ToolbarProps {
       | "class"
       | "interface"
       | "swimlane"
+      | "standing-woman"
   ) => void;
   shape:
     | "rectangle"
@@ -88,7 +89,8 @@ interface ToolbarProps {
     | "actor"
     | "class"
     | "interface"
-    | "swimlane";
+    | "swimlane"
+    | "standing-woman";
   isLocked: boolean;
   borderStyle: string;
   setBorderStyle: (style: string) => void;

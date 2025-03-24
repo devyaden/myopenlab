@@ -24,7 +24,8 @@ export interface NodeStyle {
     | "actor"
     | "class"
     | "interface"
-    | "swimlane";
+    | "swimlane"
+    | "standing-woman";
   locked: boolean;
   isVertical?: boolean;
   borderStyle: string;

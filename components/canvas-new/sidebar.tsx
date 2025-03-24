@@ -8,15 +8,19 @@ import {
 } from "@/components/ui/collapsible";
 import { cn } from "@/lib/utils";
 import {
+  AlarmSmokeIcon,
   Box,
   ChevronDown,
   Circle,
   Diamond,
   GripVertical,
   Image,
+  MapPin,
+  RockingChair,
   Search,
   Square,
   Star,
+  StretchHorizontal,
   Triangle,
   Type,
   User,
@@ -50,12 +54,21 @@ export function Sidebar({ onDragStart, isVisible }: SidebarProps) {
       ],
     },
     {
-      title: "UML Shapes",
+      title: "Actors",
       shapes: [
-        { name: "Class", type: "class", icon: Box },
-        { name: "Interface", type: "interface", icon: Box },
-        { name: "Use Case", type: "useCase", icon: Circle },
         { name: "Actor", type: "actor", icon: User },
+        { name: "Standing Woman", type: "standing-woman", icon: User },
+        { name: "Sitting", type: "sitting", icon: RockingChair },
+        {
+          name: "Arms Stretched",
+          type: "arms-stretched",
+          icon: StretchHorizontal,
+        },
+        {
+          name: "Walking Man",
+          type: "walking-man",
+          icon: MapPin,
+        },
       ],
     },
     {
@@ -63,7 +76,7 @@ export function Sidebar({ onDragStart, isVisible }: SidebarProps) {
       shapes: [
         { name: "Process", type: "rectangle", icon: Square },
         { name: "Decision", type: "diamond", icon: Diamond },
-        { name: "Input/Output", type: "parallelogram", icon: Square },
+        { name: "Input/Output", type: "parallelo gram", icon: Square },
         { name: "Terminator", type: "terminator", icon: Square },
       ],
     },

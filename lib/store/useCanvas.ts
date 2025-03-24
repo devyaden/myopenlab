@@ -31,6 +31,7 @@ const initialUndoableState: UndoableState = {
         "actor",
         "class",
         "interface",
+        "standing-woman",
       ],
     },
     {
