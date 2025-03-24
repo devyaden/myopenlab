@@ -6,7 +6,17 @@ import { supabase } from "../supabase/client";
 import { SignupFormData } from "../types/forms.types";
 
 type UserContextType = {
-  user: User | null;
+  user: {
+    id: string;
+    email: string;
+    username: string;
+    name: string;
+    company_name: string;
+    company_email: string;
+    company_sector: string;
+    company_size: string;
+    user_position: string;
+  } | null;
   loading: boolean;
   signUp: (
     data: SignupFormData,

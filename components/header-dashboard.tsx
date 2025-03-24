@@ -2,7 +2,16 @@
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
+import { useUser } from "@/lib/contexts/userContext";
 import {
   Bell,
   Crown,
@@ -13,18 +22,9 @@ import {
 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { useUser } from "@/lib/contexts/userContext";
 
 export const HeaderSidebar = () => {
-  const { signOut } = useUser();
+  const { signOut, user } = useUser();
 
   return (
     <header className="flex items-center justify-between gap-4 bg-yadn-dark-background px-6 z-50 py-4 min-w-full">
@@ -93,9 +93,11 @@ export const HeaderSidebar = () => {
             <DropdownMenuContent align="end" className="w-56">
               <DropdownMenuLabel className="font-normal">
                 <div className="flex flex-col space-y-1">
-                  <p className="text-sm font-medium leading-none">John Doe</p>
+                  <p className="text-sm font-medium leading-none">
+                    {user?.name}
+                  </p>
                   <p className="text-xs leading-none text-muted-foreground">
-                    john.doe@example.com
+                    {user?.email}
                   </p>
                 </div>
               </DropdownMenuLabel>
