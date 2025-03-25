@@ -49,42 +49,42 @@ export function Sidebar({ onDragStart, isVisible = true }: SidebarProps) {
         {
           name: "Rectangle",
           type: "rectangle",
-          component: renderShapePreview("rectangle"),
+          component: renderShapePreview("rectangle", 32), // Increased size
         },
         {
           name: "Square",
           type: "square",
-          component: renderShapePreview("square"),
+          component: renderShapePreview("square", 32),
         },
         {
           name: "Rounded Rectangle",
           type: "rounded",
-          component: renderShapePreview("rounded"),
+          component: renderShapePreview("rounded", 32),
         },
         {
           name: "Pill shape",
           type: "capsule",
-          component: renderShapePreview("capsule"),
+          component: renderShapePreview("capsule", 32),
         },
         {
           name: "Circle",
           type: "circle",
-          component: renderShapePreview("circle"),
+          component: renderShapePreview("circle", 32),
         },
         {
           name: "Diamond",
           type: "diamond",
-          component: renderShapePreview("diamond"),
+          component: renderShapePreview("diamond", 32),
         },
         {
           name: "Triangle",
           type: "triangle",
-          component: renderShapePreview("triangle"),
+          component: renderShapePreview("triangle", 32),
         },
         {
           name: "Hexagon",
           type: "hexagon",
-          component: renderShapePreview("hexagon"),
+          component: renderShapePreview("hexagon", 32),
         },
       ],
     },
@@ -94,37 +94,37 @@ export function Sidebar({ onDragStart, isVisible = true }: SidebarProps) {
         {
           name: "Left Arrow",
           type: "left-arrow",
-          component: renderShapePreview("left-arrow"),
+          component: renderShapePreview("left-arrow", 32),
         },
         {
           name: "Right Arrow",
           type: "right-arrow",
-          component: renderShapePreview("right-arrow"),
+          component: renderShapePreview("right-arrow", 32),
         },
         {
           name: "Top Arrow",
           type: "top-arrow",
-          component: renderShapePreview("top-arrow"),
+          component: renderShapePreview("top-arrow", 32),
         },
         {
           name: "Bottom Arrow",
           type: "bottom-arrow",
-          component: renderShapePreview("bottom-arrow"),
+          component: renderShapePreview("bottom-arrow", 32),
         },
         // {
         //   name: "Solid Line",
         //   type: "solid-line",
-        //   component: renderLinePreview("solid-line"),
+        //   component: renderLinePreview("solid-line", 32),
         // },
         // {
         //   name: "Dashed Line",
         //   type: "dashed-line",
-        //   component: renderLinePreview("dashed-line"),
+        //   component: renderLinePreview("dashed-line", 32),
         // },
         // {
         //   name: "Dotted line",
         //   type: "dotted-line",
-        //   component: renderLinePreview("dotted-line"),
+        //   component: renderLinePreview("dotted-line", 32),
         // },
       ],
     },
@@ -134,27 +134,27 @@ export function Sidebar({ onDragStart, isVisible = true }: SidebarProps) {
         {
           name: "Standing man",
           type: "actor",
-          component: renderShapePreview("actor"),
+          component: renderShapePreview("actor", 32),
         },
         {
           name: "Standing woman",
           type: "standing-woman",
-          component: renderShapePreview("standing-woman"),
+          component: renderShapePreview("standing-woman", 32),
         },
         {
           name: "Sitting",
           type: "sitting",
-          component: renderShapePreview("sitting"),
+          component: renderShapePreview("sitting", 32),
         },
         {
           name: "Arms stretched",
           type: "arms-stretched",
-          component: renderShapePreview("arms-stretched"),
+          component: renderShapePreview("arms-stretched", 32),
         },
         {
           name: "Walking man",
           type: "walking-man",
-          component: renderShapePreview("walking-man"),
+          component: renderShapePreview("walking-man", 32),
         },
       ],
     },
@@ -164,17 +164,17 @@ export function Sidebar({ onDragStart, isVisible = true }: SidebarProps) {
         {
           name: "Document",
           type: "document",
-          component: renderShapePreview("document"),
+          component: renderShapePreview("document", 32),
         },
         {
           name: "Cylinder",
           type: "cylindar",
-          component: renderShapePreview("cylindar"),
+          component: renderShapePreview("cylindar", 32),
         },
         {
           name: "Message Bubble",
           type: "message-bubble",
-          component: renderShapePreview("message-bubble"),
+          component: renderShapePreview("message-bubble", 32),
         },
       ],
     },
@@ -185,8 +185,8 @@ export function Sidebar({ onDragStart, isVisible = true }: SidebarProps) {
           name: "Image",
           type: "image",
           component: (
-            <div className="w-6 h-6 border border-black flex items-center justify-center">
-              <div className="w-4 h-4 bg-gray-300"></div>
+            <div className="w-8 h-8 border-2 border-black flex items-center justify-center">
+              <div className="w-5 h-5 bg-gray-300"></div>
             </div>
           ),
         },
@@ -194,13 +194,13 @@ export function Sidebar({ onDragStart, isVisible = true }: SidebarProps) {
           name: "Swimlane",
           type: "swimlane",
           component: (
-            <div className="w-6 h-6 relative">
-              <svg viewBox="0 0 24 24" width="24" height="24">
+            <div className="w-8 h-8 relative">
+              <svg viewBox="0 0 24 24" width="32" height="32">
                 <path
                   d="M1 3h22v6H1zm0 8h22v6H1zm0 8h22v6H1z"
                   stroke="black"
+                  strokeWidth="2"
                   fill="none"
-                  strokeWidth="1"
                 />
               </svg>
             </div>
@@ -370,7 +370,7 @@ export function Sidebar({ onDragStart, isVisible = true }: SidebarProps) {
                     </div>
                   </CollapsibleTrigger>
                   <CollapsibleContent>
-                    <div className="py-1 px-4 grid grid-cols-3 gap-1">
+                    <div className="py-1 px-4 grid grid-cols-3 gap-2">
                       {category.shapes.map((shape) => (
                         <div
                           key={shape.name}
@@ -380,7 +380,7 @@ export function Sidebar({ onDragStart, isVisible = true }: SidebarProps) {
                             handleShapeDragStart(e, shape.type)
                           }
                         >
-                          <div className="flex items-center justify-center h-8">
+                          <div className="flex items-center justify-center h-10">
                             {shape.component}
                           </div>
                           <span className="text-xs text-center line-clamp-1 mt-1">

@@ -1,5 +1,3 @@
-import React from "react";
-
 // Common shape properties interface
 export interface ShapeProps {
   fill?: string;
@@ -247,7 +245,7 @@ export const renderShapePreview = (shape: string, size = 24) => {
         {SHAPE_DEFINITIONS[shape].render({
           fill: isHumanFigure(shape) ? "none" : "white",
           stroke: "#000000",
-          strokeWidth: 1,
+          strokeWidth: isHumanFigure(shape) ? 1 : 2, // Thicker stroke for non-human shapes
         })}
       </svg>
     );
