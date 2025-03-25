@@ -215,28 +215,36 @@ export const useDocumentStore = create<DocumentState>()(
           set(initialState);
         },
 
-        loadFolderCanvases: async (folderId) => {
+        loadFolderCanvases: async (folderId: string | null) => {
           set({ isLoading: true, error: null });
 
           try {
-            const { data, error } = await supabase
+            let query = supabase
               .from("canvas")
               .select(
-                "id, name, description, updated_at, canvas_data:canvas_data(*)"
+                "id, name, description, updated_at, columns:column_definition!column_definition_canvas_id_fkey(*)"
               )
-              .eq("folder_id", folderId)
-              .eq("canvas_type", "hybrid")
               .order("updated_at", { ascending: false });
+
+            // Conditionally add filter only if folderId is not null
+            if (folderId !== null) {
+              query = query.eq("folder_id", folderId);
+            } else {
+              // If folderId is null, filter for canvases with null folder_id
+              query = query.is("folder_id", null);
+            }
+
+            const { data, error } = await query;
 
             if (error) throw error;
 
             set({
               folderCanvases: data.map((canvas) => ({
                 id: canvas.id,
-                title: canvas.name,
+                name: canvas.name,
                 description: canvas.description || "",
-                flowData: canvas.canvas_data?.[0],
                 updated_at: new Date(canvas.updated_at),
+                columns: canvas.columns,
               })),
             });
           } catch (error) {

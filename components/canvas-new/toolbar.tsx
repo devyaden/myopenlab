@@ -190,11 +190,11 @@ export const Toolbar = React.memo(function Toolbar({
     { name: "Solid", value: "solid" },
     { name: "Dashed", value: "dashed" },
     { name: "Dotted", value: "dotted" },
-    { name: "Double", value: "double" },
-    { name: "Groove", value: "groove" },
-    { name: "Ridge", value: "ridge" },
-    { name: "Inset", value: "inset" },
-    { name: "Outset", value: "outset" },
+    // { name: "Double", value: "double" },
+    // { name: "Groove", value: "groove" },
+    // { name: "Ridge", value: "ridge" },
+    // { name: "Inset", value: "inset" },
+    // { name: "Outset", value: "outset" },
   ];
 
   const getBorderStyleIcon = (style: string) => {

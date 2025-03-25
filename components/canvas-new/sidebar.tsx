@@ -1,173 +1,227 @@
 "use client";
 
 import type React from "react";
-
-import { Button } from "@/components/ui/button";
+import { useCallback, useEffect, useState } from "react";
 import {
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
+import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import {
-  ChevronDown,
-  Circle,
-  Diamond,
-  GripVertical,
-  Image,
-  MapPin,
-  RockingChair,
-  Search,
-  Square,
-  Star,
-  StretchHorizontal,
-  Triangle,
-  Type,
-  User,
-  X,
-} from "lucide-react";
-import { useState, useEffect } from "react";
+import { ChevronDown, GripVertical, Search, Star, X } from "lucide-react";
+import { renderShapePreview, renderLinePreview } from "./shape-utils";
 
 interface SidebarProps {
   onDragStart: (event: React.DragEvent, shapeType: string) => void;
   isVisible?: boolean;
 }
 
+// Shape definitions
 interface Shape {
   name: string;
   type: string;
-  icon: any;
+  component: React.ReactNode;
 }
 
-interface SidebarItem {
+interface ShapeCategory {
   title: string;
   shapes: Shape[];
 }
 
-export function Sidebar({ onDragStart, isVisible }: SidebarProps) {
-  const [openItems, setOpenItems] = useState<Record<string, boolean>>({});
+export function Sidebar({ onDragStart, isVisible = true }: SidebarProps) {
+  const [openItems, setOpenItems] = useState<Record<string, boolean>>({
+    "Basic Shapes": true,
+    "Arrows & Lines": true,
+    Actors: true,
+    Resources: true,
+    Extras: true,
+  });
+
   const [searchQuery, setSearchQuery] = useState<string>("");
-  const [filteredItems, setFilteredItems] = useState<SidebarItem[]>([]);
   const [isSearching, setIsSearching] = useState<boolean>(false);
-  const [sidebarItems, setSidebarItems] = useState<SidebarItem[]>([
+
+  // Define the shape categories
+  const shapeCategories: ShapeCategory[] = [
     {
       title: "Basic Shapes",
       shapes: [
-        { name: "Rectangle", type: "rectangle", icon: Square },
-        { name: "Rounded Rectangle", type: "rounded", icon: Square },
-        { name: "Circle", type: "circle", icon: Circle },
-        { name: "Diamond", type: "diamond", icon: Diamond },
-        { name: "Triangle", type: "triangle", icon: Triangle },
+        {
+          name: "Rectangle",
+          type: "rectangle",
+          component: renderShapePreview("rectangle"),
+        },
+        {
+          name: "Square",
+          type: "square",
+          component: renderShapePreview("square"),
+        },
+        {
+          name: "Rounded Rectangle",
+          type: "rounded",
+          component: renderShapePreview("rounded"),
+        },
+        {
+          name: "Pill shape",
+          type: "capsule",
+          component: renderShapePreview("capsule"),
+        },
+        {
+          name: "Circle",
+          type: "circle",
+          component: renderShapePreview("circle"),
+        },
+        {
+          name: "Diamond",
+          type: "diamond",
+          component: renderShapePreview("diamond"),
+        },
+        {
+          name: "Triangle",
+          type: "triangle",
+          component: renderShapePreview("triangle"),
+        },
+        {
+          name: "Hexagon",
+          type: "hexagon",
+          component: renderShapePreview("hexagon"),
+        },
+      ],
+    },
+    {
+      title: "Arrows & Lines",
+      shapes: [
+        {
+          name: "Left Arrow",
+          type: "left-arrow",
+          component: renderShapePreview("left-arrow"),
+        },
+        {
+          name: "Right Arrow",
+          type: "right-arrow",
+          component: renderShapePreview("right-arrow"),
+        },
+        {
+          name: "Top Arrow",
+          type: "top-arrow",
+          component: renderShapePreview("top-arrow"),
+        },
+        {
+          name: "Bottom Arrow",
+          type: "bottom-arrow",
+          component: renderShapePreview("bottom-arrow"),
+        },
+        // {
+        //   name: "Solid Line",
+        //   type: "solid-line",
+        //   component: renderLinePreview("solid-line"),
+        // },
+        // {
+        //   name: "Dashed Line",
+        //   type: "dashed-line",
+        //   component: renderLinePreview("dashed-line"),
+        // },
+        // {
+        //   name: "Dotted line",
+        //   type: "dotted-line",
+        //   component: renderLinePreview("dotted-line"),
+        // },
       ],
     },
     {
       title: "Actors",
       shapes: [
-        { name: "Actor", type: "actor", icon: User },
-        { name: "Standing Woman", type: "standing-woman", icon: User },
-        { name: "Sitting", type: "sitting", icon: RockingChair },
         {
-          name: "Arms Stretched",
+          name: "Standing man",
+          type: "actor",
+          component: renderShapePreview("actor"),
+        },
+        {
+          name: "Standing woman",
+          type: "standing-woman",
+          component: renderShapePreview("standing-woman"),
+        },
+        {
+          name: "Sitting",
+          type: "sitting",
+          component: renderShapePreview("sitting"),
+        },
+        {
+          name: "Arms stretched",
           type: "arms-stretched",
-          icon: StretchHorizontal,
+          component: renderShapePreview("arms-stretched"),
         },
         {
-          name: "Walking Man",
+          name: "Walking man",
           type: "walking-man",
-          icon: MapPin,
+          component: renderShapePreview("walking-man"),
         },
       ],
     },
     {
-      title: "Flowchart",
+      title: "Resources",
       shapes: [
-        { name: "Process", type: "rectangle", icon: Square },
-        { name: "Decision", type: "diamond", icon: Diamond },
-        { name: "Input/Output", type: "parallelo gram", icon: Square },
-        { name: "Terminator", type: "terminator", icon: Square },
+        {
+          name: "Document",
+          type: "document",
+          component: renderShapePreview("document"),
+        },
+        {
+          name: "Cylinder",
+          type: "cylindar",
+          component: renderShapePreview("cylindar"),
+        },
+        {
+          name: "Message Bubble",
+          type: "message-bubble",
+          component: renderShapePreview("message-bubble"),
+        },
       ],
     },
     {
-      title: "Containers",
-      shapes: [{ name: "Swimlane", type: "swimlane", icon: Square }],
+      title: "Extras",
+      shapes: [
+        {
+          name: "Image",
+          type: "image",
+          component: (
+            <div className="w-6 h-6 border border-black flex items-center justify-center">
+              <div className="w-4 h-4 bg-gray-300"></div>
+            </div>
+          ),
+        },
+        {
+          name: "Swimlane",
+          type: "swimlane",
+          component: (
+            <div className="w-6 h-6 relative">
+              <svg viewBox="0 0 24 24" width="24" height="24">
+                <path
+                  d="M1 3h22v6H1zm0 8h22v6H1zm0 8h22v6H1z"
+                  stroke="black"
+                  fill="none"
+                  strokeWidth="1"
+                />
+              </svg>
+            </div>
+          ),
+        },
+      ],
     },
-    {
-      title: "Text",
-      shapes: [{ name: "Text Node", type: "text", icon: Type }],
-    },
-    {
-      title: "Images",
-      shapes: [{ name: "Image", type: "image", icon: Image }],
-    },
-  ]);
-  const [draggedItemIndex, setDraggedItemIndex] = useState<number | null>(null);
-  const [dragOverItemIndex, setDragOverItemIndex] = useState<number | null>(
-    null
-  );
+  ];
 
-  const handleDragStart = (e: React.DragEvent, index: number) => {
-    e.stopPropagation();
-    setDraggedItemIndex(index);
-    // Add data to the drag event to make it work properly
-    e.dataTransfer.effectAllowed = "move";
-    e.dataTransfer.setData("text/plain", index.toString());
-  };
+  const [filteredCategories, setFilteredCategories] =
+    useState<ShapeCategory[]>(shapeCategories);
 
-  const handleDragOver = (e: React.DragEvent, index: number) => {
-    e.preventDefault();
-    e.stopPropagation();
-    if (index !== draggedItemIndex) {
-      setDragOverItemIndex(index);
-    }
-    // Set the drop effect
-    e.dataTransfer.dropEffect = "move";
-  };
-
-  const handleDrop = (e: React.DragEvent, index: number) => {
-    e.preventDefault();
-    e.stopPropagation();
-
-    if (draggedItemIndex === null) return;
-
-    // Create a copy of the items
-    const newItems = [...sidebarItems];
-
-    // Remove the dragged item
-    const draggedItem = newItems[draggedItemIndex];
-    newItems.splice(draggedItemIndex, 1);
-
-    // Insert at the new position
-    newItems.splice(index, 0, draggedItem);
-
-    // Update the state
-    setSidebarItems(newItems);
-
-    // Reset drag indices
-    setDraggedItemIndex(null);
-    setDragOverItemIndex(null);
-  };
-
-  const handleDragEnd = () => {
-    setDraggedItemIndex(null);
-    setDragOverItemIndex(null);
-  };
-
-  const toggleItem = (title: string) => {
-    setOpenItems((prev) => ({
-      ...prev,
-      [title]: !prev[title],
-    }));
-  };
-
-  // Filter items based on search query
+  // Filter shapes based on search query
   useEffect(() => {
     if (!searchQuery.trim()) {
-      setFilteredItems(sidebarItems);
+      setFilteredCategories(shapeCategories);
       return;
     }
 
     const query = searchQuery.toLowerCase();
-    const filtered = sidebarItems
+    const filtered = shapeCategories
       .map((category) => {
         // Filter shapes within each category
         const filteredShapes = category.shapes.filter(
@@ -184,7 +238,7 @@ export function Sidebar({ onDragStart, isVisible }: SidebarProps) {
       })
       .filter((category) => category.shapes.length > 0); // Only keep categories with matching shapes
 
-    setFilteredItems(filtered);
+    setFilteredCategories(filtered);
 
     // Auto-expand categories that have search results
     const newOpenItems = { ...openItems };
@@ -192,14 +246,16 @@ export function Sidebar({ onDragStart, isVisible }: SidebarProps) {
       newOpenItems[item.title] = true;
     });
     setOpenItems(newOpenItems);
-  }, [searchQuery, sidebarItems]);
+  }, [searchQuery]);
 
-  // Initialize filtered items with all items
-  useEffect(() => {
-    setFilteredItems(sidebarItems);
-  }, [sidebarItems]);
+  const toggleItem = useCallback((title: string) => {
+    setOpenItems((prev) => ({
+      ...prev,
+      [title]: !prev[title],
+    }));
+  }, []);
 
-  const toggleSearch = () => {
+  const toggleSearch = useCallback(() => {
     setIsSearching(!isSearching);
     if (!isSearching) {
       // Focus the search input when showing
@@ -210,136 +266,146 @@ export function Sidebar({ onDragStart, isVisible }: SidebarProps) {
       // Clear search when closing
       setSearchQuery("");
     }
-  };
+  }, [isSearching]);
+
+  // Function to handle dragging a shape - using the original implementation
+  const handleShapeDragStart = useCallback(
+    (e: React.DragEvent, shapeType: string) => {
+      onDragStart(e, shapeType);
+    },
+    [onDragStart]
+  );
 
   return (
     <div
       className={cn(
         "border-r border-gray-200 bg-white fixed md:relative transition-all duration-300 ease-in-out z-10 h-screen flex flex-col",
-        isVisible ? "w-72 translate-x-0" : "w-0 -translate-x-full"
+        isVisible
+          ? "w-72 translate-x-0"
+          : "w-0 -translate-x-full md:w-0 md:-translate-x-full"
       )}
     >
-      <div className="flex items-center justify-between pb-2 px-4 pt-3 sticky top-0 bg-white z-10">
-        {isSearching ? (
-          <div className="flex items-center gap-2 w-full">
-            <input
-              id="shape-search"
-              type="text"
-              placeholder="Search shapes..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full text-sm border border-gray-200 rounded-md px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-500"
-            />
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-7 w-7 hover:bg-transparent flex-shrink-0"
-              onClick={toggleSearch}
-            >
-              <X className="h-4 w-4" />
-            </Button>
-          </div>
-        ) : (
-          <>
-            <h2 className="text-md font-semibold">Shapes</h2>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-7 w-7 hover:bg-transparent"
-              onClick={toggleSearch}
-            >
-              <Search className="h-4 w-4" />
-            </Button>
-          </>
-        )}
-      </div>
-
-      <div
-        className="overflow-y-auto flex-1 pb-4"
-        style={{
-          overflowY: "auto",
-          maxHeight: "calc(100vh - 60px)",
-        }}
-      >
-        <div className="space-y-1">
-          {filteredItems.map((item, index) => (
-            <Collapsible
-              key={item.title + index}
-              open={openItems[item.title]}
-              onOpenChange={() => toggleItem(item.title)}
-            >
-              <CollapsibleTrigger asChild>
-                <div
-                  className={`flex items-center justify-between px-2 hover:bg-gray-100/80 rounded-md cursor-pointer py-4 border-t ${
-                    draggedItemIndex === index ? "opacity-50" : ""
-                  } ${dragOverItemIndex === index ? "border-t-2 border-blue-500" : ""}`}
-                  onDragOver={(e) => handleDragOver(e, index)}
-                  onDrop={(e) => handleDrop(e, index)}
+      {isVisible && (
+        <>
+          <div className="flex items-center justify-between pb-2 px-4 pt-3 sticky top-0 bg-white z-10">
+            {isSearching ? (
+              <div className="flex items-center gap-2 w-full">
+                <input
+                  id="shape-search"
+                  type="text"
+                  placeholder="Search shapes..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full text-sm border border-gray-200 rounded-md px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                />
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-7 w-7 hover:bg-transparent flex-shrink-0"
+                  onClick={toggleSearch}
                 >
-                  <div className="flex items-center gap-2">
-                    <span
-                      className="text-sm font-normal cursor-move"
-                      draggable
-                      onDragStart={(e) => handleDragStart(e, index)}
-                      onDragOver={(e) => handleDragOver(e, index)}
-                      onDrop={(e) => handleDrop(e, index)}
-                      onDragEnd={handleDragEnd}
-                    >
-                      <GripVertical className="h-5 w-5 text-[#98A2B3]" />
-                    </span>
-                    <span className="text-md font-semibold">{item.title}</span>
-                    <span className="text-xs text-gray-500">
-                      ({item.shapes.length})
-                    </span>
-                  </div>
-                  <div className="flex items-center">
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-6 w-6 hover:bg-transparent"
-                    >
-                      <Star className="h-4 w-4" />
-                    </Button>
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+            ) : (
+              <>
+                <h2 className="text-md font-semibold">Shapes</h2>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-7 w-7 hover:bg-transparent"
+                  onClick={toggleSearch}
+                >
+                  <Search className="h-4 w-4" />
+                </Button>
+              </>
+            )}
+          </div>
 
-                    <ChevronDown
-                      className={`h-4 w-4 transition-transform duration-200 ${
-                        openItems[item.title] ? "rotate-180" : ""
-                      }`}
-                    />
-                  </div>
-                </div>
-              </CollapsibleTrigger>
-              <CollapsibleContent>
-                <div className="py-1 px-4 grid grid-cols-3">
-                  {item.shapes.map((shape) => (
-                    <div
-                      key={shape.name}
-                      className="flex items-center justify-center py-1 cursor-move hover:bg-gray-100 rounded px-2 flex-col"
-                      draggable
-                      onDragStart={(e) => onDragStart(e, shape.type)}
-                    >
-                      <shape.icon className="h-6 w-6" />
-                      <span className="text-sm text-center line-clamp-1">
-                        {shape.name}
-                      </span>
+          <div
+            className="overflow-y-auto flex-1 pb-4"
+            style={{
+              overflowY: "auto",
+              maxHeight: "calc(100vh - 60px)",
+            }}
+          >
+            <div className="space-y-1">
+              {filteredCategories.map((category) => (
+                <Collapsible
+                  key={category.title}
+                  open={openItems[category.title]}
+                  onOpenChange={() => toggleItem(category.title)}
+                >
+                  <CollapsibleTrigger asChild>
+                    <div className="flex items-center justify-between px-2 hover:bg-gray-100/80 rounded-md cursor-pointer py-4 border-t">
+                      <div className="flex items-center gap-2">
+                        <span
+                          className="text-sm font-normal cursor-move"
+                          draggable
+                        >
+                          <GripVertical className="h-5 w-5 text-[#98A2B3]" />
+                        </span>
+                        <span className="text-md font-semibold">
+                          {category.title}
+                        </span>
+                        <span className="text-xs text-gray-500">
+                          ({category.shapes.length})
+                        </span>
+                      </div>
+                      <div className="flex items-center">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-6 w-6 hover:bg-transparent"
+                        >
+                          <Star className="h-4 w-4" />
+                        </Button>
+
+                        <ChevronDown
+                          className={`h-4 w-4 transition-transform duration-200 ${
+                            openItems[category.title] ? "rotate-180" : ""
+                          }`}
+                        />
+                      </div>
                     </div>
-                  ))}
-                </div>
-              </CollapsibleContent>
-            </Collapsible>
-          ))}
+                  </CollapsibleTrigger>
+                  <CollapsibleContent>
+                    <div className="py-1 px-4 grid grid-cols-3 gap-1">
+                      {category.shapes.map((shape) => (
+                        <div
+                          key={shape.name}
+                          className="flex flex-col items-center justify-center py-2 cursor-move hover:bg-gray-100 rounded px-2"
+                          draggable
+                          onDragStart={(e) =>
+                            handleShapeDragStart(e, shape.type)
+                          }
+                        >
+                          <div className="flex items-center justify-center h-8">
+                            {shape.component}
+                          </div>
+                          <span className="text-xs text-center line-clamp-1 mt-1">
+                            {shape.name}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </CollapsibleContent>
+                </Collapsible>
+              ))}
 
-          {filteredItems.length === 0 && (
-            <div className="flex flex-col items-center justify-center py-10 text-gray-500">
-              <Search className="h-10 w-10 mb-2 opacity-50" />
-              <p className="text-sm">No shapes found</p>
-              <p className="text-xs text-gray-400">
-                Try a different search term
-              </p>
+              {filteredCategories.length === 0 && (
+                <div className="flex flex-col items-center justify-center py-10 text-gray-500">
+                  <Search className="h-10 w-10 mb-2 opacity-50" />
+                  <p className="text-sm">No shapes found</p>
+                  <p className="text-xs text-gray-400">
+                    Try a different search term
+                  </p>
+                </div>
+              )}
             </div>
-          )}
-        </div>
-      </div>
+          </div>
+        </>
+      )}
     </div>
   );
 }

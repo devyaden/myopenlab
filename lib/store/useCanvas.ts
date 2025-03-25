@@ -34,10 +34,6 @@ const initialUndoableState: UndoableState = {
         "standing-woman",
       ],
     },
-    {
-      title: "parent",
-      type: "Text",
-    },
   ],
   name: "Untitled Canvas",
   description: "",
@@ -347,17 +343,26 @@ export const useCanvasStore = create<CanvasStore>()(
           }
         },
 
-        loadFolderCanvases: async (folderId) => {
+        loadFolderCanvases: async (folderId: string | null) => {
           set({ isLoading: true, error: null });
 
           try {
-            const { data, error } = await supabase
+            let query = supabase
               .from("canvas")
               .select(
                 "id, name, description, updated_at, columns:column_definition!column_definition_canvas_id_fkey(*)"
               )
-              .eq("folder_id", folderId)
               .order("updated_at", { ascending: false });
+
+            // Conditionally add filter only if folderId is not null
+            if (folderId !== null) {
+              query = query.eq("folder_id", folderId);
+            } else {
+              // If folderId is null, filter for canvases with null folder_id
+              query = query.is("folder_id", null);
+            }
+
+            const { data, error } = await query;
 
             if (error) throw error;
 

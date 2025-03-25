@@ -23,12 +23,9 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { MultiSelect } from "@/components/ui/multi-select";
 import {
   Select,
   SelectContent,
@@ -40,491 +37,39 @@ import { Switch } from "@/components/ui/switch";
 import {
   Table,
   TableBody,
-  TableCell,
   TableHead,
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Textarea } from "@/components/ui/textarea";
-import { CanvasData } from "@/types/store";
-import {
-  AlignLeft,
-  Calendar,
-  CheckSquare,
-  ChevronDown,
-  ChevronRight,
-  ChevronUp,
-  Copy,
-  Database,
-  File,
-  FileText,
-  Globe,
-  GripVertical,
-  Hash,
-  Link,
-  List,
-  Mail,
-  MoreHorizontal,
-  MoreVertical,
-  Phone,
-  Plus,
-  PlusIcon,
-  Trash2,
-  Type,
-  User,
-  X,
-} from "lucide-react";
-import type React from "react";
-import { useCallback, useMemo, useState } from "react";
-import type { Edge, Node } from "reactflow";
-import * as z from "zod";
-import { AddColumnSidebar } from "./add-column-sidebar";
-import AddTableCellTrigger from "./add-table-cell-relation-trigger";
-import { Checkbox } from "../ui/checkbox";
-// Additions for row reordering
 import { DndContext, closestCenter } from "@dnd-kit/core";
 import {
   SortableContext,
-  useSortable,
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
-import { CSS } from "@dnd-kit/utilities";
-
-const getColumnIcon = (columnType: string) => {
-  switch (columnType) {
-    case "Text":
-      return <Type className="h-4 w-4 mr-2" />;
-    case "Long Text":
-      return <AlignLeft className="h-4 w-4 mr-2" />;
-    case "Number":
-      return <Hash className="h-4 w-4 mr-2" />;
-    case "Date":
-    case "Created Time":
-    case "Last edited time":
-      return <Calendar className="h-4 w-4 mr-2" />;
-    case "Checkbox":
-      return <CheckSquare className="h-4 w-4 mr-2" />;
-    case "Select":
-      return <List className="h-4 w-4 mr-2" />;
-    case "Multiselect":
-      return <List className="h-4 w-4 mr-2" />;
-    case "Email":
-      return <Mail className="h-4 w-4 mr-2" />;
-    case "Phone Number":
-      return <Phone className="h-4 w-4 mr-2" />;
-    case "URL":
-      return <Globe className="h-4 w-4 mr-2" />;
-    case "User":
-      return <User className="h-4 w-4 mr-2" />;
-    case "Relation":
-      return <Link className="h-4 w-4 mr-2" />;
-    case "Rollup":
-      return <Database className="h-4 w-4 mr-2" />;
-    case "Created by":
-    case "Last edited by":
-      return <User className="h-4 w-4 mr-2" />;
-    default:
-      return <FileText className="h-4 w-4 mr-2" />;
-  }
-};
-
-interface ColumnData {
-  id?: string;
-  title: string;
-  type: string;
-  options?: string[];
-  related_canvas?: { canvas_data: CanvasData; name: string };
-  rollupRelation?: string;
-  rollupColumn?: string;
-}
-
-interface TableViewProps {
-  nodes: Node[];
-  edges: Edge[];
-  onNodesChange: (nodes: Node[]) => void;
-  onEdgesChange: (edges: Edge[]) => void;
-  columns: any[];
-  setColumns: (columns: ColumnData[]) => void;
-  onAddColumn: (columnData: ColumnData) => void;
-  currentFolderCanvases: { id: string; name: string }[];
-  canvasId: string;
-}
-
-type SortDirection = "asc" | "desc" | null;
-type SortField = "id" | "task" | "type" | null;
-
-interface HierarchyNode extends Node {
-  children: HierarchyNode[];
-}
-
-// Component for sortable table rows (for row reordering)
-const SortableTableRow: React.FC<{
-  node: HierarchyNode;
-  level: number;
-  columns: any[];
-  editingCell: { nodeId: string; column: string } | null;
-  editedValue: any;
-  validationError: string | null;
-  setEditingCell: (cell: { nodeId: string; column: string } | null) => void;
-  setEditedValue: (value: any) => void;
-  setValidationError: (error: string | null) => void;
-  handleSave: (nodeId: string, column: string, value: any) => void;
-  toggleRowExpansion: (nodeId: string) => void;
-  handleDeleteClick: (node: HierarchyNode) => void;
-  selectedNodes: string[];
-  setSelectedNodes: (nodes: string[]) => void;
-  expandedRows: Set<string>;
-  hiddenColumns: Set<string>;
-  frozenColumns: Set<string>;
-  columnWrapping: Set<string>;
-  getRelatedCanvasNodes: any;
-}> = ({
-  node,
-  level,
-  columns,
-  editingCell,
-  editedValue,
-  validationError,
-  setEditingCell,
-  setEditedValue,
-  setValidationError,
-  handleSave,
-  toggleRowExpansion,
-  handleDeleteClick,
-  selectedNodes,
-  setSelectedNodes,
-  expandedRows,
-  hiddenColumns,
-  frozenColumns,
-  columnWrapping,
-  getRelatedCanvasNodes,
-}) => {
-  const { attributes, listeners, setNodeRef, transform, transition } =
-    useSortable({ id: node.id });
-
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-  };
-
-  const isExpanded = expandedRows.has(node.id);
-  const hasChildren = node.children.length > 0;
-  const isSelected = selectedNodes.includes(node.id);
-
-  return (
-    <TableRow
-      ref={setNodeRef}
-      style={style}
-      {...attributes}
-      className={`hover:bg-gray-100 ${isSelected ? "bg-gray-50" : "bg-white"} border-b border-gray-200`}
-    >
-      <TableCell className="p-2 w-16">
-        <div className="flex items-center space-x-2">
-          <div {...listeners}>
-            <GripVertical className="h-4 w-4 text-gray-400 cursor-move" />
-          </div>
-          <Checkbox
-            checked={selectedNodes.includes(node.id)}
-            className="border-gray-400"
-            onCheckedChange={(checked) => {
-              if (checked) {
-                setSelectedNodes([...selectedNodes, node.id]);
-              } else {
-                setSelectedNodes(selectedNodes.filter((id) => id !== node.id));
-              }
-            }}
-          />
-        </div>
-      </TableCell>
-      {columns
-        .filter(
-          (column) => !hiddenColumns.has(column.title) && column.title !== "id"
-        )
-        .map((column, index) => (
-          <TableCell
-            key={`${node.id}-${column.title}`}
-            style={{
-              paddingLeft: index === 0 ? `${level * 20 + 16}px` : undefined,
-              whiteSpace: columnWrapping.has(column.title)
-                ? "normal"
-                : "nowrap",
-            }}
-            className={`p-2 text-gray-700 ${
-              frozenColumns.has(column.title)
-                ? "sticky left-0 bg-gray-50 z-10"
-                : ""
-            }`}
-            onDoubleClick={() => {
-              if (column.title !== "id") {
-                setEditingCell({ nodeId: node.id, column: column.title });
-                setEditedValue(
-                  column.title === "task"
-                    ? node.data.label
-                    : column.title === "type"
-                      ? node.data.shape || node.type
-                      : node.data[column.title] || ""
-                );
-                setValidationError(null);
-              }
-            }}
-          >
-            {index === 0 && (
-              <span className="inline-flex items-center mr-2">
-                {hasChildren && (
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-5 w-5 p-0"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      toggleRowExpansion(node.id);
-                    }}
-                  >
-                    {isExpanded ? (
-                      <ChevronDown className="h-4 w-4 text-gray-400" />
-                    ) : (
-                      <ChevronRight className="h-4 w-4 text-gray-400" />
-                    )}
-                  </Button>
-                )}
-              </span>
-            )}
-
-            {editingCell?.nodeId === node.id &&
-            editingCell?.column === column.title ? (
-              <div>
-                {column.type === "Select" ? (
-                  <Select
-                    value={editedValue || ""}
-                    onValueChange={(value) => {
-                      setEditedValue(value);
-                      handleSave(node.id, column.title, value);
-                    }}
-                  >
-                    <SelectTrigger className="w-full border-gray-300">
-                      <SelectValue placeholder="Select option" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {column.options?.map((option: any) => (
-                        <SelectItem key={option} value={option || "default"}>
-                          {option || "Default"}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                ) : column.type === "Multiselect" ? (
-                  <MultiSelect
-                    options={(column.options || []).map((option: any) => ({
-                      label: option,
-                      value: option,
-                    }))}
-                    selected={editedValue || []}
-                    onChange={(selected) => {
-                      setEditedValue(selected);
-                      handleSave(node.id, column.title, selected);
-                    }}
-                  />
-                ) : column.type === "Checkbox" ? (
-                  <Switch
-                    checked={editedValue === true}
-                    onCheckedChange={(checked) => {
-                      setEditedValue(checked);
-                      handleSave(node.id, column.title, checked);
-                    }}
-                  />
-                ) : column.type === "Date" ||
-                  column.type === "Created Time" ||
-                  column.type === "Last edited time" ? (
-                  <Input
-                    type="datetime-local"
-                    value={
-                      editedValue
-                        ? new Date(editedValue).toISOString().slice(0, 16)
-                        : ""
-                    }
-                    onChange={(e) => setEditedValue(e.target.value)}
-                    onBlur={() =>
-                      handleSave(node.id, column.title, editedValue)
-                    }
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") {
-                        handleSave(node.id, column.title, editedValue);
-                      } else if (e.key === "Escape") {
-                        setEditingCell(null);
-                        setEditedValue(null);
-                        setValidationError(null);
-                      }
-                    }}
-                    className={`border-gray-300 focus-visible:ring-0 ${validationError ? "border-red-500" : ""}`}
-                    autoFocus
-                  />
-                ) : column.type === "Long Text" ? (
-                  <Textarea
-                    value={editedValue || ""}
-                    onChange={(e) => setEditedValue(e.target.value)}
-                    onBlur={() =>
-                      handleSave(node.id, column.title, editedValue)
-                    }
-                    onKeyDown={(e) => {
-                      if (e.key === "Escape") {
-                        setEditingCell(null);
-                        setEditedValue(null);
-                        setValidationError(null);
-                      }
-                    }}
-                    className={`border-gray-300 ${validationError ? "border-red-500" : ""}`}
-                    autoFocus
-                  />
-                ) : column.type === "Relation" ? (
-                  <AddTableCellTrigger
-                    value={editedValue || []}
-                    label="Testing"
-                    relatedCanvasData={getRelatedCanvasNodes({
-                      ...column.related_canvas?.canvas_data,
-                      name: column.related_canvas?.name,
-                    })}
-                    onSelectValue={(value) => {
-                      setEditedValue(value);
-                      handleSave(node.id, column.title, value);
-                    }}
-                  />
-                ) : column.type === "Rollup" ? (
-                  <>
-                    {node.data[column.title] ? (
-                      <div className="flex flex-wrap gap-1">
-                        {node.data[column.title].map(
-                          (item: any, index: number) => (
-                            <span key={index} className="text-sm text-gray-600">
-                              {item.value ?? "undefined"}
-                            </span>
-                          )
-                        )}
-                      </div>
-                    ) : (
-                      <span className="text-gray-400"></span>
-                    )}
-                  </>
-                ) : (
-                  <Input
-                    type={column.type === "Number" ? "number" : "text"}
-                    value={editedValue || ""}
-                    onChange={(e) => setEditedValue(e.target.value)}
-                    onBlur={() =>
-                      handleSave(node.id, column.title, editedValue)
-                    }
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") {
-                        handleSave(node.id, column.title, editedValue);
-                      } else if (e.key === "Escape") {
-                        setEditingCell(null);
-                        setEditedValue(null);
-                        setValidationError(null);
-                      }
-                    }}
-                    className={`border-gray-300 focus-visible:ring-0 ${validationError ? "border-red-500" : ""}`}
-                    autoFocus
-                  />
-                )}
-                {validationError && (
-                  <p className="text-red-500 text-xs mt-1">{validationError}</p>
-                )}
-              </div>
-            ) : (
-              <>
-                {column.title === "task" &&
-                  (node.data.label || <span className="text-gray-400"></span>)}
-                {column.title === "type" &&
-                  (node.data.shape || node.type || (
-                    <span className="text-gray-400"></span>
-                  ))}
-                {!["task", "type"].includes(column.title) && (
-                  <>
-                    {column.type === "Checkbox" ? (
-                      <Switch
-                        checked={node.data[column.title] === true}
-                        disabled
-                      />
-                    ) : column.type === "Date" ||
-                      column.type === "Created Time" ||
-                      column.type === "Last edited time" ? (
-                      node.data[column.title] &&
-                      !isNaN(new Date(node.data[column.title]).getTime()) ? (
-                        new Date(node.data[column.title]).toLocaleString()
-                      ) : (
-                        <span className="text-gray-400"></span>
-                      )
-                    ) : column.type === "Long Text" ? (
-                      <div className="max-w-[300px] max-h-[4.5em] overflow-hidden">
-                        <p className="line-clamp-3">
-                          {node.data[column.title] || (
-                            <span className="text-gray-400"></span>
-                          )}
-                        </p>
-                      </div>
-                    ) : column.type === "Rollup" ? (
-                      <>
-                        {node.data[column.title] ? (
-                          <div className="flex flex-wrap gap-1">
-                            {node.data[column.title].map(
-                              (item: any, index: number) => (
-                                <span
-                                  key={index}
-                                  className="text-sm text-gray-600"
-                                >
-                                  {item.value}
-                                </span>
-                              )
-                            )}
-                          </div>
-                        ) : (
-                          <span className="text-gray-400"></span>
-                        )}
-                      </>
-                    ) : column.type === "Relation" ? (
-                      <>
-                        {node.data[column.title] &&
-                        node.data[column.title].length > 0 ? (
-                          <div className="flex flex-wrap max-w-full">
-                            {node.data[column.title]?.map((item: any) => (
-                              <p className="text-sm text-gray-600 flex mr-3">
-                                <File className="h-4 w-4 mr-1" /> {item.label}
-                              </p>
-                            ))}
-                          </div>
-                        ) : (
-                          <span className="text-gray-400"></span>
-                        )}
-                      </>
-                    ) : Array.isArray(node.data[column.title]) ? (
-                      node.data[column.title].join(", ")
-                    ) : (
-                      node.data[column.title] || (
-                        <span className="text-gray-400"></span>
-                      )
-                    )}
-                  </>
-                )}
-              </>
-            )}
-          </TableCell>
-        ))}
-      <TableCell className="text-right p-2 sticky right-0 bg-white z-10">
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="icon" className="h-8 w-8">
-              <MoreHorizontal className="h-4 w-4 text-gray-400" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuItem onClick={() => handleDeleteClick(node)}>
-              Delete
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </TableCell>
-    </TableRow>
-  );
-};
+import {
+  ChevronDown,
+  ChevronUp,
+  Copy,
+  MoreVertical,
+  Plus,
+  Trash2,
+  X,
+} from "lucide-react";
+import type React from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import type { Edge, Node } from "reactflow";
+import * as z from "zod";
+import { Checkbox } from "../../ui/checkbox";
+import { AddColumnSidebar } from "../add-column-sidebar";
+import SortableTableRow from "./sortable-table-row";
+import {
+  HierarchyNode,
+  SortDirection,
+  SortField,
+  TableViewProps,
+} from "./table.types";
+import { validationSchemas } from "./validations";
+import { CANVAS_TYPE } from "@/types/store";
 
 const TableView: React.FC<TableViewProps> = ({
   nodes,
@@ -536,6 +81,7 @@ const TableView: React.FC<TableViewProps> = ({
   onAddColumn,
   currentFolderCanvases,
   canvasId,
+  canvasType,
 }) => {
   const [sortField, setSortField] = useState<SortField>(null);
   const [sortDirection, setSortDirection] = useState<SortDirection>(null);
@@ -570,6 +116,43 @@ const TableView: React.FC<TableViewProps> = ({
     useState(false);
 
   const [hiddenNodeIds, setHiddenNodeIds] = useState<Set<string>>(new Set());
+
+  useEffect(() => {
+    if (canvasType !== CANVAS_TYPE.HYBRID) return;
+
+    // Add default columns for connections if they don't exist
+    const hasFromColumn = columns.some((col) => col.title === "from");
+    const hasToColumn = columns.some((col) => col.title === "to");
+    const hasParentColumn = columns.some((col) => col.title === "parent");
+    const hasChildrenColumn = columns.some((col) => col.title === "children");
+
+    const newColumns = [...columns];
+
+    if (!hasFromColumn) {
+      newColumns.push({ title: "from", type: "Text" });
+    }
+
+    if (!hasToColumn) {
+      newColumns.push({ title: "to", type: "Text" });
+    }
+
+    if (!hasParentColumn) {
+      newColumns.push({ title: "parent", type: "Text" });
+    }
+
+    if (!hasChildrenColumn) {
+      newColumns.push({ title: "children", type: "Text" });
+    }
+
+    if (
+      !hasFromColumn ||
+      !hasToColumn ||
+      !hasParentColumn ||
+      !hasChildrenColumn
+    ) {
+      setColumns(newColumns);
+    }
+  }, [columns, setColumns]);
 
   const getAllDescendantIds = (nodeId: string, allNodes: Node[]): string[] => {
     const descendants: string[] = [];
@@ -614,6 +197,63 @@ const TableView: React.FC<TableViewProps> = ({
     onNodesChange(updatedNodes);
   };
 
+  const enhanceNodesWithConnectionData = (
+    nodes: Node[],
+    edges: Edge[]
+  ): Node[] => {
+    if (!nodes?.length || !edges?.length) {
+      return nodes;
+    }
+
+    // Create a map of connections for quick lookup
+    const sourceConnections = new Map<string, string[]>();
+    const targetConnections = new Map<string, string[]>();
+
+    // Process all edges to build connection maps
+    edges.forEach((edge) => {
+      // Add target to source's outgoing connections
+      if (!sourceConnections.has(edge.source)) {
+        sourceConnections.set(edge.source, []);
+      }
+      sourceConnections.get(edge.source)?.push(edge.target);
+
+      // Add source to target's incoming connections
+      if (!targetConnections.has(edge.target)) {
+        targetConnections.set(edge.target, []);
+      }
+      targetConnections.get(edge.target)?.push(edge.source);
+    });
+
+    // Enhance nodes with connection data
+    return nodes.map((node) => {
+      // Get source nodes (nodes that connect to this node)
+      const fromNodes = targetConnections.get(node.id) || [];
+
+      // Get target nodes (nodes this node connects to)
+      const toNodes = sourceConnections.get(node.id) || [];
+
+      // Find the labels for the connected nodes
+      const fromLabels = fromNodes.map((id) => {
+        const sourceNode = nodes.find((n) => n.id === id);
+        return sourceNode ? sourceNode.data.label || id : id;
+      });
+
+      const toLabels = toNodes.map((id) => {
+        const targetNode = nodes.find((n) => n.id === id);
+        return targetNode ? targetNode.data.label || id : id;
+      });
+
+      return {
+        ...node,
+        data: {
+          ...node.data,
+          from: fromLabels.join(", "),
+          to: toLabels.join(", "),
+        },
+      };
+    });
+  };
+
   const getSortIcon = (field: SortField) => {
     if (sortField === field) {
       return sortDirection === "asc" ? (
@@ -643,14 +283,27 @@ const TableView: React.FC<TableViewProps> = ({
           let child = nodeMap.get(node.id);
           child = {
             ...child,
-            data: { ...child?.data, parent: parent.data.label },
+            data: {
+              ...child?.data,
+              parent: parent.data.label,
+            },
           } as HierarchyNode;
+
+          // Push child to parent's children
           parent.children.push(child);
+
+          // Set children titles in parent's data
+          parent.data = {
+            ...parent.data,
+            children: parent.children.map((c) => c.data.label).join(", "),
+          };
         }
       } else {
         rootNodes.push(nodeMap.get(node.id)!);
       }
     });
+
+    console.log("----- root nodes -----", rootNodes);
 
     return rootNodes;
   };
@@ -711,8 +364,10 @@ const TableView: React.FC<TableViewProps> = ({
   };
 
   const sortedHierarchy = useMemo(() => {
-    const updatedNodes = insertRollupDataIntoNodes(visibleNodes); // Changed from nodes to visibleNodes
+    let updatedNodes = insertRollupDataIntoNodes(visibleNodes); // Changed from nodes to visibleNodes
+    updatedNodes = enhanceNodesWithConnectionData(updatedNodes, edges);
     const hierarchy = createHierarchy(updatedNodes);
+    console.log("🚀 ~ sortedHierarchy ~ hierarchy:", hierarchy);
     if (!sortField || !sortDirection) return hierarchy;
 
     const sortNodes = (nodes: HierarchyNode[]): HierarchyNode[] => {
@@ -743,7 +398,7 @@ const TableView: React.FC<TableViewProps> = ({
         }));
     };
     return sortNodes(hierarchy);
-  }, [visibleNodes, sortField, sortDirection, columns]);
+  }, [visibleNodes, sortField, sortDirection, columns, edges]);
   // For bulk deletion: Get all visible nodes for "Select All" functionality
   const flattenHierarchy = (
     nodes: HierarchyNode[],
@@ -818,36 +473,6 @@ const TableView: React.FC<TableViewProps> = ({
 
   const handleAddColumn = (columnData: any) => {
     onAddColumn(columnData);
-  };
-
-  const validationSchemas = {
-    Email: z.string().email("Invalid email address"),
-    "Phone Number": z
-      .string()
-      .regex(/^\+?[\d\s-]{10,}$/, "Invalid phone number"),
-    URL: z.string().url("Invalid URL"),
-    Number: z.number().or(z.string().regex(/^-?\d*\.?\d+$/, "Invalid number")),
-    Date: z
-      .string()
-      .refine((value) => !isNaN(new Date(value).getTime()), "Invalid date"),
-    Checkbox: z.boolean(),
-    Text: z.string(),
-    "Long Text": z.string(),
-    Select: z.string(),
-    Multiselect: z
-      .array(z.string())
-      .min(1, "At least one option must be selected"),
-    "Created Time": z
-      .string()
-      .refine((value) => !isNaN(new Date(value).getTime()), "Invalid date"),
-    "Created by": z.string(),
-    "Last edited time": z
-      .string()
-      .refine((value) => !isNaN(new Date(value).getTime()), "Invalid date"),
-    "Last edited by": z.string(),
-    User: z.string(),
-    Relation: z.array(z.record(z.any())),
-    Rollup: z.string().nullable(),
   };
 
   const validateField = (
@@ -1041,7 +666,7 @@ const TableView: React.FC<TableViewProps> = ({
   };
 
   const isDefaultColumn = (columnTitle: string) => {
-    return ["task", "type", "parent"].includes(columnTitle);
+    return ["task", "type", "parent", "children"].includes(columnTitle);
   };
 
   const handleColumnTitleEdit = (columnTitle: string, newTitle: string) => {

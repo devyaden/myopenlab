@@ -324,7 +324,7 @@ function FlowPreview({
     <ReactFlowProvider>
       <div className="h-48 w-full border border-gray-200 rounded overflow-hidden">
         <ReactFlow
-          nodes={nodes.map((node) => ({
+          nodes={nodes?.map((node) => ({
             ...node,
             data: {
               ...node.data,
@@ -354,7 +354,7 @@ function FlowPreview({
             },
             connectable: node.type !== "textNode",
           }))}
-          edges={edges.map((edge) => ({
+          edges={edges?.map((edge) => ({
             ...edge,
             type: "default",
             data: { ...edge.data },
