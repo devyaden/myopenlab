@@ -73,7 +73,6 @@ export const ImageNode = memo(({ data, selected, style }: ImageNodeProps) => {
       setImageSrc(data.src);
     }
   }, [data.src, getImageDimensions, data.onImageLoad]);
-
   // Handle file upload from local storage
   const handleFileUpload = useCallback(
     (event: React.ChangeEvent<HTMLInputElement>) => {

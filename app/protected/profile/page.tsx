@@ -17,7 +17,15 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useUser } from "@/lib/contexts/userContext";
 import { supabase } from "@/lib/supabase/client";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Camera, Check, Loader2, Lock, Mail, UserIcon } from "lucide-react";
+import {
+  ArrowLeft,
+  Camera,
+  Check,
+  Loader2,
+  Lock,
+  Mail,
+  UserIcon,
+} from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
@@ -243,6 +251,10 @@ export default function ProfilePage() {
     }
   };
 
+  const handleGoBack = () => {
+    router.back(); // Navigate to the previous page
+  };
+
   if (!user) {
     return (
       <div className="flex items-center justify-center min-h-screen w-screen">
@@ -253,9 +265,23 @@ export default function ProfilePage() {
 
   return (
     <div className="container max-w-5xl py-10">
-      <h1 className="text-3xl font-bold text-yadn-primary-text mb-6">
+      <div className="flex items-center mb-6">
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={handleGoBack}
+          className="mr-4 hover:bg-gray-100"
+        >
+          <ArrowLeft className="h-8 w-8 text-yadn-primary-text" />
+        </Button>
+        <h1 className="text-3xl font-bold text-yadn-primary-text">
+          Profile Settings
+        </h1>
+      </div>
+
+      {/* <h1 className="text-3xl font-bold text-yadn-primary-text mb-6">
         Profile Settings
-      </h1>
+      </h1> */}
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {/* Profile Picture Card */}
