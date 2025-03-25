@@ -53,8 +53,8 @@ interface CreateNewModalProps {
     name: string;
     canvases: { id: string; name: string }[];
   }[];
-
   type: "folder" | "canvas" | null;
+  currentFolderId?: string | null;
 }
 
 const folderSchema = z.object({
@@ -89,6 +89,7 @@ export function CreateNewModal({
   onCreateCanvas,
   folders,
   type,
+  currentFolderId,
 }: CreateNewModalProps) {
   const [step, setStep] = useState<"select" | "form">("select");
   const [selectedCanvasType, setSelectedCanvasType] = useState<CANVAS_TYPE>(
@@ -107,7 +108,7 @@ export function CreateNewModal({
     defaultValues: {
       name: "",
       description: "",
-      folderId: null,
+      folderId: currentFolderId || null,
       canvas_type: CANVAS_TYPE.HYBRID,
     },
   });
@@ -122,8 +123,13 @@ export function CreateNewModal({
       } else {
         setStep("select");
       }
+
+      // Set the folder ID if provided
+      if (currentFolderId) {
+        canvasForm.setValue("folderId", currentFolderId);
+      }
     }
-  }, [isOpen, type]);
+  }, [isOpen, type, currentFolderId, canvasForm]);
 
   // Effect to update the canvas type in the form when it changes
   useEffect(() => {
@@ -183,10 +189,49 @@ export function CreateNewModal({
     }
   };
 
+  // Update the handleTypeSelect function to immediately create an item without showing the form
   const handleTypeSelect = (selectedType: CANVAS_TYPE) => {
-    setSelectedCanvasType(selectedType);
-    canvasForm.setValue("canvas_type", selectedType);
-    setStep("form");
+    // Generate a default name
+    const name = generateUntitledName(
+      selectedType,
+      folders.flatMap((folder) => folder.canvases)
+    );
+
+    // Create the item immediately with the current folder ID if available
+    // @ts-ignore
+    onCreateCanvas(name, "", selectedType, currentFolderId);
+
+    // Close the modal after creation
+    onClose();
+  };
+
+  // Add the generateUntitledName function
+  const generateUntitledName = (
+    type: CANVAS_TYPE,
+    existingItems: any[] = []
+  ) => {
+    const itemType =
+      type === CANVAS_TYPE.DOCUMENT
+        ? "Document"
+        : type === CANVAS_TYPE.TABLE
+          ? "Table"
+          : "Canvas";
+
+    const itemsWithSimilarNames = existingItems.filter((canvas) =>
+      canvas.name?.startsWith(`Untitled ${itemType}`)
+    );
+
+    const nextNumber =
+      itemsWithSimilarNames.length > 0
+        ? Math.max(
+            ...itemsWithSimilarNames.map((item) => {
+              const match = item.name?.match(/Untitled \w+ (\d+)/);
+              return match ? Number.parseInt(match[1], 10) : 0;
+            })
+          ) + 1
+        : 1;
+
+    return `Untitled ${itemType} ${nextNumber}`;
   };
 
   const renderContent = () => {

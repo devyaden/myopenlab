@@ -13,6 +13,7 @@ const initialState: Omit<SidebarStore, keyof SidebarActions> = {
   error: null,
   folderLoading: false,
   canvasLoading: false,
+  rootCanvases: [],
 };
 
 export const useSidebarStore = create<SidebarStore>((set, get) => ({
@@ -298,6 +299,29 @@ export const useSidebarStore = create<SidebarStore>((set, get) => ({
         error: "Failed to move canvas",
       });
       toast.error("Failed to move canvas");
+    }
+  },
+
+  fetchRootCanvases: async (userId) => {
+    if (!userId) return;
+
+    try {
+      const { data, error } = await supabase
+        .from("canvas")
+        .select("*")
+        .eq("user_id", userId)
+        .is("folder_id", null);
+
+      if (error) {
+        console.error("Error fetching root canvases:", error);
+        return;
+      }
+
+      set({
+        rootCanvases: data || [],
+      });
+    } catch (error) {
+      console.error("Error in fetchRootCanvases:", error);
     }
   },
 

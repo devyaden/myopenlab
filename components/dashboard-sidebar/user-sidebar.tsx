@@ -1,6 +1,9 @@
 "use client";
 
-import { CreateNewModal } from "@/components/dashboard-sidebar/create-new-modal";
+import {
+  CANVAS_TYPE,
+  CreateNewModal,
+} from "@/components/dashboard-sidebar/create-new-modal";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -28,6 +31,7 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
@@ -56,8 +60,8 @@ import { useEffect, useState } from "react";
 
 import { useUser } from "@/lib/contexts/userContext";
 import { useSidebarStore } from "@/lib/store/useSidebar";
-import { Canvas, Folder as FolderType } from "@/types/sidebar";
-import { CANVAS_TYPE } from "@/types/store";
+import { generateUntitledName } from "@/lib/utils";
+import type { Canvas, Folder as FolderType } from "@/types/sidebar";
 
 export function UserSidebar() {
   const {
@@ -69,6 +73,8 @@ export function UserSidebar() {
     deleteFolder,
     deleteCanvas,
     getFolders,
+    fetchRootCanvases,
+    rootCanvases,
   } = useSidebarStore();
 
   const { user } = useUser();
@@ -84,9 +90,12 @@ export function UserSidebar() {
     id: string;
     type: "folder" | "canvas";
   } | null>(null);
-  const [openFolders, setOpenFolders] = useState<string[]>([]);
+  const [openFolders, setOpenFolders] = useState<string[]>(["root"]); // Open root folder by default
   const [showDocumentDropdown, setShowDocumentDropdown] = useState(false);
   const [showShareWithMeDropdown, setShowShareWithMeDropdown] = useState(false);
+  const [currentFolderForCreate, setCurrentFolderForCreate] = useState<
+    string | null
+  >(null);
 
   const handleCreateFolder = async (name: string) => {
     if (name.trim()) {
@@ -94,6 +103,7 @@ export function UserSidebar() {
     }
 
     setCreateNewModalType(null);
+    setCurrentFolderForCreate(null);
   };
 
   const handleCreateCanvas = async (
@@ -110,7 +120,13 @@ export function UserSidebar() {
       type
     );
 
+    // If creating a canvas without a folder, fetch root canvases again
+    if (!folderId) {
+      fetchRootCanvases(user?.id);
+    }
+
     setCreateNewModalType(null);
+    setCurrentFolderForCreate(null);
     return true;
   };
 
@@ -132,6 +148,11 @@ export function UserSidebar() {
         await updateFolder(editingItemId, editingItemName);
       } else {
         await updateCanvas(editingItemId, editingItemName);
+
+        // Check if this was a root canvas
+        if (rootCanvases.some((c) => c.id === editingItemId)) {
+          fetchRootCanvases(user?.id);
+        }
       }
       setIsEditDialogOpen(false);
       setEditingItemId(null);
@@ -145,6 +166,11 @@ export function UserSidebar() {
         await deleteFolder(itemToDelete.id);
       } else {
         await deleteCanvas(itemToDelete.id);
+
+        // Check if this was a root canvas
+        if (rootCanvases.some((c) => c.id === itemToDelete.id)) {
+          fetchRootCanvases(user?.id);
+        }
       }
       setIsDeleteDialogOpen(false);
       setItemToDelete(null);
@@ -154,6 +180,7 @@ export function UserSidebar() {
   useEffect(() => {
     if (user) {
       getFolders(user.id);
+      fetchRootCanvases(user?.id);
     }
   }, [user]);
 
@@ -161,8 +188,8 @@ export function UserSidebar() {
     <Sidebar className="border-r border-gray-100 bg-white w-64">
       <SidebarHeader className="p-4 bg-white pt-24">
         <Button
-          // onClick={() => setIsCreateNewModalOpen(true)}
           className="w-full bg-pink-500 hover:bg-pink-600 text-white rounded-md py-2 px-4 text-sm font-medium flex items-center justify-center"
+          onClick={() => setCreateNewModalType("canvas")}
         >
           <Plus className="mr-2 h-4 w-4" />
           Create New
@@ -248,6 +275,91 @@ export function UserSidebar() {
               <PlusCircle className="h-4 w-4 text-gray-500" />
             </Button>
           </div>
+
+          {/* Root folder to display items without a folder_id */}
+          <Collapsible
+            open={openFolders.includes("root")}
+            onOpenChange={(isOpen) => {
+              setOpenFolders((prev) =>
+                isOpen ? [...prev, "root"] : prev.filter((id) => id !== "root")
+              );
+            }}
+          >
+            <div className="flex items-center justify-between w-full px-3 py-2 rounded-md group hover:bg-gray-100">
+              <CollapsibleTrigger asChild>
+                <button className="flex items-center flex-grow text-sm text-gray-700">
+                  <ChevronRight
+                    className={`mr-2 h-4 w-4 text-gray-500 transition-transform duration-200 ${
+                      openFolders.includes("root") ? "transform rotate-90" : ""
+                    }`}
+                  />
+                  <Folder className="mr-2 h-4 w-4 text-gray-500" />
+                  Root
+                </button>
+              </CollapsibleTrigger>
+            </div>
+            <CollapsibleContent>
+              {rootCanvases.length === 0 ? (
+                <div className="pl-10 pr-3 py-1 text-xs text-gray-500">
+                  No files in root folder
+                </div>
+              ) : (
+                rootCanvases.map((canvas: Canvas) => (
+                  <div
+                    key={canvas.id}
+                    className="flex items-center justify-between w-full px-3 py-1 rounded-md group hover:bg-gray-100 pl-6 pr-4"
+                  >
+                    <Link
+                      href={
+                        canvas.canvas_type === CANVAS_TYPE.DOCUMENT
+                          ? `/protected/document-editor/${canvas.id}`
+                          : `/protected/canvas-new/${canvas.id}`
+                      }
+                      className="flex items-center flex-grow text-sm text-gray-700"
+                    >
+                      <FileText className="mr-2 h-4 w-4 text-gray-500" />
+                      {canvas.name}
+                    </Link>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-6 w-6 p-0 opacity-0 group-hover:opacity-100"
+                        >
+                          <MoreVertical className="h-4 w-4 text-gray-500" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem
+                          onSelect={() =>
+                            handleEdit(canvas.id, canvas.name, "canvas")
+                          }
+                        >
+                          <Edit className="mr-2 h-4 w-4" />
+                          Edit
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onSelect={() => handleDelete(canvas.id, "canvas")}
+                        >
+                          <Trash className="mr-2 h-4 w-4" />
+                          Delete
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </div>
+                ))
+              )}
+
+              <button
+                className="flex items-center text-sm text-gray-500 px-3 py-1 pl-7 hover:bg-gray-100 rounded-md w-full"
+                onClick={() => setCreateNewModalType("canvas")}
+              >
+                <Plus className="mr-1 h-3 w-3" />
+                Add File
+              </button>
+            </CollapsibleContent>
+          </Collapsible>
 
           {folders.length === 0 ? (
             <div className="flex flex-col items-center justify-center p-6 text-center">
@@ -369,13 +481,83 @@ export function UserSidebar() {
                       </div>
                     ))
                   )}
-                  <button
-                    className="flex items-center text-sm text-gray-500 px-3 py-1 pl-7 hover:bg-gray-100 rounded-md w-full"
-                    onClick={() => setCreateNewModalType("canvas")}
-                  >
-                    <Plus className="mr-1 h-3 w-3" />
-                    Add File
-                  </button>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <button className="flex items-center text-sm text-gray-500 px-3 py-1 pl-7 hover:bg-gray-100 rounded-md w-full">
+                        <Plus className="mr-1 h-3 w-3" />
+                        Add File
+                      </button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="w-48">
+                      <DropdownMenuItem
+                        onClick={() => {
+                          const name = generateUntitledName(
+                            CANVAS_TYPE.HYBRID,
+                            [
+                              ...folders.flatMap((folder) => folder.canvases),
+                              ...rootCanvases,
+                            ]
+                          );
+                          handleCreateCanvas(
+                            name,
+                            "",
+                            CANVAS_TYPE.HYBRID,
+                            folder.id
+                          );
+                        }}
+                      >
+                        <File className="mr-2 h-4 w-4" />
+                        New Canvas
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        onClick={() => {
+                          const name = generateUntitledName(CANVAS_TYPE.TABLE, [
+                            ...folders.flatMap((folder) => folder.canvases),
+                            ...rootCanvases,
+                          ]);
+                          handleCreateCanvas(
+                            name,
+                            "",
+                            CANVAS_TYPE.TABLE,
+                            folder.id
+                          );
+                        }}
+                      >
+                        <FileText className="mr-2 h-4 w-4" />
+                        New Table
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        onClick={() => {
+                          const name = generateUntitledName(
+                            CANVAS_TYPE.DOCUMENT,
+                            [
+                              ...folders.flatMap((folder) => folder.canvases),
+                              ...rootCanvases,
+                            ]
+                          );
+                          handleCreateCanvas(
+                            name,
+                            "",
+                            CANVAS_TYPE.DOCUMENT,
+                            folder.id
+                          );
+                        }}
+                      >
+                        <FileText className="mr-2 h-4 w-4" />
+                        New Document
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem
+                        onClick={() => {
+                          setCurrentFolderForCreate(folder.id);
+                          setCreateNewModalType("canvas");
+                        }}
+                      >
+                        <Plus className="mr-2 h-4 w-4" />
+                        Create with Details...
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                 </CollapsibleContent>
               </Collapsible>
             ))
@@ -385,12 +567,16 @@ export function UserSidebar() {
 
       <CreateNewModal
         isOpen={Boolean(createNewModalType)}
-        onClose={() => setCreateNewModalType(null)}
+        onClose={() => {
+          setCreateNewModalType(null);
+          setCurrentFolderForCreate(null);
+        }}
         onCreateFolder={handleCreateFolder}
         // @ts-ignore
         onCreateCanvas={handleCreateCanvas}
         folders={folders}
         type={createNewModalType}
+        currentFolderId={currentFolderForCreate}
       />
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
         <DialogContent>

@@ -27,6 +27,7 @@ export interface SidebarState {
   error: string | null;
   folderLoading: boolean;
   canvasLoading: boolean;
+  rootCanvases: Canvas[];
 }
 
 export interface SidebarActions {
@@ -55,6 +56,7 @@ export interface SidebarActions {
   moveCanvas: (canvasId: string, newFolderId: string | null) => Promise<void>;
   setSelectedFolder: (folderId: string | null) => void;
   setSelectedCanvas: (canvasId: string | null) => void;
+  fetchRootCanvases: (userId?: string) => Promise<void>;
 }
 
 export type SidebarStore = SidebarState & SidebarActions;
