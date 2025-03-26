@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import type React from "react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "react-hot-toast";
-import type { Edge, Node } from "reactflow";
+import type { Edge, Node, ReactFlowInstance } from "reactflow";
 import { MarkerType, ReactFlowProvider } from "reactflow";
 import { Header } from "./header";
 import { Sidebar } from "./sidebar";
@@ -67,6 +67,8 @@ export default function CanvasNew({ canvasId }: FigmaInterfaceProps) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [selectedNode, setSelectedNode] = useState<string | null>(null);
   const [selectedNodes, setSelectedNodes] = useState<string[]>([]);
+  const [reactFlowInstance, setReactFlowInstance] =
+    useState<ReactFlowInstance | null>(null);
 
   const {
     loadCanvas,
@@ -105,30 +107,6 @@ export default function CanvasNew({ canvasId }: FigmaInterfaceProps) {
   const [viewMode, setViewMode] = useState<"canvas" | "table">("canvas");
   const clipboardRef = useRef<Node[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  // const [columns, setColumns] = useState<ColumnData[]>([
-  //   { title: "id", type: "Text" },
-  //   { title: "task", type: "Text" },
-  //   {
-  //     title: "type",
-  //     type: "Select",
-  //     options: [
-  //       "rectangle",
-  //       "rounded",
-  //       "circle",
-  //       "diamond",
-  //       "hexagon",
-  //       "triangle",
-  //       "useCase",
-  //       "actor",
-  //       "class",
-  //       "interface",
-  //     ],
-  //   },
-  //   {
-  //     title: "parent",
-  //     type: "Text",
-  //   },
-  // ]);
 
   const [showGrid, setShowGrid] = useState(true);
   const [showRulers, setShowRulers] = useState(false);
@@ -796,6 +774,36 @@ export default function CanvasNew({ canvasId }: FigmaInterfaceProps) {
     toast.success("Canvas imported successfully!");
   }, []);
 
+  const getViewportCenter = useCallback(() => {
+    if (!reactFlowInstance) return { x: 100, y: 100 }; // Default position
+
+    const viewport = reactFlowInstance.getViewport();
+    const { x, y, zoom } = viewport;
+
+    // Get the wrapper element's dimensions
+    const wrapper = document.querySelector(".react-flow-wrapper");
+    if (!wrapper) return { x: x + 500, y: y + 300 };
+
+    const rect = wrapper.getBoundingClientRect();
+    const centerX = rect.width / 2;
+    const centerY = rect.height / 2;
+
+    // Convert screen coordinates to flow coordinates
+    return reactFlowInstance.project({
+      x: centerX,
+      y: centerY,
+    });
+  }, [reactFlowInstance]);
+
+  // Handle shape click from sidebar
+  const handleShapeClick = useCallback(
+    (shapeType: string) => {
+      const position = getViewportCenter();
+      addNode(shapeType, position);
+    },
+    [getViewportCenter, addNode]
+  );
+
   useEffect(() => {
     if (canvasId) {
       useCanvasStore.persist.setOptions({
@@ -937,7 +945,11 @@ export default function CanvasNew({ canvasId }: FigmaInterfaceProps) {
             canvasType={canvas_type}
           />
           <div className="flex-1 flex flex-col md:flex-row relative ">
-            <Sidebar onDragStart={onDragStart} isVisible={isSidebarOpen} />
+            <Sidebar
+              onDragStart={onDragStart}
+              isVisible={isSidebarOpen}
+              onShapeClick={handleShapeClick}
+            />
             <div className="flex-1 relative">
               <UMLEditor
                 viewMode={viewMode}
@@ -961,6 +973,7 @@ export default function CanvasNew({ canvasId }: FigmaInterfaceProps) {
                 currentFolderCanvases={folderCanvases}
                 canvasId={canvasId}
                 canvasType={canvas_type}
+                onReactFlowInit={setReactFlowInstance}
               />
             </div>
           </div>

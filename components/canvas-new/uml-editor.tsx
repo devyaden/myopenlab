@@ -69,6 +69,7 @@ interface UMLEditorProps {
   currentFolderCanvases: { id: string; name: string }[];
   canvasId: string;
   canvasType: CANVAS_TYPE | null;
+  onReactFlowInit?: (instance: ReactFlowInstance) => void; // Add new prop
 }
 
 const sortNodes = (node: ReactFlowNode, nodes: ReactFlowNode[]) => {
@@ -127,6 +128,7 @@ export function UMLEditor({
   currentFolderCanvases,
   canvasId,
   canvasType,
+  onReactFlowInit,
 }: UMLEditorProps) {
   const { getNode } = useReactFlow();
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
@@ -462,6 +464,10 @@ export function UMLEditor({
           />
 
           <ReactFlow
+            onInit={(instance) => {
+              setReactFlowInstance(instance);
+              onReactFlowInit?.(instance); // Pass instance to parent
+            }}
             nodes={nodes.map((node) => ({
               ...node,
               data: {
@@ -509,7 +515,6 @@ export function UMLEditor({
             onEdgesChange={handleEdgesChange}
             onConnect={handleConnect}
             onNodeDragStop={onNodeDragStop}
-            onInit={setReactFlowInstance}
             onDragOver={onDragOver}
             onDrop={onDrop}
             nodeTypes={nodeTypes}

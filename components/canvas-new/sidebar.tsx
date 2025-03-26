@@ -1,20 +1,21 @@
 "use client";
 
-import type React from "react";
-import { useCallback, useEffect, useState } from "react";
+import { Button } from "@/components/ui/button";
 import {
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
-import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { ChevronDown, GripVertical, Search, Star, X } from "lucide-react";
-import { renderShapePreview, renderLinePreview } from "./shape-utils";
+import type React from "react";
+import { useCallback, useEffect, useState } from "react";
+import { renderShapePreview } from "./shape-utils";
 
 interface SidebarProps {
   onDragStart: (event: React.DragEvent, shapeType: string) => void;
   isVisible?: boolean;
+  onShapeClick?: (shapeType: string) => void; // Add new prop
 }
 
 // Shape definitions
@@ -29,13 +30,17 @@ interface ShapeCategory {
   shapes: Shape[];
 }
 
-export function Sidebar({ onDragStart, isVisible = true }: SidebarProps) {
+export function Sidebar({
+  onDragStart,
+  isVisible = true,
+  onShapeClick,
+}: SidebarProps) {
   const [openItems, setOpenItems] = useState<Record<string, boolean>>({
-    "Basic Shapes": true,
-    "Arrows & Lines": true,
-    Actors: true,
-    Resources: true,
-    Extras: true,
+    "Basic Shapes": false,
+    "Arrows & Lines": false,
+    Actors: false,
+    Resources: false,
+    Extras: false,
   });
 
   const [searchQuery, setSearchQuery] = useState<string>("");
@@ -322,14 +327,8 @@ export function Sidebar({ onDragStart, isVisible = true }: SidebarProps) {
             )}
           </div>
 
-          <div
-            className="overflow-y-auto flex-1 pb-4"
-            style={{
-              overflowY: "auto",
-              maxHeight: "calc(100vh - 60px)",
-            }}
-          >
-            <div className="space-y-1">
+          <div className="h-[calc(100vh-56px)] overflow-y-auto flex flex-col">
+            <div className="space-y-1 pb-4">
               {filteredCategories.map((category) => (
                 <Collapsible
                   key={category.title}
@@ -379,6 +378,7 @@ export function Sidebar({ onDragStart, isVisible = true }: SidebarProps) {
                           onDragStart={(e) =>
                             handleShapeDragStart(e, shape.type)
                           }
+                          onClick={() => onShapeClick?.(shape.type)}
                         >
                           <div className="flex items-center justify-center h-10">
                             {shape.component}

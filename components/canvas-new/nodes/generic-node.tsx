@@ -1,8 +1,9 @@
 "use client";
 import type React from "react";
-import { memo, useCallback, useEffect, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useState } from "react";
 import { Handle, NodeResizer, Position } from "reactflow";
 import { SHAPE_DEFINITIONS, isHumanFigure } from "../shape-utils";
+import TextareaAutosize from "react-textarea-autosize";
 
 interface GenericNodeProps {
   data: {
@@ -55,6 +56,15 @@ interface GenericNodeProps {
   isConnectable: boolean;
 }
 
+const SHOULD_MAINTAIN_ASPECT_RATIO: Record<string, boolean> = {
+  circle: true,
+  square: true,
+  hexagon: true,
+  diamond: true,
+  triangle: true,
+  cylinder: true,
+};
+
 export const GenericNode = memo(
   ({ data, id, selected, isConnectable }: GenericNodeProps) => {
     const [isEditing, setIsEditing] = useState(false);
@@ -99,31 +109,39 @@ export const GenericNode = memo(
 
     // Update node size on resize with smoother handling
     const handleResize = useCallback(
-      (evt: any, { width, height }: { width: number; height: number }) => {
-        // Apply minimum dimensions to ensure shapes remain visible
-        const minDimension = 50;
-        const newWidth = Math.max(width, minDimension);
-        const newHeight = Math.max(height, minDimension);
+      (
+        _: any,
+        {
+          width,
+          height,
+        }: {
+          width: number;
+          height: number;
+        }
+      ) => {
+        const MAX_DIMENSION = 2000;
+        const newWidth = Math.min(Math.max(width, 30), MAX_DIMENSION);
+        const newHeight = Math.min(Math.max(height, 30), MAX_DIMENSION);
 
-        setNodeSize({
-          width: newWidth,
-          height: newHeight,
-        });
+        setNodeSize({ width: newWidth, height: newHeight });
       },
       []
     );
 
     // Define consistent text styles
-    const getTextStyle = () => ({
-      fontFamily: data.style?.fontFamily || "Arial",
-      fontSize: `${data.style?.fontSize || 12}px`,
-      fontWeight: data.style?.isBold ? "bold" : "normal",
-      fontStyle: data.style?.isItalic ? "italic" : "normal",
-      textDecoration: data.style?.isUnderline ? "underline" : "none",
-      color: data.style?.textColor || "#000000",
-      lineHeight: `${data.style?.lineHeight || 1.2}`,
-      textAlign: data.style?.textAlign || "center",
-    });
+    const getTextStyle = useCallback(
+      () => ({
+        fontFamily: data.style?.fontFamily || "Arial",
+        fontSize: `${data.style?.fontSize || 12}px`,
+        fontWeight: data.style?.isBold ? "bold" : "normal",
+        fontStyle: data.style?.isItalic ? "italic" : "normal",
+        textDecoration: data.style?.isUnderline ? "underline" : "none",
+        color: data.style?.textColor || "#000000",
+        lineHeight: `${data.style?.lineHeight || 1.2}`,
+        textAlign: data.style?.textAlign || "center",
+      }),
+      [data.style]
+    );
 
     // Calculate maximum lines for truncation
     const calculateMaxLines = () => {
@@ -135,15 +153,13 @@ export const GenericNode = memo(
 
     // Base node style with centering
     const nodeStyle: React.CSSProperties = {
-      width: nodeSize.width,
-      height: nodeSize.height,
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "center",
-      overflow: "hidden",
-      transition: "all 0.2s ease", // Smooth transitions for better UX
+      transition: `
+    width 0.15s cubic-bezier(0.4, 0, 0.2, 1),
+    height 0.15s cubic-bezier(0.4, 0, 0.2, 1),
+    transform 0.15s cubic-bezier(0.4, 0, 0.2, 1)
+  `,
+      willChange: "width, height, transform",
     };
-
     // Shape style with centering
     const shapeStyle: React.CSSProperties = {
       width: "100%",
@@ -154,27 +170,33 @@ export const GenericNode = memo(
     };
 
     // Common shape properties - outline only for human figures
-    const shapeProps = {
-      fill: data.style?.backgroundColor || "white",
-      stroke: data.style?.borderColor || "#000000",
-      strokeWidth: data.style?.borderWidth || 1,
-      strokeDasharray:
-        data.style?.borderStyle === "dashed"
-          ? "5,5"
-          : data.style?.borderStyle === "dotted"
-            ? "1,5"
-            : undefined,
-    };
+    const shapeProps = useMemo(
+      () => ({
+        fill: data.style?.backgroundColor || "white",
+        stroke: data.style?.borderColor || "#000000",
+        strokeWidth: data.style?.borderWidth || 1,
+        strokeDasharray:
+          data.style?.borderStyle === "dashed"
+            ? "5,5"
+            : data.style?.borderStyle === "dotted"
+              ? "1,5"
+              : undefined,
+      }),
+      [data.style]
+    );
 
     // Handle styles - improved visibility when selected
-    const handleStyle = {
-      opacity: selected ? 1 : 0,
-      width: "0.75rem",
-      height: "0.75rem",
-      backgroundColor: "#1a192b",
-      border: "1px solid white",
-      transition: "opacity 0.2s ease", // Smooth transition for handles
-    };
+    const handleStyle = useMemo(
+      () => ({
+        opacity: selected ? 1 : 0,
+        width: "0.75rem",
+        height: "0.75rem",
+        backgroundColor: "#1a192b",
+        border: "1px solid white",
+        transition: "opacity 0.2s ease", // Smooth transition for handles
+      }),
+      [selected]
+    );
 
     // Render text within SVG using foreignObject
     const renderTextWithForeignObject = (
@@ -439,20 +461,20 @@ export const GenericNode = memo(
       <>
         <NodeResizer
           isVisible={selected}
-          minWidth={100}
-          minHeight={100}
+          minWidth={30} // Reduced minimum size
+          minHeight={30}
+          keepAspectRatio={SHOULD_MAINTAIN_ASPECT_RATIO[data.shape]} // Add aspect ratio config
           onResize={handleResize}
           handleStyle={{
-            width: 8,
-            height: 8,
-            borderRadius: 4,
+            width: 12, // Larger handles
+            height: 12,
+            borderRadius: 6,
             backgroundColor: "#1a192b",
-            borderColor: "white",
+            border: "2px solid white",
           }}
           lineStyle={{
-            borderWidth: 1,
+            borderWidth: 2,
             borderColor: "#1a192b",
-            borderStyle: "dashed",
           }}
         />
         <div
@@ -462,6 +484,9 @@ export const GenericNode = memo(
             boxShadow: selected ? "0 0 0 1px rgba(26, 25, 43, 0.3)" : "none",
           }}
           className={`${data.style?.locked ? "cursor-not-allowed" : "cursor-pointer"}`}
+          role="application"
+          aria-label={`${data.shape} node`}
+          aria-describedby={`node-${id}-desc`}
         >
           {/* Target Handles - Now only visible when selected */}
           <Handle
@@ -525,15 +550,17 @@ export const GenericNode = memo(
 
           {/* Render editable input or shape */}
           {isEditing ? (
-            <input
-              type="text"
+            <TextareaAutosize
               value={labelValue}
               onChange={(e) => setLabelValue(e.target.value)}
               onBlur={handleBlur}
+              //@ts-ignore
               onKeyDown={handleKeyDown}
-              className="w-full text-center bg-transparent border-none outline-none"
+              className="w-full text-center bg-transparent border-none outline-none resize-none px-4"
               style={getTextStyle()}
               autoFocus
+              minRows={1}
+              maxRows={5}
             />
           ) : (
             <div className="w-full h-full" onDoubleClick={handleDoubleClick}>
