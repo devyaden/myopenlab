@@ -578,6 +578,7 @@ export default function ToolbarPlugin({
   setIsLinkEditMode: Dispatch<boolean>;
   folderCanvases: any[];
 }): JSX.Element {
+  console.log("🚀 ~ folderCanvases:", folderCanvases);
   const [selectedElementKey, setSelectedElementKey] = useState<NodeKey | null>(
     null
   );

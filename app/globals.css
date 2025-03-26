@@ -1900,3 +1900,12 @@ button.item.dropdown-item-active i {
   overflow-y: auto;
   background-color: #f0f0f0;
 }
+
+.dnd-transform-fix {
+  transform: translate3d(0, 0, 0) !important;
+}
+
+body.resizing * {
+  cursor: col-resize !important;
+  user-select: none !important;
+}

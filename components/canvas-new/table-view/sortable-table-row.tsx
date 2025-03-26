@@ -52,6 +52,7 @@ const SortableTableRow: React.FC<{
   frozenColumns: Set<string>;
   columnWrapping: Set<string>;
   getRelatedCanvasNodes: any;
+  columnWidths: Record<string, number>;
 }> = ({
   node,
   level,
@@ -72,6 +73,7 @@ const SortableTableRow: React.FC<{
   frozenColumns,
   columnWrapping,
   getRelatedCanvasNodes,
+  columnWidths,
 }) => {
   const { attributes, listeners, setNodeRef, transform, transition } =
     useSortable({ id: node.id });
@@ -90,15 +92,28 @@ const SortableTableRow: React.FC<{
   return (
     <TableRow
       ref={setNodeRef}
-      style={style}
       {...attributes}
-      className={`hover:bg-gray-100 ${isSelected ? "bg-gray-50" : "bg-white"} border-b border-gray-200`}
+      className={`group ${isSelected ? "bg-gray-50" : "bg-white"} border-b border-gray-200`}
     >
-      <TableCell className="p-2 w-16">
-        <div className="flex items-center space-x-2">
+      <TableCell
+        className=" bg-white border-r border-gray-200 p-0"
+        style={{
+          position: "sticky",
+          left: 0,
+          zIndex: 20,
+          boxShadow: "2px 0 2px -1px rgba(0,0,0,0.1)",
+          width: "50px",
+          minWidth: "50px",
+        }}
+      >
+        <div
+          style={style}
+          className={`flex items-center justify-center transition-opacity ${isSelected ? "opacity-100" : "opacity-0 group-hover:opacity-100"}`}
+        >
           <div {...listeners}>
             <GripVertical className="h-4 w-4 text-gray-400 cursor-move" />
           </div>
+
           <Checkbox
             checked={selectedNodes.includes(node.id)}
             className="border-gray-400"
@@ -116,227 +131,163 @@ const SortableTableRow: React.FC<{
         .filter(
           (column) => !hiddenColumns.has(column.title) && column.title !== "id"
         )
-        .map((column, index) => (
-          <TableCell
-            key={`${node.id}-${column.title}`}
-            style={{
-              paddingLeft: index === 0 ? `${level * 20 + 16}px` : undefined,
-              whiteSpace: columnWrapping.has(column.title)
-                ? "normal"
-                : "nowrap",
-            }}
-            className={`p-2 text-gray-700 ${
-              frozenColumns.has(column.title)
-                ? "sticky left-0 bg-gray-50 z-10"
-                : ""
-            }`}
-            onDoubleClick={() => {
-              if (!nonEditableColumns.includes(column.title)) {
-                setEditingCell({ nodeId: node.id, column: column.title });
-                setEditedValue(
-                  column.title === "task"
-                    ? node.data.label
-                    : column.title === "type"
-                      ? node.data.shape || node.type
-                      : node.data[column.title] || ""
-                );
-                setValidationError(null);
-              }
-            }}
-          >
-            {index === 0 && (
-              <span className="inline-flex items-center mr-2">
-                {hasChildren && (
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-5 w-5 p-0"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      toggleRowExpansion(node.id);
-                    }}
-                  >
-                    {isExpanded ? (
-                      <ChevronDown className="h-4 w-4 text-gray-400" />
-                    ) : (
-                      <ChevronRight className="h-4 w-4 text-gray-400" />
-                    )}
-                  </Button>
-                )}
-              </span>
-            )}
-
-            {editingCell?.nodeId === node.id &&
-            editingCell?.column === column.title ? (
-              <div>
-                {column.type === "Select" ? (
-                  <Select
-                    value={editedValue || ""}
-                    onValueChange={(value) => {
-                      setEditedValue(value);
-                      handleSave(node.id, column.title, value);
-                    }}
-                  >
-                    <SelectTrigger className="w-full border-gray-300">
-                      <SelectValue placeholder="Select option" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {column.options?.map((option: any) => (
-                        <SelectItem key={option} value={option || "default"}>
-                          {option || "Default"}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                ) : column.type === "Multiselect" ? (
-                  <MultiSelect
-                    options={(column.options || []).map((option: any) => ({
-                      label: option,
-                      value: option,
-                    }))}
-                    selected={editedValue || []}
-                    onChange={(selected) => {
-                      setEditedValue(selected);
-                      handleSave(node.id, column.title, selected);
-                    }}
-                  />
-                ) : column.type === "Checkbox" ? (
-                  <Switch
-                    checked={editedValue === true}
-                    onCheckedChange={(checked) => {
-                      setEditedValue(checked);
-                      handleSave(node.id, column.title, checked);
-                    }}
-                  />
-                ) : column.type === "Date" ||
-                  column.type === "Created Time" ||
-                  column.type === "Last edited time" ? (
-                  <Input
-                    type="datetime-local"
-                    value={
-                      editedValue
-                        ? new Date(editedValue).toISOString().slice(0, 16)
-                        : ""
-                    }
-                    onChange={(e) => setEditedValue(e.target.value)}
-                    onBlur={() =>
-                      handleSave(node.id, column.title, editedValue)
-                    }
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") {
-                        handleSave(node.id, column.title, editedValue);
-                      } else if (e.key === "Escape") {
-                        setEditingCell(null);
-                        setEditedValue(null);
-                        setValidationError(null);
-                      }
-                    }}
-                    className={`border-gray-300 focus-visible:ring-0 ${validationError ? "border-red-500" : ""}`}
-                    autoFocus
-                  />
-                ) : column.type === "Long Text" ? (
-                  <Textarea
-                    value={editedValue || ""}
-                    onChange={(e) => setEditedValue(e.target.value)}
-                    onBlur={() =>
-                      handleSave(node.id, column.title, editedValue)
-                    }
-                    onKeyDown={(e) => {
-                      if (e.key === "Escape") {
-                        setEditingCell(null);
-                        setEditedValue(null);
-                        setValidationError(null);
-                      }
-                    }}
-                    className={`border-gray-300 ${validationError ? "border-red-500" : ""}`}
-                    autoFocus
-                  />
-                ) : column.type === "Relation" ? (
-                  <AddTableCellTrigger
-                    value={editedValue || []}
-                    label="Testing"
-                    relatedCanvasData={getRelatedCanvasNodes({
-                      ...column.related_canvas?.canvas_data,
-                      name: column.related_canvas?.name,
-                    })}
-                    onSelectValue={(value) => {
-                      setEditedValue(value);
-                      handleSave(node.id, column.title, value);
-                    }}
-                  />
-                ) : column.type === "Rollup" ? (
-                  <>
-                    {node.data[column.title] ? (
-                      <div className="flex flex-wrap gap-1">
-                        {node.data[column.title].map(
-                          (item: any, index: number) => (
-                            <span key={index} className="text-sm text-gray-600">
-                              {item.value ?? "undefined"}
-                            </span>
-                          )
+        .map((column, index) => {
+          return (
+            <TableCell
+              key={`${node.id}-${column.title}`}
+              style={{
+                whiteSpace: columnWrapping.has(column.title)
+                  ? "normal"
+                  : "nowrap",
+                width: `${columnWidths[column.title] || 200}px`,
+                minWidth: `${columnWidths[column.title] || 200}px`,
+                maxWidth: `${columnWidths[column.title] || 200}px`,
+              }}
+              className={`relative p-0 text-gray-700 overflow-hidden border-r border-gray-200 ${
+                frozenColumns.has(column.title)
+                  ? "sticky left-0 bg-gray-50 z-10"
+                  : ""
+              }`}
+              onClick={() => {
+                if (!nonEditableColumns.includes(column.title)) {
+                  setEditingCell({ nodeId: node.id, column: column.title });
+                  setEditedValue(
+                    column.title === "task"
+                      ? node.data.label
+                      : column.title === "type"
+                        ? node.data.shape || node.type
+                        : node.data[column.title] || ""
+                  );
+                  setValidationError(null);
+                }
+              }}
+            >
+              <div className="p-2 h-full">
+                {index === 0 && (
+                  <span className="inline-flex items-center mr-2">
+                    {hasChildren && (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-5 w-5 p-0"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          toggleRowExpansion(node.id);
+                        }}
+                      >
+                        {isExpanded ? (
+                          <ChevronDown className="h-4 w-4 text-gray-400" />
+                        ) : (
+                          <ChevronRight className="h-4 w-4 text-gray-400" />
                         )}
-                      </div>
-                    ) : (
-                      <span className="text-gray-400"></span>
+                      </Button>
                     )}
-                  </>
-                ) : (
-                  <Input
-                    type={column.type === "Number" ? "number" : "text"}
-                    value={editedValue || ""}
-                    onChange={(e) => setEditedValue(e.target.value)}
-                    onBlur={() =>
-                      handleSave(node.id, column.title, editedValue)
-                    }
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") {
-                        handleSave(node.id, column.title, editedValue);
-                      } else if (e.key === "Escape") {
-                        setEditingCell(null);
-                        setEditedValue(null);
-                        setValidationError(null);
-                      }
-                    }}
-                    className={`border-gray-300 focus-visible:ring-0 ${validationError ? "border-red-500" : ""}`}
-                    autoFocus
-                  />
+                  </span>
                 )}
-                {validationError && (
-                  <p className="text-red-500 text-xs mt-1">{validationError}</p>
-                )}
-              </div>
-            ) : (
-              <>
-                {column.title === "task" &&
-                  (node.data.label || <span className="text-gray-400"></span>)}
-                {column.title === "type" &&
-                  (node.data.shape || node.type || (
-                    <span className="text-gray-400"></span>
-                  ))}
-                {!["task", "type"].includes(column.title) && (
-                  <>
-                    {column.type === "Checkbox" ? (
-                      <Switch
-                        checked={node.data[column.title] === true}
-                        disabled
+
+                {editingCell?.nodeId === node.id &&
+                editingCell?.column === column.title ? (
+                  <div className="absolute inset-0 z-10 bg-white shadow-sm border-blue-500 border-2 rounded-none">
+                    {column.type === "Select" ? (
+                      <Select
+                        value={editedValue || ""}
+                        onValueChange={(value) => {
+                          setEditedValue(value);
+                          handleSave(node.id, column.title, value);
+                        }}
+                      >
+                        <SelectTrigger className="w-full h-full border-0 rounded-none focus:ring-0">
+                          <SelectValue placeholder="Select option" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {column.options?.map((option: any) => (
+                            <SelectItem
+                              key={option}
+                              value={option || "default"}
+                            >
+                              {option || "Default"}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    ) : column.type === "Multiselect" ? (
+                      <MultiSelect
+                        options={(column.options || []).map((option: any) => ({
+                          label: option,
+                          value: option,
+                        }))}
+                        selected={editedValue || []}
+                        onChange={(selected) => {
+                          setEditedValue(selected);
+                          handleSave(node.id, column.title, selected);
+                        }}
                       />
+                    ) : column.type === "Checkbox" ? (
+                      <div className="h-full flex items-center justify-center bg-white">
+                        <Switch
+                          checked={editedValue === true}
+                          onCheckedChange={(checked) => {
+                            setEditedValue(checked);
+                            handleSave(node.id, column.title, checked);
+                          }}
+                        />
+                      </div>
                     ) : column.type === "Date" ||
                       column.type === "Created Time" ||
                       column.type === "Last edited time" ? (
-                      node.data[column.title] &&
-                      !isNaN(new Date(node.data[column.title]).getTime()) ? (
-                        new Date(node.data[column.title]).toLocaleString()
-                      ) : (
-                        <span className="text-gray-400"></span>
-                      )
+                      <Input
+                        type="datetime-local"
+                        value={
+                          editedValue
+                            ? new Date(editedValue).toISOString().slice(0, 16)
+                            : ""
+                        }
+                        onChange={(e) => setEditedValue(e.target.value)}
+                        onBlur={() =>
+                          handleSave(node.id, column.title, editedValue)
+                        }
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            handleSave(node.id, column.title, editedValue);
+                          } else if (e.key === "Escape") {
+                            setEditingCell(null);
+                            setEditedValue(null);
+                            setValidationError(null);
+                          }
+                        }}
+                        className={`border-gray-300 focus-visible:ring-0 ${validationError ? "border-red-500" : ""}`}
+                        autoFocus
+                      />
                     ) : column.type === "Long Text" ? (
-                      <div className="max-w-[300px] max-h-[4.5em] overflow-hidden">
-                        <p className="line-clamp-3">
-                          {node.data[column.title] || (
-                            <span className="text-gray-400"></span>
-                          )}
-                        </p>
-                      </div>
+                      <Textarea
+                        value={editedValue || ""}
+                        onChange={(e) => setEditedValue(e.target.value)}
+                        onBlur={() =>
+                          handleSave(node.id, column.title, editedValue)
+                        }
+                        onKeyDown={(e) => {
+                          if (e.key === "Escape") {
+                            setEditingCell(null);
+                            setEditedValue(null);
+                            setValidationError(null);
+                          }
+                        }}
+                        className={`w-full h-full border-0 rounded-none focus-visible:ring-0 resize-none ${validationError ? "border-red-500" : ""}`}
+                        autoFocus
+                      />
+                    ) : column.type === "Relation" ? (
+                      <AddTableCellTrigger
+                        value={editedValue || []}
+                        label="Testing"
+                        relatedCanvasData={getRelatedCanvasNodes({
+                          ...column.related_canvas?.canvas_data,
+                          name: column.related_canvas?.name,
+                        })}
+                        onSelectValue={(value) => {
+                          setEditedValue(value);
+                          handleSave(node.id, column.title, value);
+                        }}
+                      />
                     ) : column.type === "Rollup" ? (
                       <>
                         {node.data[column.title] ? (
@@ -347,7 +298,7 @@ const SortableTableRow: React.FC<{
                                   key={index}
                                   className="text-sm text-gray-600"
                                 >
-                                  {item.value}
+                                  {item.value ?? "undefined"}
                                 </span>
                               )
                             )}
@@ -356,39 +307,136 @@ const SortableTableRow: React.FC<{
                           <span className="text-gray-400"></span>
                         )}
                       </>
-                    ) : column.type === "Relation" ? (
+                    ) : (
+                      <Input
+                        type={column.type === "Number" ? "number" : "text"}
+                        value={editedValue || ""}
+                        onChange={(e) => setEditedValue(e.target.value)}
+                        onBlur={() =>
+                          handleSave(node.id, column.title, editedValue)
+                        }
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            handleSave(node.id, column.title, editedValue);
+                          } else if (e.key === "Escape") {
+                            setEditingCell(null);
+                            setEditedValue(null);
+                            setValidationError(null);
+                          }
+                        }}
+                        className={`w-full h-full border-0 rounded-none focus-visible:ring-0 ${validationError ? "border-red-500" : ""}`}
+                        autoFocus
+                      />
+                    )}
+                    {validationError && (
+                      <div className="absolute bottom-0 left-0 right-0 bg-red-50 text-red-600 text-xs p-1">
+                        {validationError}
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <>
+                    {column.title === "task" &&
+                      (node.data.label || (
+                        <span className="text-gray-400"></span>
+                      ))}
+                    {column.title === "type" &&
+                      (node.data.shape || node.type || (
+                        <span className="text-gray-400"></span>
+                      ))}
+                    {!["task", "type"].includes(column.title) && (
                       <>
-                        {node.data[column.title] &&
-                        node.data[column.title].length > 0 ? (
-                          <div className="flex flex-wrap max-w-full">
-                            {node.data[column.title]?.map((item: any) => (
-                              <p className="text-sm text-gray-600 flex mr-3">
-                                <File className="h-4 w-4 mr-1" /> {item.label}
-                              </p>
-                            ))}
+                        {column.type === "Checkbox" ? (
+                          <Switch
+                            checked={node.data[column.title] === true}
+                            disabled
+                          />
+                        ) : column.type === "Date" ||
+                          column.type === "Created Time" ||
+                          column.type === "Last edited time" ? (
+                          node.data[column.title] &&
+                          !isNaN(
+                            new Date(node.data[column.title]).getTime()
+                          ) ? (
+                            new Date(node.data[column.title]).toLocaleString()
+                          ) : (
+                            <span className="text-gray-400"></span>
+                          )
+                        ) : column.type === "Long Text" ? (
+                          <div className="max-w-[300px] max-h-[4.5em] overflow-hidden">
+                            <p className="line-clamp-3">
+                              {node.data[column.title] || (
+                                <span className="text-gray-400"></span>
+                              )}
+                            </p>
                           </div>
+                        ) : column.type === "Rollup" ? (
+                          <>
+                            {node.data[column.title] ? (
+                              <div className="flex flex-wrap gap-1">
+                                {node.data[column.title].map(
+                                  (item: any, index: number) => (
+                                    <span
+                                      key={index}
+                                      className="text-sm text-gray-600"
+                                    >
+                                      {item.value}
+                                    </span>
+                                  )
+                                )}
+                              </div>
+                            ) : (
+                              <span className="text-gray-400"></span>
+                            )}
+                          </>
+                        ) : column.type === "Relation" ? (
+                          <>
+                            {node.data[column.title] &&
+                            node.data[column.title].length > 0 ? (
+                              <div className="flex flex-wrap max-w-full">
+                                {node.data[column.title]?.map((item: any) => (
+                                  <p className="text-sm text-gray-600 flex mr-3">
+                                    <File className="h-4 w-4 mr-1" />{" "}
+                                    {item.label}
+                                  </p>
+                                ))}
+                              </div>
+                            ) : (
+                              <span className="text-gray-400"></span>
+                            )}
+                          </>
+                        ) : Array.isArray(node.data[column.title]) ? (
+                          node.data[column.title].join(", ")
                         ) : (
-                          <span className="text-gray-400"></span>
+                          node.data[column.title] || (
+                            <span className="text-gray-400"></span>
+                          )
                         )}
                       </>
-                    ) : Array.isArray(node.data[column.title]) ? (
-                      node.data[column.title].join(", ")
-                    ) : (
-                      node.data[column.title] || (
-                        <span className="text-gray-400"></span>
-                      )
                     )}
                   </>
                 )}
-              </>
-            )}
-          </TableCell>
-        ))}
-      <TableCell className="text-right p-2 sticky right-0 bg-white z-10">
+              </div>
+            </TableCell>
+          );
+        })}
+
+      <TableCell
+        className="p-2 bg-white border-l border-gray-200 "
+        style={{
+          position: "sticky",
+          right: 0,
+          zIndex: 20,
+          // width: "30px",
+          // minWidth: "30px",
+          backgroundColor: isSelected ? "#f9fafb" : "#fff",
+          boxShadow: "-2px 0 2px -1px rgba(0,0,0,0.1)",
+        }}
+      >
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" size="icon" className="h-8 w-8">
-              <MoreHorizontal className="h-4 w-4 text-gray-400" />
+              <MoreHorizontal className="h-4 w-4 text-gray-400 opacity-0 group-hover:opacity-100" />
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">

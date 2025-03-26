@@ -56,7 +56,7 @@ import {
   X,
 } from "lucide-react";
 import type React from "react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { Edge, Node } from "reactflow";
 import * as z from "zod";
 import { Checkbox } from "../../ui/checkbox";
@@ -116,43 +116,65 @@ const TableView: React.FC<TableViewProps> = ({
     useState(false);
 
   const [hiddenNodeIds, setHiddenNodeIds] = useState<Set<string>>(new Set());
+  const [columnWidths, setColumnWidths] = useState<Record<string, number>>({});
+  const [resizingColumn, setResizingColumn] = useState<string | null>(null);
 
   useEffect(() => {
     if (canvasType !== CANVAS_TYPE.HYBRID) return;
 
-    // Add default columns for connections if they don't exist
-    const hasFromColumn = columns.some((col) => col.title === "from");
-    const hasToColumn = columns.some((col) => col.title === "to");
-    const hasParentColumn = columns.some((col) => col.title === "parent");
-    const hasChildrenColumn = columns.some((col) => col.title === "children");
+    let newColumns = [...columns];
+    let hasChanges = false;
 
-    const newColumns = [...columns];
+    // Handle connection columns (from/to)
+    const hasEdges = edges.length > 0;
+    const currentHasFrom = newColumns.some((c) => c.title === "from");
+    const currentHasTo = newColumns.some((c) => c.title === "to");
 
-    if (!hasFromColumn) {
-      newColumns.push({ title: "from", type: "Text" });
+    if (hasEdges) {
+      if (!currentHasFrom) {
+        newColumns.push({ title: "from", type: "Text" });
+        hasChanges = true;
+      }
+      if (!currentHasTo) {
+        newColumns.push({ title: "to", type: "Text" });
+        hasChanges = true;
+      }
+    } else {
+      // Remove connection columns if no edges
+      const beforeLength = newColumns.length;
+      newColumns = newColumns.filter(
+        (c) => c.title !== "from" && c.title !== "to"
+      );
+      if (newColumns.length < beforeLength) hasChanges = true;
     }
 
-    if (!hasToColumn) {
-      newColumns.push({ title: "to", type: "Text" });
+    // Handle hierarchy columns (parent/children)
+    const hasParentNodes = nodes.some((n) => n.parentNode);
+    const currentHasParent = newColumns.some((c) => c.title === "parent");
+    const currentHasChildren = newColumns.some((c) => c.title === "children");
+
+    if (hasParentNodes) {
+      if (!currentHasParent) {
+        newColumns.push({ title: "parent", type: "Text" });
+        hasChanges = true;
+      }
+      if (!currentHasChildren) {
+        newColumns.push({ title: "children", type: "Text" });
+        hasChanges = true;
+      }
+    } else {
+      // Remove hierarchy columns if no parent nodes
+      const beforeLength = newColumns.length;
+      newColumns = newColumns.filter(
+        (c) => c.title !== "parent" && c.title !== "children"
+      );
+      if (newColumns.length < beforeLength) hasChanges = true;
     }
 
-    if (!hasParentColumn) {
-      newColumns.push({ title: "parent", type: "Text" });
-    }
-
-    if (!hasChildrenColumn) {
-      newColumns.push({ title: "children", type: "Text" });
-    }
-
-    if (
-      !hasFromColumn ||
-      !hasToColumn ||
-      !hasParentColumn ||
-      !hasChildrenColumn
-    ) {
+    if (hasChanges) {
       setColumns(newColumns);
     }
-  }, [columns, setColumns]);
+  }, [columns, setColumns, canvasType, edges.length, nodes]);
 
   const getAllDescendantIds = (nodeId: string, allNodes: Node[]): string[] => {
     const descendants: string[] = [];
@@ -167,6 +189,55 @@ const TableView: React.FC<TableViewProps> = ({
     collect(nodeId);
     return descendants;
   };
+
+  // column resizing code
+
+  const columnRefs = useRef<Record<string, HTMLDivElement | null>>({});
+
+  const startResizing = (columnTitle: string) => {
+    document.body.classList.add("resizing");
+
+    setResizingColumn(columnTitle);
+  };
+
+  const handleResize = useCallback(
+    (mouseMoveEvent: MouseEvent) => {
+      if (resizingColumn) {
+        const columnElement = columnRefs.current[resizingColumn];
+        if (!columnElement) return;
+
+        const newWidth =
+          mouseMoveEvent.clientX - columnElement.getBoundingClientRect().left;
+
+        setColumnWidths((prev) => ({
+          ...prev,
+          [resizingColumn]: Math.max(100, newWidth),
+        }));
+      }
+    },
+    [resizingColumn]
+  );
+
+  const stopResizing = useCallback(() => {
+    document.body.classList.remove("resizing");
+
+    setResizingColumn(null);
+  }, []);
+
+  // Event listeners for resizing
+  useEffect(() => {
+    if (resizingColumn) {
+      window.addEventListener("mousemove", handleResize);
+      window.addEventListener("mouseup", stopResizing);
+    }
+
+    return () => {
+      window.removeEventListener("mousemove", handleResize);
+      window.removeEventListener("mouseup", stopResizing);
+    };
+  }, [resizingColumn, handleResize, stopResizing]);
+
+  // column resizing ends here
 
   const handleHideSelected = () => {
     const toHide = new Set<string>();
@@ -303,8 +374,6 @@ const TableView: React.FC<TableViewProps> = ({
       }
     });
 
-    console.log("----- root nodes -----", rootNodes);
-
     return rootNodes;
   };
 
@@ -367,7 +436,7 @@ const TableView: React.FC<TableViewProps> = ({
     let updatedNodes = insertRollupDataIntoNodes(visibleNodes); // Changed from nodes to visibleNodes
     updatedNodes = enhanceNodesWithConnectionData(updatedNodes, edges);
     const hierarchy = createHierarchy(updatedNodes);
-    console.log("🚀 ~ sortedHierarchy ~ hierarchy:", hierarchy);
+
     if (!sortField || !sortDirection) return hierarchy;
 
     const sortNodes = (nodes: HierarchyNode[]): HierarchyNode[] => {
@@ -820,6 +889,7 @@ const TableView: React.FC<TableViewProps> = ({
           frozenColumns={frozenColumns}
           columnWrapping={columnWrapping}
           getRelatedCanvasNodes={getRelatedCanvasNodes}
+          columnWidths={columnWidths}
         />,
         ...(isExpanded && hasChildren
           ? renderHierarchy(node.children, level + 1)
@@ -838,46 +908,59 @@ const TableView: React.FC<TableViewProps> = ({
       <div className="w-full bg-white">
         <div className="flex items-center justify-between px-8 py-2 border-b border-gray-100">
           <div className="text-base text-gray-700 font-medium"></div>
-          <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              className="text-gray-500 font-medium text-sm hover:bg-gray-50 ml-2 rounded-md"
-              onClick={() => setDeleteSelectedDialogOpen(true)}
-              disabled={selectedNodes.length === 0}
-            >
-              <Trash2 className="h-4 w-4 mr-2" />
-              Delete
-            </Button>
-            <Button
-              variant="outline"
-              className="text-gray-500 font-medium text-sm hover:bg-gray-50 rounded-md"
-              onClick={handleHideSelected}
-              disabled={selectedNodes.length === 0}
-            >
-              Hide
-            </Button>
-            <Button
-              variant="outline"
-              className="text-gray-500 font-medium text-sm hover:bg-gray-50 ml-2 rounded-md"
-              onClick={handleDuplicateSelected}
-              disabled={selectedNodes.length === 0}
-            >
-              <Copy className="h-4 w-4 mr-2" />
-              Duplicate
-            </Button>
+          <div className="flex items-center gap-2 min-h-10">
+            {selectedNodes.length > 0 && (
+              <>
+                <Button
+                  variant="outline"
+                  className="text-gray-500 font-medium text-sm hover:bg-gray-50 ml-2 rounded-md"
+                  onClick={() => setDeleteSelectedDialogOpen(true)}
+                  disabled={selectedNodes.length === 0}
+                >
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  Delete
+                </Button>
+
+                <Button
+                  variant="outline"
+                  className="text-gray-500 font-medium text-sm hover:bg-gray-50 ml-2 rounded-md"
+                  onClick={handleDuplicateSelected}
+                  disabled={selectedNodes.length === 0}
+                >
+                  <Copy className="h-4 w-4 mr-2" />
+                  Duplicate
+                </Button>
+              </>
+            )}
           </div>
         </div>
       </div>
-      <div className="p-4 mx-auto bg-gray-50 min-h-full flex">
+      <div className="p-4 mx-auto bg-gray-50 min-h-full flex max-w-[95vw]">
         <div className="rounded-lg border bg-white overflow-hidden flex-1">
-          <div className="overflow-x-auto">
-            <div className="overflow-y-auto max-h-[calc(100vh-300px)]">
-              <Table>
-                <TableHeader>
-                  <TableRow className="hover:bg-transparent bg-yadn-secondary-gray">
-                    <TableHead>
+          <div className="overflow-x-auto w-full  !px-0 ">
+            {/* Add max-w-screen */}
+            <div
+              className="overflow-x-auto relative"
+              style={{
+                maxWidth: "calc(100vw - 32px)",
+              }}
+            >
+              <Table
+                style={{
+                  minWidth: "max-content",
+                  position: "relative",
+                }}
+              >
+                <TableHeader className="p-0 bg-gray-50 ">
+                  <TableRow className="group">
+                    <TableHead className=" sticky left-0 z-30 flex items-center justify-center pl-0  bg-white border-r border-gray-200 max-w-[50px]">
                       {/* Select All checkbox */}
                       <Checkbox
+                        className={`transition-opacity ${
+                          selectedNodes.length > 0
+                            ? "opacity-100"
+                            : "opacity-0 group-hover:opacity-100"
+                        }`}
                         ref={(el) => {
                           if (el) {
                             // @ts-ignore
@@ -897,124 +980,153 @@ const TableView: React.FC<TableViewProps> = ({
                       />
                     </TableHead>
                     {columns
-                      .filter(
-                        (column) =>
-                          !hiddenColumns.has(column.title) &&
-                          column.title !== "id"
-                      )
-                      .map((column) => (
-                        <TableHead
-                          key={column.title}
-                          className={`group  ${frozenColumns.has(column.title) ? "sticky left-0 bg-yadn-primary-gray z-10" : ""}`}
-                        >
-                          <DropdownMenu>
-                            <DropdownMenuTrigger
-                              asChild
-                              disabled={editingColumnTitle === column.title}
-                            >
-                              <div
-                                className="flex items-center cursor-pointer"
-                                onClick={(e) => {
-                                  if (editingColumnTitle === column.title) {
-                                    e.preventDefault();
-                                    e.stopPropagation();
-                                  }
-                                }}
+                      .filter((column) => column.title !== "id")
+                      .map((column) => {
+                        const width = columnWidths[column.title] || 200;
+
+                        return (
+                          <TableHead
+                            key={column.title}
+                            ref={(el) =>
+                              (columnRefs.current[column.title] = el)
+                            }
+                            className={`border-r border-gray-200  ${
+                              frozenColumns.has(column.title)
+                                ? "sticky left-16 z-10"
+                                : "relative"
+                            }`}
+                            style={{
+                              width: `${width}px`,
+                              minWidth: `${width}px`,
+                              maxWidth: `${width}px`,
+                            }}
+                          >
+                            <div
+                              className="absolute right-0 top-0 w-1 h-full cursor-col-resize hover:bg-blue-500 bg-transparent"
+                              onMouseDown={() => startResizing(column.title)}
+                            />
+
+                            <DropdownMenu>
+                              <DropdownMenuTrigger
+                                asChild
+                                disabled={editingColumnTitle === column.title}
                               >
-                                {editingColumnTitle === column.title ? (
-                                  <Input
-                                    value={newColumnTitle}
-                                    onChange={(e) =>
-                                      setNewColumnTitle(e.target.value)
+                                <div
+                                  className="flex items-center cursor-pointer"
+                                  onClick={(e) => {
+                                    if (editingColumnTitle === column.title) {
+                                      e.preventDefault();
+                                      e.stopPropagation();
                                     }
-                                    onBlur={() =>
-                                      handleColumnTitleEdit(
-                                        column.title,
-                                        newColumnTitle
-                                      )
-                                    }
-                                    onKeyDown={(e) => {
-                                      if (e.key === "Enter") {
+                                  }}
+                                >
+                                  {editingColumnTitle === column.title ? (
+                                    <Input
+                                      value={newColumnTitle}
+                                      onChange={(e) =>
+                                        setNewColumnTitle(e.target.value)
+                                      }
+                                      onBlur={() =>
                                         handleColumnTitleEdit(
                                           column.title,
                                           newColumnTitle
-                                        );
+                                        )
                                       }
-                                    }}
-                                    onClick={(e) => e.stopPropagation()}
-                                    autoFocus
-                                    className="h-7 w-32 focus-visible:ring-0"
-                                  />
-                                ) : (
-                                  <div className="flex items-center">
-                                    {/* {getColumnIcon(column.type)} */}
-                                    <span>{column.title}</span>
-                                    {/* {getSortIcon(column.title as SortField)} */}
-                                  </div>
+                                      onKeyDown={(e) => {
+                                        if (e.key === "Enter") {
+                                          handleColumnTitleEdit(
+                                            column.title,
+                                            newColumnTitle
+                                          );
+                                        }
+                                      }}
+                                      onClick={(e) => e.stopPropagation()}
+                                      autoFocus
+                                      className="h-7 w-32 focus-visible:ring-0"
+                                    />
+                                  ) : (
+                                    <div className="flex items-center">
+                                      {/* {getColumnIcon(column.type)} */}
+                                      <span>{column.title}</span>
+                                      {/* {getSortIcon(column.title as SortField)} */}
+                                    </div>
+                                  )}
+                                </div>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent
+                                align="start"
+                                className="w-56"
+                              >
+                                <DropdownMenuItem
+                                  onSelect={() =>
+                                    startEditingColumnTitle(column.title)
+                                  }
+                                >
+                                  Edit property
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                  onClick={() => {
+                                    setSortField(column.title as SortField);
+                                    setSortDirection("asc");
+                                  }}
+                                >
+                                  Sort ascending
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                  onClick={() => {
+                                    setSortField(column.title as SortField);
+                                    setSortDirection("desc");
+                                  }}
+                                >
+                                  Sort descending
+                                </DropdownMenuItem>
+                                {!hiddenColumns.has(column.title) && (
+                                  <DropdownMenuItem
+                                    onClick={() =>
+                                      toggleColumnVisibility(column.title)
+                                    }
+                                  >
+                                    Hide in view
+                                  </DropdownMenuItem>
                                 )}
-                              </div>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="start" className="w-56">
-                              <DropdownMenuItem
-                                onSelect={() =>
-                                  startEditingColumnTitle(column.title)
-                                }
-                              >
-                                Edit property
-                              </DropdownMenuItem>
-                              <DropdownMenuItem
-                                onClick={() => {
-                                  setSortField(column.title as SortField);
-                                  setSortDirection("asc");
-                                }}
-                              >
-                                Sort ascending
-                              </DropdownMenuItem>
-                              <DropdownMenuItem
-                                onClick={() => {
-                                  setSortField(column.title as SortField);
-                                  setSortDirection("desc");
-                                }}
-                              >
-                                Sort descending
-                              </DropdownMenuItem>
-                              {!hiddenColumns.has(column.title) && (
                                 <DropdownMenuItem
                                   onClick={() =>
-                                    toggleColumnVisibility(column.title)
+                                    handleDuplicateColumn(column.title)
                                   }
                                 >
-                                  Hide in view
+                                  Duplicate property
                                 </DropdownMenuItem>
-                              )}
-                              <DropdownMenuItem
-                                onClick={() =>
-                                  handleDuplicateColumn(column.title)
-                                }
-                              >
-                                Duplicate property
-                              </DropdownMenuItem>
-                              {!isDefaultColumn(column.title) && (
-                                <DropdownMenuItem
-                                  className="text-red-600"
-                                  onClick={() =>
-                                    setDeleteColumnDialog(column.title)
-                                  }
-                                >
-                                  Delete property
-                                </DropdownMenuItem>
-                              )}
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                        </TableHead>
-                      ))}
-                    <TableHead className="w-[100px] text-right sticky right-0 z-10">
+                                {!isDefaultColumn(column.title) && (
+                                  <DropdownMenuItem
+                                    className="text-red-600"
+                                    onClick={() =>
+                                      setDeleteColumnDialog(column.title)
+                                    }
+                                  >
+                                    Delete property
+                                  </DropdownMenuItem>
+                                )}
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          </TableHead>
+                        );
+                      })}
+
+                    <TableHead
+                      style={{
+                        position: "sticky",
+                        right: 0,
+                        zIndex: 30,
+                        backgroundColor: "#fff",
+                        boxShadow: "-2px 0 2px -1px rgba(0,0,0,0.1)",
+                      }}
+                    >
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                           <Button
                             variant="ghost"
                             size="icon"
-                            className="h-8 w-8"
+                            className="h-8 w-8 opacity-0 group-hover:opacity-100"
                           >
                             <MoreVertical className="h-4 w-4" />
                           </Button>

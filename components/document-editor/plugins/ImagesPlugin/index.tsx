@@ -1,3 +1,4 @@
+//Image Plugin
 "use client";
 
 import type { JSX } from "react";
@@ -21,22 +22,19 @@ import {
   DROP_COMMAND,
   getDOMSelectionFromTarget,
   isHTMLElement,
-  LexicalCommand,
-  LexicalEditor,
+  type LexicalCommand,
+  type LexicalEditor,
 } from "lexical";
-import * as React from "react";
 import { useEffect, useRef, useState } from "react";
 
 import {
   $createImageNode,
   $isImageNode,
   ImageNode,
-  ImagePayload,
+  type ImagePayload,
 } from "../../nodes/ImageNode";
 import Button from "../../ui/Button";
 import { DialogActions, DialogButtonsList } from "../../ui/Dialog";
-import landscapeImage from "../../images/landscape.jpg";
-import yellowFlowerImage from "../../images/yellow-flower.jpg";
 import FileInput from "../../ui/FileInput";
 import TextInput from "../../ui/TextInput";
 
@@ -96,7 +94,7 @@ export function InsertImageUploadedDialogBody({
 
   const loadImage = (files: FileList | null) => {
     const reader = new FileReader();
-    reader.onload = function () {
+    reader.onload = () => {
       if (typeof reader.result === "string") {
         setSrc(reader.result);
       }
@@ -271,6 +269,12 @@ function $onDragStart(event: DragEvent): boolean {
     })
   );
 
+  // Add a CSS class to highlight dragged element
+  const element = event.target as HTMLElement;
+  if (element && element.closest(".editor-image")) {
+    element.closest(".editor-image")?.classList.add("dragging");
+  }
+
   return true;
 }
 
@@ -279,32 +283,107 @@ function $onDragover(event: DragEvent): boolean {
   if (!node) {
     return false;
   }
-  if (!canDropImage(event)) {
-    event.preventDefault();
+
+  // Check if we're dragging an image
+  const dragData = event.dataTransfer?.getData("application/x-lexical-drag");
+  if (!dragData) {
+    return false;
   }
+
+  try {
+    const { type } = JSON.parse(dragData);
+    if (type !== "image") {
+      return false;
+    }
+  } catch {
+    return false;
+  }
+
+  // Show visual indicators for drop zones
+  const target = event.target as HTMLElement;
+  if (isHTMLElement(target)) {
+    // Highlight potential drop areas
+    const editorElement = target.closest("div.ContentEditable__root");
+    if (editorElement) {
+      // Prevent default to allow drop
+      event.preventDefault();
+
+      // Determine drop position - above or below elements
+      const rect = target.getBoundingClientRect();
+      const midY = rect.top + rect.height / 2;
+
+      // Remove all previous indicators
+      document.querySelectorAll(".drop-indicator").forEach((el) => {
+        el.remove();
+      });
+
+      // Create drop indicator
+      const indicator = document.createElement("div");
+      indicator.className = "drop-indicator";
+      indicator.style.position = "absolute";
+      indicator.style.height = "3px";
+      indicator.style.backgroundColor = "#3584e4";
+      indicator.style.width = "100%";
+      indicator.style.zIndex = "100";
+
+      // Position indicator above or below the target element
+      if (event.clientY < midY) {
+        // Above
+        indicator.style.top = `${rect.top - 2}px`;
+      } else {
+        // Below
+        indicator.style.top = `${rect.bottom}px`;
+      }
+
+      document.body.appendChild(indicator);
+    }
+  }
+
   return true;
 }
 
 function $onDrop(event: DragEvent, editor: LexicalEditor): boolean {
+  // Clean up any drop indicators
+  document.querySelectorAll(".drop-indicator").forEach((el) => {
+    el.remove();
+  });
+
+  // Remove the dragging class from any elements
+  document.querySelectorAll(".dragging").forEach((el) => {
+    el.classList.remove("dragging");
+  });
+
   const node = $getImageNodeInSelection();
   if (!node) {
     return false;
   }
+
   const data = getDragImageData(event);
   if (!data) {
     return false;
   }
+
   event.preventDefault();
+
   if (canDropImage(event)) {
     const range = getDragSelection(event);
-    node.remove();
-    const rangeSelection = $createRangeSelection();
-    if (range !== null && range !== undefined) {
-      rangeSelection.applyDOMRange(range);
-    }
-    $setSelection(rangeSelection);
-    editor.dispatchCommand(INSERT_IMAGE_COMMAND, data);
+
+    editor.update(() => {
+      // Remove the original node
+      node.remove();
+
+      // Create a range selection at the drop position
+      const rangeSelection = $createRangeSelection();
+      if (range !== null && range !== undefined) {
+        rangeSelection.applyDOMRange(range);
+        $setSelection(rangeSelection);
+      }
+
+      // Insert the image at the new position
+      editor.dispatchCommand(INSERT_IMAGE_COMMAND, data);
+    });
   }
+
   return true;
 }
 
@@ -323,12 +402,17 @@ function getDragImageData(event: DragEvent): null | InsertImagePayload {
   if (!dragData) {
     return null;
   }
-  const { type, data } = JSON.parse(dragData);
-  if (type !== "image") {
+
+  try {
+    const { type, data } = JSON.parse(dragData);
+    if (type !== "image") {
+      return null;
+    }
+    return data;
+  } catch (error) {
+    console.error("Error parsing drag data:", error);
     return null;
   }
-
-  return data;
 }
 
 declare global {
@@ -342,7 +426,7 @@ function canDropImage(event: DragEvent): boolean {
   const target = event.target;
   return !!(
     isHTMLElement(target) &&
-    !target.closest("code, span.editor-image") &&
+    !target.closest("code, span.editor-image.dragging") && // Prevent dropping onto itself
     isHTMLElement(target.parentElement) &&
     target.parentElement.closest("div.ContentEditable__root")
   );
@@ -350,12 +434,16 @@ function canDropImage(event: DragEvent): boolean {
 
 function getDragSelection(event: DragEvent): Range | null | undefined {
   let range;
-  const domSelection = getDOMSelectionFromTarget(event.target);
+
+  // Try to get the precise position based on mouse coordinates
   if (document.caretRangeFromPoint) {
     range = document.caretRangeFromPoint(event.clientX, event.clientY);
-  } else if (event.rangeParent && domSelection !== null) {
-    domSelection.collapse(event.rangeParent, event.rangeOffset || 0);
-    range = domSelection.getRangeAt(0);
+  } else if (event.rangeParent) {
+    const domSelection = getDOMSelectionFromTarget(event.target);
+    if (domSelection !== null) {
+      domSelection.collapse(event.rangeParent, event.rangeOffset || 0);
+      range = domSelection.getRangeAt(0);
+    }
   } else {
     throw Error(`Cannot get the selection when dragging`);
   }
