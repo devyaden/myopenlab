@@ -15,6 +15,7 @@ import ReactFlow, {
   addEdge,
   applyEdgeChanges,
   applyNodeChanges,
+  useOnSelectionChange,
   useReactFlow,
   type Connection,
   type Edge,
@@ -35,6 +36,7 @@ import { SwimlaneNode } from "./nodes/swimlane-node";
 import { TextNode } from "./nodes/text-node";
 import TableView from "./table-view";
 import { UMLToolbar } from "./uml-toolbar";
+import { NodePropertiesSidebar } from "./node-properties-sidebar";
 
 const nodeTypes = {
   genericNode: GenericNode,
@@ -143,6 +145,8 @@ export function UMLEditor({
   const [background, setBackground] = useState<BackgroundVariant>(
     BackgroundVariant.Dots
   );
+  const [selectedNode, setSelectedNode] = useState<Node | null>(null);
+  const [showNodeProperties, setShowNodeProperties] = useState(false);
 
   const handleZoomIn = useCallback(() => {
     zoomIn();
@@ -451,10 +455,42 @@ export function UMLEditor({
     };
   }, [handleKeyDown]);
 
+  const onPaneClick = useCallback(() => {
+    setSelectedNode(null);
+    setShowNodeProperties(false);
+  }, []);
+
+  const closeNodeProperties = useCallback(() => {
+    setShowNodeProperties(false);
+  }, []);
+
+  useOnSelectionChange({
+    onChange: (selected) => {
+      const { nodes } = selected;
+      if (nodes.length === 1) {
+        const selectedNode = nodes[0];
+        setSelectedNode(selectedNode);
+        setShowNodeProperties(true);
+      } else {
+        setSelectedNode(null);
+        setShowNodeProperties(false);
+      }
+    },
+  });
+
   return (
     <div className="w-full h-[calc(100vh-132px)]" ref={reactFlowWrapper}>
       {viewMode === "canvas" && canvasType === CANVAS_TYPE.HYBRID ? (
         <>
+          {showNodeProperties && selectedNodes.length && (
+            <NodePropertiesSidebar
+              selectedNode={
+                nodes.find((node) => node.id === selectedNodes[0]) as Node
+              }
+              onClose={closeNodeProperties}
+            />
+          )}
+
           <UMLToolbar
             onZoomIn={handleZoomIn}
             onZoomOut={handleZoomOut}
@@ -472,6 +508,7 @@ export function UMLEditor({
               setReactFlowInstance(instance);
               onReactFlowInit?.(instance); // Pass instance to parent
             }}
+            onPaneClick={onPaneClick}
             nodes={nodes.map((node) => ({
               ...node,
               data: {

@@ -499,8 +499,6 @@ export const useCanvasStore = create<CanvasStore>()(
               }
             }
 
-            console.log("🚀 ~ loadCanvas: ~ canvasSettings:", canvasSettings);
-
             if (canvas) {
               const newState = {
                 id: canvasId,
@@ -520,8 +518,6 @@ export const useCanvasStore = create<CanvasStore>()(
                 canvas_type: canvas.canvas_type,
                 canvasSettings: canvasSettings || {},
               };
-
-              console.log("----------- new state -----------", newState);
 
               // Reset history when loading a new canvas
               history = {
