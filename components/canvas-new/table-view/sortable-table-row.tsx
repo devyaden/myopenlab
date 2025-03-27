@@ -1,5 +1,14 @@
 import { Button } from "@/components/ui/button";
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -25,6 +34,7 @@ import {
   File,
   GripVertical,
   MoreHorizontal,
+  Plus,
 } from "lucide-react";
 import type React from "react";
 import { Checkbox } from "../../ui/checkbox";
@@ -48,11 +58,13 @@ const SortableTableRow: React.FC<{
   selectedNodes: string[];
   setSelectedNodes: (nodes: string[]) => void;
   expandedRows: Set<string>;
-  hiddenColumns: Set<string>;
+  hiddenColumns: string[];
   frozenColumns: Set<string>;
   columnWrapping: Set<string>;
   getRelatedCanvasNodes: any;
   columnWidths: Record<string, number>;
+  handleDeleteConfirm: (deleteChildren: boolean) => void;
+  nodeToDelete: any;
 }> = ({
   node,
   level,
@@ -74,6 +86,8 @@ const SortableTableRow: React.FC<{
   columnWrapping,
   getRelatedCanvasNodes,
   columnWidths,
+  handleDeleteConfirm,
+  nodeToDelete,
 }) => {
   const { attributes, listeners, setNodeRef, transform, transition } =
     useSortable({ id: node.id });
@@ -129,7 +143,8 @@ const SortableTableRow: React.FC<{
       </TableCell>
       {columns
         .filter(
-          (column) => !hiddenColumns.has(column.title) && column.title !== "id"
+          (column) =>
+            !hiddenColumns?.includes(column.title) && column.title !== "id"
         )
         .map((column, index) => {
           return (
@@ -187,7 +202,7 @@ const SortableTableRow: React.FC<{
 
                 {editingCell?.nodeId === node.id &&
                 editingCell?.column === column.title ? (
-                  <div className="absolute inset-0 z-10 bg-white shadow-sm border-blue-500 border-2 rounded-none">
+                  <div className="absolute inset-0 z-10 bg-white shadow-sm  border-2 rounded-none">
                     {column.type === "Select" ? (
                       <Select
                         value={editedValue || ""}
@@ -196,7 +211,7 @@ const SortableTableRow: React.FC<{
                           handleSave(node.id, column.title, value);
                         }}
                       >
-                        <SelectTrigger className="w-full h-full border-0 rounded-none focus:ring-0">
+                        <SelectTrigger className="w-full h-full border-0 rounded-none !focus:ring-0 focus:border-0 ">
                           <SelectValue placeholder="Select option" />
                         </SelectTrigger>
                         <SelectContent>
@@ -363,7 +378,13 @@ const SortableTableRow: React.FC<{
                             <span className="text-gray-400"></span>
                           )
                         ) : column.type === "Long Text" ? (
-                          <div className="max-w-[300px] max-h-[4.5em] overflow-hidden">
+                          <div
+                            className="max-w-[300px] max-h-[8em] overflow-auto"
+                            style={{
+                              wordBreak: "break-word",
+                              whiteSpace: "pre-wrap",
+                            }}
+                          >
                             <p className="line-clamp-3">
                               {node.data[column.title] || (
                                 <span className="text-gray-400"></span>
@@ -402,7 +423,9 @@ const SortableTableRow: React.FC<{
                                 ))}
                               </div>
                             ) : (
-                              <span className="text-gray-400"></span>
+                              <span className="text-gray-400 flex items-center">
+                                <Plus className="h-4 w-4 mr-1" /> Add
+                              </span>
                             )}
                           </>
                         ) : Array.isArray(node.data[column.title]) ? (
@@ -427,8 +450,6 @@ const SortableTableRow: React.FC<{
           position: "sticky",
           right: 0,
           zIndex: 20,
-          // width: "30px",
-          // minWidth: "30px",
           backgroundColor: isSelected ? "#f9fafb" : "#fff",
           boxShadow: "-2px 0 2px -1px rgba(0,0,0,0.1)",
         }}
@@ -440,9 +461,51 @@ const SortableTableRow: React.FC<{
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
-            <DropdownMenuItem onClick={() => handleDeleteClick(node)}>
-              Delete
-            </DropdownMenuItem>
+            <Dialog>
+              <DialogTrigger asChild>
+                <DropdownMenuItem
+                  // onClick={() => handleDeleteClick(node)}
+                  onSelect={(e) => e.preventDefault()}
+                >
+                  Delete
+                </DropdownMenuItem>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Delete Node</DialogTitle>
+                  <DialogDescription>
+                    Are you sure you want to delete this node
+                    {nodeToDelete?.children.length ? " and its children" : ""}?
+                  </DialogDescription>
+                </DialogHeader>
+                <DialogFooter>
+                  <DialogTrigger>
+                    <Button
+                      variant="outline"
+                      // onClick={() => setDeleteDialogOpen(false)}
+                    >
+                      Cancel
+                    </Button>
+                  </DialogTrigger>
+                  <Button
+                    variant="destructive"
+                    onClick={() => handleDeleteConfirm(false)}
+                  >
+                    {nodeToDelete?.children.length
+                      ? "Delete Node Only"
+                      : "Delete Node"}
+                  </Button>
+                  {nodeToDelete?.children.length ? (
+                    <Button
+                      variant="destructive"
+                      onClick={() => handleDeleteConfirm(true)}
+                    >
+                      Delete Node and Children
+                    </Button>
+                  ) : null}
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
           </DropdownMenuContent>
         </DropdownMenu>
       </TableCell>

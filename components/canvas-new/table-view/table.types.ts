@@ -1,4 +1,4 @@
-import { CANVAS_TYPE, CanvasData } from "@/types/store";
+import { CANVAS_TYPE, CanvasData, CanvasSettings } from "@/types/store";
 import { Edge, Node } from "reactflow";
 
 export interface ColumnData {
@@ -22,6 +22,8 @@ export interface TableViewProps {
   currentFolderCanvases: { id: string; name: string }[];
   canvasId: string;
   canvasType: CANVAS_TYPE | null;
+  canvasSettings: CanvasSettings;
+  updateCanvasSettings: (settings: CanvasSettings) => void;
 }
 
 export type SortDirection = "asc" | "desc" | null;

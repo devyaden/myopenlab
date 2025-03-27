@@ -64,6 +64,15 @@ export interface FolderCanvas {
   columns: ColumnDefinition[];
 }
 
+export interface CanvasSettings {
+  theme: string;
+  grid_size: number;
+  snap_to_grid: boolean;
+  show_grid: boolean;
+  table_settings: any;
+  show_rulers: boolean;
+}
+
 export interface CanvasState extends CanvasData {
   id: string;
   name: string;
@@ -72,6 +81,7 @@ export interface CanvasState extends CanvasData {
   folder_id?: string;
   columns: ColumnDefinition[];
   folderCanvases: FolderCanvas[];
+  canvasSettings: CanvasSettings;
   version: number;
   isLoading: boolean;
   saveLoading: boolean;
@@ -102,11 +112,13 @@ export interface CanvasActions {
   redo: () => void;
   canUndo: boolean;
   canRedo: boolean;
+  updateCanvasSettings: (settings?: any) => void;
 }
 
 export interface UndoableState {
   nodes: any[];
   edges: any[];
+  canvasSettings: any;
   nodeStyles: Record<string, any>;
   columns: any[];
   name: string;

@@ -26,7 +26,7 @@ import ReactFlow, {
 } from "reactflow";
 import "reactflow/dist/style.css";
 
-import { CANVAS_TYPE } from "@/types/store";
+import { CANVAS_TYPE, CanvasSettings } from "@/types/store";
 import CustomEdge from "./custom-edge";
 import MeasureRuler from "./measure-ruler";
 import { GenericNode } from "./nodes/generic-node";
@@ -70,6 +70,8 @@ interface UMLEditorProps {
   canvasId: string;
   canvasType: CANVAS_TYPE | null;
   onReactFlowInit?: (instance: ReactFlowInstance) => void; // Add new prop
+  canvasSettings: CanvasSettings;
+  updateCanvasSettings: (settings: CanvasSettings) => void;
 }
 
 const sortNodes = (node: ReactFlowNode, nodes: ReactFlowNode[]) => {
@@ -129,6 +131,8 @@ export function UMLEditor({
   canvasId,
   canvasType,
   onReactFlowInit,
+  canvasSettings,
+  updateCanvasSettings,
 }: UMLEditorProps) {
   const { getNode } = useReactFlow();
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
@@ -551,6 +555,8 @@ export function UMLEditor({
           currentFolderCanvases={currentFolderCanvases}
           canvasId={canvasId}
           canvasType={canvasType}
+          canvasSettings={canvasSettings}
+          updateCanvasSettings={updateCanvasSettings}
         />
       )}
     </div>

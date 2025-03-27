@@ -110,15 +110,16 @@ model ColumnDefinition {
 }
 
 model CanvasSettings {
-  theme        String?
-  id           String   @id @default(uuid()) @db.Uuid
-  canvas_id    String   @unique @db.Uuid
-  grid_size    Int      @default(15)
-  show_grid    Boolean  @default(true)
-  show_rulers  Boolean  @default(false)
-  snap_to_grid Boolean  @default(true)
-  updated_at   DateTime @default(now()) @updatedAt
-  canvas       Canvas   @relation(fields: [canvas_id], references: [id])
+  theme          String?
+  id             String   @id @default(uuid()) @db.Uuid
+  canvas_id      String   @unique @db.Uuid
+  grid_size      Int      @default(15)
+  show_grid      Boolean  @default(true)
+  show_rulers    Boolean  @default(false)
+  snap_to_grid   Boolean  @default(true)
+  table_settings Json?
+  updated_at     DateTime @default(now()) @updatedAt
+  canvas         Canvas   @relation(fields: [canvas_id], references: [id])
 
   @@map("canvas_settings")
 }

@@ -2,19 +2,19 @@
 
 import { Input } from "@/components/ui/input";
 import { useCanvasStore } from "@/lib/store/useCanvas";
+import { CANVAS_TYPE } from "@/types/store";
 import { useRouter } from "next/navigation";
 import type React from "react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "react-hot-toast";
 import type { Edge, Node, ReactFlowInstance } from "reactflow";
 import { MarkerType, ReactFlowProvider } from "reactflow";
+import { LoadingSpinner } from "../loading-spinner";
 import { Header } from "./header";
 import { Sidebar } from "./sidebar";
 import { Toolbar } from "./toolbar";
 import { UMLEditor } from "./uml-editor";
 import { VerticalNav } from "./vertical-nav";
-import { LoadingSpinner } from "../loading-spinner";
-import { CANVAS_TYPE } from "@/types/store";
 
 interface NodeStyle {
   fontFamily: string;
@@ -91,6 +91,8 @@ export default function CanvasNew({ canvasId }: FigmaInterfaceProps) {
     folderCanvases,
     isLoading,
     canvas_type,
+    updateCanvasSettings,
+    canvasSettings,
   } = useCanvasStore();
 
   const currentState: {
@@ -974,6 +976,8 @@ export default function CanvasNew({ canvasId }: FigmaInterfaceProps) {
                 canvasId={canvasId}
                 canvasType={canvas_type}
                 onReactFlowInit={setReactFlowInstance}
+                canvasSettings={canvasSettings}
+                updateCanvasSettings={updateCanvasSettings}
               />
             </div>
           </div>

@@ -18,6 +18,7 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
+  DialogTrigger,
 } from "@/components/ui/dialog";
 import {
   DropdownMenu,
@@ -82,6 +83,8 @@ const TableView: React.FC<TableViewProps> = ({
   currentFolderCanvases,
   canvasId,
   canvasType,
+  canvasSettings,
+  updateCanvasSettings,
 }) => {
   const [sortField, setSortField] = useState<SortField>(null);
   const [sortDirection, setSortDirection] = useState<SortDirection>(null);
@@ -108,16 +111,24 @@ const TableView: React.FC<TableViewProps> = ({
   );
   const [columnWrapping, setColumnWrapping] = useState<Set<string>>(new Set());
   const [frozenColumns, setFrozenColumns] = useState<Set<string>>(new Set());
-  const [hiddenColumns, setHiddenColumns] = useState<Set<string>>(new Set());
-  const [isHiddenColumnsMenuOpen, setIsHiddenColumnsMenuOpen] = useState(false);
+
   // State for bulk deletion
   const [selectedNodes, setSelectedNodes] = useState<string[]>([]);
   const [deleteSelectedDialogOpen, setDeleteSelectedDialogOpen] =
     useState(false);
 
-  const [hiddenNodeIds, setHiddenNodeIds] = useState<Set<string>>(new Set());
-  const [columnWidths, setColumnWidths] = useState<Record<string, number>>({});
   const [resizingColumn, setResizingColumn] = useState<string | null>(null);
+
+  let {
+    columnWidths = {},
+    hiddenNodeIds = new Set(),
+    hiddenColumns = [],
+  } = canvasSettings?.table_settings ?? {};
+
+  // if type of hidden columns is an empty object, initialize it as a Set
+  if (typeof hiddenColumns === "object" && !Object.keys(hiddenColumns).length) {
+    hiddenColumns = [];
+  }
 
   useEffect(() => {
     if (canvasType !== CANVAS_TYPE.HYBRID) return;
@@ -176,6 +187,11 @@ const TableView: React.FC<TableViewProps> = ({
     }
   }, [columns, setColumns, canvasType, edges.length, nodes]);
 
+  const updateTableSettings = (newSettings: any) => {
+    // @ts-ignore
+    updateCanvasSettings({ table_settings: newSettings });
+  };
+
   const getAllDescendantIds = (nodeId: string, allNodes: Node[]): string[] => {
     const descendants: string[] = [];
     const collect = (id: string) => {
@@ -209,10 +225,18 @@ const TableView: React.FC<TableViewProps> = ({
         const newWidth =
           mouseMoveEvent.clientX - columnElement.getBoundingClientRect().left;
 
-        setColumnWidths((prev) => ({
-          ...prev,
-          [resizingColumn]: Math.max(100, newWidth),
-        }));
+        // setColumnWidths((prev) => ({
+        //   ...prev,
+        //   [resizingColumn]: Math.max(100, newWidth),
+        // }));
+
+        updateTableSettings({
+          ...canvasSettings.table_settings,
+          columnWidths: {
+            ...columnWidths,
+            [resizingColumn]: Math.max(100, newWidth),
+          },
+        });
       }
     },
     [resizingColumn]
@@ -238,18 +262,6 @@ const TableView: React.FC<TableViewProps> = ({
   }, [resizingColumn, handleResize, stopResizing]);
 
   // column resizing ends here
-
-  const handleHideSelected = () => {
-    const toHide = new Set<string>();
-    selectedNodes.forEach((nodeId) => {
-      toHide.add(nodeId);
-      const descendants = getAllDescendantIds(nodeId, nodes);
-      descendants.forEach((id) => toHide.add(id));
-    });
-    // @ts-ignore
-    setHiddenNodeIds((prev) => new Set([...prev, ...toHide]));
-    setSelectedNodes([]); // Clear selection after hiding
-  };
 
   const handleDuplicateSelected = () => {
     let updatedNodes = [...nodes];
@@ -325,19 +337,6 @@ const TableView: React.FC<TableViewProps> = ({
     });
   };
 
-  const getSortIcon = (field: SortField) => {
-    if (sortField === field) {
-      return sortDirection === "asc" ? (
-        <ChevronUp className="h-4 w-4 ml-1" />
-      ) : (
-        <ChevronDown className="h-4 w-4 ml-1" />
-      );
-    }
-    return (
-      <ChevronDown className="h-4 w-4 ml-1 opacity-0 group-hover:opacity-100 transition-opacity" />
-    );
-  };
-
   const createHierarchy = (nodes: Node[]): HierarchyNode[] => {
     const nodeMap = new Map<string, HierarchyNode>();
     const rootNodes: HierarchyNode[] = [];
@@ -383,13 +382,11 @@ const TableView: React.FC<TableViewProps> = ({
 
   const insertRollupDataIntoNodes = (nodes: Node[]): Node[] => {
     if (!nodes?.length || !columns?.length) {
-      console.log("No nodes or columns provided.");
       return nodes;
     }
 
     const rollupColumns = columns.filter((col) => col.type === "Rollup");
     if (!rollupColumns.length) {
-      console.log("No rollup columns found.");
       return nodes;
     }
 
@@ -794,39 +791,14 @@ const TableView: React.FC<TableViewProps> = ({
     }
   };
 
-  const toggleColumnWrapping = (columnTitle: string) => {
-    setColumnWrapping((prev) => {
-      const next = new Set(prev);
-      if (next.has(columnTitle)) {
-        next.delete(columnTitle);
-      } else {
-        next.add(columnTitle);
-      }
-      return next;
-    });
-  };
-
-  const toggleFrozenColumn = (columnTitle: string) => {
-    setFrozenColumns((prev) => {
-      const next = new Set(prev);
-      if (next.has(columnTitle)) {
-        next.delete(columnTitle);
-      } else {
-        next.add(columnTitle);
-      }
-      return next;
-    });
-  };
-
   const toggleColumnVisibility = (columnTitle: string) => {
-    setHiddenColumns((prev) => {
-      const next = new Set(prev);
-      if (next.has(columnTitle)) {
-        next.delete(columnTitle);
-      } else {
-        next.add(columnTitle);
-      }
-      return next;
+    const updatedHiddenColumns = hiddenColumns.includes(columnTitle)
+      ? hiddenColumns.filter((col: string) => col !== columnTitle)
+      : [...hiddenColumns, columnTitle];
+
+    updateTableSettings({
+      ...canvasSettings.table_settings,
+      hiddenColumns: updatedHiddenColumns,
     });
   };
 
@@ -890,6 +862,8 @@ const TableView: React.FC<TableViewProps> = ({
           columnWrapping={columnWrapping}
           getRelatedCanvasNodes={getRelatedCanvasNodes}
           columnWidths={columnWidths}
+          nodeToDelete={nodeToDelete}
+          handleDeleteConfirm={handleDeleteConfirm}
         />,
         ...(isExpanded && hasChildren
           ? renderHierarchy(node.children, level + 1)
@@ -935,14 +909,16 @@ const TableView: React.FC<TableViewProps> = ({
           </div>
         </div>
       </div>
+
       <div className="p-4 mx-auto bg-gray-50 min-h-full flex max-w-[95vw]">
-        <div className="rounded-lg border bg-white overflow-hidden flex-1">
+        <div className="rounded-lg border bg-white overflow-hidden flex-1 ">
           <div className="overflow-x-auto w-full  !px-0 ">
             {/* Add max-w-screen */}
             <div
               className="overflow-x-auto relative"
               style={{
                 maxWidth: "calc(100vw - 32px)",
+                maxHeight: "calc(100vh - 280px)",
               }}
             >
               <Table
@@ -980,7 +956,11 @@ const TableView: React.FC<TableViewProps> = ({
                       />
                     </TableHead>
                     {columns
-                      .filter((column) => column.title !== "id")
+                      .filter(
+                        (column) =>
+                          !hiddenColumns?.includes(column.title) &&
+                          column.title !== "id"
+                      )
                       .map((column) => {
                         const width = columnWidths[column.title] || 200;
 
@@ -1080,7 +1060,7 @@ const TableView: React.FC<TableViewProps> = ({
                                 >
                                   Sort descending
                                 </DropdownMenuItem>
-                                {!hiddenColumns.has(column.title) && (
+                                {!hiddenColumns?.includes(column.title) && (
                                   <DropdownMenuItem
                                     onClick={() =>
                                       toggleColumnVisibility(column.title)
@@ -1122,7 +1102,7 @@ const TableView: React.FC<TableViewProps> = ({
                       }}
                     >
                       <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
+                        <DropdownMenuTrigger>
                           <Button
                             variant="ghost"
                             size="icon"
@@ -1136,12 +1116,46 @@ const TableView: React.FC<TableViewProps> = ({
                             <Plus className="h-4 w-4 mr-2" />
                             Add New Column
                           </DropdownMenuItem>
-                          <DropdownMenuItem
-                            onClick={() => setIsHiddenColumnsMenuOpen(true)}
-                          >
-                            <ChevronDown className="h-4 w-4 mr-2" />
-                            Show/Hide Columns
-                          </DropdownMenuItem>
+
+                          <Dialog>
+                            <DialogTrigger asChild>
+                              <DropdownMenuItem
+                                onSelect={(e) => e.preventDefault()}
+                                // onClick={() => setIsHiddenColumnsMenuOpen(true)}
+                              >
+                                <ChevronDown className="h-4 w-4 mr-2" />
+                                Show/Hide Columns
+                              </DropdownMenuItem>
+                            </DialogTrigger>
+                            <DialogContent>
+                              <DialogHeader>
+                                <DialogTitle>Manage Hidden Columns</DialogTitle>
+                              </DialogHeader>
+                              <div className="space-y-4">
+                                {columns.map((column) => (
+                                  <div
+                                    key={column.title}
+                                    className="flex items-center justify-between"
+                                  >
+                                    <span>{column.title}</span>
+                                    <Switch
+                                      checked={
+                                        !hiddenColumns?.includes(column.title)
+                                      }
+                                      onCheckedChange={() =>
+                                        toggleColumnVisibility(column.title)
+                                      }
+                                    />
+                                  </div>
+                                ))}
+                              </div>
+                              <DialogFooter>
+                                <DialogTrigger asChild>
+                                  <Button>Close</Button>
+                                </DialogTrigger>
+                              </DialogFooter>
+                            </DialogContent>
+                          </Dialog>
                         </DropdownMenuContent>
                       </DropdownMenu>
                     </TableHead>
@@ -1298,36 +1312,6 @@ const TableView: React.FC<TableViewProps> = ({
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
-
-        <Dialog
-          open={isHiddenColumnsMenuOpen}
-          onOpenChange={setIsHiddenColumnsMenuOpen}
-        >
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Manage Hidden Columns</DialogTitle>
-            </DialogHeader>
-            <div className="space-y-4">
-              {columns.map((column) => (
-                <div
-                  key={column.title}
-                  className="flex items-center justify-between"
-                >
-                  <span>{column.title}</span>
-                  <Switch
-                    checked={!hiddenColumns.has(column.title)}
-                    onCheckedChange={() => toggleColumnVisibility(column.title)}
-                  />
-                </div>
-              ))}
-            </div>
-            <DialogFooter>
-              <Button onClick={() => setIsHiddenColumnsMenuOpen(false)}>
-                Close
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
       </div>
     </>
   );

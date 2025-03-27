@@ -14,6 +14,7 @@ const initialUndoableState: UndoableState = {
   nodes: [],
   edges: [],
   nodeStyles: {},
+  canvasSettings: {},
   columns: [
     { title: "id", type: "Text" },
     { title: "task", type: "Text" },
@@ -54,6 +55,14 @@ const initialState: Omit<CanvasStore, keyof CanvasActions> = {
   lastSaved: null,
   folderCanvases: [],
   canvas_type: null,
+  canvasSettings: {
+    theme: "light",
+    grid_size: 15,
+    snap_to_grid: true,
+    show_grid: true,
+    show_rulers: false,
+    table_settings: {},
+  },
 };
 
 const initialHistoryState: HistoryState = {
@@ -79,6 +88,7 @@ export const useCanvasStore = create<CanvasStore>()(
         name: state.name,
         description: state.description,
         folder_id: state.folder_id,
+        canvasSettings: state.canvasSettings,
       });
 
       // Add a change to the history
@@ -147,6 +157,16 @@ export const useCanvasStore = create<CanvasStore>()(
 
           set({ nodeStyles: newStyles });
           updateStateAndSync();
+        },
+
+        updateCanvasSettings: (settings: any) => {
+          const state = get();
+          set({
+            canvasSettings: { ...state.canvasSettings, ...settings },
+            isDirty: true,
+            updated_at: new Date(),
+          });
+          get().syncChanges();
         },
 
         // Update columns and track in history
@@ -317,6 +337,14 @@ export const useCanvasStore = create<CanvasStore>()(
                     rollup_column_id: column.rollup_column_id || null,
                     order: index,
                   })),
+
+                  // Include settings directly in canvas_data
+                  theme: state.canvasSettings?.theme || null,
+                  grid_size: state.canvasSettings?.grid_size || 15,
+                  show_grid: state.canvasSettings?.show_grid ?? true,
+                  show_rulers: state.canvasSettings?.show_rulers ?? false,
+                  snap_to_grid: state.canvasSettings?.snap_to_grid ?? true,
+                  table_settings: state.canvasSettings?.table_settings || null,
                 },
               }
             );
@@ -450,6 +478,29 @@ export const useCanvasStore = create<CanvasStore>()(
 
             if (columnsError) throw columnsError;
 
+            // Get canvas settings
+            const { data: canvasSettings, error: settingsError } =
+              await supabase
+                .from("canvas_settings")
+                .select("*")
+                .eq("canvas_id", canvasId)
+                .single();
+
+            if (settingsError) {
+              if (settingsError.code === "PGRST116") {
+                // This is expected for new canvases - no settings exist yet
+                console.log(
+                  "No settings found for this canvas, using defaults"
+                );
+              } else {
+                // This is an unexpected error
+                console.error("Error loading canvas settings:", settingsError);
+                throw settingsError;
+              }
+            }
+
+            console.log("🚀 ~ loadCanvas: ~ canvasSettings:", canvasSettings);
+
             if (canvas) {
               const newState = {
                 id: canvasId,
@@ -467,7 +518,10 @@ export const useCanvasStore = create<CanvasStore>()(
                 isDirty: false,
                 lastSaved: new Date(),
                 canvas_type: canvas.canvas_type,
+                canvasSettings: canvasSettings || {},
               };
+
+              console.log("----------- new state -----------", newState);
 
               // Reset history when loading a new canvas
               history = {
@@ -480,6 +534,7 @@ export const useCanvasStore = create<CanvasStore>()(
                   name: newState.name,
                   description: newState.description,
                   folder_id: newState.folder_id,
+                  canvasSettings: {},
                 },
                 future: [],
               };
