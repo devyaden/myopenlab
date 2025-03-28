@@ -18,7 +18,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
 import {
   Popover,
@@ -75,7 +74,6 @@ export function NodePropertiesSidebar({
     []
   );
   const [isPropertiesExpanded, setIsPropertiesExpanded] = useState(true);
-  const [activeTab, setActiveTab] = useState("general");
 
   // Load node data when selected node changes
   useEffect(() => {
@@ -642,149 +640,129 @@ export function NodePropertiesSidebar({
         </Button>
       </div>
 
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1">
-        <div className="px-4 pt-4">
-          <TabsList className="w-full">
-            <TabsTrigger value="general" className="flex-1">
-              General
-            </TabsTrigger>
-            <TabsTrigger value="properties" className="flex-1">
-              Properties
-            </TabsTrigger>
-          </TabsList>
+      <div className="p-4 space-y-6 flex-1 overflow-y-auto">
+        {/* Description Section */}
+        <div>
+          <Label className="text-sm font-medium mb-1.5 block">
+            Description
+          </Label>
+          <Textarea
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            onBlur={handleSaveDescription}
+            placeholder="Add a description..."
+            className="resize-none min-h-[100px]"
+          />
         </div>
 
-        <TabsContent
-          value="general"
-          className="p-4 space-y-6 flex-1 overflow-y-auto"
-        >
-          <div>
-            <Label className="text-sm font-medium mb-1.5 block">
-              Description
-            </Label>
-            <Textarea
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              onBlur={handleSaveDescription}
-              placeholder="Add a description..."
-              className="resize-none min-h-[100px]"
-            />
-          </div>
-
-          <div>
-            <Label className="text-sm font-medium mb-1.5 block">
-              Dimensions
-            </Label>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-1.5">
-                <Label className="text-xs text-gray-500">Width</Label>
-                <Input
-                  value={width}
-                  onChange={(e) => setWidth(e.target.value)}
-                  onBlur={handleSaveDimensions}
-                  placeholder="Width"
-                  type="number"
-                  min="50"
-                />
-              </div>
-              <div className="space-y-1.5">
-                <Label className="text-xs text-gray-500">Height</Label>
-                <Input
-                  value={height}
-                  onChange={(e) => setHeight(e.target.value)}
-                  onBlur={handleSaveDimensions}
-                  placeholder="Height"
-                  type="number"
-                  min="50"
-                />
-              </div>
+        {/* Dimensions Section */}
+        <div>
+          <Label className="text-sm font-medium mb-1.5 block">Dimensions</Label>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <Label className="text-xs text-gray-500">Width</Label>
+              <Input
+                value={width}
+                onChange={(e) => setWidth(e.target.value)}
+                onBlur={handleSaveDimensions}
+                placeholder="Width"
+                type="number"
+                min="50"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs text-gray-500">Height</Label>
+              <Input
+                value={height}
+                onChange={(e) => setHeight(e.target.value)}
+                onBlur={handleSaveDimensions}
+                placeholder="Height"
+                type="number"
+                min="50"
+              />
             </div>
           </div>
-        </TabsContent>
+        </div>
 
-        <TabsContent
-          value="properties"
-          className="p-0 flex-1 overflow-hidden flex flex-col"
-        >
-          <div className="p-4 space-y-4 flex-1 overflow-y-auto">
-            {customProperties.length > 0 ? (
-              <div className="space-y-6">
-                {customProperties.map((property, index) => (
-                  <div
-                    key={property.id}
-                    className="border rounded-lg overflow-hidden bg-white shadow-sm"
-                  >
-                    <div className="bg-gray-50 p-3 border-b flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        {getTypeIcon(property.type)}
-                        <Input
-                          value={property.name}
-                          onChange={(e) =>
-                            handleUpdateProperty(index, "name", e.target.value)
-                          }
-                          className="h-8 text-sm font-medium border-none bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 p-0 w-auto max-w-[150px]"
-                        />
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <Select
-                          value={property.type}
-                          onValueChange={(value) =>
-                            handleUpdateProperty(index, "type", value)
-                          }
-                        >
-                          <SelectTrigger className="h-7 w-[110px] text-xs border-none bg-gray-100 focus:ring-0">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="text">Text</SelectItem>
-                            <SelectItem value="longtext">Long Text</SelectItem>
-                            <SelectItem value="number">Number</SelectItem>
-                            <SelectItem value="date">Date</SelectItem>
-                            <SelectItem value="select">Select</SelectItem>
-                            <SelectItem value="checkbox">Checkbox</SelectItem>
-                            <SelectItem value="color">Color</SelectItem>
-                            <SelectItem value="url">URL</SelectItem>
-                            <SelectItem value="image">Image</SelectItem>
-                          </SelectContent>
-                        </Select>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-7 w-7 text-gray-500 hover:text-red-500"
-                          onClick={() => handleRemoveProperty(index)}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </div>
-                    <div className="p-3">
-                      {renderPropertyInput(property, index)}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="text-center py-8 text-gray-500">
-                <Plus className="h-12 w-12 mx-auto mb-2 opacity-20" />
-                <p className="text-sm">No custom properties yet</p>
-                <p className="text-xs">Add your first property below</p>
-              </div>
-            )}
-          </div>
-
-          <div className="p-4 border-t mt-auto bg-gray-50">
+        {/* Custom Properties Section */}
+        <div>
+          <div className="flex items-center justify-between mb-3">
+            <Label className="text-sm font-medium">Custom Properties</Label>
             <Button
-              variant="default"
+              variant="outline"
               size="sm"
-              className="w-full"
+              className="h-7 px-2 text-xs"
               onClick={handleAddProperty}
             >
-              <Plus className="h-4 w-4 mr-2" />
-              Add Property
+              <Plus className="h-3 w-3 mr-1" />
+              Add
             </Button>
           </div>
-        </TabsContent>
-      </Tabs>
+
+          {customProperties.length > 0 ? (
+            <div className="space-y-3">
+              {customProperties.map((property, index) => (
+                <div
+                  key={property.id}
+                  className="border rounded-md overflow-hidden bg-white shadow-sm"
+                >
+                  <div className="flex items-center gap-2 p-2 border-b bg-gray-50">
+                    <div className="flex items-center gap-1.5 flex-1">
+                      {getTypeIcon(property.type)}
+                      <Input
+                        value={property.name}
+                        onChange={(e) =>
+                          handleUpdateProperty(index, "name", e.target.value)
+                        }
+                        className="h-7 text-xs font-medium border-none bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 p-0 w-auto"
+                      />
+                    </div>
+
+                    <Select
+                      value={property.type}
+                      onValueChange={(value) =>
+                        handleUpdateProperty(index, "type", value)
+                      }
+                    >
+                      <SelectTrigger className="h-7 w-[85px] text-xs border-none bg-gray-100 focus:ring-0">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="text">Text</SelectItem>
+                        <SelectItem value="longtext">Long Text</SelectItem>
+                        <SelectItem value="number">Number</SelectItem>
+                        <SelectItem value="date">Date</SelectItem>
+                        <SelectItem value="select">Select</SelectItem>
+                        <SelectItem value="checkbox">Checkbox</SelectItem>
+                        <SelectItem value="color">Color</SelectItem>
+                        <SelectItem value="url">URL</SelectItem>
+                        <SelectItem value="image">Image</SelectItem>
+                      </SelectContent>
+                    </Select>
+
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-7 w-7 text-gray-400 hover:text-red-500"
+                      onClick={() => handleRemoveProperty(index)}
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
+                  <div className="p-2">
+                    {renderPropertyInput(property, index)}
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-4 text-gray-500 border rounded-md">
+              <p className="text-sm">No custom properties</p>
+              <p className="text-xs mt-1">Click "Add" to create a property</p>
+            </div>
+          )}
+        </div>
+      </div>
     </div>
   );
 }

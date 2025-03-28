@@ -1150,9 +1150,7 @@ const TableView: React.FC<TableViewProps> = ({
                                 ))}
                               </div>
                               <DialogFooter>
-                                <DialogTrigger asChild>
-                                  <Button>Close</Button>
-                                </DialogTrigger>
+                                <DialogTrigger asChild>Close</DialogTrigger>
                               </DialogFooter>
                             </DialogContent>
                           </Dialog>
