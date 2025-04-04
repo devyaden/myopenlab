@@ -231,6 +231,7 @@ export const useDocumentStore = create<DocumentState>()(
           data:canvas_data(*)
         `
               )
+              .eq("canvas_type", "hybrid")
               .order("updated_at", { ascending: false });
 
             if (folderId !== null) {

@@ -1,5 +1,10 @@
 "use client";
 
+import CustomEdge from "@/components/canvas-new/custom-edge";
+import { GenericNode } from "@/components/canvas-new/nodes/generic-node";
+import { ImageNode } from "@/components/canvas-new/nodes/image-node";
+import { SwimlaneNode } from "@/components/canvas-new/nodes/swimlane-node";
+import { TextNode } from "@/components/canvas-new/nodes/text-node";
 import {
   DecoratorNode,
   type EditorConfig,
@@ -26,6 +31,17 @@ export type ReactFlowData = {
     nodes: any[];
     edges: any[];
   };
+};
+
+const nodeTypes = {
+  genericNode: GenericNode,
+  swimlaneNode: SwimlaneNode,
+  textNode: TextNode,
+  imageNode: ImageNode,
+};
+
+const edgeTypes = {
+  custom: CustomEdge,
 };
 
 export type SerializedReactFlowNode = Spread<
@@ -154,6 +170,8 @@ function FlowRenderer({
       nodesConnectable={false}
       nodesFocusable={false}
       draggable={false}
+      nodeTypes={nodeTypes}
+      edgeTypes={edgeTypes}
       panOnDrag={false}
       elementsSelectable={false}
       // Optional if you also want to lock zooming
