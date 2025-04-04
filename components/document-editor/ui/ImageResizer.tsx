@@ -74,11 +74,11 @@ export default function ImageResizer({
 
   const editorRootElement = editor.getRootElement();
   // Allow full container width without padding reduction
-  const maxWidthContainer = maxWidth
-    ? maxWidth
-    : editorRootElement !== null
+  const maxWidthContainer =
+    editorRootElement !== null
       ? editorRootElement.getBoundingClientRect().width
       : window.innerWidth;
+
   const maxHeightContainer =
     editorRootElement !== null
       ? editorRootElement.getBoundingClientRect().height - 20
