@@ -44,7 +44,6 @@ import {
   SELECTION_CHANGE_COMMAND,
   TextNode,
 } from "lexical";
-import * as React from "react";
 import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 
 import { createWebsocketProvider } from "../collaboration";
@@ -105,33 +104,18 @@ function LazyImage({
   return (
     <img
       className={className || undefined}
-      src={src}
+      src={src || "/placeholder.svg"}
       alt={altText}
       ref={imageRef}
       style={{
         height,
-        maxWidth,
-        width,
+        width: width === "inherit" ? "100%" : width,
       }}
       onError={onError}
       draggable="false"
     />
   );
 }
-
-// function BrokenImage(): JSX.Element {
-//   return (
-//     <img
-//       src={brokenImage}
-//       style={{
-//         height: 200,
-//         opacity: 0.2,
-//         width: 200,
-//       }}
-//       draggable="false"
-//     />
-//   );
-// }
 
 export default function ImageComponent({
   src,
@@ -339,9 +323,28 @@ export default function ImageComponent({
 
     rootElement?.addEventListener("contextmenu", onRightClick);
 
+    // Add document click listener to handle deselection
+    const handleDocumentClick = (e: MouseEvent) => {
+      if (
+        isSelected &&
+        !isResizing &&
+        imageRef.current &&
+        !imageRef.current.contains(e.target as Node) &&
+        !document
+          .querySelector(".image-resizer-wrapper")
+          ?.contains(e.target as Node)
+      ) {
+        // Only clear selection if we're clicking outside the image and its controls
+        clearSelection();
+      }
+    };
+
+    document.addEventListener("click", handleDocumentClick);
+
     return () => {
       unregister();
       rootElement?.removeEventListener("contextmenu", onRightClick);
+      document.removeEventListener("click", handleDocumentClick);
     };
   }, [
     clearSelection,
@@ -394,10 +397,26 @@ export default function ImageComponent({
 
   const draggable = isSelected && $isNodeSelection(selection) && !isResizing;
   const isFocused = (isSelected || isResizing) && isEditable;
+
+  useEffect(() => {
+    // Ensure the editor container doesn't restrict image width
+    const editorContainer = editor.getRootElement();
+    if (editorContainer) {
+      // Add a class to the editor container to allow full-width content
+      editorContainer.classList.add("allow-full-width-content");
+    }
+
+    return () => {
+      if (editorContainer) {
+        editorContainer.classList.remove("allow-full-width-content");
+      }
+    };
+  }, [editor]);
+
   return (
     <Suspense fallback={null}>
       <>
-        <div draggable={draggable}>
+        <div draggable={draggable} className="editor-image">
           {isLoadError ? (
             <div>Broken</div>
           ) : (
@@ -416,65 +435,67 @@ export default function ImageComponent({
               onError={() => setIsLoadError(true)}
             />
           )}
-        </div>
 
-        {showCaption && (
-          <div className="image-caption-container">
-            <LexicalNestedComposer
-              initialEditor={caption}
-              initialNodes={[
-                RootNode,
-                TextNode,
-                LineBreakNode,
-                ParagraphNode,
-                LinkNode,
-                EmojiNode,
-                HashtagNode,
-                KeywordNode,
-              ]}
-            >
-              <AutoFocusPlugin />
-              <MentionsPlugin />
-              <LinkPlugin />
-              <EmojisPlugin />
-              <HashtagPlugin />
-              <KeywordsPlugin />
-              {isCollabActive ? (
-                <CollaborationPlugin
-                  id={caption.getKey()}
-                  providerFactory={createWebsocketProvider}
-                  shouldBootstrap={true}
-                />
-              ) : (
-                <HistoryPlugin externalHistoryState={historyState} />
-              )}
-              <RichTextPlugin
-                contentEditable={
-                  <ContentEditable
-                    placeholder="Enter a caption..."
-                    placeholderClassName="ImageNode__placeholder"
-                    className="ImageNode__contentEditable"
+          {/* Position the resizer wrapper inside the editor-image div, right after the image */}
+          {resizable && isSelected && (
+            <ImageResizer
+              showCaption={showCaption}
+              setShowCaption={setShowCaption}
+              editor={editor}
+              buttonRef={buttonRef}
+              imageRef={imageRef}
+              maxWidth={maxWidth}
+              onResizeStart={onResizeStart}
+              onResizeEnd={onResizeEnd}
+              captionsEnabled={!isLoadError && captionsEnabled}
+            />
+          )}
+
+          {showCaption && (
+            <div className="image-caption-container">
+              <LexicalNestedComposer
+                initialEditor={caption}
+                initialNodes={[
+                  RootNode,
+                  TextNode,
+                  LineBreakNode,
+                  ParagraphNode,
+                  LinkNode,
+                  EmojiNode,
+                  HashtagNode,
+                  KeywordNode,
+                ]}
+              >
+                <AutoFocusPlugin />
+                <MentionsPlugin />
+                <LinkPlugin />
+                <EmojisPlugin />
+                <HashtagPlugin />
+                <KeywordsPlugin />
+                {isCollabActive ? (
+                  <CollaborationPlugin
+                    id={caption.getKey()}
+                    providerFactory={createWebsocketProvider}
+                    shouldBootstrap={true}
                   />
-                }
-                ErrorBoundary={LexicalErrorBoundary}
-              />
-              {showNestedEditorTreeView === true ? <TreeViewPlugin /> : null}
-            </LexicalNestedComposer>
-          </div>
-        )}
-        {resizable && $isNodeSelection(selection) && isFocused && (
-          <ImageResizer
-            showCaption={showCaption}
-            setShowCaption={setShowCaption}
-            editor={editor}
-            buttonRef={buttonRef}
-            imageRef={imageRef}
-            maxWidth={maxWidth}
-            onResizeStart={onResizeStart}
-            onResizeEnd={onResizeEnd}
-            captionsEnabled={!isLoadError && captionsEnabled}
-          />
-        )}
+                ) : (
+                  <HistoryPlugin externalHistoryState={historyState} />
+                )}
+                <RichTextPlugin
+                  contentEditable={
+                    <ContentEditable
+                      placeholder="Enter a caption..."
+                      placeholderClassName="ImageNode__placeholder"
+                      className="ImageNode__contentEditable"
+                    />
+                  }
+                  ErrorBoundary={LexicalErrorBoundary}
+                />
+                {showNestedEditorTreeView === true ? <TreeViewPlugin /> : null}
+              </LexicalNestedComposer>
+            </div>
+          )}
+        </div>
       </>
     </Suspense>
   );

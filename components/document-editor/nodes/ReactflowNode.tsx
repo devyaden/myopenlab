@@ -144,6 +144,7 @@ function FlowRenderer({
   useEffect(() => {
     fitView && fitView();
   }, [nodes, edges]);
+
   return (
     <ReactFlow
       nodes={nodes}
@@ -151,7 +152,6 @@ function FlowRenderer({
       onNodesChange={onNodesChange}
       onEdgesChange={onEdgesChange}
       fitView
-      attributionPosition="bottom-right"
       // fitViewOptions={{ padding: 1 }}
       edgesFocusable={false}
       nodesDraggable={false}
@@ -162,8 +162,11 @@ function FlowRenderer({
       elementsSelectable={false}
       // Optional if you also want to lock zooming
       zoomOnDoubleClick={false}
-      // minZoom={0.2}
-      // maxZoom={0.2}
+      minZoom={0.2}
+      maxZoom={0.2}
+      proOptions={{
+        hideAttribution: true,
+      }}
     ></ReactFlow>
   );
 }
@@ -180,13 +183,13 @@ function ReactFlowComponent({
   nodeKey: NodeKey;
 }): JSX.Element {
   const [expanded, setExpanded] = useState(false);
-  const [nodes, setNodes, onNodesChange] = useNodesState(flowData.nodes);
-  const [edges, setEdges, onEdgesChange] = useEdgesState(flowData.edges);
+  const [nodes, setNodes, onNodesChange] = useNodesState(flowData?.nodes);
+  const [edges, setEdges, onEdgesChange] = useEdgesState(flowData?.edges);
   const reactFlowWrapper = useRef(null);
 
   return (
     <div className="my-4 border border-gray-200 rounded-md overflow-hidden shadow-sm">
-      <div className="bg-gray-50 p-2 flex justify-between items-center">
+      {/* <div className="bg-gray-50 p-2 flex justify-between items-center">
         <h3 className="text-sm font-medium">{title}</h3>
         <button
           onClick={() => setExpanded(!expanded)}
@@ -194,7 +197,7 @@ function ReactFlowComponent({
         >
           {expanded ? "Collapse" : "Expand"}
         </button>
-      </div>
+      </div> */}
       <div
         className={`transition-all duration-300 ${expanded ? "h-[500px]" : "h-[300px]"}`}
         style={{ width: "100%" }}

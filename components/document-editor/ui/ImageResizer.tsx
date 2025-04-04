@@ -4,8 +4,8 @@ import type { LexicalEditor } from "lexical";
 import type { JSX } from "react";
 
 import { calculateZoomLevel } from "@lexical/utils";
-import * as React from "react";
-import { useRef } from "react";
+import type * as React from "react";
+import { useRef, useState, useEffect } from "react";
 
 function clamp(value: number, min: number, max: number) {
   return Math.min(Math.max(value, min), max);
@@ -44,6 +44,12 @@ export default function ImageResizer({
     priority: "",
     value: "default",
   });
+  const [aspectRatioLocked, setAspectRatioLocked] = useState<boolean>(true);
+  const [resizePreview, setResizePreview] = useState<{
+    width: number;
+    height: number;
+  } | null>(null);
+
   const positioningRef = useRef<{
     currentHeight: "inherit" | number;
     currentWidth: "inherit" | number;
@@ -65,13 +71,14 @@ export default function ImageResizer({
     startX: 0,
     startY: 0,
   });
+
   const editorRootElement = editor.getRootElement();
-  // Find max width, accounting for editor padding.
+  // Allow full container width without padding reduction
   const maxWidthContainer = maxWidth
     ? maxWidth
     : editorRootElement !== null
-      ? editorRootElement.getBoundingClientRect().width - 20
-      : 100;
+      ? editorRootElement.getBoundingClientRect().width
+      : window.innerWidth;
   const maxHeightContainer =
     editorRootElement !== null
       ? editorRootElement.getBoundingClientRect().height - 20
@@ -163,10 +170,14 @@ export default function ImageResizer({
       image.style.height = `${height}px`;
       image.style.width = `${width}px`;
 
+      // Update the wrapper dimensions to match the image
+      updateWrapperDimensions();
+
       document.addEventListener("pointermove", handlePointerMove);
       document.addEventListener("pointerup", handlePointerUp);
     }
   };
+
   const handlePointerMove = (event: PointerEvent) => {
     const image = imageRef.current;
     const positioning = positioningRef.current;
@@ -177,25 +188,73 @@ export default function ImageResizer({
       positioning.direction & (Direction.south | Direction.north);
 
     if (image !== null && positioning.isResizing) {
+      // Get the bounds of the editor to constrain resizing
+      const editorBounds = editorRootElement?.getBoundingClientRect() || {
+        left: 0,
+        top: 0,
+        right: window.innerWidth,
+        bottom: window.innerHeight,
+      };
+
+      // Constrain the pointer position to the editor bounds
+      const constrainedClientX = clamp(
+        event.clientX,
+        editorBounds.left,
+        editorBounds.right
+      );
+      const constrainedClientY = clamp(
+        event.clientY,
+        editorBounds.top,
+        editorBounds.bottom
+      );
+
       const zoom = calculateZoomLevel(image);
+
+      // Calculate available width - allow use of full container
+      const availableWidth = maxWidthContainer;
+
       // Corner cursor
       if (isHorizontal && isVertical) {
-        let diff = Math.floor(positioning.startX - event.clientX / zoom);
+        let diff = Math.floor(positioning.startX - constrainedClientX / zoom);
         diff = positioning.direction & Direction.east ? -diff : diff;
 
+        // Allow full width resizing
         const width = clamp(
           positioning.startWidth + diff,
           minWidth,
-          maxWidthContainer
+          availableWidth
         );
 
-        const height = width / positioning.ratio;
+        let height;
+        if (aspectRatioLocked) {
+          // Maintain aspect ratio
+          height = width / positioning.ratio;
+        } else {
+          // Allow free-form resizing
+          let heightDiff = Math.floor(
+            positioning.startY - constrainedClientY / zoom
+          );
+          heightDiff =
+            positioning.direction & Direction.south ? -heightDiff : heightDiff;
+          height = clamp(
+            positioning.startHeight + heightDiff,
+            minHeight,
+            maxHeightContainer
+          );
+        }
+
         image.style.width = `${width}px`;
         image.style.height = `${height}px`;
         positioning.currentHeight = height;
         positioning.currentWidth = width;
+
+        // Update resize preview
+        setResizePreview({ width, height });
+
+        // Update the wrapper dimensions to match the image
+        updateWrapperDimensions();
       } else if (isVertical) {
-        let diff = Math.floor(positioning.startY - event.clientY / zoom);
+        let diff = Math.floor(positioning.startY - constrainedClientY / zoom);
         diff = positioning.direction & Direction.south ? -diff : diff;
 
         const height = clamp(
@@ -204,30 +263,75 @@ export default function ImageResizer({
           maxHeightContainer
         );
 
-        image.style.height = `${height}px`;
-        positioning.currentHeight = height;
+        let width;
+        if (aspectRatioLocked) {
+          // Maintain aspect ratio
+          width = height * positioning.ratio;
+          // Allow full width resizing
+          width = clamp(width, minWidth, maxWidthContainer);
+          // Recalculate height based on clamped width to maintain perfect ratio
+          const adjustedHeight = width / positioning.ratio;
+          image.style.width = `${width}px`;
+          image.style.height = `${adjustedHeight}px`;
+          positioning.currentWidth = width;
+          positioning.currentHeight = adjustedHeight;
+          setResizePreview({ width, height: adjustedHeight });
+        } else {
+          image.style.height = `${height}px`;
+          positioning.currentHeight = height;
+          setResizePreview({
+            width: positioning.currentWidth as number,
+            height,
+          });
+        }
+
+        // Update the wrapper dimensions to match the image
+        updateWrapperDimensions();
       } else {
-        let diff = Math.floor(positioning.startX - event.clientX / zoom);
+        let diff = Math.floor(positioning.startX - constrainedClientX / zoom);
         diff = positioning.direction & Direction.east ? -diff : diff;
 
+        // Allow full width resizing
         const width = clamp(
           positioning.startWidth + diff,
           minWidth,
-          maxWidthContainer
+          availableWidth
         );
+
+        let height;
+        if (aspectRatioLocked) {
+          // Maintain aspect ratio
+          height = width / positioning.ratio;
+          image.style.height = `${height}px`;
+          positioning.currentHeight = height;
+        }
 
         image.style.width = `${width}px`;
         positioning.currentWidth = width;
+
+        setResizePreview({
+          width,
+          height: aspectRatioLocked
+            ? (height as number)
+            : (positioning.currentHeight as number),
+        });
+
+        // Update the wrapper dimensions to match the image
+        updateWrapperDimensions();
       }
     }
   };
+
   const handlePointerUp = () => {
     const image = imageRef.current;
     const positioning = positioningRef.current;
     const controlWrapper = controlWrapperRef.current;
+
     if (image !== null && controlWrapper !== null && positioning.isResizing) {
       const width = positioning.currentWidth;
       const height = positioning.currentHeight;
+
+      // Reset positioning state
       positioning.startWidth = 0;
       positioning.startHeight = 0;
       positioning.ratio = 0;
@@ -238,27 +342,113 @@ export default function ImageResizer({
       positioning.isResizing = false;
 
       controlWrapper.classList.remove("image-control-wrapper--resizing");
-
+      setResizePreview(null);
       setEndCursor();
       onResizeEnd(width, height);
+
+      // Final update to wrapper dimensions
+      updateWrapperDimensions();
 
       document.removeEventListener("pointermove", handlePointerMove);
       document.removeEventListener("pointerup", handlePointerUp);
     }
   };
+
+  const toggleAspectRatio = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setAspectRatioLocked(!aspectRatioLocked);
+  };
+
+  // Function to update the wrapper dimensions to match the image
+  const updateWrapperDimensions = () => {
+    if (controlWrapperRef.current && imageRef.current) {
+      const imageRect = imageRef.current.getBoundingClientRect();
+      const wrapper = controlWrapperRef.current;
+
+      // Set the wrapper dimensions to match the image exactly
+      wrapper.style.width = `${imageRect.width}px`;
+      wrapper.style.height = `${imageRect.height}px`;
+
+      // Make sure wrapper has the exact same bounds as image
+      wrapper.style.top = "0";
+      wrapper.style.left = "0";
+      wrapper.style.right = "0";
+      wrapper.style.bottom = "0";
+    }
+  };
+
+  // Update wrapper dimensions when the component mounts or when the image changes
+  useEffect(() => {
+    updateWrapperDimensions();
+
+    // Set up a resize observer to update the wrapper dimensions when the image resizes
+    if (imageRef.current) {
+      const resizeObserver = new ResizeObserver(() => {
+        updateWrapperDimensions();
+      });
+
+      resizeObserver.observe(imageRef.current);
+
+      return () => {
+        resizeObserver.disconnect();
+      };
+    }
+  }, [imageRef.current]);
+
+  // Also update on every render to ensure the wrapper stays in sync
+  useEffect(() => {
+    updateWrapperDimensions();
+  }, []);
+
   return (
-    <div ref={controlWrapperRef}>
+    <div
+      ref={controlWrapperRef}
+      className={`image-resizer-wrapper ${positioningRef.current.isResizing ? "image-control-wrapper--resizing" : ""}`}
+      style={{ position: "absolute", top: 0, left: 0 }}
+    >
       {!showCaption && captionsEnabled && (
         <button
           className="image-caption-button"
           ref={buttonRef}
-          onClick={() => {
+          onClick={(e) => {
+            e.stopPropagation();
             setShowCaption(!showCaption);
           }}
         >
           Add Caption
         </button>
       )}
+
+      {/* Aspect ratio lock button */}
+      <button
+        className={`image-aspect-ratio-button ${aspectRatioLocked ? "locked" : "unlocked"}`}
+        onClick={toggleAspectRatio}
+        title={aspectRatioLocked ? "Unlock aspect ratio" : "Lock aspect ratio"}
+      >
+        <svg
+          width="20"
+          height="20"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+        >
+          {aspectRatioLocked ? (
+            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+          ) : (
+            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z M12 22V2" />
+          )}
+        </svg>
+      </button>
+
+      {/* Size display overlay */}
+      {resizePreview && (
+        <div className="image-resize-info">
+          {Math.round(resizePreview.width)} × {Math.round(resizePreview.height)}
+        </div>
+      )}
+
+      {/* Resize handles */}
       <div
         className="image-resizer image-resizer-n"
         onPointerDown={(event) => {

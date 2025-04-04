@@ -222,15 +222,20 @@ export const useDocumentStore = create<DocumentState>()(
             let query = supabase
               .from("canvas")
               .select(
-                "id, name, description, updated_at, columns:column_definition!column_definition_canvas_id_fkey(*)"
+                `
+          id, 
+          name, 
+          description, 
+          updated_at, 
+          columns:column_definition!column_definition_canvas_id_fkey(*), 
+          data:canvas_data(*)
+        `
               )
               .order("updated_at", { ascending: false });
 
-            // Conditionally add filter only if folderId is not null
             if (folderId !== null) {
               query = query.eq("folder_id", folderId);
             } else {
-              // If folderId is null, filter for canvases with null folder_id
               query = query.is("folder_id", null);
             }
 
@@ -245,6 +250,7 @@ export const useDocumentStore = create<DocumentState>()(
                 description: canvas.description || "",
                 updated_at: new Date(canvas.updated_at),
                 columns: canvas.columns,
+                flowData: canvas.data ? canvas.data[0] : null, // Ensure we get the first (and only) data item
               })),
             });
           } catch (error) {

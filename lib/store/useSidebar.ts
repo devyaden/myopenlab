@@ -228,16 +228,42 @@ export const useSidebarStore = create<SidebarStore>((set, get) => ({
   deleteCanvas: async (id) => {
     const state = get();
     const oldFolders = [...state.folders];
+    const oldRootCanvases = [...state.rootCanvases];
 
-    // Optimistic update
+    // Optimistic update for UI
     set({
       folders: state.folders.map((folder) => ({
         ...folder,
         canvases: folder.canvases.filter((canvas) => canvas.id !== id),
       })),
+      rootCanvases: state.rootCanvases.filter((canvas) => canvas.id !== id),
     });
 
     try {
+      // First delete related records in dependent tables
+      // Delete canvas_data
+      await supabase.from("canvas_data").delete().eq("canvas_id", id);
+
+      // Delete document_data
+      await supabase.from("document_data").delete().eq("canvas_id", id);
+
+      // Delete canvas_settings
+      await supabase.from("canvas_settings").delete().eq("canvas_id", id);
+
+      // Delete canvas_history
+      await supabase.from("canvas_history").delete().eq("canvas_id", id);
+
+      // Delete canvas_share
+      await supabase.from("canvas_share").delete().eq("canvas_id", id);
+
+      // Delete column_definition records that reference this canvas
+      await supabase.from("column_definition").delete().eq("canvas_id", id);
+      await supabase
+        .from("column_definition")
+        .delete()
+        .eq("related_canvas_id", id);
+
+      // Finally delete the canvas itself
       const { error } = await supabase.from("canvas").delete().eq("id", id);
 
       if (error) throw error;
@@ -248,9 +274,10 @@ export const useSidebarStore = create<SidebarStore>((set, get) => ({
       // Rollback optimistic update
       set({
         folders: oldFolders,
+        rootCanvases: oldRootCanvases,
         error: "Failed to delete canvas",
       });
-      toast.error("Failed to delete canvas");
+      toast.error("Failed to delete canvas: " + (error || "Unknown error"));
     }
   },
 
