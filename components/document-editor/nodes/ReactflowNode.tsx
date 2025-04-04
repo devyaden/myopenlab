@@ -176,8 +176,8 @@ function FlowRenderer({
       elementsSelectable={false}
       // Optional if you also want to lock zooming
       zoomOnDoubleClick={false}
-      minZoom={0.2}
-      maxZoom={0.2}
+      minZoom={0.4}
+      maxZoom={0.4}
       proOptions={{
         hideAttribution: true,
       }}
