@@ -177,7 +177,6 @@ export default function Editor(): JSX.Element {
           ]);
         }
       } else {
-        // New document: start with one empty page
         setPages([
           {
             id: "page-1",
@@ -187,7 +186,7 @@ export default function Editor(): JSX.Element {
           },
         ]);
       }
-      isPagesInitializedRef.current = true; // Mark as initialized
+      isPagesInitializedRef.current = true;
     }
   }, [isLoading, lexical_state, setPages]);
 

@@ -9,15 +9,11 @@ import {
   type SerializedLexicalNode,
   type Spread,
 } from "lexical";
-import { useEffect, useState } from "react";
-import { useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import ReactFlow, {
-  Background,
-  Controls,
-  MiniMap,
-  useNodesState,
-  useEdgesState,
   ReactFlowProvider,
+  useEdgesState,
+  useNodesState,
   useReactFlow,
 } from "reactflow";
 import "reactflow/dist/style.css";
