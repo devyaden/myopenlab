@@ -10,7 +10,6 @@ import {
 } from "@lexical/code";
 import { $isLinkNode, TOGGLE_LINK_COMMAND } from "@lexical/link";
 import { $isListNode, ListNode } from "@lexical/list";
-import { INSERT_EMBED_COMMAND } from "@lexical/react/LexicalAutoEmbedPlugin";
 import { INSERT_HORIZONTAL_RULE_COMMAND } from "@lexical/react/LexicalHorizontalRuleNode";
 import { $isHeadingNode } from "@lexical/rich-text";
 import {
@@ -27,7 +26,6 @@ import {
 } from "@lexical/utils";
 import {
   $getNodeByKey,
-  $getRoot,
   $getSelection,
   $isElementNode,
   $isRangeSelection,
@@ -55,15 +53,19 @@ import {
 } from "../../context/ToolbarContext";
 import useModal from "../../hooks/useModal";
 
-import { $createStickyNode } from "../../nodes/StickyNode";
+import CustomEdge from "@/components/canvas-new/custom-edge";
+import { GenericNode } from "@/components/canvas-new/nodes/generic-node";
+import { ImageNode } from "@/components/canvas-new/nodes/image-node";
+import { SwimlaneNode } from "@/components/canvas-new/nodes/swimlane-node";
+import { TextNode } from "@/components/canvas-new/nodes/text-node";
+import { Lock, LockOpen } from "lucide-react";
+import ReactFlow, { Background, ReactFlowProvider } from "reactflow";
+import { reactFlowDiagrams } from "../../data/reactflowData";
 import DropDown, { DropDownItem } from "../../ui/DropDown";
 import DropdownColorPicker from "../../ui/DropdownColorPicker";
 import { getSelectedNode } from "../../utils/getSelectedNode";
 import { sanitizeUrl } from "../../utils/url";
-import { EmbedConfigs } from "../AutoEmbedPlugin";
 import { INSERT_COLLAPSIBLE_COMMAND } from "../CollapsiblePlugin";
-import { InsertEquationDialog } from "../EquationsPlugin";
-import { INSERT_EXCALIDRAW_COMMAND } from "../ExcalidrawPlugin";
 import {
   INSERT_IMAGE_COMMAND,
   InsertImageDialog,
@@ -72,7 +74,7 @@ import {
 import { InsertInlineImageDialog } from "../InlineImagePlugin";
 import InsertLayoutDialog from "../LayoutPlugin/InsertLayoutDialog";
 import { INSERT_PAGE_BREAK } from "../PageBreakPlugin";
-import { InsertPollDialog } from "../PollPlugin";
+import { INSERT_REACT_FLOW_COMMAND } from "../ReactflowPlugin";
 import { SHORTCUTS } from "../ShortcutsPlugin/shortcuts";
 import { InsertTableDialog } from "../TablePlugin";
 import FontSize from "./fontSize";
@@ -86,15 +88,9 @@ import {
   formatParagraph,
   formatQuote,
 } from "./utils";
-import { Lock, LockOpen, FileLineChartIcon as FlowChart } from "lucide-react";
-import { INSERT_REACT_FLOW_COMMAND } from "../ReactflowPlugin";
-import { reactFlowDiagrams } from "../../data/reactflowData";
-import ReactFlow, { Background, ReactFlowProvider } from "reactflow";
-import CustomEdge from "@/components/canvas-new/custom-edge";
-import { GenericNode } from "@/components/canvas-new/nodes/generic-node";
-import { SwimlaneNode } from "@/components/canvas-new/nodes/swimlane-node";
-import { TextNode } from "@/components/canvas-new/nodes/text-node";
-import { ImageNode } from "@/components/canvas-new/nodes/image-node";
+import TableSelectorDialog from "../../components/TableSelectorDialog";
+import TableView from "@/components/canvas-new/table-view";
+import TablePreview from "../../components/TablePreview";
 
 const rootTypeToRootName = {
   root: "Root",
@@ -1292,21 +1288,6 @@ export default function ToolbarPlugin({
               <i className="icon caret-right" />
               <span className="text">Collapsible container</span>
             </DropDownItem>
-            {/* {EmbedConfigs.map((embedConfig) => (
-              <DropDownItem
-                key={embedConfig.type}
-                onClick={() => {
-                  activeEditor.dispatchCommand(
-                    INSERT_EMBED_COMMAND,
-                    embedConfig.type
-                  );
-                }}
-                className="item"
-              >
-                {embedConfig.icon}
-                <span className="text">{embedConfig.contentName}</span>
-              </DropDownItem>
-            ))} */}
           </DropDown>
         </>
       )}
@@ -1329,28 +1310,87 @@ export default function ToolbarPlugin({
       >
         <div className="grid grid-cols-1 gap-4 px-4 py-2 w-[400px] max-h-[500px] overflow-y-auto">
           {folderCanvases.length > 0 ? (
-            folderCanvases.map((diagram, index) => {
-              return (
-                <DropDownItem
-                  key={index?.toString()}
-                  onClick={() => onInsertReactFlow(diagram)}
-                  className="w-full"
-                >
-                  <div className="mb-2">
-                    <div className="text-sm font-medium">{diagram.title}</div>
-                    {diagram.description && (
-                      <div className="text-xs text-gray-500">
-                        {diagram.description}
-                      </div>
-                    )}
-                  </div>
-                  <FlowPreview {...diagram.flowData} />
-                </DropDownItem>
-              );
-            })
+            folderCanvases
+              ?.filter((canvas) => canvas.canvas_type === "hybrid")
+              .map((diagram, index) => {
+                return (
+                  <DropDownItem
+                    key={index?.toString()}
+                    onClick={() => onInsertReactFlow(diagram)}
+                    className="w-full"
+                  >
+                    <div className="mb-2">
+                      <div className="text-sm font-medium">{diagram.title}</div>
+                      {diagram.description && (
+                        <div className="text-xs text-gray-500">
+                          {diagram.description}
+                        </div>
+                      )}
+                    </div>
+                    <FlowPreview {...diagram.flowData} />
+                  </DropDownItem>
+                );
+              })
           ) : (
             <div className="py-3 text-center text-gray-500">
               No canvases found
+            </div>
+          )}
+        </div>
+      </DropDown>
+
+      <Divider />
+
+      <DropDown
+        disabled={!isEditable}
+        buttonClassName="toolbar-item spaced"
+        buttonLabel="Insert Table"
+        buttonAriaLabel="Insert specialized editor node"
+        buttonIconClassName="icon plus"
+      >
+        <div className="grid grid-cols-1 gap-4 px-4 py-2 w-[400px] max-h-[500px] overflow-y-auto">
+          {folderCanvases?.filter((canvas) => canvas.canvas_type === "table")
+            .length > 0 ? (
+            folderCanvases
+              ?.filter((canvas) => canvas.canvas_type === "table")
+              .map((diagram, index) => {
+                return (
+                  <DropDownItem
+                    key={index?.toString()}
+                    onClick={() => {
+                      showModal("Insert Table", (onClose) => (
+                        <TableSelectorDialog
+                          activeEditor={activeEditor}
+                          onClose={onClose}
+                          tableData={diagram}
+                          tables={folderCanvases?.filter(
+                            (canvas) => canvas.canvas_type === "table"
+                          )}
+                        />
+                      ));
+                    }}
+                    className="w-full my-4 "
+                  >
+                    <div>
+                      <div className="text-sm font-medium">{diagram.name}</div>
+                      {diagram.description && (
+                        <div className="text-xs text-gray-500">
+                          {diagram.description}
+                        </div>
+                      )}
+                    </div>
+                    {/* @ts-ignore */}
+                    <TablePreview
+                      nodes={diagram.flowData?.nodes}
+                      edges={diagram.flowData?.edges}
+                      columns={diagram.columns}
+                    />
+                  </DropDownItem>
+                );
+              })
+          ) : (
+            <div className="py-3 text-center text-gray-500">
+              No Tables found
             </div>
           )}
         </div>

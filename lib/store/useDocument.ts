@@ -224,14 +224,14 @@ export const useDocumentStore = create<DocumentState>()(
               .select(
                 `
           id, 
-          name, 
+          name,
+          canvas_type,
           description, 
           updated_at, 
           columns:column_definition!column_definition_canvas_id_fkey(*), 
           data:canvas_data(*)
         `
               )
-              .eq("canvas_type", "hybrid")
               .order("updated_at", { ascending: false });
 
             if (folderId !== null) {
@@ -248,10 +248,11 @@ export const useDocumentStore = create<DocumentState>()(
               folderCanvases: data.map((canvas) => ({
                 id: canvas.id,
                 name: canvas.name,
+                canvas_type: canvas.canvas_type,
                 description: canvas.description || "",
                 updated_at: new Date(canvas.updated_at),
                 columns: canvas.columns,
-                flowData: canvas.data ? canvas.data[0] : null, // Ensure we get the first (and only) data item
+                flowData: canvas.data ? canvas.data : null, // Ensure we get the first (and only) data item
               })),
             });
           } catch (error) {

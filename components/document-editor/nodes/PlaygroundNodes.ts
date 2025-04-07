@@ -33,6 +33,7 @@ import { StickyNode } from "./StickyNode";
 import { TweetNode } from "./TweetNode";
 import { YouTubeNode } from "./YouTubeNode";
 import { ReactFlowNode } from "./ReactflowNode";
+import { CanvasTableNode } from "./CanvasTableNode";
 
 const PlaygroundNodes: Array<Klass<LexicalNode>> = [
   HeadingNode,
@@ -71,6 +72,7 @@ const PlaygroundNodes: Array<Klass<LexicalNode>> = [
   LayoutItemNode,
   SpecialTextNode,
   ReactFlowNode,
+  CanvasTableNode,
 ];
 
 export default PlaygroundNodes;

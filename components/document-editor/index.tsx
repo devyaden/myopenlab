@@ -2,20 +2,12 @@
 
 import { useEffect, type JSX } from "react";
 
-import { $createLinkNode } from "@lexical/link";
-import { $createListItemNode, $createListNode } from "@lexical/list";
 import { LexicalComposer } from "@lexical/react/LexicalComposer";
-import { $createHeadingNode, $createQuoteNode } from "@lexical/rich-text";
-import {
-  $createParagraphNode,
-  $createTextNode,
-  $getRoot,
-  $isTextNode,
-  DOMConversionMap,
-  TextNode,
-  EditorState,
-} from "lexical";
+import { $createHeadingNode } from "@lexical/rich-text";
+import { $getRoot, $isTextNode, DOMConversionMap, TextNode } from "lexical";
 
+import { useDocumentStore } from "@/lib/store/useDocument";
+import { PageManagerProvider } from "./components/PageManager";
 import { FlashMessageContext } from "./context/FlashMessageContext";
 import { SettingsContext, useSettings } from "./context/SettingsContext";
 import { SharedHistoryContext } from "./context/SharedHistoryContext";
@@ -26,15 +18,6 @@ import { TableContext } from "./plugins/TablePlugin";
 import { parseAllowedFontSize } from "./plugins/ToolbarPlugin/fontSize";
 import PlaygroundEditorTheme from "./themes/PlaygroundEditorTheme";
 import { parseAllowedColor } from "./ui/ColorPicker";
-import { PageManagerProvider } from "./components/PageManager";
-import { useDocumentStore } from "@/lib/store/useDocument";
-
-function $prepopulatedRichText() {
-  const root = $getRoot();
-  if (root.getFirstChild() === null) {
-    const heading = $createHeadingNode("h1");
-  }
-}
 
 function getExtraStyles(element: HTMLElement): string {
   // Parse styles from pasted input, but only if they match exactly the

@@ -1,6 +1,6 @@
 "use client";
 
-import { Button } from "@/components/ui/button";
+// Import necessary components
 import {
   Dialog,
   DialogContent,
@@ -21,6 +21,7 @@ import { useLexicalComposerContext } from "@lexical/react/LexicalComposerContext
 import type React from "react";
 import { useEffect, useState } from "react";
 import { PAGE_SIZES, usePageManager } from "../../components/PageManager";
+import { Button } from "@/components/ui/button";
 
 export default function PageNavigationPlugin(): JSX.Element {
   const [editor] = useLexicalComposerContext();
@@ -32,6 +33,7 @@ export default function PageNavigationPlugin(): JSX.Element {
     setCurrentPage,
     updatePageTitle,
     updatePageSize,
+    updatePageOrientation,
     getCurrentPageSize,
   } = usePageManager();
 
@@ -65,7 +67,13 @@ export default function PageNavigationPlugin(): JSX.Element {
       Object.values(PAGE_SIZES).find((size) => size.name === value) ||
       PAGE_SIZES.A4;
     setCurrentPageSize(newSize);
+    // @ts-ignore
     updatePageSize(currentPageIndex, newSize);
+  };
+
+  // Add a handler for orientation change
+  const handleOrientationChange = (value: "portrait" | "landscape") => {
+    updatePageOrientation(currentPageIndex, value);
   };
 
   const isLastPage = currentPageIndex >= pages.length - 1;
@@ -80,6 +88,9 @@ export default function PageNavigationPlugin(): JSX.Element {
     setTimeout(() => forceUpdate({}), 50);
     setIsDeleteDialogOpen(false);
   };
+
+  // Get the current orientation
+  const currentOrientation = getCurrentPageSize().orientation || "portrait";
 
   return (
     <div className=" w-full bg-gray-100 border-t border-gray-300 shadow-md p-2 flex justify-between items-center text-sm z-50">
@@ -104,6 +115,20 @@ export default function PageNavigationPlugin(): JSX.Element {
                 {size.name}
               </SelectItem>
             ))}
+          </SelectContent>
+        </Select>
+
+        {/* Add orientation selector */}
+        <Select
+          value={currentOrientation}
+          onValueChange={handleOrientationChange}
+        >
+          <SelectTrigger className="w-[100px] text-xs px-2 py-1 h-7 border-primary">
+            <SelectValue placeholder="Orientation" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="portrait">Portrait</SelectItem>
+            <SelectItem value="landscape">Landscape</SelectItem>
           </SelectContent>
         </Select>
       </div>

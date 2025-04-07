@@ -385,14 +385,14 @@ const TableView: React.FC<TableViewProps> = ({
       return nodes;
     }
 
-    const rollupColumns = columns.filter((col) => col.type === "Rollup");
+    const rollupColumns = columns?.filter((col) => col.type === "Rollup");
     if (!rollupColumns.length) {
       return nodes;
     }
 
     const relationColumnMap = new Map(
       columns
-        .filter((col) => col.type === "Relation" && col.related_canvas_id)
+        ?.filter((col) => col.type === "Relation" && col.related_canvas_id)
         .map((col) => [col.related_canvas_id, col])
     );
 
@@ -574,7 +574,7 @@ const TableView: React.FC<TableViewProps> = ({
   };
 
   const handleSave = (nodeId: string, column: string, value: any) => {
-    const columnDef = columns.find((col) => col.title === column);
+    const columnDef = columns?.find((col) => col.title === column);
     if (columnDef) {
       const { isValid, errorMessage } = validateField(columnDef.type, value);
       if (isValid) {
@@ -738,7 +738,7 @@ const TableView: React.FC<TableViewProps> = ({
   const handleColumnTitleEdit = (columnTitle: string, newTitle: string) => {
     if (newTitle.trim() && newTitle !== columnTitle) {
       setColumns(
-        columns.map((col) =>
+        columns?.map((col) =>
           col.title === columnTitle ? { ...col, title: newTitle } : col
         )
       );

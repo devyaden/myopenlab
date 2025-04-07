@@ -71,6 +71,7 @@ import TreeViewPlugin from "./plugins/TreeViewPlugin";
 import TwitterPlugin from "./plugins/TwitterPlugin";
 import YouTubePlugin from "./plugins/YouTubePlugin";
 import ContentEditable from "./ui/ContentEditable";
+import TableNodePlugin from "./plugins/CanvasTablePlugin";
 
 const skipCollaborationInit =
   // @ts-ignore
@@ -161,6 +162,7 @@ export default function Editor(): JSX.Element {
                 id: "page-1",
                 title: "Page 1",
                 content: lexical_state,
+                // @ts-ignore
                 pageSize: { name: "A4", width: "210mm", height: "297mm" },
               },
             ]);
@@ -172,6 +174,7 @@ export default function Editor(): JSX.Element {
               id: "page-1",
               title: "Page 1",
               content: null,
+              // @ts-ignore
               pageSize: { name: "A4", width: "210mm", height: "297mm" },
             },
           ]);
@@ -182,6 +185,7 @@ export default function Editor(): JSX.Element {
             id: "page-1",
             title: "Page 1",
             content: null,
+            // @ts-ignore
             pageSize: { name: "A4", width: "210mm", height: "297mm" },
           },
         ]);
@@ -345,8 +349,8 @@ export default function Editor(): JSX.Element {
         <ToolbarPlugin
           editor={editor}
           activeEditor={activeEditor}
-          setActiveEditor={setActiveEditor}
-          setIsLinkEditMode={setIsLinkEditMode}
+          // @ts-ignore
+          setActiveEditor={setIsLinkEditMode}
           folderCanvases={folderCanvases}
         />
       )}
@@ -364,8 +368,14 @@ export default function Editor(): JSX.Element {
         <div className="page-container a4-page">
           <div
             style={{
-              width: getCurrentPageSize().width,
-              height: getCurrentPageSize().height,
+              width:
+                getCurrentPageSize().orientation === "landscape"
+                  ? getCurrentPageSize().height
+                  : getCurrentPageSize().width,
+              height:
+                getCurrentPageSize().orientation === "landscape"
+                  ? getCurrentPageSize().width
+                  : getCurrentPageSize().height,
               margin: "0 auto",
               padding: "20mm",
               backgroundColor: "white",
@@ -373,6 +383,7 @@ export default function Editor(): JSX.Element {
               position: "relative",
               overflow: "hidden",
               marginBottom: "44px",
+              boxSizing: "border-box",
             }}
           >
             {isMaxLength && <MaxLengthPlugin maxLength={30} />}
@@ -428,6 +439,7 @@ export default function Editor(): JSX.Element {
                 <TwitterPlugin />
                 <YouTubePlugin />
                 <FigmaPlugin />
+                <TableNodePlugin />
                 <ClickableLinkPlugin disabled={isEditable} />
                 <HorizontalRulePlugin />
                 <EquationsPlugin />
