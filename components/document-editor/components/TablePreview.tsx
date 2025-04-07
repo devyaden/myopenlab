@@ -100,7 +100,11 @@ const DisplayTableRow: React.FC<{
               maxWidth: "200px",
             }}
           >
-            {renderCellValue(node.data[column.title], column.type)}
+            {column.title === "task"
+              ? node.data?.label
+              : column.title === "type"
+                ? node.data?.shape
+                : renderCellValue(node.data[column.title], column.type)}
           </td>
         ))}
     </tr>
@@ -128,6 +132,7 @@ const TablePreview = ({
   visibleColumns?: string[];
   displayRows?: number;
 }) => {
+  console.log("🚀 ~ nodes:", nodes);
   const [sortField, setSortField] = useState<SortField>(null);
   const [sortDirection, setSortDirection] = useState<SortDirection>(null);
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());

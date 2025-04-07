@@ -100,6 +100,10 @@ export default function TableSelectorDialog({
             if (columnTitle === "task") {
               return node?.data?.label || "";
             }
+
+            if (columnTitle === "type") {
+              return node?.data?.shape || "";
+            }
             return node?.data?.[columnTitle] || "";
           });
         });
