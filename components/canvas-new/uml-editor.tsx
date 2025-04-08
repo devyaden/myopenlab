@@ -488,6 +488,8 @@ export function UMLEditor({
                 nodes.find((node) => node.id === selectedNodes[0]) as Node
               }
               onClose={closeNodeProperties}
+              columns={columns}
+              setColumns={setColumns}
             />
           )}
 

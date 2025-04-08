@@ -33,7 +33,7 @@ interface GenericNodeProps {
       | "message-bubble"
       | "capsule"
       | "cylindar";
-
+    hidden?: Record<string, boolean>;
     style?: React.CSSProperties & {
       fontFamily?: string;
       fontSize?: number;
@@ -64,6 +64,27 @@ const SHOULD_MAINTAIN_ASPECT_RATIO: Record<string, boolean> = {
   triangle: true,
   cylinder: true,
 };
+
+// Properties that should never be displayed
+const EXCLUDED_PROPERTIES = [
+  "label",
+  "shape",
+  "style",
+  "hidden",
+  "onLabelChange",
+  "id",
+  "from",
+  "to",
+  "parent",
+  "children",
+];
+
+// Additional patterns to exclude (for function names and IDs)
+const EXCLUDED_PATTERNS = [
+  /^on[A-Z]/, // Matches event handlers like "onChange", "onAdd", etc.
+  /Id$/, // Matches properties ending with "Id"
+  /^id/, // Matches properties starting with "id"
+];
 
 export const GenericNode = memo(
   ({ data, id, selected, isConnectable }: GenericNodeProps) => {
@@ -143,14 +164,6 @@ export const GenericNode = memo(
       [data.style]
     );
 
-    // Calculate maximum lines for truncation
-    const calculateMaxLines = () => {
-      const fontSize = data.style?.fontSize || 12;
-      const lineHeight = data.style?.lineHeight || 1.2;
-      const textHeight = fontSize * lineHeight;
-      return Math.floor(nodeSize.height / textHeight);
-    };
-
     // Base node style with centering
     const nodeStyle: React.CSSProperties = {
       transition: `
@@ -198,6 +211,127 @@ export const GenericNode = memo(
       [selected]
     );
 
+    // Helper function to check if a property should be excluded
+    const shouldExcludeProperty = (key: string, value: any) => {
+      // Check against explicit exclusion list
+      if (EXCLUDED_PROPERTIES.includes(key)) return true;
+
+      // Check if it's a function
+      if (typeof value === "function") return true;
+
+      // Check against regex patterns
+      for (const pattern of EXCLUDED_PATTERNS) {
+        if (pattern.test(key)) return true;
+      }
+
+      // Check if it's hidden
+      if (data.hidden && data.hidden[key]) return true;
+
+      return false;
+    };
+
+    // Get visible properties (not hidden and not excluded)
+    const visibleProperties = useMemo(() => {
+      const properties: { key: string; value: any }[] = [];
+
+      // First add special properties (task and type)
+      // Add task property (using label)
+      properties.push({
+        key: "task",
+        value: data.label || "",
+      });
+
+      // Add type property (using shape or node type)
+      properties.push({
+        key: "type",
+        value: data.shape || "",
+      });
+
+      // Loop through all data properties
+      Object.entries(data).forEach(([key, value]) => {
+        // Skip excluded properties and already added special properties
+        if (
+          !shouldExcludeProperty(key, value) &&
+          !["task", "type"].includes(key)
+        ) {
+          properties.push({ key, value: String(value) });
+        }
+      });
+
+      return properties;
+    }, [data]);
+
+    // Render properties table
+    const renderPropertiesTable = () => {
+      if (visibleProperties.length === 0) return null;
+
+      const borderColor = data.style?.borderColor || "#000000";
+      const borderWidth = Math.max(1, (data.style?.borderWidth || 1) * 0.5); // Thinner borders
+
+      // Calculate font size based on node size
+      const baseFontSize = data.style?.fontSize || 12;
+      const scaleFactor = Math.min(1, Math.max(0.6, nodeSize.width / 150)); // Scale between 60% and 100% based on width
+      const fontSize = baseFontSize * 0.7 * scaleFactor; // Make font smaller and scale with node size
+
+      // Calculate padding based on node size
+      const padding = Math.max(1, Math.min(4, nodeSize.width / 100));
+
+      return (
+        <div
+          style={{
+            width: "100%",
+            marginTop: "4px", // Reduced margin
+            fontSize: `${fontSize}px`,
+            color: data.style?.textColor || "#000000",
+            fontFamily: data.style?.fontFamily || "Arial",
+            overflow: "hidden",
+          }}
+        >
+          <table
+            style={{
+              width: "100%",
+              borderCollapse: "collapse",
+              border: `${borderWidth}px solid ${borderColor}`,
+              tableLayout: "fixed", // Fixed layout for better control
+            }}
+          >
+            <tbody>
+              {visibleProperties.map((prop) => (
+                <tr key={prop.key}>
+                  <td
+                    style={{
+                      padding: `${padding}px`,
+                      borderRight: `${borderWidth}px solid ${borderColor}`,
+                      borderBottom: `${borderWidth}px solid ${borderColor}`,
+                      fontWeight: "bold",
+                      width: "30%", // Narrower key column
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    {prop.key}
+                  </td>
+                  <td
+                    style={{
+                      padding: `${padding}px`,
+                      borderBottom: `${borderWidth}px solid ${borderColor}`,
+                      width: "70%", // Wider value column
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    {prop.value}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      );
+    };
+
     // Render text within SVG using foreignObject
     const renderTextWithForeignObject = (
       x: number,
@@ -212,21 +346,39 @@ export const GenericNode = memo(
               width: "100%",
               height: "100%",
               display: "flex",
+              flexDirection: "column",
               alignItems: "center",
               justifyContent:
-                data.style?.textAlign === "left"
-                  ? "flex-start"
-                  : data.style?.textAlign === "right"
-                    ? "flex-end"
-                    : "center",
-              ...getTextStyle(),
-              whiteSpace: "normal",
-              wordWrap: "break-word",
-              overflow: "hidden",
+                visibleProperties.length > 0 ? "flex-start" : "center",
               padding: "4px",
+              overflow: "hidden",
             }}
           >
-            {labelValue}
+            {/* Title with 2-line clamp */}
+            <div
+              style={{
+                width: "100%",
+                ...getTextStyle(),
+                fontWeight: "bold",
+                textAlign:
+                  data.style?.textAlign === "left"
+                    ? "left"
+                    : data.style?.textAlign === "right"
+                      ? "right"
+                      : "center",
+                display: "-webkit-box",
+                WebkitLineClamp: 2,
+                WebkitBoxOrient: "vertical",
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                maxHeight: `calc(${data.style?.fontSize || 12}px * ${data.style?.lineHeight || 1.2} * 2)`,
+              }}
+            >
+              {labelValue}
+            </div>
+
+            {/* Properties Table */}
+            {renderPropertiesTable()}
           </div>
         </foreignObject>
       );
@@ -240,8 +392,6 @@ export const GenericNode = memo(
         maxWidth: "100%",
         maxHeight: "100%",
       };
-
-      const maxLines = calculateMaxLines();
 
       // For human figures, we'll render the shape and text separately
       if (currentShapeIsHumanFigure) {
@@ -277,29 +427,49 @@ export const GenericNode = memo(
             </div>
 
             {/* Text below the shape */}
-            {labelValue && (
+            <div
+              style={{
+                width: "100%",
+                minHeight: "20%",
+                display: "flex",
+                flexDirection: "column",
+                alignItems:
+                  data.style?.textAlign === "left"
+                    ? "flex-start"
+                    : data.style?.textAlign === "right"
+                      ? "flex-end"
+                      : "center",
+                padding: "8px",
+                overflow: "hidden",
+                marginTop: "5px",
+              }}
+            >
+              {/* Title with 2-line clamp */}
               <div
                 style={{
                   width: "100%",
-                  minHeight: "20%",
                   ...getTextStyle(),
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent:
+                  fontWeight: "bold",
+                  textAlign:
                     data.style?.textAlign === "left"
-                      ? "flex-start"
+                      ? "left"
                       : data.style?.textAlign === "right"
-                        ? "flex-end"
+                        ? "right"
                         : "center",
-                  padding: "8px",
-                  overflow: "visible",
-                  marginTop: "5px",
-                  wordBreak: "break-word",
+                  display: "-webkit-box",
+                  WebkitLineClamp: 2,
+                  WebkitBoxOrient: "vertical",
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                  maxHeight: `calc(${data.style?.fontSize || 12}px * ${data.style?.lineHeight || 1.2} * 2)`,
                 }}
               >
                 {labelValue}
               </div>
-            )}
+
+              {/* Properties Table */}
+              {renderPropertiesTable()}
+            </div>
           </div>
         );
       }
@@ -344,13 +514,14 @@ export const GenericNode = memo(
                   style={{
                     width: "100%",
                     display: "-webkit-box",
-                    WebkitLineClamp: maxLines,
+                    WebkitLineClamp: 2,
                     WebkitBoxOrient: "vertical",
                     overflow: "hidden",
                     textOverflow: "ellipsis",
                     ...getTextStyle(),
                     whiteSpace: "normal",
                     wordWrap: "break-word",
+                    maxHeight: `calc(${data.style?.fontSize || 12}px * ${data.style?.lineHeight || 1.2} * 2)`,
                   }}
                 >
                   {labelValue}
@@ -403,13 +574,14 @@ export const GenericNode = memo(
                   style={{
                     width: "100%",
                     display: "-webkit-box",
-                    WebkitLineClamp: maxLines,
+                    WebkitLineClamp: 2,
                     WebkitBoxOrient: "vertical",
                     overflow: "hidden",
                     textOverflow: "ellipsis",
                     ...getTextStyle(),
                     whiteSpace: "normal",
                     wordWrap: "break-word",
+                    maxHeight: `calc(${data.style?.fontSize || 12}px * ${data.style?.lineHeight || 1.2} * 2)`,
                   }}
                 >
                   {labelValue}
@@ -426,31 +598,51 @@ export const GenericNode = memo(
                 borderStyle: data.style?.borderStyle || "solid",
                 borderWidth: `${data.style?.borderWidth || 1}px`,
                 backgroundColor: data.style?.backgroundColor || "white",
+                padding: "8px",
               }}
             >
               <div
                 style={{
                   width: "100%",
                   height: "100%",
-                  WebkitLineClamp: maxLines,
-                  WebkitBoxOrient: "vertical",
-                  overflow: "hidden",
-                  textOverflow: "ellipsis",
-                  ...getTextStyle(),
-                  whiteSpace: "normal",
-                  wordWrap: "break-word",
                   display: "flex",
-                  alignItems: "center",
-                  justifyContent:
+                  flexDirection: "column",
+                  alignItems:
                     data.style?.textAlign === "left"
                       ? "flex-start"
                       : data.style?.textAlign === "right"
                         ? "flex-end"
                         : "center",
-                  padding: "8px",
+                  justifyContent:
+                    visibleProperties.length > 0 ? "flex-start" : "center",
+                  overflow: "hidden",
                 }}
               >
-                {labelValue}
+                {/* Title with 2-line clamp */}
+                <div
+                  style={{
+                    width: "100%",
+                    ...getTextStyle(),
+                    fontWeight: "bold",
+                    textAlign:
+                      data.style?.textAlign === "left"
+                        ? "left"
+                        : data.style?.textAlign === "right"
+                          ? "right"
+                          : "center",
+                    display: "-webkit-box",
+                    WebkitLineClamp: 2,
+                    WebkitBoxOrient: "vertical",
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    maxHeight: `calc(${data.style?.fontSize || 12}px * ${data.style?.lineHeight || 1.2} * 2)`,
+                  }}
+                >
+                  {labelValue}
+                </div>
+
+                {/* Properties Table */}
+                {renderPropertiesTable()}
               </div>
             </div>
           );
@@ -560,7 +752,7 @@ export const GenericNode = memo(
               style={getTextStyle()}
               autoFocus
               minRows={1}
-              maxRows={5}
+              maxRows={2} // Limit to 2 rows when editing
             />
           ) : (
             <div className="w-full h-full" onDoubleClick={handleDoubleClick}>
