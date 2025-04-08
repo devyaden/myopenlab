@@ -73,8 +73,8 @@ const EXCLUDED_PROPERTIES = [
   "hidden",
   "onLabelChange",
   "id",
-  "from",
-  "to",
+  // "from",
+  // "to",
   "parent",
   "children",
 ];
