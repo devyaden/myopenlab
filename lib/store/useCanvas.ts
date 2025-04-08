@@ -300,7 +300,7 @@ export const useCanvasStore = create<CanvasStore>()(
         saveCanvas: async () => {
           const state = get();
 
-          if (!state.id) return;
+          if (!state.id || !state.user_id) return;
 
           set({ saveLoading: true });
           try {
