@@ -278,69 +278,39 @@ export const GenericNode = memo(
     const renderPropertiesTable = () => {
       if (visibleProperties.length === 0) return null;
 
-      const borderColor = data.style?.borderColor || "#000000";
-      const borderWidth = Math.max(1, (data.style?.borderWidth || 1) * 0.5); // Thinner borders
-
       // Calculate font size based on node size
       const baseFontSize = data.style?.fontSize || 12;
       const scaleFactor = Math.min(1, Math.max(0.6, nodeSize.width / 150)); // Scale between 60% and 100% based on width
       const fontSize = baseFontSize * 0.7 * scaleFactor; // Make font smaller and scale with node size
 
-      // Calculate padding based on node size
-      const padding = Math.max(1, Math.min(4, nodeSize.width / 100));
-
       return (
         <div
           style={{
             width: "100%",
-            marginTop: "4px", // Reduced margin
+            marginTop: "4px",
             fontSize: `${fontSize}px`,
             color: data.style?.textColor || "#000000",
             fontFamily: data.style?.fontFamily || "Arial",
-            overflow: "hidden",
+            // overflow: "hidden",
+            display: "flex",
+            flexDirection: "column",
+            // gap: "2px",
           }}
         >
-          <table
-            style={{
-              width: "100%",
-              borderCollapse: "collapse",
-              border: `${borderWidth}px solid ${borderColor}`,
-              tableLayout: "fixed", // Fixed layout for better control
-            }}
-          >
-            <tbody>
-              {visibleProperties.map((prop) => (
-                <tr key={prop.key}>
-                  <td
-                    style={{
-                      padding: `${padding}px`,
-                      borderRight: `${borderWidth}px solid ${borderColor}`,
-                      borderBottom: `${borderWidth}px solid ${borderColor}`,
-                      fontWeight: "bold",
-                      width: "30%", // Narrower key column
-                      overflow: "hidden",
-                      textOverflow: "ellipsis",
-                      whiteSpace: "nowrap",
-                    }}
-                  >
-                    {prop.key}
-                  </td>
-                  <td
-                    style={{
-                      padding: `${padding}px`,
-                      borderBottom: `${borderWidth}px solid ${borderColor}`,
-                      width: "70%", // Wider value column
-                      overflow: "hidden",
-                      textOverflow: "ellipsis",
-                      whiteSpace: "nowrap",
-                    }}
-                  >
-                    {prop.value}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          {visibleProperties.map((prop) => (
+            <div
+              key={prop.key}
+              style={{
+                // padding: "2px 4px",
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                whiteSpace: "nowrap",
+                textAlign: data.style?.textAlign || "center",
+              }}
+            >
+              {prop.value}
+            </div>
+          ))}
         </div>
       );
     };
@@ -688,10 +658,10 @@ export const GenericNode = memo(
                     display: "-webkit-box",
                     WebkitLineClamp: 2,
                     WebkitBoxOrient: "vertical",
-                    overflow: "hidden",
-                    textOverflow: "ellipsis",
-                    maxHeight: `calc(${data.style?.fontSize || 12}px * ${data.style?.lineHeight || 1.2} * 2)`,
-                    marginBottom: "4px", // Add space between title and properties
+                    // overflow: "hidden",
+                    // textOverflow: "ellipsis",
+                    // maxHeight: `calc(${data.style?.fontSize || 12}px * ${data.style?.lineHeight || 1.2} * 2)`,
+                    // marginBottom: "4px", // Add space between title and properties
                   }}
                 >
                   {labelValue}

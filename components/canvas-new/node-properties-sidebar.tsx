@@ -2,7 +2,7 @@
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import {
   Select,
   SelectContent,
@@ -10,21 +10,24 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Switch } from "@/components/ui/switch";
-import { Textarea } from "@/components/ui/textarea";
 import { useCanvasStore } from "@/lib/store/useCanvas";
-import { Eye, EyeOff, Plus, Trash2, X } from "lucide-react";
-import { useEffect, useState } from "react";
-import type { Node } from "reactflow";
-
-// Import the DropdownMenu components
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { MoreHorizontal } from "lucide-react";
+  CalendarIcon,
+  Check,
+  Clock,
+  Copy,
+  Edit,
+  Eye,
+  EyeOff,
+  Flag,
+  ListTodo,
+  MoreHorizontal,
+  Plus,
+  Users,
+  X,
+} from "lucide-react";
+import { useEffect, useState, useRef } from "react";
+import type { Node } from "reactflow";
 
 // Add import for AlertDialog components
 import {
@@ -37,6 +40,24 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+
+// Import DropdownMenu components
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+
+// Import Calendar components
+import { Calendar } from "@/components/ui/calendar";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { format } from "date-fns";
 
 interface NodePropertiesSidebarProps {
   selectedNode: Node | null;
@@ -54,7 +75,8 @@ type PropertyType =
   | "color"
   | "url"
   | "longtext"
-  | "multiselect";
+  | "multiselect"
+  | "email";
 
 interface Property {
   name: string;
@@ -84,6 +106,149 @@ const SHAPE_OPTIONS = [
   "interface",
 ];
 
+// Status options with colors
+const STATUS_OPTIONS = [
+  { label: "Not Started", value: "not_started", color: "#fecaca" },
+  { label: "In Progress", value: "in_progress", color: "#bfdbfe" },
+  { label: "Completed", value: "completed", color: "#bbf7d0" },
+  { label: "Blocked", value: "blocked", color: "#fed7aa" },
+];
+
+// Priority options with colors
+const PRIORITY_OPTIONS = [
+  { label: "Low", value: "low", color: "#dbeafe" },
+  { label: "Medium", value: "medium", color: "#fef3c7" },
+  { label: "High", value: "high", color: "#fee2e2" },
+];
+
+// Get icon for property type
+const getPropertyIcon = (propertyName: string, propertyType: PropertyType) => {
+  const name = propertyName.toLowerCase();
+
+  if (name === "status" || name.includes("status"))
+    return <ListTodo className="h-4 w-4 text-gray-500" />;
+  if (name === "priority" || name.includes("priority"))
+    return <Flag className="h-4 w-4 text-gray-500" />;
+  if (name === "assign" || name.includes("assign") || name === "assignee")
+    return <Users className="h-4 w-4 text-gray-500" />;
+  if (name === "date" || name.includes("date") || name === "due")
+    return <CalendarIcon className="h-4 w-4 text-gray-500" />;
+  if (name === "created" || name.includes("created"))
+    return <Clock className="h-4 w-4 text-gray-500" />;
+  if (name === "sprint" || name.includes("sprint"))
+    return <ListTodo className="h-4 w-4 text-gray-500" />;
+  if (name === "day" || name.includes("day"))
+    return <CalendarIcon className="h-4 w-4 text-gray-500" />;
+
+  // Default icons based on type
+  switch (propertyType) {
+    case "date":
+      return <CalendarIcon className="h-4 w-4 text-gray-500" />;
+    case "checkbox":
+      return <Check className="h-4 w-4 text-gray-500" />;
+    case "select":
+    case "multiselect":
+      return <ListTodo className="h-4 w-4 text-gray-500" />;
+    default:
+      return <ListTodo className="h-4 w-4 text-gray-500" />;
+  }
+};
+
+// Get background color for property value based on property name and value
+const getPropertyValueStyle = (propertyName: string, value: any) => {
+  const name = propertyName.toLowerCase();
+
+  // Status
+  if (name === "status" || name.includes("status")) {
+    if (typeof value === "string") {
+      const valueLower = value.toLowerCase();
+      if (valueLower.includes("not") || valueLower.includes("todo"))
+        return {
+          backgroundColor: "#fecaca",
+          borderRadius: "1rem",
+          padding: "2px 8px",
+          display: "inline-block",
+        };
+      if (valueLower.includes("progress") || valueLower.includes("doing"))
+        return {
+          backgroundColor: "#bfdbfe",
+          borderRadius: "1rem",
+          padding: "2px 8px",
+          display: "inline-block",
+        };
+      if (valueLower.includes("complete") || valueLower.includes("done"))
+        return {
+          backgroundColor: "#bbf7d0",
+          borderRadius: "1rem",
+          padding: "2px 8px",
+          display: "inline-block",
+        };
+      if (valueLower.includes("block") || valueLower.includes("hold"))
+        return {
+          backgroundColor: "#fed7aa",
+          borderRadius: "1rem",
+          padding: "2px 8px",
+          display: "inline-block",
+        };
+    }
+  }
+
+  // Priority
+  if (name === "priority" || name.includes("priority")) {
+    if (typeof value === "string") {
+      const valueLower = value.toLowerCase();
+      if (valueLower.includes("low"))
+        return {
+          backgroundColor: "#dbeafe",
+          borderRadius: "1rem",
+          padding: "2px 8px",
+          display: "inline-block",
+        };
+      if (valueLower.includes("medium") || valueLower.includes("med"))
+        return {
+          backgroundColor: "#fef3c7",
+          borderRadius: "1rem",
+          padding: "2px 8px",
+          display: "inline-block",
+        };
+      if (valueLower.includes("high"))
+        return {
+          backgroundColor: "#fee2e2",
+          borderRadius: "1rem",
+          padding: "2px 8px",
+          display: "inline-block",
+        };
+    }
+  }
+
+  // Sprint or tags
+  if (
+    name === "sprint" ||
+    name.includes("sprint") ||
+    name === "tag" ||
+    name.includes("tag")
+  ) {
+    return {
+      backgroundColor: "#e5e7eb",
+      borderRadius: "1rem",
+      padding: "2px 8px",
+      display: "inline-block",
+    };
+  }
+
+  // Day
+  if (name === "day" || name.includes("day")) {
+    return {
+      backgroundColor: "#fef3c7",
+      borderRadius: "1rem",
+      padding: "2px 8px",
+      display: "inline-block",
+    };
+  }
+
+  return {};
+};
+
 export function NodePropertiesSidebar({
   selectedNode,
   onClose,
@@ -103,6 +268,18 @@ export function NodePropertiesSidebar({
   const [validationErrors, setValidationErrors] = useState<
     Record<string, string>
   >({});
+  const [editingPropertyIndex, setEditingPropertyIndex] = useState<
+    number | null
+  >(null);
+  const [editingPropertyName, setEditingPropertyName] = useState<number | null>(
+    null
+  );
+  const [editingPropertyValue, setEditingPropertyValue] = useState<
+    number | null
+  >(null);
+  const [tempPropertyName, setTempPropertyName] = useState("");
+  const [tempPropertyValue, setTempPropertyValue] = useState("");
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
 
   // State for new property options
   const [newPropertyOptions, setNewPropertyOptions] = useState<string[]>([]);
@@ -114,6 +291,10 @@ export function NodePropertiesSidebar({
     propertyIndex: number;
     propertyName: string;
   } | null>(null);
+
+  // Refs for handling click outside
+  const propertyNameInputRef = useRef<HTMLInputElement>(null);
+  const propertyValueInputRef = useRef<HTMLInputElement>(null);
 
   // Load node data when selected node changes
   useEffect(() => {
@@ -165,6 +346,8 @@ export function NodePropertiesSidebar({
             propertyType = "checkbox";
           } else if (value instanceof Date) {
             propertyType = "date";
+          } else if (typeof value === "string" && value.includes("@")) {
+            propertyType = "email";
           }
 
           // @ts-ignore
@@ -185,6 +368,46 @@ export function NodePropertiesSidebar({
     }
   }, [selectedNode, columns]);
 
+  // Handle click outside for property name editing
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (
+        editingPropertyName !== null &&
+        propertyNameInputRef.current &&
+        !propertyNameInputRef.current.contains(event.target as any)
+      ) {
+        handleUpdatePropertyName(editingPropertyName, tempPropertyName);
+        setEditingPropertyName(null);
+      }
+    }
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [editingPropertyName, tempPropertyName]);
+
+  // Handle click outside for property value editing
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (
+        editingPropertyValue !== null &&
+        propertyValueInputRef.current &&
+        !propertyValueInputRef.current.contains(event.target as any)
+      ) {
+        if (properties[editingPropertyValue].type === "text") {
+          handleUpdatePropertyValue(editingPropertyValue, tempPropertyValue);
+        }
+        setEditingPropertyValue(null);
+      }
+    }
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [editingPropertyValue, tempPropertyValue, properties]);
+
   // Helper function to map column types to property types
   const mapColumnTypeToPropertyType = (columnType: string): PropertyType => {
     const typeMap: Record<string, PropertyType> = {
@@ -197,8 +420,9 @@ export function NodePropertiesSidebar({
       "Created Time": "date",
       "Last edited time": "date",
       "Long Text": "longtext",
-      Color: "color",
+      // Color: "color",
       URL: "url",
+      Email: "email",
     };
     return typeMap[columnType] || "text";
   };
@@ -215,6 +439,7 @@ export function NodePropertiesSidebar({
       color: "Text",
       url: "URL",
       longtext: "Long Text",
+      email: "Email",
     };
     return typeMap[propType] || "Text";
   };
@@ -244,6 +469,11 @@ export function NodePropertiesSidebar({
       case "date":
         if (isNaN(Date.parse(value))) {
           return "Must be a valid date";
+        }
+        break;
+      case "email":
+        if (!/\S+@\S+\.\S+/.test(value)) {
+          return "Must be a valid email";
         }
         break;
     }
@@ -636,68 +866,257 @@ export function NodePropertiesSidebar({
     }
   };
 
-  // Improve the renderReadOnlyProperty function to better handle long text values
-  const renderReadOnlyProperty = (property: Property) => {
-    switch (property.type) {
-      case "checkbox":
-        return (
-          <div className="flex items-center justify-center h-10 px-3 border rounded-md bg-gray-50 w-full">
-            <Switch checked={property.value === true} disabled />
-          </div>
-        );
-      case "date":
-        // Special handling for date values to ensure they don't overflow
-        return (
-          <div className="flex items-center h-10 px-3 border rounded-md bg-gray-50 w-full overflow-hidden">
-            <span className="text-gray-600 text-sm truncate w-full">
-              {property.value ? new Date(property.value).toLocaleString() : ""}
-            </span>
-          </div>
-        );
-      default:
-        // Check if this is a node ID or other long text that needs special handling
-        const isLongText =
-          typeof property.value === "string" &&
-          (property.value.length > 15 ||
-            property.name === "from" ||
-            property.name === "to");
+  const handleDuplicateProperty = (index: number) => {
+    if (!selectedNode) return;
 
-        return (
-          <div className="relative group w-full">
-            <div className="flex items-center h-10 px-3 border rounded-md bg-gray-50 w-full overflow-hidden">
-              <span className="text-gray-600 text-sm truncate w-full">
-                {Array.isArray(property.value)
-                  ? property.value.join(", ")
-                  : property.value !== undefined && property.value !== null
-                    ? String(property.value)
-                    : ""}
-              </span>
-            </div>
+    const propertyToDuplicate = properties[index];
+    const newName = `${propertyToDuplicate.name} copy`;
 
-            {/* Show tooltip on hover for long text */}
-            {isLongText && (
-              <div className="absolute z-50 left-0 top-full mt-1 bg-black text-white text-xs rounded py-1 px-2 max-w-[200px] break-all opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none">
-                {property.value}
-              </div>
-            )}
-          </div>
-        );
+    // Check for duplicate property name
+    if (properties.some((prop) => prop.name === newName)) {
+      setValidationErrors({
+        ...validationErrors,
+        [propertyToDuplicate.name]: "A property with this name already exists",
+      });
+      return;
+    }
+
+    // Create new property
+    const newProperty: Property = {
+      ...propertyToDuplicate,
+      name: newName,
+    };
+
+    // Update properties state
+    const updatedProperties = [...properties];
+    updatedProperties.splice(index + 1, 0, newProperty);
+    setProperties(updatedProperties);
+
+    // Update node data directly
+    const updatedData = { ...selectedNode.data };
+    updatedData[newProperty.name] = updatedData[propertyToDuplicate.name];
+
+    // Track hidden state
+    if (!updatedData.hidden) {
+      updatedData.hidden = {};
+    }
+    updatedData.hidden[newProperty.name] = propertyToDuplicate.hidden || false;
+
+    // Update node in store
+    const updatedNodes = useCanvasStore
+      .getState()
+      .nodes.map((node) =>
+        node.id === selectedNode.id ? { ...node, data: updatedData } : node
+      );
+
+    useCanvasStore.getState().setNodes(updatedNodes);
+
+    // Add new column to table columns
+    const newColumn = {
+      title: newProperty.name,
+      type: mapPropertyTypeToColumnType(newProperty.type),
+      options: newProperty.options,
+    };
+
+    // Check if column already exists
+    if (!columns.some((col) => col.title === newProperty.name)) {
+      setColumns([...columns, newColumn]);
     }
   };
 
-  // Also update the date input to ensure it displays properly
-  const renderPropertyValueInput = (property: Property, index: number) => {
-    // If property is not editable, render a read-only view
+  const startEditingPropertyName = (index: number) => {
+    setEditingPropertyName(index);
+    setTempPropertyName(properties[index].name);
+  };
+
+  // Update the startEditingPropertyValue function to handle different property types
+  const startEditingPropertyValue = (index: number) => {
+    if (!properties[index].isEditable) return;
+
+    setEditingPropertyValue(index);
+
+    const property = properties[index];
+
+    switch (property.type) {
+      case "text":
+      case "longtext":
+      case "url":
+      case "email":
+        setTempPropertyValue(
+          property.value !== undefined && property.value !== null
+            ? String(property.value)
+            : ""
+        );
+        break;
+      case "number":
+        setTempPropertyValue(
+          property.value !== undefined && property.value !== null
+            ? String(property.value)
+            : "0"
+        );
+        break;
+      case "date":
+        // For date, we'll set the selected date for the date picker
+        if (property.value) {
+          setSelectedDate(new Date(property.value));
+        } else {
+          setSelectedDate(new Date());
+        }
+        break;
+      case "color":
+        // For color, we might want to open a color picker
+        setTempPropertyValue(property.value || "#ffffff");
+        break;
+      // Other types are handled directly by their components
+    }
+  };
+
+  // Render property value with inline editing
+  const renderPropertyValue = (property: Property, index: number) => {
+    const valueStyle = getPropertyValueStyle(property.name, property.value);
+
+    // If property is not editable, just display the value
     if (!property.isEditable) {
-      return renderReadOnlyProperty(property);
+      return (
+        <div className="px-2 py-1 text-gray-500 italic">
+          <span style={valueStyle}>
+            {Array.isArray(property.value)
+              ? property.value.join(", ")
+              : property.value !== undefined && property.value !== null
+                ? String(property.value)
+                : ""}
+          </span>
+        </div>
+      );
     }
 
-    const hasError = !!validationErrors[property.name];
+    // If currently editing this property value
+    if (editingPropertyValue === index) {
+      switch (property.type) {
+        case "text":
+        case "longtext":
+        case "url":
+          return (
+            <Input
+              ref={propertyValueInputRef}
+              value={tempPropertyValue}
+              onChange={(e) => setTempPropertyValue(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  handleUpdatePropertyValue(index, tempPropertyValue);
+                  setEditingPropertyValue(null);
+                } else if (e.key === "Escape") {
+                  setEditingPropertyValue(null);
+                }
+              }}
+              className="h-8 px-2 py-1 text-sm focus-visible:ring-1"
+              autoFocus
+            />
+          );
+        case "email":
+          return (
+            <Input
+              ref={propertyValueInputRef}
+              type="email"
+              value={tempPropertyValue}
+              onChange={(e) => setTempPropertyValue(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  handleUpdatePropertyValue(index, tempPropertyValue);
+                  setEditingPropertyValue(null);
+                } else if (e.key === "Escape") {
+                  setEditingPropertyValue(null);
+                }
+              }}
+              className="h-8 px-2 py-1 text-sm focus-visible:ring-1"
+              autoFocus
+            />
+          );
+        case "number":
+          return (
+            <Input
+              ref={propertyValueInputRef}
+              type="number"
+              value={tempPropertyValue}
+              onChange={(e) => setTempPropertyValue(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  handleUpdatePropertyValue(index, Number(tempPropertyValue));
+                  setEditingPropertyValue(null);
+                } else if (e.key === "Escape") {
+                  setEditingPropertyValue(null);
+                }
+              }}
+              className="h-8 px-2 py-1 text-sm focus-visible:ring-1"
+              autoFocus
+            />
+          );
+        case "date":
+          return (
+            <div className="flex items-center">
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className="w-full justify-start text-left font-normal h-8"
+                  >
+                    {selectedDate ? (
+                      format(selectedDate, "PPP")
+                    ) : (
+                      <span>Pick a date</span>
+                    )}
+                    <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={selectedDate}
+                    onSelect={(date) => {
+                      setSelectedDate(date);
+                      if (date) {
+                        handleUpdatePropertyValue(index, date.toISOString());
+                      }
+                      setEditingPropertyValue(null);
+                    }}
+                    initialFocus
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
+          );
+        case "color":
+          return (
+            <div className="flex items-center gap-2">
+              <input
+                type="color"
+                value={tempPropertyValue}
+                onChange={(e) => {
+                  setTempPropertyValue(e.target.value);
+                  handleUpdatePropertyValue(index, e.target.value);
+                }}
+                className="w-8 h-8 p-0 border rounded"
+              />
+              <Input
+                value={tempPropertyValue}
+                onChange={(e) => setTempPropertyValue(e.target.value)}
+                onBlur={() => {
+                  handleUpdatePropertyValue(index, tempPropertyValue);
+                  setEditingPropertyValue(null);
+                }}
+                className="h-8 px-2 py-1 text-sm focus-visible:ring-1"
+              />
+            </div>
+          );
+        default:
+          return null;
+      }
+    }
 
     switch (property.type) {
       case "checkbox":
         return (
-          <div className="flex items-center justify-center h-10 px-3 border rounded-md bg-white w-full">
+          <div className="flex items-center">
             <Switch
               checked={property.value === true}
               onCheckedChange={(checked) =>
@@ -706,305 +1125,199 @@ export function NodePropertiesSidebar({
             />
           </div>
         );
-      case "color":
-        return (
-          <div className="flex items-center gap-2 h-10 px-3 border rounded-md bg-white w-full">
-            <Input
-              type="color"
-              value={property.value || "#000000"}
-              onChange={(e) => handleUpdatePropertyValue(index, e.target.value)}
-              className="w-10 h-8 p-1"
-            />
-            <Input
-              type="text"
-              value={property.value || "#000000"}
-              onChange={(e) => handleUpdatePropertyValue(index, e.target.value)}
-              className={`flex-1 border-0 p-0 h-8 ${hasError ? "text-red-500" : ""}`}
-            />
-          </div>
-        );
-      case "number":
-        return (
-          <div className="relative w-full">
-            <Input
-              type="number"
-              value={property.value}
-              onChange={(e) => handleUpdatePropertyValue(index, e.target.value)}
-              className={`h-10 w-full ${hasError ? "border-red-500" : ""}`}
-            />
-            {hasError && (
-              <div className="text-xs text-red-500 mt-1 absolute">
-                {validationErrors[property.name]}
-              </div>
-            )}
-          </div>
-        );
       case "date":
         return (
-          <div className="relative w-full">
-            <Input
-              type="datetime-local"
-              value={
-                property.value
-                  ? new Date(property.value).toISOString().slice(0, 16)
-                  : ""
-              }
-              onChange={(e) => handleUpdatePropertyValue(index, e.target.value)}
-              className={`h-10 w-full text-sm ${hasError ? "border-red-500" : ""}`}
-            />
-            {hasError && (
-              <div className="text-xs text-red-500 mt-1 absolute">
-                {validationErrors[property.name]}
-              </div>
-            )}
+          <div
+            className="cursor-pointer hover:bg-gray-50 px-2 py-1 rounded w-full"
+            onClick={() => startEditingPropertyValue(index)}
+          >
+            {property.value
+              ? format(new Date(property.value), "PPP")
+              : "Click to set date"}
           </div>
-        );
-      case "url":
-        return (
-          <div className="relative w-full">
-            <Input
-              type="url"
-              value={property.value}
-              onChange={(e) => handleUpdatePropertyValue(index, e.target.value)}
-              placeholder="https://example.com"
-              className={`h-10 w-full ${hasError ? "border-red-500" : ""}`}
-            />
-            {hasError && (
-              <div className="text-xs text-red-500 mt-1 absolute">
-                {validationErrors[property.name]}
-              </div>
-            )}
-          </div>
-        );
-      case "longtext":
-        return (
-          <Textarea
-            value={property.value || ""}
-            onChange={(e) => handleUpdatePropertyValue(index, e.target.value)}
-            className={`min-h-[80px] w-full ${hasError ? "border-red-500" : ""}`}
-          />
         );
       case "select":
         return (
-          <div className="w-full">
-            <Select
-              value={property.value}
-              onValueChange={(value) => handleUpdatePropertyValue(index, value)}
-            >
-              <SelectTrigger className="w-full h-10 focus:outline-none">
-                <SelectValue placeholder="Select option" />
-              </SelectTrigger>
-              <SelectContent>
-                {(property.options || []).length > 0 ? (
-                  property.options?.map((option, i) => (
-                    <SelectItem key={i} value={option}>
-                      {option}
-                    </SelectItem>
-                  ))
-                ) : (
-                  <SelectItem value="no-options" disabled>
-                    No options available
-                  </SelectItem>
-                )}
-              </SelectContent>
-            </Select>
-          </div>
+          <Select
+            value={String(property.value)}
+            onValueChange={(value) => handleUpdatePropertyValue(index, value)}
+          >
+            <SelectTrigger className="h-8 min-w-[120px] border-none bg-transparent hover:bg-gray-50 focus:ring-0 px-2">
+              <span style={valueStyle}>
+                {property.value || "Select an option"}
+              </span>
+            </SelectTrigger>
+            <SelectContent>
+              {(property.options || []).map((option, i) => (
+                <SelectItem key={i} value={option}>
+                  {option}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         );
       case "multiselect":
         return (
-          <div className="w-full">
-            <Select
-              value={
-                Array.isArray(property.value) && property.value.length > 0
-                  ? property.value[0]
-                  : undefined
-              }
-              onValueChange={(value) => {
-                const currentValues = Array.isArray(property.value)
-                  ? property.value
-                  : [];
-                if (currentValues.includes(value)) {
-                  handleUpdatePropertyValue(
-                    index,
-                    currentValues.filter((v) => v !== value)
-                  );
-                } else {
-                  handleUpdatePropertyValue(index, [...currentValues, value]);
-                }
-              }}
-            >
-              <SelectTrigger className="w-full h-10 focus:outline-none">
-                <SelectValue
-                  placeholder={
-                    Array.isArray(property.value) && property.value.length > 0
-                      ? `${property.value.length} selected`
-                      : "Select options"
-                  }
-                />
-              </SelectTrigger>
-              <SelectContent>
-                {(property.options || []).length > 0 ? (
-                  property.options?.map((option, i) => (
-                    <SelectItem key={i} value={option}>
-                      <div className="flex items-center">
-                        <div className="mr-2">
-                          <Switch
-                            checked={
-                              Array.isArray(property.value) &&
-                              property.value.includes(option)
-                            }
-                            onCheckedChange={(checked) => {
-                              const currentValues = Array.isArray(
-                                property.value
-                              )
-                                ? property.value
-                                : [];
-                              if (checked) {
-                                handleUpdatePropertyValue(index, [
-                                  ...currentValues,
-                                  option,
-                                ]);
-                              } else {
-                                handleUpdatePropertyValue(
-                                  index,
-                                  currentValues.filter((v) => v !== option)
-                                );
-                              }
-                            }}
-                          />
-                        </div>
-                        {option}
-                      </div>
-                    </SelectItem>
-                  ))
-                ) : (
-                  <SelectItem value="no-options" disabled>
-                    No options available
-                  </SelectItem>
-                )}
-              </SelectContent>
-            </Select>
-            {Array.isArray(property.value) && property.value.length > 0 && (
-              <div className="mt-2 flex flex-wrap gap-1">
-                {property.value.map((val, i) => (
-                  <div
-                    key={i}
-                    className="bg-gray-100 rounded-md px-2 py-1 text-xs flex items-center"
-                  >
-                    {val}
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="h-4 w-4 ml-1 p-0"
-                      onClick={() => {
-                        handleUpdatePropertyValue(
-                          index,
-                          property.value.filter((_: any, idx: any) => idx !== i)
-                        );
-                      }}
-                    >
-                      <X className="h-3 w-3" />
-                    </Button>
-                  </div>
-                ))}
-              </div>
+          <div
+            className="flex flex-wrap gap-1 cursor-pointer hover:bg-gray-50 px-2 py-1 rounded w-full"
+            onClick={() => {
+              // Here you would open a multiselect dropdown
+              // For now, we'll just show a placeholder
+              alert("Multiselect editing would open here");
+            }}
+          >
+            {Array.isArray(property.value) && property.value.length > 0 ? (
+              property.value.map((val, i) => (
+                <div key={i} style={valueStyle}>
+                  {val}
+                </div>
+              ))
+            ) : (
+              <span className="text-gray-400">Click to select options</span>
             )}
+          </div>
+        );
+      case "color":
+        return (
+          <div className="flex items-center gap-2 w-full">
+            <div
+              className="w-4 h-4 rounded-full border"
+              style={{ backgroundColor: property.value || "#ffffff" }}
+            ></div>
+            <div
+              className="cursor-pointer hover:bg-gray-50 px-2 py-1 rounded flex-grow"
+              onClick={() => startEditingPropertyValue(index)}
+            >
+              {property.value || "Click to set color"}
+            </div>
+          </div>
+        );
+      case "email":
+        return (
+          <div
+            className="cursor-pointer hover:bg-gray-50 px-2 py-1 rounded w-full"
+            onClick={() => startEditingPropertyValue(index)}
+          >
+            <span style={valueStyle}>
+              {property.value || "Click to add email"}
+            </span>
           </div>
         );
       default:
         return (
-          <div className="relative w-full">
-            <Input
-              type="text"
-              value={property.value}
-              onChange={(e) => handleUpdatePropertyValue(index, e.target.value)}
-              className={`h-10 w-full focus-visible:ring-0 ${hasError ? "border-red-500" : ""}`}
-            />
-            {hasError && (
-              <div className="text-xs text-red-500 mt-1 absolute">
-                {validationErrors[property.name]}
-              </div>
-            )}
+          <div
+            className="cursor-pointer hover:bg-gray-50 px-2 py-1 rounded w-full overflow-hidden text-ellipsis"
+            onClick={() => startEditingPropertyValue(index)}
+          >
+            <span style={valueStyle} className="block truncate">
+              {Array.isArray(property.value)
+                ? property.value.join(", ")
+                : property.value !== undefined && property.value !== null
+                  ? String(property.value)
+                  : "Click to edit"}
+            </span>
           </div>
         );
     }
   };
 
-  // Render read-only view for non-editable properties
-  // Update the property row layout to ensure better spacing
   return (
     <div
-      className="fixed right-0 z-50 h-full 
-    animate-slide-in-right 
-    bg-white border-l border-gray-200 
-    overflow-y-auto flex flex-col 
-    shadow-lg"
+      className="fixed right-0 top-[calc(4vh+105px)] bottom-0 z-50 w-96
+      animate-slide-in-right 
+      bg-white border-l border-gray-200 
+      flex flex-col 
+      shadow-lg"
     >
-      <div className="flex items-center justify-between px-4 py-2">
-        <h2 className="text-lg font-medium truncate"></h2>
-        <Button variant="ghost" size="icon" onClick={onClose}>
+      <div className="flex items-center justify-between p-4 ">
+        <Input
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          onBlur={handleSaveTitle}
+          onKeyDown={(e) => e.key === "Enter" && handleSaveTitle()}
+          className="!text-3xl !font-bold border-none focus-visible:ring-0 px-0 h-auto"
+          placeholder="Untitled"
+        />
+        {/* <Button variant="ghost" size="icon" onClick={onClose}>
           <X className="h-4 w-4" />
-        </Button>
+        </Button> */}
       </div>
 
-      <div className="px-4 space-y-4 flex-1 overflow-y-auto">
-        {/* Title Field */}
-        <div className="mb-4">
-          <Input
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            onBlur={handleSaveTitle}
-            placeholder="Title Here"
-            className="bg-gray-50 border-gray-200 focus-visible:ring-0"
-          />
-        </div>
-
+      <div className="px-4 space-y-4 flex-1 overflow-y-auto pb-20">
         {/* Properties */}
         <div className="space-y-3">
           {properties.map((property, index) => (
             <div
               key={`${property.name}-${index}`}
-              className="flex items-start gap-2 mb-4"
+              className="flex items-center gap-4 py-1.5 hover:bg-gray-50 rounded-md group relative"
             >
-              <div className="flex items-start w-full">
-                <div className="w-[120px] flex-shrink-0">
-                  <div className="relative">
-                    <Input
-                      value={property.name}
-                      onChange={(e) =>
-                        handleUpdatePropertyName(index, e.target.value)
-                      }
-                      placeholder="Property"
-                      className={`bg-gray-50 border-gray-200 h-10 focus-visible:ring-0 text-sm ${
-                        validationErrors[property.name] ? "border-red-500" : ""
-                      }`}
-                      disabled={!property.isEditable}
-                    />
-                    {validationErrors[property.name] &&
-                      validationErrors[property.name].includes("name") && (
-                        <div className="text-xs text-red-500 mt-1 absolute">
-                          {validationErrors[property.name]}
-                        </div>
-                      )}
-                  </div>
-                </div>
-                <div className="mx-2 flex-shrink-0 mt-2.5">:</div>
-                <div className="flex-1 relative">
-                  {renderPropertyValueInput(property, index)}
-                </div>
+              {/* Property name with inline editing */}
+              <div className="flex items-center gap-2 text-gray-500 min-w-[120px] w-[120px] max-w-[120px] overflow-hidden">
+                {getPropertyIcon(property.name, property.type)}
 
-                {/* Dropdown menu */}
+                {editingPropertyName === index ? (
+                  <Input
+                    ref={propertyNameInputRef}
+                    value={tempPropertyName}
+                    onChange={(e) => setTempPropertyName(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        handleUpdatePropertyName(index, tempPropertyName);
+                        setEditingPropertyName(null);
+                      }
+                    }}
+                    className="h-7 px-1 py-0 text-sm focus-visible:ring-1"
+                    autoFocus
+                  />
+                ) : (
+                  <span
+                    className="text-gray-500 cursor-pointer hover:underline truncate block"
+                    onClick={() =>
+                      property.isEditable && startEditingPropertyName(index)
+                    }
+                    title={property.name}
+                  >
+                    {property.name}
+                  </span>
+                )}
+              </div>
+
+              {/* Property value with appropriate styling and inline editing */}
+              <div className="flex-grow overflow-hidden">
+                {renderPropertyValue(property, index)}
+              </div>
+
+              {/* Actions menu (only visible on hover) */}
+              <div className="absolute right-1 opacity-0 group-hover:opacity-100 transition-opacity">
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="ml-1 h-8 w-8 flex-shrink-0 mt-1"
-                    >
-                      <MoreHorizontal className="h-4 w-4 text-gray-400" />
+                    <Button variant="ghost" size="icon" className="h-7 w-7">
+                      <MoreHorizontal className="h-4 w-4" />
                     </Button>
                   </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
+                  <DropdownMenuContent align="end" className="w-48">
+                    <DropdownMenuItem
+                      onClick={() => startEditingPropertyName(index)}
+                    >
+                      <Edit className="h-4 w-4 mr-2" />
+                      Rename
+                    </DropdownMenuItem>
+
+                    {(property.type === "select" ||
+                      property.type === "multiselect") && (
+                      <DropdownMenuItem
+                        onClick={() =>
+                          setEditingOptions({
+                            propertyName: property.name,
+                            options: property.options || [],
+                          })
+                        }
+                      >
+                        <Edit className="h-4 w-4 mr-2" />
+                        Edit options
+                      </DropdownMenuItem>
+                    )}
+
                     <DropdownMenuItem
                       onClick={() => handleToggleVisibility(index)}
                     >
@@ -1021,28 +1334,24 @@ export function NodePropertiesSidebar({
                       )}
                     </DropdownMenuItem>
 
-                    {property.isEditable && (
-                      <DropdownMenuItem
-                        onClick={() => handleRemoveProperty(index)}
-                      >
-                        <Trash2 className="h-4 w-4 mr-2" />
-                        <span>Delete property</span>
-                      </DropdownMenuItem>
-                    )}
+                    <DropdownMenuItem
+                      onClick={() => handleDuplicateProperty(index)}
+                    >
+                      <Copy className="h-4 w-4 mr-2" />
+                      Duplicate property
+                    </DropdownMenuItem>
 
-                    {(property.type === "select" ||
-                      property.type === "multiselect") && (
-                      <DropdownMenuItem
-                        onClick={() =>
-                          setEditingOptions({
-                            propertyName: property.name,
-                            options: property.options || [],
-                          })
-                        }
-                      >
-                        <Plus className="h-4 w-4 mr-2" />
-                        <span>Edit options</span>
-                      </DropdownMenuItem>
+                    {property.isEditable && (
+                      <>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem
+                          onClick={() => handleRemoveProperty(index)}
+                          className="text-red-500 focus:text-red-500"
+                        >
+                          <X className="h-4 w-4 mr-2" />
+                          Delete property
+                        </DropdownMenuItem>
+                      </>
                     )}
                   </DropdownMenuContent>
                 </DropdownMenu>
@@ -1050,249 +1359,247 @@ export function NodePropertiesSidebar({
             </div>
           ))}
 
-          {/* Options Editor Dialog */}
-          {editingOptions && (
-            <div className="bg-white rounded-lg border p-3 mt-2">
-              <div className="flex justify-between items-center mb-2">
-                <Label>Edit Select Options</Label>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setEditingOptions(null)}
-                >
-                  <X className="h-4 w-4" />
-                </Button>
-              </div>
+          {/* Add New Property Button */}
+          <button
+            className="flex items-center gap-2 text-gray-400 hover:text-gray-700 py-2 w-full mt-2"
+            onClick={() => setShowPropertyTypeSelect(true)}
+          >
+            <Plus className="h-4 w-4" />
+            <span>Add a property</span>
+          </button>
+        </div>
 
-              <div className="space-y-2 mb-3 max-h-40 overflow-y-auto">
-                {editingOptions.options.map((option, i) => (
-                  <div key={i} className="flex items-center gap-2">
-                    <Input
-                      value={option}
-                      onChange={(e) => {
-                        const newOptions = [...editingOptions.options];
-                        newOptions[i] = e.target.value;
-                        setEditingOptions({
-                          ...editingOptions,
-                          options: newOptions,
-                        });
-
-                        // Update the property
-                        const propertyIndex = properties.findIndex(
-                          (p) => p.name === editingOptions.propertyName
-                        );
-                        if (propertyIndex !== -1) {
-                          const updatedProperties = [...properties];
-                          updatedProperties[propertyIndex] = {
-                            ...updatedProperties[propertyIndex],
-                            options: newOptions,
-                          };
-                          setProperties(updatedProperties);
-
-                          // Update column options
-                          const columnIndex = columns.findIndex(
-                            (col) => col.title === editingOptions.propertyName
-                          );
-                          if (columnIndex !== -1) {
-                            const updatedColumns = [...columns];
-                            updatedColumns[columnIndex] = {
-                              ...updatedColumns[columnIndex],
-                              options: newOptions,
-                            };
-                            setColumns(updatedColumns);
-                          }
-                        }
-                      }}
-                      className="flex-1 focus-visible:ring-0"
-                    />
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => handleRemoveOption(i)}
-                      className="h-8 w-8"
-                    >
-                      <Trash2 className="h-4 w-4 text-gray-400" />
-                    </Button>
-                  </div>
-                ))}
-              </div>
-
-              <div className="flex items-center gap-2">
-                <Input
-                  placeholder="New option"
-                  value={newOption}
-                  onChange={(e) => setNewOption(e.target.value)}
-                  className="flex-1 focus-visible:ring-0"
-                />
-                <Button
-                  size="sm"
-                  onClick={handleAddOption}
-                  disabled={!newOption.trim()}
-                >
-                  Add
-                </Button>
-              </div>
-            </div>
-          )}
-
-          {/* Add New Property Section */}
-          {showPropertyTypeSelect ? (
-            <div className="bg-white rounded-lg border p-3 mt-2">
-              <div className="mb-3">
-                <Label className="mb-1 block">Property name</Label>
-                <Input
-                  value={newPropertyName}
-                  onChange={(e) => setNewPropertyName(e.target.value)}
-                  placeholder="Enter property name"
-                  className={`w-full ${validationErrors.newProperty ? "border-red-500" : ""}`}
-                />
-                {validationErrors.newProperty && (
-                  <div className="text-xs text-red-500 mt-1">
-                    {validationErrors.newProperty}
-                  </div>
-                )}
-              </div>
-
-              <Label className="mb-1 block">Property type</Label>
-              <Select
-                value={newPropertyType}
-                onValueChange={(value: PropertyType) =>
-                  setNewPropertyType(value)
-                }
-              >
-                <SelectTrigger className="bg-white border-gray-300 mb-3 focus:outline-none">
-                  <SelectValue placeholder="Text" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="text">Text</SelectItem>
-                  <SelectItem value="number">Number</SelectItem>
-                  <SelectItem value="select">Select</SelectItem>
-                  <SelectItem value="multiselect">Multiselect</SelectItem>
-                  <SelectItem value="checkbox">Checkbox</SelectItem>
-                  <SelectItem value="date">Date</SelectItem>
-                  <SelectItem value="color">Color</SelectItem>
-                  <SelectItem value="url">URL</SelectItem>
-                  <SelectItem value="longtext">Long Text</SelectItem>
-                </SelectContent>
-              </Select>
-
-              {/* Show options editor when select type is chosen */}
-              {(newPropertyType === "select" ||
-                newPropertyType === "multiselect") && (
-                <div className="mt-3 mb-3 border rounded-md p-2 bg-gray-50">
-                  <Label className="mb-2 block text-sm">
-                    Define select options
-                  </Label>
-                  <div className="space-y-2 mb-3 max-h-40 overflow-y-auto">
-                    {newPropertyOptions.map((option, i) => (
-                      <div key={i} className="flex items-center gap-2">
-                        <Input
-                          value={option}
-                          onChange={(e) => {
-                            const updatedOptions = [...newPropertyOptions];
-                            updatedOptions[i] = e.target.value;
-                            setNewPropertyOptions(updatedOptions);
-                          }}
-                          className="flex-1 h-8 text-sm focus-visible:ring-0"
-                        />
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => {
-                            const filteredOptions = newPropertyOptions.filter(
-                              (_, index) => index !== i
-                            );
-                            setNewPropertyOptions(filteredOptions);
-                          }}
-                          className="h-7 w-7"
-                        >
-                          <Trash2 className="h-3.5 w-3.5 text-gray-400" />
-                        </Button>
-                      </div>
-                    ))}
-                  </div>
-
-                  <div className="flex items-center gap-2">
-                    <Input
-                      placeholder="Add option"
-                      value={newOptionInput}
-                      onChange={(e) => setNewOptionInput(e.target.value)}
-                      className="flex-1 h-8 text-sm focus-visible:ring-0"
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter" && newOptionInput.trim()) {
-                          e.preventDefault();
-                          setNewPropertyOptions([
-                            ...newPropertyOptions,
-                            newOptionInput.trim(),
-                          ]);
-                          setNewOptionInput("");
-                        }
-                      }}
-                    />
-                    <Button
-                      size="sm"
-                      onClick={() => {
-                        if (newOptionInput.trim()) {
-                          setNewPropertyOptions([
-                            ...newPropertyOptions,
-                            newOptionInput.trim(),
-                          ]);
-                          setNewOptionInput("");
-                        }
-                      }}
-                      disabled={!newOptionInput.trim()}
-                      className="h-8"
-                    >
-                      Add
-                    </Button>
-                  </div>
+        {/* Add Property Form */}
+        {showPropertyTypeSelect && (
+          <div className="bg-white rounded-lg border p-3 mt-2">
+            <div className="mb-3">
+              <Input
+                value={newPropertyName}
+                onChange={(e) => setNewPropertyName(e.target.value)}
+                placeholder="Property name"
+                className={`w-full ${validationErrors.newProperty ? "border-red-500" : ""}`}
+              />
+              {validationErrors.newProperty && (
+                <div className="text-xs text-red-500 mt-1">
+                  {validationErrors.newProperty}
                 </div>
               )}
-
-              <div className="flex justify-end gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    setShowPropertyTypeSelect(false);
-                    setNewPropertyName("");
-                    setNewPropertyOptions([]);
-                    setNewOptionInput("");
-                    // Clear validation errors
-                    if (validationErrors.newProperty) {
-                      const { newProperty, ...rest } = validationErrors;
-                      setValidationErrors(rest);
-                    }
-                  }}
-                >
-                  Cancel
-                </Button>
-                <Button
-                  size="sm"
-                  onClick={handleAddProperty}
-                  disabled={
-                    !newPropertyName.trim() ||
-                    ((newPropertyType === "select" ||
-                      newPropertyType === "multiselect") &&
-                      newPropertyOptions.length === 0)
-                  }
-                >
-                  Add
-                </Button>
-              </div>
             </div>
-          ) : (
-            <Button
-              variant="ghost"
-              className="w-full justify-start text-gray-500 mt-2"
-              onClick={() => setShowPropertyTypeSelect(true)}
+
+            <Select
+              value={newPropertyType}
+              onValueChange={(value: PropertyType) => setNewPropertyType(value)}
             >
-              <Plus className="h-4 w-4 mr-2" />
-              Add New Column
-            </Button>
-          )}
-        </div>
+              <SelectTrigger className="bg-white border-gray-300 mb-3 focus:outline-none">
+                <SelectValue placeholder="Select type" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="text">Text</SelectItem>
+                <SelectItem value="number">Number</SelectItem>
+                <SelectItem value="select">Select</SelectItem>
+                <SelectItem value="multiselect">Multiselect</SelectItem>
+                <SelectItem value="checkbox">Checkbox</SelectItem>
+                <SelectItem value="date">Date</SelectItem>
+                <SelectItem value="color">Color</SelectItem>
+                <SelectItem value="url">URL</SelectItem>
+                <SelectItem value="email">Email</SelectItem>
+                <SelectItem value="longtext">Long Text</SelectItem>
+              </SelectContent>
+            </Select>
+
+            {/* Show options editor when select type is chosen */}
+            {(newPropertyType === "select" ||
+              newPropertyType === "multiselect") && (
+              <div className="mt-3 mb-3 border rounded-md p-2 bg-gray-50">
+                <div className="text-sm font-medium mb-2">Define options</div>
+                <div className="space-y-2 mb-3 max-h-40 overflow-y-auto">
+                  {newPropertyOptions.map((option, i) => (
+                    <div key={i} className="flex items-center gap-2">
+                      <Input
+                        value={option}
+                        onChange={(e) => {
+                          const updatedOptions = [...newPropertyOptions];
+                          updatedOptions[i] = e.target.value;
+                          setNewPropertyOptions(updatedOptions);
+                        }}
+                        className="flex-1 h-8 text-sm focus-visible:ring-0"
+                      />
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => {
+                          const filteredOptions = newPropertyOptions.filter(
+                            (_, index) => index !== i
+                          );
+                          setNewPropertyOptions(filteredOptions);
+                        }}
+                        className="h-7 w-7"
+                      >
+                        <X className="h-3.5 w-3.5 text-gray-400" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <Input
+                    placeholder="Add option"
+                    value={newOptionInput}
+                    onChange={(e) => setNewOptionInput(e.target.value)}
+                    className="flex-1 h-8 text-sm focus-visible:ring-0"
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && newOptionInput.trim()) {
+                        e.preventDefault();
+                        setNewPropertyOptions([
+                          ...newPropertyOptions,
+                          newOptionInput.trim(),
+                        ]);
+                        setNewOptionInput("");
+                      }
+                    }}
+                  />
+                  <Button
+                    size="sm"
+                    onClick={() => {
+                      if (newOptionInput.trim()) {
+                        setNewPropertyOptions([
+                          ...newPropertyOptions,
+                          newOptionInput.trim(),
+                        ]);
+                        setNewOptionInput("");
+                      }
+                    }}
+                    disabled={!newOptionInput.trim()}
+                    className="h-8"
+                  >
+                    Add
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            <div className="flex justify-end gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setShowPropertyTypeSelect(false);
+                  setNewPropertyName("");
+                  setNewPropertyOptions([]);
+                  setNewOptionInput("");
+                  // Clear validation errors
+                  if (validationErrors.newProperty) {
+                    const { newProperty, ...rest } = validationErrors;
+                    setValidationErrors(rest);
+                  }
+                }}
+              >
+                Cancel
+              </Button>
+              <Button
+                size="sm"
+                onClick={handleAddProperty}
+                disabled={
+                  !newPropertyName.trim() ||
+                  ((newPropertyType === "select" ||
+                    newPropertyType === "multiselect") &&
+                    newPropertyOptions.length === 0)
+                }
+              >
+                Add
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {/* Options Editor Dialog */}
+        {editingOptions && (
+          <div className="bg-white rounded-lg border p-3 mt-2">
+            <div className="flex justify-between items-center mb-2">
+              <div className="font-medium">
+                Edit {editingOptions.propertyName} options
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setEditingOptions(null)}
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+
+            <div className="space-y-2 mb-3 max-h-40 overflow-y-auto">
+              {editingOptions.options.map((option, i) => (
+                <div key={i} className="flex items-center gap-2">
+                  <Input
+                    value={option}
+                    onChange={(e) => {
+                      const newOptions = [...editingOptions.options];
+                      newOptions[i] = e.target.value;
+                      setEditingOptions({
+                        ...editingOptions,
+                        options: newOptions,
+                      });
+
+                      // Update the property
+                      const propertyIndex = properties.findIndex(
+                        (p) => p.name === editingOptions.propertyName
+                      );
+                      if (propertyIndex !== -1) {
+                        const updatedProperties = [...properties];
+                        updatedProperties[propertyIndex] = {
+                          ...updatedProperties[propertyIndex],
+                          options: newOptions,
+                        };
+                        setProperties(updatedProperties);
+
+                        // Update column options
+                        const columnIndex = columns.findIndex(
+                          (col) => col.title === editingOptions.propertyName
+                        );
+                        if (columnIndex !== -1) {
+                          const updatedColumns = [...columns];
+                          updatedColumns[columnIndex] = {
+                            ...updatedColumns[columnIndex],
+                            options: newOptions,
+                          };
+                          setColumns(updatedColumns);
+                        }
+                      }
+                    }}
+                    className="flex-1 focus-visible:ring-0"
+                  />
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => handleRemoveOption(i)}
+                    className="h-8 w-8"
+                  >
+                    <X className="h-4 w-4 text-gray-400" />
+                  </Button>
+                </div>
+              ))}
+            </div>
+
+            <div className="flex items-center gap-2">
+              <Input
+                placeholder="New option"
+                value={newOption}
+                onChange={(e) => setNewOption(e.target.value)}
+                className="flex-1 focus-visible:ring-0"
+              />
+              <Button
+                size="sm"
+                onClick={handleAddOption}
+                disabled={!newOption.trim()}
+              >
+                Add
+              </Button>
+            </div>
+          </div>
+        )}
       </div>
+
       {deleteConfirmation && (
         <AlertDialog
           open={deleteConfirmation.open}
