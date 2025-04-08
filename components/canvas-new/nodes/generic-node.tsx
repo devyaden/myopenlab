@@ -86,6 +86,9 @@ const EXCLUDED_PATTERNS = [
   /^id/, // Matches properties starting with "id"
 ];
 
+// Shapes that need special padding for content
+const SPECIAL_PADDING_SHAPES = ["hexagon", "diamond", "triangle", "circle"];
+
 export const GenericNode = memo(
   ({ data, id, selected, isConnectable }: GenericNodeProps) => {
     const [isEditing, setIsEditing] = useState(false);
@@ -94,6 +97,9 @@ export const GenericNode = memo(
 
     // Check if current shape is a human figure
     const currentShapeIsHumanFigure = isHumanFigure(data.shape);
+
+    // Check if current shape needs special padding
+    const needsSpecialPadding = SPECIAL_PADDING_SHAPES.includes(data.shape);
 
     // Sync label with data changes
     useEffect(() => {
@@ -339,6 +345,15 @@ export const GenericNode = memo(
       );
     };
 
+    // Calculate content padding based on shape
+    const getContentPadding = () => {
+      if (!needsSpecialPadding) return "8px";
+
+      // For shapes like hexagon, diamond, etc., we need more padding
+      const basePadding = Math.max(10, nodeSize.width * 0.15); // 15% of width or at least 10px
+      return `${basePadding}px`;
+    };
+
     // Render text within SVG using foreignObject
     const renderTextWithForeignObject = (
       x: number,
@@ -376,9 +391,11 @@ export const GenericNode = memo(
                 display: "-webkit-box",
                 WebkitLineClamp: 2,
                 WebkitBoxOrient: "vertical",
-                overflow: "hidden",
+                // overflow: "hidden",
                 textOverflow: "ellipsis",
-                maxHeight: `calc(${data.style?.fontSize || 12}px * ${data.style?.lineHeight || 1.2} * 2)`,
+                zIndex: 50,
+                // maxHeight: `calc(${data.style?.fontSize || 12}px * ${data.style?.lineHeight || 1.2} * 2)`,
+                // marginBottom: "4px", // Add space between title and properties
               }}
             >
               {labelValue}
@@ -469,6 +486,7 @@ export const GenericNode = memo(
                   overflow: "hidden",
                   textOverflow: "ellipsis",
                   maxHeight: `calc(${data.style?.fontSize || 12}px * ${data.style?.lineHeight || 1.2} * 2)`,
+                  marginBottom: "4px", // Add space between title and properties
                 }}
               >
                 {labelValue}
@@ -483,6 +501,31 @@ export const GenericNode = memo(
 
       // For other shapes, render with text inside
       if (SHAPE_DEFINITIONS[data.shape]) {
+        // For SVG shapes, we need to adjust the foreignObject position and size
+        // to account for the shape's geometry
+        let foreignX = 10;
+        let foreignY = 10;
+        let foreignWidth = 80;
+        let foreignHeight = 80;
+
+        // Adjust for special shapes
+        if (data.shape === "hexagon") {
+          foreignX = 20;
+          foreignY = 15;
+          foreignWidth = 60;
+          foreignHeight = 70;
+        } else if (data.shape === "diamond") {
+          foreignX = 25;
+          foreignY = 25;
+          foreignWidth = 50;
+          foreignHeight = 50;
+        } else if (data.shape === "triangle") {
+          foreignX = 20;
+          foreignY = 30;
+          foreignWidth = 60;
+          foreignHeight = 50;
+        }
+
         return (
           <svg
             style={svgStyle}
@@ -491,7 +534,12 @@ export const GenericNode = memo(
             xmlns="http://www.w3.org/2000/svg"
           >
             {SHAPE_DEFINITIONS[data.shape].render(shapeProps)}
-            {renderTextWithForeignObject(10, 10, 80, 80)}
+            {renderTextWithForeignObject(
+              foreignX,
+              foreignY,
+              foreignWidth,
+              foreignHeight
+            )}
           </svg>
         );
       }
@@ -605,7 +653,7 @@ export const GenericNode = memo(
                 borderStyle: data.style?.borderStyle || "solid",
                 borderWidth: `${data.style?.borderWidth || 1}px`,
                 backgroundColor: data.style?.backgroundColor || "white",
-                padding: "8px",
+                padding: getContentPadding(), // Use dynamic padding based on shape
               }}
             >
               <div
@@ -643,6 +691,7 @@ export const GenericNode = memo(
                     overflow: "hidden",
                     textOverflow: "ellipsis",
                     maxHeight: `calc(${data.style?.fontSize || 12}px * ${data.style?.lineHeight || 1.2} * 2)`,
+                    marginBottom: "4px", // Add space between title and properties
                   }}
                 >
                   {labelValue}
