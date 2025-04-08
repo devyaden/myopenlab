@@ -234,18 +234,25 @@ export const GenericNode = memo(
     const visibleProperties = useMemo(() => {
       const properties: { key: string; value: any }[] = [];
 
-      // First add special properties (task and type)
-      // Add task property (using label)
-      properties.push({
-        key: "task",
-        value: data.label || "",
-      });
+      // First add special properties (task and type) if they're not hidden
+      const isTaskHidden = data.hidden?.task === true;
+      const isTypeHidden = data.hidden?.type === true;
 
-      // Add type property (using shape or node type)
-      properties.push({
-        key: "type",
-        value: data.shape || "",
-      });
+      // Add task property (using label) if not hidden
+      if (!isTaskHidden) {
+        properties.push({
+          key: "task",
+          value: data.label || "",
+        });
+      }
+
+      // Add type property (using shape) if not hidden
+      if (!isTypeHidden) {
+        properties.push({
+          key: "type",
+          value: data.shape || "",
+        });
+      }
 
       // Loop through all data properties
       Object.entries(data).forEach(([key, value]) => {
