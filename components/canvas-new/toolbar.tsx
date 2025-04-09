@@ -37,11 +37,13 @@ import {
   SendToBack,
   Shapes,
   Square,
+  Table,
   Trash2,
   Triangle,
   Underline,
   User,
 } from "lucide-react";
+import Image from "next/image";
 import React from "react";
 
 interface ToolbarProps {
@@ -849,13 +851,64 @@ export const Toolbar = React.memo(function Toolbar({
         </Button>
       </div>
 
-      <Switch
+      {/* <Switch
         checked={viewMode === "table"}
         onCheckedChange={() =>
           onViewModeChange(viewMode === "canvas" ? "table" : "canvas")
         }
         className="!bg-yadn-primary-green ml-auto"
-      />
+      /> */}
+
+      <div className="ml-auto flex items-center">
+        <div className="bg-gray-100 p-1 rounded-lg flex">
+          <Button
+            variant="ghost"
+            size="sm"
+            className={`h-9 w-9 p-0 rounded-md ${viewMode === "table" ? "bg-white shadow-sm" : ""}`}
+            onClick={() => onViewModeChange("table")}
+            aria-label="Table view"
+          >
+            <Image
+              src="/assets/canvas/table.svg"
+              alt="Table Icon"
+              height={10}
+              width={10}
+              className="h-4 w-4 "
+            />
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            className={`h-9 w-9 p-0 rounded-md ${viewMode === "canvas" ? "bg-white shadow-sm" : ""}`}
+            onClick={() => onViewModeChange("canvas")}
+            aria-label="Canvas view"
+          >
+            <Image
+              src="/assets/canvas/canvas.svg"
+              alt="Table Icon"
+              height={10}
+              width={10}
+              className="h-4 w-4 "
+            />
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-9 w-9 p-0 rounded-md"
+            onClick={() => {}}
+            aria-label="List view"
+            disabled
+          >
+            <Image
+              src="/assets/canvas/document.svg"
+              alt="Table Icon"
+              height={10}
+              width={10}
+              className="h-4 w-4 "
+            />
+          </Button>
+        </div>
+      </div>
     </div>
   );
 });
