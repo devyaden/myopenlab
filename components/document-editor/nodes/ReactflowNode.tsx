@@ -1,9 +1,9 @@
 "use client";
 
-import type React from "react";
-import type JSX from "react";
+import type { default as JSX, default as React } from "react";
 
 import {
+  $getNodeByKey,
   DecoratorNode,
   type EditorConfig,
   type LexicalEditor,
@@ -11,10 +11,8 @@ import {
   type NodeKey,
   type SerializedLexicalNode,
   type Spread,
-  $getNodeByKey,
 } from "lexical";
-import { useState, useRef, useEffect, useCallback } from "react";
-import { memo } from "react";
+import { memo, useCallback, useEffect, useRef, useState } from "react";
 
 // Add this after the imports
 declare global {

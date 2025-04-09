@@ -2,25 +2,25 @@
 
 import type React from "react";
 
-import { Button } from "@/components/ui/button";
-import type { LexicalEditor } from "lexical";
-import { useCallback, useEffect, useRef, useState } from "react";
-import ReactFlow, {
-  Background,
-  ReactFlowProvider,
-  useReactFlow,
-  useNodesState,
-  useEdgesState,
-  Panel,
-} from "reactflow";
-import "reactflow/dist/style.css";
+import CustomEdge from "@/components/canvas-new/custom-edge";
 import { GenericNode } from "@/components/canvas-new/nodes/generic-node";
 import { ImageNode } from "@/components/canvas-new/nodes/image-node";
 import { SwimlaneNode } from "@/components/canvas-new/nodes/swimlane-node";
 import { TextNode } from "@/components/canvas-new/nodes/text-node";
-import CustomEdge from "@/components/canvas-new/custom-edge";
-import { INSERT_REACT_FLOW_COMMAND } from "../plugins/ReactflowPlugin";
+import { Button } from "@/components/ui/button";
 import html2canvas from "html2canvas";
+import type { LexicalEditor } from "lexical";
+import { useCallback, useEffect, useRef, useState } from "react";
+import ReactFlow, {
+  Background,
+  Panel,
+  ReactFlowProvider,
+  useEdgesState,
+  useNodesState,
+  useReactFlow,
+} from "reactflow";
+import "reactflow/dist/style.css";
+import { INSERT_REACT_FLOW_COMMAND } from "../plugins/ReactflowPlugin";
 
 const nodeTypes = {
   genericNode: GenericNode,
