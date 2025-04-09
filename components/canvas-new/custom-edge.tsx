@@ -10,6 +10,7 @@ import {
   getSmoothStepPath,
   getStraightPath,
   type Position,
+  useReactFlow,
 } from "reactflow";
 import "reactflow/dist/style.css";
 
@@ -73,6 +74,7 @@ const CustomEdge = (params: any) => {
   const [isEditing, setIsEditing] = useState(false);
   const [labelText, setLabelText] = useState(data?.label || "");
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const reactFlowInstance = useReactFlow();
 
   // Calculate the midpoint for the label
   const midX = (sourceX + targetX) / 2;
@@ -84,6 +86,15 @@ const CustomEdge = (params: any) => {
       inputRef.current.focus();
     }
   }, [isEditing]);
+
+  // Extract the stroke color from style or use default
+  const strokeColor = style.stroke || "#000";
+
+  // Create a unique marker ID based on the edge ID and color
+  const markerId = `edgeMarker-${id}-${strokeColor.replace("#", "")}`;
+
+  // Create a custom marker end with the same color as the edge
+  const customMarkerEnd = `url(#${markerId})`;
 
   const edgeType = style.edgeType || "default";
 
@@ -175,6 +186,21 @@ const CustomEdge = (params: any) => {
 
   return (
     <>
+      {/* Define a custom marker with the same color as the edge */}
+      <defs>
+        <marker
+          id={markerId}
+          viewBox="0 0 10 10"
+          refX="5"
+          refY="5"
+          markerWidth="6"
+          markerHeight="6"
+          orient="auto-start-reverse"
+        >
+          <path d="M 0 0 L 10 5 L 0 10 z" fill={strokeColor} />
+        </marker>
+      </defs>
+
       {edgeType === "double" ? (
         <>
           <path
@@ -182,9 +208,9 @@ const CustomEdge = (params: any) => {
             d={edgePathData.path1}
             className="react-flow__edge-path"
             strokeWidth={style.strokeWidth || 1}
-            stroke={style.stroke || "#000"}
+            stroke={strokeColor}
             style={{ ...style }}
-            markerEnd={markerEnd}
+            markerEnd={customMarkerEnd}
             onDoubleClick={handleDoubleClick}
           />
           <path
@@ -192,9 +218,8 @@ const CustomEdge = (params: any) => {
             d={edgePathData.path2}
             className="react-flow__edge-path"
             strokeWidth={style.strokeWidth || 1}
-            stroke={style.stroke || "#000"}
-            style={style}
-            markerEnd={markerEnd}
+            stroke={strokeColor}
+            style={{ ...style, markerEnd: undefined }}
             onDoubleClick={handleDoubleClick}
           />
         </>
@@ -204,9 +229,9 @@ const CustomEdge = (params: any) => {
           d={edgePathData as string}
           className="react-flow__edge-path"
           strokeWidth={style.strokeWidth || 2}
-          stroke={style.stroke || "#000"}
-          style={style}
-          markerEnd={markerEnd}
+          stroke={strokeColor}
+          style={{ ...style, markerEnd: undefined }}
+          markerEnd={customMarkerEnd}
           onDoubleClick={handleDoubleClick}
         />
       )}
