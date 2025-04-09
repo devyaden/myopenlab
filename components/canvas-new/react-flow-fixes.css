@@ -1,0 +1,35 @@
+/* Fix for edges being hidden behind parent nodes */
+.react-flow__edges {
+  z-index: 5 !important;
+}
+
+.react-flow__node {
+  z-index: 4;
+}
+
+.react-flow__node.selected {
+  z-index: 6 !important;
+}
+
+.react-flow-subpanes-fix .react-flow__pane {
+  z-index: 0;
+}
+
+.react-flow__edge-path {
+  z-index: 5;
+}
+
+.react-flow__edge.selected {
+  z-index: 6 !important;
+}
+
+.react-flow__edge.animated path {
+  stroke-dasharray: 5;
+  animation: dashdraw 0.5s linear infinite;
+}
+
+@keyframes dashdraw {
+  from {
+    stroke-dashoffset: 10;
+  }
+}

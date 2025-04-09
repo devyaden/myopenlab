@@ -1,5 +1,7 @@
 "use client";
 
+import "./react-flow-fixes.css";
+
 import { Input } from "@/components/ui/input";
 import { useCanvasStore } from "@/lib/store/useCanvas";
 import { CANVAS_TYPE } from "@/types/store";
