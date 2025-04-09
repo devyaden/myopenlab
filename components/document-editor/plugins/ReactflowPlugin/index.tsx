@@ -1,3 +1,5 @@
+// ReactflowPlugin/index.tsx
+
 "use client";
 
 import { useLexicalComposerContext } from "@lexical/react/LexicalComposerContext";
@@ -34,6 +36,24 @@ export default function ReactFlowPlugin(): JSX.Element | null {
       editor.registerCommand<ReactFlowData>(
         INSERT_REACT_FLOW_COMMAND,
         (payload) => {
+          // Ensure dimensions are properly set in the payload
+          if (payload.flowData && payload.flowData.dimensions) {
+            // Make sure dimensions are numbers
+            const width = Number(payload.flowData.dimensions.width);
+            const height = Number(payload.flowData.dimensions.height);
+
+            payload.flowData.dimensions = {
+              width: isNaN(width) ? 500 : width,
+              height: isNaN(height) ? 300 : height,
+            };
+          } else if (payload.flowData) {
+            // Set default dimensions if not provided
+            payload.flowData.dimensions = {
+              width: 500,
+              height: 300,
+            };
+          }
+
           // Create the ReactFlow node with all necessary properties
           const reactFlowNode = $createReactFlowNode(
             payload.id,

@@ -91,6 +91,7 @@ import {
 import TableSelectorDialog from "../../components/TableSelectorDialog";
 import TableView from "@/components/canvas-new/table-view";
 import TablePreview from "../../components/TablePreview";
+import CanvasCropDialog from "../../components/CanvasCropDialog";
 
 const rootTypeToRootName = {
   root: "Root",
@@ -822,13 +823,13 @@ export default function ToolbarPlugin({
     },
     [activeEditor, selectedElementKey]
   );
-  const insertGifOnClick = (payload: InsertImagePayload) => {
-    activeEditor.dispatchCommand(INSERT_IMAGE_COMMAND, payload);
-  };
+  // const insertGifOnClick = (payload: InsertImagePayload) => {
+  //   activeEditor.dispatchCommand(INSERT_IMAGE_COMMAND, payload);
+  // };
 
-  const onInsertReactFlow = (diagram: (typeof reactFlowDiagrams)[0]) => {
-    editor.dispatchCommand(INSERT_REACT_FLOW_COMMAND, diagram);
-  };
+  // const onInsertReactFlow = (diagram: (typeof reactFlowDiagrams)[0]) => {
+  //   editor.dispatchCommand(INSERT_REACT_FLOW_COMMAND, diagram);
+  // };
 
   const canViewerSeeInsertCodeButton = !toolbarState.isImageCaption;
 
@@ -1316,7 +1317,15 @@ export default function ToolbarPlugin({
                 return (
                   <DropDownItem
                     key={index?.toString()}
-                    onClick={() => onInsertReactFlow(diagram)}
+                    onClick={() => {
+                      showModal("Crop Canvas", (onClose) => (
+                        <CanvasCropDialog
+                          activeEditor={activeEditor}
+                          onClose={onClose}
+                          canvasData={diagram}
+                        />
+                      ));
+                    }}
                     className="w-full"
                   >
                     <div className="mb-2">

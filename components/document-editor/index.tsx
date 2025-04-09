@@ -3,8 +3,7 @@
 import { useEffect, type JSX } from "react";
 
 import { LexicalComposer } from "@lexical/react/LexicalComposer";
-import { $createHeadingNode } from "@lexical/rich-text";
-import { $getRoot, $isTextNode, DOMConversionMap, TextNode } from "lexical";
+import { $isTextNode, DOMConversionMap, TextNode } from "lexical";
 
 import { useDocumentStore } from "@/lib/store/useDocument";
 import { PageManagerProvider } from "./components/PageManager";
