@@ -13,7 +13,6 @@ import {
 } from "@/components/ui/popover";
 import { Separator } from "@/components/ui/separator";
 import { Slider } from "@/components/ui/slider";
-import { Switch } from "@/components/ui/switch";
 import {
   AlignCenter,
   AlignJustify,
@@ -37,7 +36,6 @@ import {
   SendToBack,
   Shapes,
   Square,
-  Table,
   Trash2,
   Triangle,
   Underline,
@@ -850,14 +848,6 @@ export const Toolbar = React.memo(function Toolbar({
           <Lock className="h-4 w-4" />
         </Button>
       </div>
-
-      {/* <Switch
-        checked={viewMode === "table"}
-        onCheckedChange={() =>
-          onViewModeChange(viewMode === "canvas" ? "table" : "canvas")
-        }
-        className="!bg-yadn-primary-green ml-auto"
-      /> */}
 
       <div className="ml-auto flex items-center">
         <div className="bg-gray-100 p-1 rounded-lg flex">
