@@ -551,7 +551,7 @@ export function UMLEditor({
             }))}
             edges={edges.map((edge) => ({
               ...edge,
-              type: "default",
+              type: "custom",
               data: { ...edge.data, onLabelChange: onChangeEdgeLabel },
             }))}
             onNodesChange={handleNodesChange}

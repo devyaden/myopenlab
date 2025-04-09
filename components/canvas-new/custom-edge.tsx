@@ -1,11 +1,15 @@
-import { useState } from "react";
+"use client";
+
+import type React from "react";
+
+import { useState, useEffect, useRef } from "react";
 import {
   EdgeLabelRenderer,
   getBezierPath,
   getSimpleBezierPath,
   getSmoothStepPath,
   getStraightPath,
-  Position,
+  type Position,
 } from "reactflow";
 import "reactflow/dist/style.css";
 
@@ -68,6 +72,18 @@ const CustomEdge = (params: any) => {
 
   const [isEditing, setIsEditing] = useState(false);
   const [labelText, setLabelText] = useState(data?.label || "");
+  const inputRef = useRef<HTMLTextAreaElement>(null);
+
+  // Calculate the midpoint for the label
+  const midX = (sourceX + targetX) / 2;
+  const midY = (sourceY + targetY) / 2;
+
+  useEffect(() => {
+    // Focus the input when editing starts
+    if (isEditing && inputRef.current) {
+      inputRef.current.focus();
+    }
+  }, [isEditing]);
 
   const edgeType = style.edgeType || "default";
 
@@ -117,9 +133,16 @@ const CustomEdge = (params: any) => {
     }
   };
 
+  const handleKeyDown = (event: React.KeyboardEvent) => {
+    if (event.key === "Enter" && !event.shiftKey) {
+      event.preventDefault();
+      handleLabelBlur();
+    }
+  };
+
   const labelStyles = {
     position: "absolute" as const,
-    transform: `translate(-50%, -50%)`,
+    transform: `translate(-50%, -50%) translate(${midX}px, ${midY}px)`,
     fontSize: 12,
     pointerEvents: "all" as const,
     maxWidth: "200px",
@@ -130,18 +153,22 @@ const CustomEdge = (params: any) => {
     borderRadius: "4px",
     border: labelText.trim() ? "1px solid transparent" : "none",
     display: labelText.trim() || isEditing ? "block" : "none",
+    zIndex: 1000,
   };
 
   const inputStyles = {
     width: "100%",
+    minWidth: "80px",
     background: "white",
     borderRadius: "4px",
     outline: "none",
     textAlign: "center" as const,
     border: "1px solid #ccc",
     fontSize: "12px",
+    padding: "4px",
     wordWrap: "break-word" as const,
     whiteSpace: "pre-wrap" as const,
+    zIndex: 1001,
   };
 
   const edgePathData = getEdgePath(edgeType);
@@ -185,21 +212,18 @@ const CustomEdge = (params: any) => {
       )}
 
       <EdgeLabelRenderer>
-        <div
-          style={{
-            ...labelStyles,
-            // transform: `translate(-50%, -50%) translate(${edgePathData.labelX}px,${edgePathData.labelY}px)`,
-          }}
-          className="nodrag nopan"
-        >
+        <div style={labelStyles} className="nodrag nopan">
           {isEditing ? (
             <textarea
+              ref={inputRef}
               value={labelText}
               onChange={handleLabelChange}
               onBlur={handleLabelBlur}
+              onKeyDown={handleKeyDown}
               className="nodrag nopan"
               style={inputStyles}
               autoFocus
+              rows={Math.max(1, (labelText.match(/\n/g) || []).length + 1)}
             />
           ) : (
             labelText.trim() && (
@@ -208,6 +232,9 @@ const CustomEdge = (params: any) => {
                 style={{
                   minHeight: "20px",
                   wordBreak: "break-word",
+                  padding: "2px 4px",
+                  backgroundColor: "white",
+                  borderRadius: "4px",
                 }}
               >
                 {labelText}
