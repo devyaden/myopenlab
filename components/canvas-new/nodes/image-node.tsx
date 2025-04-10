@@ -77,7 +77,7 @@ export const ImageNode = memo(({ data, selected, style }: ImageNodeProps) => {
   const handleFileUpload = useCallback(
     (event: React.ChangeEvent<HTMLInputElement>) => {
       const file = event.target.files?.[0];
-      if (file && file.type.startsWith("image/")) {
+      if (file && file?.type?.startsWith("image/")) {
         const reader = new FileReader();
         reader.onload = async (e) => {
           const src = e.target?.result as string;

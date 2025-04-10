@@ -72,6 +72,7 @@ import TwitterPlugin from "./plugins/TwitterPlugin";
 import YouTubePlugin from "./plugins/YouTubePlugin";
 import ContentEditable from "./ui/ContentEditable";
 import TableNodePlugin from "./plugins/CanvasTablePlugin";
+import { LoadingSpinner } from "../loading-spinner";
 
 const skipCollaborationInit =
   // @ts-ignore
@@ -97,7 +98,13 @@ const EMPTY_EDITOR_STATE = JSON.stringify({
   },
 });
 
-export default function Editor(): JSX.Element {
+export default function Editor({
+  isPartOfCanvas,
+  onBackToBoard,
+}: {
+  isPartOfCanvas?: boolean;
+  onBackToBoard?: () => void;
+}): JSX.Element {
   const { historyState } = useSharedHistoryContext();
   const {
     settings: {
@@ -341,6 +348,17 @@ export default function Editor(): JSX.Element {
     onSendBackward: () => {},
   };
 
+  if (isLoading) {
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-background">
+        <div className="flex flex-col items-center space-y-4">
+          <LoadingSpinner size={36} />
+          <p className="text-primary">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <>
       {/* @ts-ignore */}
@@ -352,6 +370,8 @@ export default function Editor(): JSX.Element {
           // @ts-ignore
           setActiveEditor={setIsLinkEditMode}
           folderCanvases={folderCanvases}
+          isPartOfCanvas={isPartOfCanvas}
+          onBackToBoard={onBackToBoard}
         />
       )}
       <PageNavigationPlugin />

@@ -432,7 +432,7 @@ function ShowDeleteCommentOrThreadDialog({
 }): JSX.Element {
   return (
     <>
-      Are you sure you want to delete this {commentOrThread.type}?
+      Are you sure you want to delete this {commentOrThread?.type}?
       <div className="Modal__content">
         <Button
           onClick={() => {
@@ -566,7 +566,7 @@ function CommentsPanelList({
     <ul className="CommentPlugin_CommentsPanel_List" ref={listRef}>
       {comments.map((commentOrThread) => {
         const id = commentOrThread.id;
-        if (commentOrThread.type === "thread") {
+        if (commentOrThread?.type === "thread") {
           const handleClickThread = () => {
             const markNodeKeys = markNodeMap.get(id);
             if (
@@ -747,7 +747,7 @@ export default function CommentPlugin({
 
   const deleteCommentOrThread = useCallback(
     (comment: Comment | Thread, thread?: Thread) => {
-      if (comment.type === "comment") {
+      if (comment?.type === "comment") {
         const deletionInfo = commentStore.deleteCommentOrThread(
           comment,
           thread

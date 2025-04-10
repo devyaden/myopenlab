@@ -385,14 +385,14 @@ const TableView: React.FC<TableViewProps> = ({
       return nodes;
     }
 
-    const rollupColumns = columns?.filter((col) => col.type === "Rollup");
+    const rollupColumns = columns?.filter((col) => col?.type === "Rollup");
     if (!rollupColumns.length) {
       return nodes;
     }
 
     const relationColumnMap = new Map(
       columns
-        ?.filter((col) => col.type === "Relation" && col.related_canvas_id)
+        ?.filter((col) => col?.type === "Relation" && col.related_canvas_id)
         .map((col) => [col.related_canvas_id, col])
     );
 
@@ -451,8 +451,8 @@ const TableView: React.FC<TableViewProps> = ({
               bValue = b.data.label || "";
               break;
             case "type":
-              aValue = a.data.shape || a.type || "";
-              bValue = b.data.shape || b.type || "";
+              aValue = a.data.shape || a?.type || "";
+              bValue = b.data.shape || b?.type || "";
               break;
           }
           const sortOrder = sortDirection === "asc" ? 1 : -1;
@@ -576,7 +576,7 @@ const TableView: React.FC<TableViewProps> = ({
   const handleSave = (nodeId: string, column: string, value: any) => {
     const columnDef = columns?.find((col) => col.title === column);
     if (columnDef) {
-      const { isValid, errorMessage } = validateField(columnDef.type, value);
+      const { isValid, errorMessage } = validateField(columnDef?.type, value);
       if (isValid) {
         const updatedNodes = nodes.map((node) => {
           if (node.id === nodeId) {
@@ -818,7 +818,7 @@ const TableView: React.FC<TableViewProps> = ({
   };
 
   const getRelatedCanvasesWithColumns = useCallback(() => {
-    const relationColumns = columns.filter((col) => col.type === "Relation");
+    const relationColumns = columns.filter((col) => col?.type === "Relation");
 
     if (relationColumns.length === 0) return [];
 

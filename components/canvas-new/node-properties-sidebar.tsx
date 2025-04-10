@@ -90,7 +90,7 @@ interface Property {
 // List of non-editable properties
 const NON_EDITABLE_PROPERTIES = ["id", "from", "to", "parent", "children"];
 // Properties to exclude from the sidebar
-const EXCLUDED_PROPERTIES = ["id", "label", "shape", "hidden", "type"];
+const EXCLUDED_PROPERTIES = ["id", "label", "shape", "hidden", "type", "task"];
 
 // Shape options for the type property
 const SHAPE_OPTIONS = [
@@ -308,18 +308,18 @@ export function NodePropertiesSidebar({
 
       // First add special properties (task and type)
       // Add task property (using label)
-      nodeProperties.push({
-        name: "task",
-        value: nodeData.label || "",
-        type: "text",
-        hidden: nodeData.hidden?.task || false,
-        isEditable: true,
-      });
+      // nodeProperties.push({
+      //   name: "task",
+      //   value: nodeData.label || "",
+      //   type: "text",
+      //   hidden: nodeData.hidden?.task || false,
+      //   isEditable: true,
+      // });
 
       // Add type property (using shape or node type)
       nodeProperties.push({
         name: "type",
-        value: nodeData.shape || selectedNode.type || "",
+        value: nodeData.shape || selectedNode?.type || "",
         type: "select",
         options: SHAPE_OPTIONS,
         hidden: nodeData.hidden?.type || false,
@@ -339,7 +339,7 @@ export function NodePropertiesSidebar({
 
           let propertyType: PropertyType = "text";
           if (matchingColumn) {
-            propertyType = mapColumnTypeToPropertyType(matchingColumn.type);
+            propertyType = mapColumnTypeToPropertyType(matchingColumn?.type);
           } else if (typeof value === "number") {
             propertyType = "number";
           } else if (typeof value === "boolean") {
@@ -395,7 +395,7 @@ export function NodePropertiesSidebar({
         propertyValueInputRef.current &&
         !propertyValueInputRef.current.contains(event.target as any)
       ) {
-        if (properties[editingPropertyValue].type === "text") {
+        if (properties[editingPropertyValue]?.type === "text") {
           handleUpdatePropertyValue(editingPropertyValue, tempPropertyValue);
         }
         setEditingPropertyValue(null);
@@ -657,7 +657,7 @@ export function NodePropertiesSidebar({
     const property = properties[index];
 
     // Validate the value
-    const error = validatePropertyValue(value, property.type);
+    const error = validatePropertyValue(value, property?.type);
     if (error) {
       setValidationErrors({
         ...validationErrors,
@@ -914,7 +914,7 @@ export function NodePropertiesSidebar({
     // Add new column to table columns
     const newColumn = {
       title: newProperty.name,
-      type: mapPropertyTypeToColumnType(newProperty.type),
+      type: mapPropertyTypeToColumnType(newProperty?.type),
       options: newProperty.options,
     };
 
@@ -937,7 +937,7 @@ export function NodePropertiesSidebar({
 
     const property = properties[index];
 
-    switch (property.type) {
+    switch (property?.type) {
       case "text":
       case "longtext":
       case "url":
@@ -992,7 +992,7 @@ export function NodePropertiesSidebar({
 
     // If currently editing this property value
     if (editingPropertyValue === index) {
-      switch (property.type) {
+      switch (property?.type) {
         case "text":
         case "longtext":
         case "url":
@@ -1113,7 +1113,7 @@ export function NodePropertiesSidebar({
       }
     }
 
-    switch (property.type) {
+    switch (property?.type) {
       case "checkbox":
         return (
           <div className="flex items-center">
@@ -1253,7 +1253,7 @@ export function NodePropertiesSidebar({
             >
               {/* Property name with inline editing */}
               <div className="flex items-center gap-2 text-gray-500 min-w-[120px] w-[120px] max-w-[120px] overflow-hidden">
-                {getPropertyIcon(property.name, property.type)}
+                {getPropertyIcon(property.name, property?.type)}
 
                 {editingPropertyName === index ? (
                   <Input
@@ -1303,8 +1303,8 @@ export function NodePropertiesSidebar({
                       Rename
                     </DropdownMenuItem>
 
-                    {(property.type === "select" ||
-                      property.type === "multiselect") && (
+                    {(property?.type === "select" ||
+                      property?.type === "multiselect") && (
                       <DropdownMenuItem
                         onClick={() =>
                           setEditingOptions({

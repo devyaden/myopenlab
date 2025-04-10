@@ -247,28 +247,30 @@ function FlowWithCropping({
               style: {
                 ...canvasData.flowData?.styles[node.id],
                 width:
-                  node.type === "imageNode"
+                  node?.type === "imageNode"
                     ? node.style?.width
                     : node.style?.width ||
-                      (node.type === "textNode" ? 150 : 100),
+                      (node?.type === "textNode" ? 150 : 100),
                 height:
-                  node.type === "imageNode"
+                  node?.type === "imageNode"
                     ? node.style?.height
                     : node.style?.height ||
-                      (node.type === "textNode" ? 50 : 100),
+                      (node?.type === "textNode" ? 50 : 100),
               },
             },
             style: {
               width:
-                node.type === "imageNode"
+                node?.type === "imageNode"
                   ? node.style?.width
-                  : node.style?.width || (node.type === "textNode" ? 150 : 100),
+                  : node.style?.width ||
+                    (node?.type === "textNode" ? 150 : 100),
               height:
-                node.type === "imageNode"
+                node?.type === "imageNode"
                   ? node.style?.height
-                  : node.style?.height || (node.type === "textNode" ? 50 : 100),
+                  : node.style?.height ||
+                    (node?.type === "textNode" ? 50 : 100),
             },
-            connectable: node.type !== "textNode",
+            connectable: node?.type !== "textNode",
           }))}
           edges={edges?.map((edge) => ({
             ...edge,

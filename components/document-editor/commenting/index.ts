@@ -129,10 +129,10 @@ export class CommentStore {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const sharedCommentsArray: YArray<any> | null = this._getCollabComments();
 
-    if (thread !== undefined && commentOrThread.type === "comment") {
+    if (thread !== undefined && commentOrThread?.type === "comment") {
       for (let i = 0; i < nextComments.length; i++) {
         const comment = nextComments[i];
-        if (comment.type === "thread" && comment.id === thread.id) {
+        if (comment?.type === "thread" && comment.id === thread.id) {
           const newThread = cloneThread(comment);
           nextComments.splice(i, 1, newThread);
           const insertOffset =
@@ -177,7 +177,7 @@ export class CommentStore {
     if (thread !== undefined) {
       for (let i = 0; i < nextComments.length; i++) {
         const nextComment = nextComments[i];
-        if (nextComment.type === "thread" && nextComment.id === thread.id) {
+        if (nextComment?.type === "thread" && nextComment.id === thread.id) {
           const newThread = cloneThread(nextComment);
           nextComments.splice(i, 1, newThread);
           const threadComments = newThread.comments;
@@ -206,7 +206,7 @@ export class CommentStore {
     this._comments = nextComments;
     triggerOnChange(this);
 
-    if (commentOrThread.type === "comment") {
+    if (commentOrThread?.type === "comment") {
       return {
         index: commentIndex as number,
         markedComment: markDeleted(commentOrThread as Comment),
@@ -258,7 +258,7 @@ export class CommentStore {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   _createCollabSharedMap(commentOrThread: Comment | Thread): YMap<any> {
     const sharedMap = new YMap();
-    const type = commentOrThread.type;
+    const type = commentOrThread?.type;
     const id = commentOrThread.id;
     sharedMap.set("type", type);
     sharedMap.set("id", id);

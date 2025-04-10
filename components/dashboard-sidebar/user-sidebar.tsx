@@ -112,7 +112,7 @@ export function UserSidebar() {
     type: CANVAS_TYPE,
     folderId?: string | null
   ) => {
-    await createCanvas(
+    const canvasId = await createCanvas(
       name,
       description,
       user?.id as string,
@@ -123,6 +123,10 @@ export function UserSidebar() {
     // If creating a canvas without a folder, fetch root canvases again
     if (!folderId) {
       fetchRootCanvases(user?.id);
+    }
+
+    if (canvasId) {
+      window.location.href = `/protected/canvas-new/${canvasId}`;
     }
 
     setCreateNewModalType(null);
@@ -162,7 +166,7 @@ export function UserSidebar() {
 
   const confirmDelete = async () => {
     if (itemToDelete) {
-      if (itemToDelete.type === "folder") {
+      if (itemToDelete?.type === "folder") {
         await deleteFolder(itemToDelete.id);
       } else {
         await deleteCanvas(itemToDelete.id);

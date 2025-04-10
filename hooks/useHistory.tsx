@@ -32,7 +32,7 @@ const initialState: HistoryState = {
 function historyReducer(state: HistoryState, action: Action): HistoryState {
   const { past, nodes, edges, hierarchyData } = state;
 
-  switch (action.type) {
+  switch (action?.type) {
     case "SET_NODES":
       return {
         past: [...past, { nodes, edges, hierarchyData }],

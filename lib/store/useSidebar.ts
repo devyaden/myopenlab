@@ -174,14 +174,18 @@ export const useSidebarStore = create<SidebarStore>((set, get) => ({
       if (error) throw error;
 
       toast.success("Canvas created successfully!");
+
+      return newCanvas.id;
     } catch (error) {
       console.error("Error creating canvas:", error);
-      // Rollback optimistic update
+
       set({
         folders: state.folders,
         error: "Failed to create canvas",
       });
       toast.error("Failed to create canvas");
+
+      return null;
     }
   },
 

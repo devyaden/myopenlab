@@ -255,7 +255,7 @@ function getBaseOptions(editor: LexicalEditor, showModal: ShowModal) {
           icon: embedConfig.icon,
           keywords: [...embedConfig.keywords, "embed"],
           onSelect: () =>
-            editor.dispatchCommand(INSERT_EMBED_COMMAND, embedConfig.type),
+            editor.dispatchCommand(INSERT_EMBED_COMMAND, embedConfig?.type),
         })
     ),
     new ComponentPickerOption("Equation", {

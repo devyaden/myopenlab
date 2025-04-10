@@ -170,7 +170,7 @@ const SortableTableRow: React.FC<{
                     column.title === "task"
                       ? node.data.label
                       : column.title === "type"
-                        ? node.data.shape || node.type
+                        ? node.data.shape || node?.type
                         : node.data[column.title] || ""
                   );
                   setValidationError(null);
@@ -203,7 +203,7 @@ const SortableTableRow: React.FC<{
                 {editingCell?.nodeId === node.id &&
                 editingCell?.column === column.title ? (
                   <div className="absolute inset-0 z-10 bg-white shadow-sm  border-2 rounded-none">
-                    {column.type === "Select" ? (
+                    {column?.type === "Select" ? (
                       <Select
                         value={editedValue || ""}
                         onValueChange={(value) => {
@@ -225,7 +225,7 @@ const SortableTableRow: React.FC<{
                           ))}
                         </SelectContent>
                       </Select>
-                    ) : column.type === "Multiselect" ? (
+                    ) : column?.type === "Multiselect" ? (
                       <MultiSelect
                         options={(column.options || []).map((option: any) => ({
                           label: option,
@@ -237,7 +237,7 @@ const SortableTableRow: React.FC<{
                           handleSave(node.id, column.title, selected);
                         }}
                       />
-                    ) : column.type === "Checkbox" ? (
+                    ) : column?.type === "Checkbox" ? (
                       <div className="h-full flex items-center justify-center bg-white">
                         <Switch
                           checked={editedValue === true}
@@ -247,9 +247,9 @@ const SortableTableRow: React.FC<{
                           }}
                         />
                       </div>
-                    ) : column.type === "Date" ||
-                      column.type === "Created Time" ||
-                      column.type === "Last edited time" ? (
+                    ) : column?.type === "Date" ||
+                      column?.type === "Created Time" ||
+                      column?.type === "Last edited time" ? (
                       <Input
                         type="datetime-local"
                         value={
@@ -273,7 +273,7 @@ const SortableTableRow: React.FC<{
                         className={`border-gray-300 focus-visible:ring-0 ${validationError ? "border-red-500" : ""}`}
                         autoFocus
                       />
-                    ) : column.type === "Long Text" ? (
+                    ) : column?.type === "Long Text" ? (
                       <Textarea
                         value={editedValue || ""}
                         onChange={(e) => setEditedValue(e.target.value)}
@@ -290,7 +290,7 @@ const SortableTableRow: React.FC<{
                         className={`w-full h-full border-0 rounded-none focus-visible:ring-0 resize-none ${validationError ? "border-red-500" : ""}`}
                         autoFocus
                       />
-                    ) : column.type === "Relation" ? (
+                    ) : column?.type === "Relation" ? (
                       <AddTableCellTrigger
                         value={editedValue || []}
                         label="Testing"
@@ -303,7 +303,7 @@ const SortableTableRow: React.FC<{
                           handleSave(node.id, column.title, value);
                         }}
                       />
-                    ) : column.type === "Rollup" ? (
+                    ) : column?.type === "Rollup" ? (
                       <>
                         {node.data[column.title] ? (
                           <div className="flex flex-wrap gap-1">
@@ -324,7 +324,7 @@ const SortableTableRow: React.FC<{
                       </>
                     ) : (
                       <Input
-                        type={column.type === "Number" ? "number" : "text"}
+                        type={column?.type === "Number" ? "number" : "text"}
                         value={editedValue || ""}
                         onChange={(e) => setEditedValue(e.target.value)}
                         onBlur={() =>
@@ -356,19 +356,19 @@ const SortableTableRow: React.FC<{
                         <span className="text-gray-400"></span>
                       ))}
                     {column.title === "type" &&
-                      (node.data.shape || node.type || (
+                      (node.data.shape || node?.type || (
                         <span className="text-gray-400"></span>
                       ))}
                     {!["task", "type"].includes(column.title) && (
                       <>
-                        {column.type === "Checkbox" ? (
+                        {column?.type === "Checkbox" ? (
                           <Switch
                             checked={node.data[column.title] === true}
                             disabled
                           />
-                        ) : column.type === "Date" ||
-                          column.type === "Created Time" ||
-                          column.type === "Last edited time" ? (
+                        ) : column?.type === "Date" ||
+                          column?.type === "Created Time" ||
+                          column?.type === "Last edited time" ? (
                           node.data[column.title] &&
                           !isNaN(
                             new Date(node.data[column.title]).getTime()
@@ -377,7 +377,7 @@ const SortableTableRow: React.FC<{
                           ) : (
                             <span className="text-gray-400"></span>
                           )
-                        ) : column.type === "Long Text" ? (
+                        ) : column?.type === "Long Text" ? (
                           <div
                             className="max-w-[300px] max-h-[8em] overflow-auto"
                             style={{
@@ -391,7 +391,7 @@ const SortableTableRow: React.FC<{
                               )}
                             </p>
                           </div>
-                        ) : column.type === "Rollup" ? (
+                        ) : column?.type === "Rollup" ? (
                           <>
                             {node.data[column.title] ? (
                               <div className="flex flex-wrap gap-1">
@@ -410,7 +410,7 @@ const SortableTableRow: React.FC<{
                               <span className="text-gray-400"></span>
                             )}
                           </>
-                        ) : column.type === "Relation" ? (
+                        ) : column?.type === "Relation" ? (
                           <>
                             {node.data[column.title] &&
                             node.data[column.title].length > 0 ? (

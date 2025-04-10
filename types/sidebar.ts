@@ -46,7 +46,7 @@ export interface SidebarActions {
     userId: string,
     folderId?: string,
     canvas_type?: CANVAS_TYPE
-  ) => Promise<void>;
+  ) => Promise<string | null>;
   updateCanvas: (
     id: string,
     name: string,

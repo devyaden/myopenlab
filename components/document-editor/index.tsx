@@ -1,14 +1,19 @@
 "use client";
 
-import { useEffect, type JSX } from "react";
-
-import { LexicalComposer } from "@lexical/react/LexicalComposer";
-import { $isTextNode, DOMConversionMap, TextNode } from "lexical";
-
 import { useDocumentStore } from "@/lib/store/useDocument";
+import { LexicalComposer } from "@lexical/react/LexicalComposer";
+import {
+  $createParagraphNode,
+  $createTextNode,
+  $getRoot,
+  $isTextNode,
+  DOMConversionMap,
+  TextNode,
+} from "lexical";
+import { useEffect, useState, type JSX } from "react";
 import { PageManagerProvider } from "./components/PageManager";
 import { FlashMessageContext } from "./context/FlashMessageContext";
-import { SettingsContext, useSettings } from "./context/SettingsContext";
+import { SettingsContext } from "./context/SettingsContext";
 import { SharedHistoryContext } from "./context/SharedHistoryContext";
 import { ToolbarContext } from "./context/ToolbarContext";
 import Editor from "./Editor";
@@ -19,29 +24,38 @@ import PlaygroundEditorTheme from "./themes/PlaygroundEditorTheme";
 import { parseAllowedColor } from "./ui/ColorPicker";
 
 function getExtraStyles(element: HTMLElement): string {
-  // Parse styles from pasted input, but only if they match exactly the
-  // sort of styles that would be produced by exportDOM
   let extraStyles = "";
   const fontSize = parseAllowedFontSize(element.style.fontSize);
   const backgroundColor = parseAllowedColor(element.style.backgroundColor);
   const color = parseAllowedColor(element.style.color);
+
   if (fontSize !== "" && fontSize !== "15px") {
     extraStyles += `font-size: ${fontSize};`;
   }
+
   if (backgroundColor !== "" && backgroundColor !== "rgb(255, 255, 255)") {
     extraStyles += `background-color: ${backgroundColor};`;
   }
+
   if (color !== "" && color !== "rgb(0, 0, 0)") {
     extraStyles += `color: ${color};`;
   }
+
   return extraStyles;
+}
+
+function isValidEditorState(stateString: string): boolean {
+  try {
+    const parsed = JSON.parse(stateString);
+    return parsed.root && Array.isArray(parsed.root.children);
+  } catch {
+    return false;
+  }
 }
 
 function buildImportMap(): DOMConversionMap {
   const importMap: DOMConversionMap = {};
 
-  // Wrap all TextNode importers with a function that also imports
-  // the custom styles implemented by the playground
   for (const [tag, fn] of Object.entries(TextNode.importDOM() || {})) {
     importMap[tag] = (importNode) => {
       const importer = fn(importNode);
@@ -83,27 +97,64 @@ function buildImportMap(): DOMConversionMap {
   return importMap;
 }
 
-function App({ canvasId }: { canvasId: string }): JSX.Element {
-  const {
-    settings: { isCollab, emptyEditor, measureTypingPerf },
-  } = useSettings();
+function initializeEditorState() {
+  return () => {
+    const root = $getRoot();
+    if (root.getFirstChild() === null) {
+      const paragraph = $createParagraphNode();
+      paragraph.append($createTextNode(""));
+      root.append(paragraph);
+    }
+  };
+}
 
-  const { loadDocument, lexical_state } = useDocumentStore();
+function App({
+  canvasId,
+  isPartOfCanvas,
+  onBackToBoard,
+}: {
+  canvasId: string;
+  isPartOfCanvas?: boolean;
+  onBackToBoard?: () => void;
+}): JSX.Element {
+  const { loadDocument, lexical_state, isLoading } = useDocumentStore();
+  const [isEditorReady, setIsEditorReady] = useState(false);
 
   useEffect(() => {
-    loadDocument(canvasId);
+    loadDocument(canvasId).then(() => {
+      setIsEditorReady(true);
+    });
   }, [canvasId, loadDocument]);
 
+  const editorState = (() => {
+    if (
+      typeof lexical_state === "string" &&
+      lexical_state.trim() !== "" &&
+      isValidEditorState(lexical_state)
+    ) {
+      return lexical_state;
+    }
+    return initializeEditorState;
+  })();
+
   const initialConfig = {
-    editorState: lexical_state ? lexical_state : null,
-    html: { import: buildImportMap() },
     namespace: "Yadn Document Builder",
     nodes: [...PlaygroundNodes],
     onError: (error: Error) => {
-      throw error;
+      console.error("Lexical Editor Error:", error);
     },
     theme: PlaygroundEditorTheme,
+    html: { import: buildImportMap() },
+    editorState: editorState,
   };
+
+  if (!isEditorReady) {
+    return (
+      <div className="min-h-screen bg-white flex flex-col w-screen items-center justify-center">
+        <div className="text-gray-600">Preparing document editor...</div>
+      </div>
+    );
+  }
 
   return (
     <LexicalComposer initialConfig={initialConfig}>
@@ -112,7 +163,10 @@ function App({ canvasId }: { canvasId: string }): JSX.Element {
           <ToolbarContext>
             <PageManagerProvider>
               <div className="min-h-screen bg-white flex flex-col w-screen">
-                <Editor />
+                <Editor
+                  isPartOfCanvas={isPartOfCanvas}
+                  onBackToBoard={onBackToBoard}
+                />
               </div>
             </PageManagerProvider>
           </ToolbarContext>
@@ -124,13 +178,21 @@ function App({ canvasId }: { canvasId: string }): JSX.Element {
 
 export default function PlaygroundApp({
   canvasId,
+  isPartOfCanvas,
+  onBackToBoard,
 }: {
   canvasId: string;
+  isPartOfCanvas?: boolean;
+  onBackToBoard?: () => void;
 }): JSX.Element {
   return (
     <SettingsContext>
       <FlashMessageContext>
-        <App canvasId={canvasId} />
+        <App
+          canvasId={canvasId}
+          isPartOfCanvas={isPartOfCanvas}
+          onBackToBoard={onBackToBoard}
+        />
       </FlashMessageContext>
     </SettingsContext>
   );

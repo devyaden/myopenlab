@@ -213,7 +213,7 @@ export const useCanvasStore = create<CanvasStore>()(
             // Extract rollup column IDs.
             const rollupIds = columnDefs
               ?.filter(
-                (column) => column.type === "Rollup" && column.rollup_column_id
+                (column) => column?.type === "Rollup" && column.rollup_column_id
               )
               .map((column) => column.rollup_column_id);
 
@@ -237,7 +237,7 @@ export const useCanvasStore = create<CanvasStore>()(
 
             // Map over column definitions and attach rollup column data when needed.
             const finalColumnDefs = columnDefs?.map((column) => {
-              if (column.type === "Rollup") {
+              if (column?.type === "Rollup") {
                 const rollupColumn = rollupColumnDefs.find(
                   (rollup) => rollup.id === column.rollup_column_id
                 );
@@ -330,7 +330,7 @@ export const useCanvasStore = create<CanvasStore>()(
                   columns: state.columns.map((column, index) => ({
                     id: column.id || uuidv4(),
                     title: column.title,
-                    type: column.type,
+                    type: column?.type,
                     options: column.options || null,
                     required: column.required || false,
                     related_canvas_id: column.related_canvas_id || null,
@@ -452,7 +452,7 @@ export const useCanvasStore = create<CanvasStore>()(
               .order("order");
 
             const rollupDefs = columnDefs
-              ?.filter((column) => column.type === "Rollup")
+              ?.filter((column) => column?.type === "Rollup")
               .map((column) => column.rollup_column_id);
 
             const { data: rollupColumnDefs } = await supabase
@@ -464,7 +464,7 @@ export const useCanvasStore = create<CanvasStore>()(
 
             // @ts-ignore
             columnDefs = columnDefs?.map((column) => {
-              if (column.type === "Rollup") {
+              if (column?.type === "Rollup") {
                 const rollupColumn = rollupColumnDefs?.find(
                   (rollupColumn) => rollupColumn.id === column.rollup_column_id
                 );

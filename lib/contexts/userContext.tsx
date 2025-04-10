@@ -37,7 +37,9 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
       .select("*")
       .eq("id", userId)
       .single();
-    if (error) toast.error("Failed to get user details");
+    if (error) {
+      console.log("---- error while fetching user ----", error);
+    }
 
     setUser(data);
     return data;

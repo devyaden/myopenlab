@@ -67,7 +67,7 @@ type PageState = {
 };
 
 function pageReducer(state: PageState, action: PageAction): PageState {
-  switch (action.type) {
+  switch (action?.type) {
     case "ADD_PAGE": {
       const { afterIndex } = action.payload;
       const newPageId = `page-${Date.now()}`;

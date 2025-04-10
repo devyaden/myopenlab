@@ -1,7 +1,13 @@
 "use client";
 import type React from "react";
 import { memo, useCallback, useEffect, useMemo, useState } from "react";
-import { Handle, NodeResizer, Position } from "reactflow";
+import {
+  Handle,
+  NodeResizer,
+  Position,
+  useReactFlow,
+  useStore,
+} from "reactflow";
 import { SHAPE_DEFINITIONS, isHumanFigure } from "../shape-utils";
 import TextareaAutosize from "react-textarea-autosize";
 
@@ -34,6 +40,8 @@ interface GenericNodeProps {
       | "capsule"
       | "cylindar";
     hidden?: Record<string, boolean>;
+    width?: number;
+    height?: number;
     style?: React.CSSProperties & {
       fontFamily?: string;
       fontSize?: number;
@@ -41,6 +49,7 @@ interface GenericNodeProps {
       isItalic?: boolean;
       isUnderline?: boolean;
       textAlign?: "left" | "center" | "right" | "justify";
+      verticalAlign?: "top" | "middle" | "bottom";
       locked?: boolean;
       borderStyle?: string;
       borderWidth?: number;
@@ -50,19 +59,18 @@ interface GenericNodeProps {
       lineHeight?: number;
     };
     onLabelChange?: (nodeId: string, newLabel: string) => void;
+    onResize?: (nodeId: string, width: number, height: number) => void;
   };
   id: string;
   selected: boolean;
   isConnectable: boolean;
+  xPos?: number;
+  yPos?: number;
 }
 
 const SHOULD_MAINTAIN_ASPECT_RATIO: Record<string, boolean> = {
   circle: true,
   square: true,
-  hexagon: true,
-  diamond: true,
-  triangle: true,
-  cylinder: true,
 };
 
 // Properties that should never be displayed
@@ -72,7 +80,10 @@ const EXCLUDED_PROPERTIES = [
   "style",
   "hidden",
   "onLabelChange",
+  "onResize",
   "id",
+  "width",
+  "height",
   // "from",
   // "to",
   "parent",
@@ -89,11 +100,36 @@ const EXCLUDED_PATTERNS = [
 // Shapes that need special padding for content
 const SPECIAL_PADDING_SHAPES = ["hexagon", "diamond", "triangle", "circle"];
 
+// Base font size for scaling calculations
+const BASE_FONT_SIZE = 12;
+const BASE_NODE_SIZE = 100;
+
 export const GenericNode = memo(
   ({ data, id, selected, isConnectable }: GenericNodeProps) => {
+    const reactFlowInstance = useReactFlow();
     const [isEditing, setIsEditing] = useState(false);
     const [labelValue, setLabelValue] = useState(data.label);
-    const [nodeSize, setNodeSize] = useState({ width: 100, height: 100 });
+
+    // Initialize nodeSize from data if available, otherwise use default
+    const [nodeSize, setNodeSize] = useState({
+      width: data.width || 100,
+      height: data.height || 100,
+    });
+
+    // Get the node dimensions from the store
+    const nodeWithPosition = useStore(
+      useCallback((store) => store.nodeInternals.get(id), [id])
+    );
+
+    // Sync node dimensions from the actual node in the flow
+    useEffect(() => {
+      if (nodeWithPosition) {
+        const { width, height } = nodeWithPosition;
+        if (width && height) {
+          setNodeSize({ width, height });
+        }
+      }
+    }, [nodeWithPosition]);
 
     // Check if current shape is a human figure
     const currentShapeIsHumanFigure = isHumanFigure(data.shape);
@@ -134,7 +170,7 @@ export const GenericNode = memo(
       [data, id, labelValue]
     );
 
-    // Update node size on resize with smoother handling
+    // Update node size on resize with smoother handling and persist to node data
     const handleResize = useCallback(
       (
         _: any,
@@ -150,24 +186,87 @@ export const GenericNode = memo(
         const newWidth = Math.min(Math.max(width, 30), MAX_DIMENSION);
         const newHeight = Math.min(Math.max(height, 30), MAX_DIMENSION);
 
+        // Update local state
         setNodeSize({ width: newWidth, height: newHeight });
+
+        // Persist dimensions to node data
+        if (data.onResize) {
+          data.onResize(id, newWidth, newHeight);
+        } else {
+          // If no onResize handler is provided, update the node directly
+          reactFlowInstance.setNodes((nodes) =>
+            nodes.map((node) => {
+              if (node.id === id) {
+                return {
+                  ...node,
+                  data: {
+                    ...node.data,
+                    width: newWidth,
+                    height: newHeight,
+                  },
+                };
+              }
+              return node;
+            })
+          );
+        }
       },
-      []
+      [id, data, reactFlowInstance]
     );
 
-    // Define consistent text styles
+    // Calculate font size based on node dimensions
+    const calculateFontSize = useCallback(
+      (baseFontSize: number) => {
+        // Get the average dimension to use for scaling
+        const avgDimension = (nodeSize.width + nodeSize.height) / 2;
+
+        // Calculate scale factor based on the ratio of current size to base size
+        const scaleFactor = Math.sqrt(avgDimension / BASE_NODE_SIZE);
+
+        // Apply the scale factor to the base font size with limits
+        const userFontSize = data.style?.fontSize || BASE_FONT_SIZE;
+        const scaledFontSize = userFontSize * scaleFactor;
+
+        // Set minimum and maximum font sizes
+        const minFontSize = 8;
+        const maxFontSize = 36;
+
+        return Math.min(Math.max(scaledFontSize, minFontSize), maxFontSize);
+      },
+      [nodeSize, data.style?.fontSize]
+    );
+
+    // Define consistent text styles with dynamic font sizing
     const getTextStyle = useCallback(
-      () => ({
-        fontFamily: data.style?.fontFamily || "Arial",
-        fontSize: `${data.style?.fontSize || 12}px`,
-        fontWeight: data.style?.isBold ? "bold" : "normal",
-        fontStyle: data.style?.isItalic ? "italic" : "normal",
-        textDecoration: data.style?.isUnderline ? "underline" : "none",
-        color: data.style?.textColor || "#000000",
-        lineHeight: `${data.style?.lineHeight || 1.2}`,
-        textAlign: data.style?.textAlign || "center",
-      }),
-      [data.style]
+      (isProperty = false) => {
+        // Calculate the main font size
+        const mainFontSize = calculateFontSize(
+          data.style?.fontSize || BASE_FONT_SIZE
+        );
+
+        // Property text is slightly smaller
+        const propertyFontSize = isProperty ? mainFontSize * 0.8 : mainFontSize;
+
+        return {
+          fontFamily: data.style?.fontFamily || "Arial",
+          fontSize: `${propertyFontSize}px`,
+          fontWeight: isProperty
+            ? "normal"
+            : data.style?.isBold
+              ? "bold"
+              : "normal",
+          fontStyle: data.style?.isItalic ? "italic" : "normal",
+          textDecoration: data.style?.isUnderline ? "underline" : "none",
+          color: data.style?.textColor || "#000000",
+          lineHeight: `${data.style?.lineHeight || 1.2}`,
+          textAlign: data.style?.textAlign || "center",
+          overflow: "hidden",
+          textOverflow: "ellipsis",
+          whiteSpace: "nowrap",
+          width: "100%",
+        };
+      },
+      [data.style, calculateFontSize]
     );
 
     // Base node style with centering
@@ -240,17 +339,7 @@ export const GenericNode = memo(
     const visibleProperties = useMemo(() => {
       const properties: { key: string; value: any }[] = [];
 
-      // First add special properties (task and type) if they're not hidden
-      const isTaskHidden = data.hidden?.task === true;
       const isTypeHidden = data.hidden?.type === true;
-
-      // Add task property (using label) if not hidden
-      if (!isTaskHidden) {
-        properties.push({
-          key: "task",
-          value: data.label || "",
-        });
-      }
 
       // Add type property (using shape) if not hidden
       if (!isTypeHidden) {
@@ -274,120 +363,34 @@ export const GenericNode = memo(
       return properties;
     }, [data]);
 
-    // Render properties table
-    const renderPropertiesTable = () => {
-      if (visibleProperties.length === 0) return null;
+    // Get alignment style for flex containers
+    const getAlignmentStyle = useCallback(() => {
+      return {
+        alignItems:
+          data.style?.textAlign === "left"
+            ? "flex-start"
+            : data.style?.textAlign === "right"
+              ? "flex-end"
+              : "center",
+        justifyContent:
+          data.style?.verticalAlign === "top"
+            ? "flex-start"
+            : data.style?.verticalAlign === "bottom"
+              ? "flex-end"
+              : "center",
+      };
+    }, [data.style?.textAlign, data.style?.verticalAlign]);
 
-      // Calculate font size based on node size
-      const baseFontSize = data.style?.fontSize || 12;
-      const scaleFactor = Math.min(1, Math.max(0.6, nodeSize.width / 150)); // Scale between 60% and 100% based on width
-      const fontSize = baseFontSize * 0.7 * scaleFactor; // Make font smaller and scale with node size
-
-      return (
-        <div
-          style={{
-            width: "100%",
-            marginTop: "4px",
-            fontSize: `${fontSize}px`,
-            color: data.style?.textColor || "#000000",
-            fontFamily: data.style?.fontFamily || "Arial",
-            // overflow: "hidden",
-            display: "flex",
-            flexDirection: "column",
-            // gap: "2px",
-          }}
-        >
-          {visibleProperties.map((prop) => (
-            <div
-              key={prop.key}
-              style={{
-                // padding: "2px 4px",
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-                whiteSpace: "nowrap",
-                textAlign: data.style?.textAlign || "center",
-              }}
-            >
-              {prop.value}
-            </div>
-          ))}
-        </div>
-      );
-    };
-
-    // Calculate content padding based on shape
-    const getContentPadding = () => {
-      if (!needsSpecialPadding) return "8px";
-
-      // For shapes like hexagon, diamond, etc., we need more padding
-      const basePadding = Math.max(10, nodeSize.width * 0.15); // 15% of width or at least 10px
-      return `${basePadding}px`;
-    };
-
-    // Render text within SVG using foreignObject
-    const renderTextWithForeignObject = (
-      x: number,
-      y: number,
-      width: number,
-      height: number
-    ) => {
-      return (
-        <foreignObject x={x} y={y} width={width} height={height}>
-          <div
-            style={{
-              width: "100%",
-              height: "100%",
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
-              justifyContent:
-                visibleProperties.length > 0 ? "flex-start" : "center",
-              padding: "4px",
-              overflow: "hidden",
-            }}
-          >
-            {/* Title with 2-line clamp */}
-            <div
-              style={{
-                width: "100%",
-                ...getTextStyle(),
-                fontWeight: "bold",
-                textAlign:
-                  data.style?.textAlign === "left"
-                    ? "left"
-                    : data.style?.textAlign === "right"
-                      ? "right"
-                      : "center",
-                display: "-webkit-box",
-                WebkitLineClamp: 2,
-                WebkitBoxOrient: "vertical",
-                // overflow: "hidden",
-                textOverflow: "ellipsis",
-                zIndex: 50,
-                // maxHeight: `calc(${data.style?.fontSize || 12}px * ${data.style?.lineHeight || 1.2} * 2)`,
-                // marginBottom: "4px", // Add space between title and properties
-              }}
-            >
-              {labelValue}
-            </div>
-
-            {/* Properties Table */}
-            {renderPropertiesTable()}
-          </div>
-        </foreignObject>
-      );
-    };
-
-    // Render different shapes with text alignment and truncation
+    // Update the renderShape function to handle special shapes better
     const renderShape = () => {
+      // Base SVG style with improved scaling
       const svgStyle: React.CSSProperties = {
         width: "100%",
         height: "100%",
-        maxWidth: "100%",
-        maxHeight: "100%",
+        display: "block", // Ensures proper sizing
       };
 
-      // For human figures, we'll render the shape and text separately
+      // For human figures, increase the spacing between figure and text
       if (currentShapeIsHumanFigure) {
         return (
           <div
@@ -396,121 +399,279 @@ export const GenericNode = memo(
               flexDirection: "column",
               width: "100%",
               height: "100%",
-              alignItems: "center",
-              justifyContent: "space-between",
+              ...getAlignmentStyle(),
             }}
           >
-            {/* Human figure shape */}
+            {/* Human figure shape - reduce height to create more space for text */}
             <div
               style={{
-                height: "75%",
+                height: "55%", // Reduced from 60% to create more space for text
                 width: "100%",
                 display: "flex",
                 justifyContent: "center",
+                alignItems: "center",
+                marginBottom: "10px", // Increased spacing between figure and text
               }}
             >
               {SHAPE_DEFINITIONS[data.shape] && (
                 <svg
-                  style={{ height: "100%", maxWidth: "100%" }}
+                  style={svgStyle}
                   viewBox={SHAPE_DEFINITIONS[data.shape].viewBox}
                   xmlns="http://www.w3.org/2000/svg"
+                  preserveAspectRatio="xMidYMid meet"
                 >
                   {SHAPE_DEFINITIONS[data.shape].render(shapeProps)}
                 </svg>
               )}
             </div>
 
-            {/* Text below the shape */}
+            {/* Text below the shape - add margin-top for spacing */}
             <div
               style={{
                 width: "100%",
-                minHeight: "20%",
+                minHeight: "45%", // Increased from 40% to accommodate text
                 display: "flex",
                 flexDirection: "column",
-                alignItems:
-                  data.style?.textAlign === "left"
+                ...getAlignmentStyle(),
+                justifyContent:
+                  data.style?.verticalAlign === "top"
                     ? "flex-start"
-                    : data.style?.textAlign === "right"
+                    : data.style?.verticalAlign === "bottom"
                       ? "flex-end"
-                      : "center",
-                padding: "8px",
+                      : "center", // Apply vertical alignment
+                padding: "4px",
                 overflow: "hidden",
-                marginTop: "5px",
               }}
             >
-              {/* Title with 2-line clamp */}
-              <div
-                style={{
-                  width: "100%",
-                  ...getTextStyle(),
-                  fontWeight: "bold",
-                  textAlign:
-                    data.style?.textAlign === "left"
-                      ? "left"
-                      : data.style?.textAlign === "right"
-                        ? "right"
-                        : "center",
-                  display: "-webkit-box",
-                  WebkitLineClamp: 2,
-                  WebkitBoxOrient: "vertical",
-                  overflow: "hidden",
-                  textOverflow: "ellipsis",
-                  maxHeight: `calc(${data.style?.fontSize || 12}px * ${data.style?.lineHeight || 1.2} * 2)`,
-                  marginBottom: "4px", // Add space between title and properties
-                }}
-              >
-                {labelValue}
-              </div>
+              <div style={getTextStyle()}>{labelValue}</div>
 
-              {/* Properties Table */}
-              {renderPropertiesTable()}
+              {visibleProperties.length > 0 && (
+                <div
+                  style={{
+                    width: "100%",
+                    marginTop: "2px",
+                    overflow: "hidden",
+                  }}
+                >
+                  {visibleProperties.map((prop) => (
+                    <div key={prop.key} style={getTextStyle(true)}>
+                      {prop.value}
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         );
       }
 
-      // For other shapes, render with text inside
-      if (SHAPE_DEFINITIONS[data.shape]) {
-        // For SVG shapes, we need to adjust the foreignObject position and size
-        // to account for the shape's geometry
-        let foreignX = 10;
-        let foreignY = 10;
-        let foreignWidth = 80;
-        let foreignHeight = 80;
+      // For special shapes like hexagon, diamond, triangle, etc. - ensure text stays within bounds
+      if (["hexagon", "diamond", "triangle", "circle"].includes(data.shape)) {
+        // Calculate appropriate padding based on shape
+        const shapePadding =
+          data.shape === "diamond"
+            ? "20%"
+            : data.shape === "triangle"
+              ? "20%"
+              : data.shape === "hexagon"
+                ? "15%"
+                : data.shape === "circle"
+                  ? "12%"
+                  : "8px";
 
-        // Adjust for special shapes
-        if (data.shape === "hexagon") {
-          foreignX = 20;
-          foreignY = 15;
-          foreignWidth = 60;
-          foreignHeight = 70;
-        } else if (data.shape === "diamond") {
-          foreignX = 25;
-          foreignY = 25;
-          foreignWidth = 50;
-          foreignHeight = 50;
-        } else if (data.shape === "triangle") {
-          foreignX = 20;
-          foreignY = 30;
-          foreignWidth = 60;
-          foreignHeight = 50;
-        }
+        const PRESERVED_ASPECT_RATIO_SHAPES = ["circle", "square"];
 
         return (
-          <svg
-            style={svgStyle}
-            viewBox={SHAPE_DEFINITIONS[data.shape].viewBox}
-            preserveAspectRatio="xMidYMid meet"
-            xmlns="http://www.w3.org/2000/svg"
+          <div style={{ position: "relative", width: "100%", height: "100%" }}>
+            {/* Render the shape as SVG */}
+            <svg
+              style={svgStyle}
+              viewBox={SHAPE_DEFINITIONS[data.shape].viewBox}
+              preserveAspectRatio={
+                PRESERVED_ASPECT_RATIO_SHAPES.includes(data.shape)
+                  ? "xMidYMid meet"
+                  : "none"
+              }
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              {SHAPE_DEFINITIONS[data.shape].render(shapeProps)}
+            </svg>
+
+            {/* Overlay text on top of the shape */}
+            <div
+              style={{
+                position: "absolute",
+                top: 0,
+                left: 0,
+                width: "100%",
+                height: "100%",
+                display: "flex",
+                flexDirection: "column",
+                ...getAlignmentStyle(),
+                justifyContent:
+                  data.style?.verticalAlign === "top"
+                    ? "flex-start"
+                    : data.style?.verticalAlign === "bottom"
+                      ? "flex-end"
+                      : "center", // Apply vertical alignment
+                padding: shapePadding,
+                pointerEvents: "none",
+                overflow: "hidden",
+              }}
+            >
+              <div style={getTextStyle()}>{labelValue}</div>
+
+              {visibleProperties.length > 0 && (
+                <div
+                  style={{
+                    width: "100%",
+                    marginTop: "2px",
+                    overflow: "hidden",
+                  }}
+                >
+                  {visibleProperties.map((prop) => (
+                    <div key={prop.key} style={getTextStyle(true)}>
+                      {prop.value}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        );
+      }
+
+      // For arrow shapes - move text below the shape
+      if (
+        ["left-arrow", "right-arrow", "top-arrow", "bottom-arrow"].includes(
+          data.shape
+        )
+      ) {
+        return (
+          <div
+            style={{
+              width: "100%",
+              height: "100%",
+              display: "flex",
+              flexDirection: "column",
+            }}
           >
-            {SHAPE_DEFINITIONS[data.shape].render(shapeProps)}
-            {renderTextWithForeignObject(
-              foreignX,
-              foreignY,
-              foreignWidth,
-              foreignHeight
-            )}
-          </svg>
+            {/* Arrow shape container - take up 65% of height */}
+            <div style={{ height: "65%", width: "100%", position: "relative" }}>
+              <svg
+                style={svgStyle}
+                viewBox={SHAPE_DEFINITIONS[data.shape].viewBox}
+                preserveAspectRatio="none"
+                xmlns="http://www.w3.org/2000/svg"
+                width="100%"
+                height="100%"
+              >
+                {SHAPE_DEFINITIONS[data.shape].render(shapeProps)}
+              </svg>
+            </div>
+
+            {/* Text container below the arrow - take up 35% of height */}
+            <div
+              style={{
+                height: "35%",
+                width: "100%",
+                display: "flex",
+                flexDirection: "column",
+                ...getAlignmentStyle(),
+                justifyContent:
+                  data.style?.verticalAlign === "top"
+                    ? "flex-start"
+                    : data.style?.verticalAlign === "bottom"
+                      ? "flex-end"
+                      : "center", // Apply vertical alignment
+                padding: "4px",
+                overflow: "hidden",
+                marginTop: "2px",
+              }}
+            >
+              <div style={getTextStyle()}>{labelValue}</div>
+
+              {visibleProperties.length > 0 && (
+                <div
+                  style={{
+                    width: "100%",
+                    marginTop: "2px",
+                    overflow: "hidden",
+                  }}
+                >
+                  {visibleProperties.map((prop) => (
+                    <div key={prop.key} style={getTextStyle(true)}>
+                      {prop.value}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        );
+      }
+
+      // For cylindar and document shapes - ensure text stays within bounds
+      if (
+        ["cylindar", "document", "message-bubble", "capsule"].includes(
+          data.shape
+        )
+      ) {
+        return (
+          <div style={{ position: "relative", width: "100%", height: "100%" }}>
+            {/* Render the shape */}
+            <svg
+              style={svgStyle}
+              viewBox={SHAPE_DEFINITIONS[data.shape].viewBox}
+              preserveAspectRatio="none"
+              xmlns="http://www.w3.org/2000/svg"
+              width="100%"
+              height="100%"
+            >
+              {SHAPE_DEFINITIONS[data.shape].render(shapeProps)}
+            </svg>
+
+            {/* Overlay text on top of the shape */}
+            <div
+              style={{
+                position: "absolute",
+                top: 0,
+                left: 0,
+                width: "100%",
+                height: "100%",
+                display: "flex",
+                flexDirection: "column",
+                ...getAlignmentStyle(),
+                justifyContent:
+                  data.style?.verticalAlign === "top"
+                    ? "flex-start"
+                    : data.style?.verticalAlign === "bottom"
+                      ? "flex-end"
+                      : "center", // Apply vertical alignment
+                padding: "10%",
+                pointerEvents: "none",
+                overflow: "hidden",
+              }}
+            >
+              <div style={getTextStyle()}>{labelValue}</div>
+
+              {visibleProperties.length > 0 && (
+                <div
+                  style={{
+                    width: "100%",
+                    marginTop: "2px",
+                    overflow: "hidden",
+                  }}
+                >
+                  {visibleProperties.map((prop) => (
+                    <div key={prop.key} style={getTextStyle(true)}>
+                      {prop.value}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
         );
       }
 
@@ -537,16 +698,9 @@ export const GenericNode = memo(
               >
                 <div
                   style={{
-                    width: "100%",
-                    display: "-webkit-box",
-                    WebkitLineClamp: 2,
-                    WebkitBoxOrient: "vertical",
-                    overflow: "hidden",
-                    textOverflow: "ellipsis",
                     ...getTextStyle(),
                     whiteSpace: "normal",
                     wordWrap: "break-word",
-                    maxHeight: `calc(${data.style?.fontSize || 12}px * ${data.style?.lineHeight || 1.2} * 2)`,
                   }}
                 >
                   {labelValue}
@@ -557,7 +711,8 @@ export const GenericNode = memo(
                 style={{
                   borderColor: data.style?.borderColor || "#000000",
                   backgroundColor: data.style?.backgroundColor || "white",
-                  textAlign: data.style?.textAlign || "center",
+                  // textAlign: data.style?.textAlign || "center",
+                  ...getTextStyle(true),
                 }}
               >
                 Attributes
@@ -566,7 +721,8 @@ export const GenericNode = memo(
                 className="p-2"
                 style={{
                   backgroundColor: data.style?.backgroundColor || "white",
-                  textAlign: data.style?.textAlign || "center",
+                  // textAlign: data.style?.textAlign || "center",
+                  ...getTextStyle(true),
                 }}
               >
                 Methods
@@ -589,7 +745,8 @@ export const GenericNode = memo(
                 className="border-b-2 p-2 font-bold"
                 style={{
                   borderColor: data.style?.borderColor || "#000000",
-                  textAlign: data.style?.textAlign || "center",
+                  // textAlign: data.style?.textAlign || "center",
+                  ...getTextStyle(true),
                 }}
               >
                 «interface»
@@ -597,16 +754,10 @@ export const GenericNode = memo(
               <div className="p-2">
                 <div
                   style={{
-                    width: "100%",
-                    display: "-webkit-box",
-                    WebkitLineClamp: 2,
-                    WebkitBoxOrient: "vertical",
-                    overflow: "hidden",
-                    textOverflow: "ellipsis",
+                    // width: "100%",
                     ...getTextStyle(),
                     whiteSpace: "normal",
                     wordWrap: "break-word",
-                    maxHeight: `calc(${data.style?.fontSize || 12}px * ${data.style?.lineHeight || 1.2} * 2)`,
                   }}
                 >
                   {labelValue}
@@ -615,6 +766,7 @@ export const GenericNode = memo(
             </div>
           );
         default:
+          // For default case (rectangle, rounded, etc.) - update to use vertical alignment
           return (
             <div
               style={{
@@ -623,7 +775,8 @@ export const GenericNode = memo(
                 borderStyle: data.style?.borderStyle || "solid",
                 borderWidth: `${data.style?.borderWidth || 1}px`,
                 backgroundColor: data.style?.backgroundColor || "white",
-                padding: getContentPadding(), // Use dynamic padding based on shape
+                padding: "8px",
+                overflow: "hidden", // Ensure text doesn't overflow
               }}
             >
               <div
@@ -632,43 +785,33 @@ export const GenericNode = memo(
                   height: "100%",
                   display: "flex",
                   flexDirection: "column",
-                  alignItems:
-                    data.style?.textAlign === "left"
-                      ? "flex-start"
-                      : data.style?.textAlign === "right"
-                        ? "flex-end"
-                        : "center",
+                  ...getAlignmentStyle(),
                   justifyContent:
-                    visibleProperties.length > 0 ? "flex-start" : "center",
-                  overflow: "hidden",
+                    data.style?.verticalAlign === "top"
+                      ? "flex-start"
+                      : data.style?.verticalAlign === "bottom"
+                        ? "flex-end"
+                        : "center", // Apply vertical alignment
+                  overflow: "hidden", // Ensure text doesn't overflow
                 }}
               >
-                {/* Title with 2-line clamp */}
-                <div
-                  style={{
-                    width: "100%",
-                    ...getTextStyle(),
-                    fontWeight: "bold",
-                    textAlign:
-                      data.style?.textAlign === "left"
-                        ? "left"
-                        : data.style?.textAlign === "right"
-                          ? "right"
-                          : "center",
-                    display: "-webkit-box",
-                    WebkitLineClamp: 2,
-                    WebkitBoxOrient: "vertical",
-                    // overflow: "hidden",
-                    // textOverflow: "ellipsis",
-                    // maxHeight: `calc(${data.style?.fontSize || 12}px * ${data.style?.lineHeight || 1.2} * 2)`,
-                    // marginBottom: "4px", // Add space between title and properties
-                  }}
-                >
-                  {labelValue}
-                </div>
+                <div style={getTextStyle()}>{labelValue}</div>
 
-                {/* Properties Table */}
-                {renderPropertiesTable()}
+                {visibleProperties.length > 0 && (
+                  <div
+                    style={{
+                      width: "100%",
+                      marginTop: "4px",
+                      overflow: "hidden",
+                    }}
+                  >
+                    {visibleProperties.map((prop) => (
+                      <div key={prop.key} style={getTextStyle(true)}>
+                        {prop.value}
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
           );
@@ -679,12 +822,12 @@ export const GenericNode = memo(
       <>
         <NodeResizer
           isVisible={selected}
-          minWidth={30} // Reduced minimum size
+          minWidth={30}
           minHeight={30}
-          keepAspectRatio={SHOULD_MAINTAIN_ASPECT_RATIO[data.shape]} // Add aspect ratio config
+          keepAspectRatio={SHOULD_MAINTAIN_ASPECT_RATIO[data.shape] || false}
           onResize={handleResize}
           handleStyle={{
-            width: 12, // Larger handles
+            width: 12,
             height: 12,
             borderRadius: 6,
             backgroundColor: "#1a192b",

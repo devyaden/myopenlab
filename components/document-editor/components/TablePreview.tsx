@@ -104,7 +104,7 @@ const DisplayTableRow: React.FC<{
               ? node.data?.label
               : column.title === "type"
                 ? node.data?.shape
-                : renderCellValue(node.data[column.title], column.type)}
+                : renderCellValue(node.data[column.title], column?.type)}
           </td>
         ))}
     </tr>
@@ -224,14 +224,16 @@ const TablePreview = ({
       return nodes;
     }
 
-    const rollupColumns = columns?.filter((col) => col.type === "Rollup");
+    const rollupColumns = columns?.filter((col) => col?.type === "Rollup");
     if (!rollupColumns.length) {
       return nodes;
     }
 
     const relationColumnMap = new Map(
       columns
-        ?.filter((col: any) => col.type === "Relation" && col.related_canvas_id)
+        ?.filter(
+          (col: any) => col?.type === "Relation" && col.related_canvas_id
+        )
         .map((col: any) => [col.related_canvas_id, col])
     );
 
@@ -291,8 +293,8 @@ const TablePreview = ({
               bValue = b.data.label || "";
               break;
             case "type":
-              aValue = a.data.shape || a.type || "";
-              bValue = b.data.shape || b.type || "";
+              aValue = a.data.shape || a?.type || "";
+              bValue = b.data.shape || b?.type || "";
               break;
           }
           const sortOrder = sortDirection === "asc" ? 1 : -1;

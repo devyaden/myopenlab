@@ -13,6 +13,7 @@ export interface NodeStyle {
   isItalic: boolean;
   isUnderline: boolean;
   textAlign: "left" | "center" | "right" | "justify";
+  verticalAlign: "top" | "middle" | "bottom";
   shape:
     | "rectangle"
     | "rounded"

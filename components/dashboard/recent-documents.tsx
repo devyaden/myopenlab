@@ -117,7 +117,7 @@ export function RecentDocuments() {
               </div>
 
               <div className="flex-1 min-w-0">
-                <Link href={doc.type === "Canvas" ? `/canvas/${doc.id}` : "#"}>
+                <Link href={doc?.type === "Canvas" ? `/canvas/${doc.id}` : "#"}>
                   <h3 className="text-sm font-medium text-gray-900 truncate">
                     {doc.title}
                   </h3>
@@ -125,7 +125,7 @@ export function RecentDocuments() {
                 <div className="flex items-center gap-2 text-xs text-gray-500">
                   <span>{doc.date}</span>
                   <span>•</span>
-                  <span>{doc.type}</span>
+                  <span>{doc?.type}</span>
                 </div>
               </div>
 

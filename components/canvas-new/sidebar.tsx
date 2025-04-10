@@ -232,7 +232,7 @@ export function Sidebar({
         const filteredShapes = category.shapes.filter(
           (shape) =>
             shape.name.toLowerCase().includes(query) ||
-            shape.type.toLowerCase().includes(query)
+            shape?.type.toLowerCase().includes(query)
         );
 
         // Return category with filtered shapes
@@ -376,9 +376,9 @@ export function Sidebar({
                           className="flex flex-col items-center justify-center py-2 cursor-move hover:bg-gray-100 rounded px-2"
                           draggable
                           onDragStart={(e) =>
-                            handleShapeDragStart(e, shape.type)
+                            handleShapeDragStart(e, shape?.type)
                           }
-                          onClick={() => onShapeClick?.(shape.type)}
+                          onClick={() => onShapeClick?.(shape?.type)}
                         >
                           <div className="flex items-center justify-center h-10">
                             {shape.component}

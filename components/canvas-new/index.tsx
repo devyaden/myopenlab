@@ -17,6 +17,7 @@ import { Sidebar } from "./sidebar";
 import { Toolbar } from "./toolbar";
 import { UMLEditor } from "./uml-editor";
 import { VerticalNav } from "./vertical-nav";
+import DocumentEditor from "@/components/document-editor";
 
 interface NodeStyle {
   fontFamily: string;
@@ -25,6 +26,7 @@ interface NodeStyle {
   isItalic: boolean;
   isUnderline: boolean;
   textAlign: "left" | "center" | "right" | "justify";
+  verticalAlign: "top" | "middle" | "bottom";
   shape:
     | "rectangle"
     | "rounded"
@@ -108,7 +110,9 @@ export default function CanvasNew({ canvasId }: FigmaInterfaceProps) {
   };
 
   const [selectedEdge, setSelectedEdge] = useState<string | null>(null);
-  const [viewMode, setViewMode] = useState<"canvas" | "table">("canvas");
+  const [viewMode, setViewMode] = useState<"canvas" | "table" | "document">(
+    "canvas"
+  );
   const clipboardRef = useRef<Node[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -121,10 +125,6 @@ export default function CanvasNew({ canvasId }: FigmaInterfaceProps) {
       name: string;
       canvases: { id: string; name: string }[];
     }[]
-  >([]);
-  const [currentFolder, setCurrentFolder] = useState<string | null>(null);
-  const [currentFolderCanvases, setCurrentFolderCanvases] = useState<
-    { id: string; name: string }[]
   >([]);
 
   const [edgeWidth, setEdgeWidth] = useState(2);
@@ -171,6 +171,7 @@ export default function CanvasNew({ canvasId }: FigmaInterfaceProps) {
           isItalic: false,
           isUnderline: false,
           textAlign: "left" as const,
+          verticalAlign: "top" as const,
           shape: "rectangle" as const,
           locked: false,
           isVertical: true,
@@ -282,7 +283,7 @@ export default function CanvasNew({ canvasId }: FigmaInterfaceProps) {
             (acc, column) => ({
               ...acc,
               [column.title]:
-                column.type === "Relation" || column.type === "Rollup"
+                column?.type === "Relation" || column?.type === "Rollup"
                   ? null
                   : "",
             }),
@@ -366,7 +367,7 @@ export default function CanvasNew({ canvasId }: FigmaInterfaceProps) {
     (swimlaneId: string) => {
       updateState({
         nodes: currentState.nodes.map((node) => {
-          if (node.id === swimlaneId && node.type === "swimlaneNode") {
+          if (node.id === swimlaneId && node?.type === "swimlaneNode") {
             const newLane = {
               id: `lane-${Date.now()}`,
               label: `Lane ${node.data.lanes.length + 1}`,
@@ -834,164 +835,183 @@ export default function CanvasNew({ canvasId }: FigmaInterfaceProps) {
 
   return (
     <ReactFlowProvider>
-      <div className="h-screen bg-white flex flex-col w-screen">
-        <Header
-          onUndo={undo}
-          onRedo={redo}
-          currentState={currentState}
-          onCut={() => {
-            copySelectedNodes();
-            deleteSelectedNodes();
-          }}
-          onCopy={copySelectedNodes}
-          onPaste={pasteNodes}
-          onDelete={deleteSelectedNodes}
-          onInsertImage={addImage}
-          onZoomIn={handleZoomIn}
-          onZoomOut={handleZoomOut}
-          onFitToScreen={handleFitToScreen}
-          onToggleGrid={handleToggleGrid}
-          onToggleRulers={handleToggleRulers}
-          projectName={projectName}
-          setProjectName={(newName) => {
-            setProjectName(newName);
-            handleCanvasNameChange(canvasId, newName);
-          }}
-          onBackToDashboard={() => router.push("/")}
-          onImportCanvas={handleImportCanvas}
-          onBringForward={bringForward}
-          onSendBackward={sendBackward}
-          saveLoading={saveLoading}
-          onSave={saveCanvas}
-        />
-
-        {/* conditional rendering based on canvas type */}
-
-        {canvas_type === CANVAS_TYPE.HYBRID && (
-          <Toolbar
-            key={selectedNode || selectedEdge || "no-selection"}
-            fontFamily={selectedStyle?.fontFamily || "Arial"}
-            setFontFamily={(font) =>
-              selectedNode &&
-              updateNodeStyle(selectedNode, { fontFamily: font })
-            }
-            fontSize={selectedStyle?.fontSize || 12}
-            setFontSize={(size) =>
-              selectedNode && updateNodeStyle(selectedNode, { fontSize: size })
-            }
-            isBold={selectedStyle?.isBold || false}
-            setIsBold={(bold) =>
-              selectedNode && updateNodeStyle(selectedNode, { isBold: bold })
-            }
-            isItalic={selectedStyle?.isItalic || false}
-            setIsItalic={(italic) =>
-              selectedNode &&
-              updateNodeStyle(selectedNode, { isItalic: italic })
-            }
-            isUnderline={selectedStyle?.isUnderline || false}
-            setIsUnderline={(underline) =>
-              selectedNode &&
-              updateNodeStyle(selectedNode, { isUnderline: underline })
-            }
-            textAlign={selectedStyle?.textAlign || "left"}
-            setTextAlign={(align) =>
-              selectedNode &&
-              updateNodeStyle(selectedNode, { textAlign: align })
-            }
-            selectedNode={selectedNode}
-            onUndo={undo}
-            onRedo={redo}
-            canUndo={canUndo}
-            canRedo={canRedo}
-            onCopy={copySelectedNodes}
-            onPaste={pasteNodes}
-            onLock={lockNode}
-            onChangeShape={changeShape}
-            shape={selectedStyle?.shape || "rectangle"}
-            isLocked={selectedStyle?.locked || false}
-            borderStyle={selectedStyle?.borderStyle || "solid"}
-            setBorderStyle={setBorderStyle}
-            borderWidth={selectedStyle?.borderWidth || 2}
-            setBorderWidth={setBorderWidth}
-            isSwimlane={selectedStyle?.shape === "swimlane"}
-            onDelete={
-              selectedNodes.length > 0
-                ? deleteSelectedNodes
-                : selectedEdge
-                  ? deleteSelectedEdges
-                  : () => {}
-            }
-            backgroundColor={selectedStyle?.backgroundColor || "#ffffff"}
-            setBackgroundColor={setBackgroundColor}
-            borderColor={selectedStyle?.borderColor || "#000000"}
-            setBorderColor={setBorderColor}
-            textColor={selectedStyle?.textColor || "#000000"}
-            setTextColor={setTextColor}
-            lineHeight={selectedStyle?.lineHeight || 1.2}
-            setLineHeight={setLineHeight}
-            selectedEdge={selectedEdge}
-            onChangeEdgeStyle={onChangeEdgeStyle}
-            currentEdgeStyle={selectedEdgeData?.type || "default"}
-            viewMode={viewMode}
-            onViewModeChange={setViewMode}
-            // edge styles
-            edgeWidth={edgeWidth}
-            setEdgeWidth={handleEdgeWidthChange}
-            edgeColor={edgeColor}
-            setEdgeColor={handleEdgeColorChange}
-          />
-        )}
-
-        <div className="flex flex-1 overflow-hidden">
-          <VerticalNav
-            className="hidden md:flex"
-            onToggleSidebar={toggleSidebar}
-            canvasType={canvas_type}
-          />
-          <div className="flex-1 flex flex-col md:flex-row relative ">
-            <Sidebar
-              onDragStart={onDragStart}
-              isVisible={isSidebarOpen}
-              onShapeClick={handleShapeClick}
+      {viewMode === "canvas" || viewMode === "table" ? (
+        <>
+          <div className="h-screen bg-white flex flex-col w-screen">
+            <Header
+              onUndo={undo}
+              onRedo={redo}
+              currentState={currentState}
+              onCut={() => {
+                copySelectedNodes();
+                deleteSelectedNodes();
+              }}
+              onCopy={copySelectedNodes}
+              onPaste={pasteNodes}
+              onDelete={deleteSelectedNodes}
+              onInsertImage={addImage}
+              onZoomIn={handleZoomIn}
+              onZoomOut={handleZoomOut}
+              onFitToScreen={handleFitToScreen}
+              onToggleGrid={handleToggleGrid}
+              onToggleRulers={handleToggleRulers}
+              projectName={projectName}
+              setProjectName={(newName) => {
+                setProjectName(newName);
+                handleCanvasNameChange(canvasId, newName);
+              }}
+              onBackToDashboard={() => router.push("/")}
+              onImportCanvas={handleImportCanvas}
+              onBringForward={bringForward}
+              onSendBackward={sendBackward}
+              saveLoading={saveLoading}
+              onSave={saveCanvas}
             />
-            <div className="flex-1 relative">
-              <UMLEditor
+
+            {/* conditional rendering based on canvas type */}
+
+            {canvas_type === CANVAS_TYPE.HYBRID && (
+              <Toolbar
+                key={selectedNode || selectedEdge || "no-selection"}
+                fontFamily={selectedStyle?.fontFamily || "Arial"}
+                setFontFamily={(font) =>
+                  selectedNode &&
+                  updateNodeStyle(selectedNode, { fontFamily: font })
+                }
+                fontSize={selectedStyle?.fontSize || 12}
+                setFontSize={(size) =>
+                  selectedNode &&
+                  updateNodeStyle(selectedNode, { fontSize: size })
+                }
+                isBold={selectedStyle?.isBold || false}
+                setIsBold={(bold) =>
+                  selectedNode &&
+                  updateNodeStyle(selectedNode, { isBold: bold })
+                }
+                isItalic={selectedStyle?.isItalic || false}
+                setIsItalic={(italic) =>
+                  selectedNode &&
+                  updateNodeStyle(selectedNode, { isItalic: italic })
+                }
+                isUnderline={selectedStyle?.isUnderline || false}
+                setIsUnderline={(underline) =>
+                  selectedNode &&
+                  updateNodeStyle(selectedNode, { isUnderline: underline })
+                }
+                textAlign={selectedStyle?.textAlign || "left"}
+                setTextAlign={(align) =>
+                  selectedNode &&
+                  updateNodeStyle(selectedNode, { textAlign: align })
+                }
+                verticalAlign={selectedStyle?.verticalAlign || "top"}
+                setVerticalAlign={(align) =>
+                  selectedNode &&
+                  updateNodeStyle(selectedNode, { verticalAlign: align })
+                }
+                selectedNode={selectedNode}
+                onUndo={undo}
+                onRedo={redo}
+                canUndo={canUndo}
+                canRedo={canRedo}
+                onCopy={copySelectedNodes}
+                onPaste={pasteNodes}
+                onLock={lockNode}
+                onChangeShape={changeShape}
+                shape={selectedStyle?.shape || "rectangle"}
+                isLocked={selectedStyle?.locked || false}
+                borderStyle={selectedStyle?.borderStyle || "solid"}
+                setBorderStyle={setBorderStyle}
+                borderWidth={selectedStyle?.borderWidth || 2}
+                setBorderWidth={setBorderWidth}
+                isSwimlane={selectedStyle?.shape === "swimlane"}
+                onDelete={
+                  selectedNodes.length > 0
+                    ? deleteSelectedNodes
+                    : selectedEdge
+                      ? deleteSelectedEdges
+                      : () => {}
+                }
+                backgroundColor={selectedStyle?.backgroundColor || "#ffffff"}
+                setBackgroundColor={setBackgroundColor}
+                borderColor={selectedStyle?.borderColor || "#000000"}
+                setBorderColor={setBorderColor}
+                textColor={selectedStyle?.textColor || "#000000"}
+                setTextColor={setTextColor}
+                lineHeight={selectedStyle?.lineHeight || 1.2}
+                setLineHeight={setLineHeight}
+                selectedEdge={selectedEdge}
+                onChangeEdgeStyle={onChangeEdgeStyle}
+                currentEdgeStyle={selectedEdgeData?.type || "default"}
                 viewMode={viewMode}
-                nodes={currentState.nodes}
-                edges={currentState.edges}
-                onNodesChange={onNodesChange}
-                onEdgesChange={onEdgesChange}
-                nodeStyles={currentState.nodeStyles}
-                onNodeSelect={onNodeSelect}
-                selectedNodes={selectedNodes}
-                onAddNode={addNode}
-                onAddSwimlane={addSwimlane}
-                onLabelChange={onLabelChange}
-                onAddLane={addLaneToSwimlane}
-                onEdgeSelect={onEdgeSelect}
-                onChangeEdgeLabel={onChangeEdgeLabel}
-                onAddImage={addImage}
-                onAddColumn={handleAddColumn}
-                columns={columns}
-                setColumns={setColumns}
-                currentFolderCanvases={folderCanvases}
-                canvasId={canvasId}
-                canvasType={canvas_type}
-                onReactFlowInit={setReactFlowInstance}
-                canvasSettings={canvasSettings}
-                updateCanvasSettings={updateCanvasSettings}
+                onViewModeChange={setViewMode}
+                // edge styles
+                edgeWidth={edgeWidth}
+                setEdgeWidth={handleEdgeWidthChange}
+                edgeColor={edgeColor}
+                setEdgeColor={handleEdgeColorChange}
               />
+            )}
+
+            <div className="flex flex-1 overflow-hidden">
+              <VerticalNav
+                className="hidden md:flex"
+                onToggleSidebar={toggleSidebar}
+                canvasType={canvas_type}
+              />
+              <div className="flex-1 flex flex-col md:flex-row relative ">
+                <Sidebar
+                  onDragStart={onDragStart}
+                  isVisible={isSidebarOpen}
+                  onShapeClick={handleShapeClick}
+                />
+                <div className="flex-1 relative">
+                  <UMLEditor
+                    viewMode={viewMode}
+                    nodes={currentState.nodes}
+                    edges={currentState.edges}
+                    onNodesChange={onNodesChange}
+                    onEdgesChange={onEdgesChange}
+                    nodeStyles={currentState.nodeStyles}
+                    onNodeSelect={onNodeSelect}
+                    selectedNodes={selectedNodes}
+                    onAddNode={addNode}
+                    onAddSwimlane={addSwimlane}
+                    onLabelChange={onLabelChange}
+                    onAddLane={addLaneToSwimlane}
+                    onEdgeSelect={onEdgeSelect}
+                    onChangeEdgeLabel={onChangeEdgeLabel}
+                    onAddImage={addImage}
+                    onAddColumn={handleAddColumn}
+                    columns={columns}
+                    setColumns={setColumns}
+                    currentFolderCanvases={folderCanvases}
+                    canvasId={canvasId}
+                    canvasType={canvas_type}
+                    onReactFlowInit={setReactFlowInstance}
+                    canvasSettings={canvasSettings}
+                    updateCanvasSettings={updateCanvasSettings}
+                  />
+                </div>
+              </div>
             </div>
+            <Input
+              type="file"
+              ref={fileInputRef}
+              className="hidden"
+              accept="image/*"
+              onChange={handleImageUpload}
+            />
           </div>
-        </div>
-        <Input
-          type="file"
-          ref={fileInputRef}
-          className="hidden"
-          accept="image/*"
-          onChange={handleImageUpload}
-        />
-      </div>
+        </>
+      ) : (
+        <>
+          <DocumentEditor
+            canvasId={canvasId}
+            isPartOfCanvas={true}
+            onBackToBoard={() => setViewMode("canvas")}
+          />
+        </>
+      )}
     </ReactFlowProvider>
   );
 }

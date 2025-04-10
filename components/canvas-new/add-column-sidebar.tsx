@@ -100,7 +100,7 @@ export const AddColumnSidebar: React.FC<AddColumnSidebarProps> = ({
       return false;
     }
 
-    if (columnData.type === "Relation") {
+    if (columnData?.type === "Relation") {
       if (!columnData.related_canvas_id) {
         if (otherCanvases.length === 0) {
           setError(
@@ -114,14 +114,14 @@ export const AddColumnSidebar: React.FC<AddColumnSidebarProps> = ({
     }
 
     if (
-      (columnData.type === "Select" || columnData.type === "Multiselect") &&
+      (columnData?.type === "Select" || columnData?.type === "Multiselect") &&
       (!columnData.options || columnData.options.length === 0)
     ) {
       setError("Please add at least one option for Select or Multiselect");
       return false;
     }
 
-    if (columnData.type === "Rollup" && !columnData.rollup_column_id) {
+    if (columnData?.type === "Rollup" && !columnData.rollup_column_id) {
       setError("Please specify a rollup column");
       return false;
     }
@@ -203,7 +203,7 @@ export const AddColumnSidebar: React.FC<AddColumnSidebarProps> = ({
           <div>
             <Label htmlFor="columnType">Validation Type</Label>
             <Select
-              value={columnData.type}
+              value={columnData?.type}
               onValueChange={(value) => {
                 setColumnData({
                   ...columnData,
@@ -227,8 +227,8 @@ export const AddColumnSidebar: React.FC<AddColumnSidebarProps> = ({
               </SelectContent>
             </Select>
           </div>
-          {(columnData.type === "Select" ||
-            columnData.type === "Multiselect") && (
+          {(columnData?.type === "Select" ||
+            columnData?.type === "Multiselect") && (
             <div>
               <Label htmlFor="options">Options (comma-separated)</Label>
               <Input
@@ -243,7 +243,7 @@ export const AddColumnSidebar: React.FC<AddColumnSidebarProps> = ({
               />
             </div>
           )}
-          {columnData.type === "Relation" && (
+          {columnData?.type === "Relation" && (
             <div>
               <Label htmlFor="relationCanvas">Related Canvas</Label>
               {otherCanvases.length > 0 ? (
@@ -275,7 +275,7 @@ export const AddColumnSidebar: React.FC<AddColumnSidebarProps> = ({
               )}
             </div>
           )}
-          {columnData.type === "Rollup" && (
+          {columnData?.type === "Rollup" && (
             <>
               <div className="space-y-2">
                 <Label>Relation</Label>

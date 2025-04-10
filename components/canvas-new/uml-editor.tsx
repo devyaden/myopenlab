@@ -184,7 +184,7 @@ export function UMLEditor({
 
       onNodesChange(updatedNodes);
 
-      const selectChange = changes.find((change) => change.type === "select");
+      const selectChange = changes.find((change) => change?.type === "select");
 
       if (selectChange) {
         const selectedNodeIds = updatedNodes
@@ -201,7 +201,7 @@ export function UMLEditor({
       const updatedEdges = applyEdgeChanges(changes, edges);
       onEdgesChange(updatedEdges);
 
-      const selectChange = changes.find((change) => change.type === "select");
+      const selectChange = changes.find((change) => change?.type === "select");
       if (selectChange) {
         const selectedEdgeIds = updatedEdges
           .filter((edge) => edge.selected)
@@ -331,7 +331,7 @@ export function UMLEditor({
                 ...updatedNode.data,
                 shape: updatedNode.data.shape || existingNode.data.shape,
               },
-              type: updatedNode.type || existingNode.type,
+              type: updatedNode?.type || existingNode?.type,
             };
           } else {
             // Add new node
@@ -518,35 +518,36 @@ export function UMLEditor({
                 style: {
                   ...nodeStyles[node.id],
                   width:
-                    node.type === "imageNode"
+                    node?.type === "imageNode"
                       ? node.style?.width
                       : node.style?.width ||
-                        (node.type === "textNode" ? 150 : 100),
+                        (node?.type === "textNode" ? 150 : 100),
                   height:
-                    node.type === "imageNode"
+                    node?.type === "imageNode"
                       ? node.style?.height
                       : node.style?.height ||
-                        (node.type === "textNode" ? 50 : 100),
+                        (node?.type === "textNode" ? 50 : 100),
                 },
                 onLabelChange:
-                  node.type === "swimlaneNode"
+                  node?.type === "swimlaneNode"
                     ? handleSwimlaneUpdate
                     : onLabelChange,
-                onAddLane: node.type === "swimlaneNode" ? onAddLane : undefined,
+                onAddLane:
+                  node?.type === "swimlaneNode" ? onAddLane : undefined,
               },
               style: {
                 width:
-                  node.type === "imageNode"
+                  node?.type === "imageNode"
                     ? node.style?.width
                     : node.style?.width ||
-                      (node.type === "textNode" ? 150 : 100),
+                      (node?.type === "textNode" ? 150 : 100),
                 height:
-                  node.type === "imageNode"
+                  node?.type === "imageNode"
                     ? node.style?.height
                     : node.style?.height ||
-                      (node.type === "textNode" ? 50 : 100),
+                      (node?.type === "textNode" ? 50 : 100),
               },
-              connectable: node.type !== "textNode",
+              connectable: node?.type !== "textNode",
               selected: selectedNodes.includes(node.id),
             }))}
             edges={edges.map((edge) => ({

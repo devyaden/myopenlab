@@ -15,9 +15,12 @@ import { Separator } from "@/components/ui/separator";
 import { Slider } from "@/components/ui/slider";
 import {
   AlignCenter,
+  AlignCenterVertical,
+  AlignEndVertical,
   AlignJustify,
   AlignLeft,
   AlignRight,
+  AlignStartVertical,
   Bold,
   Box,
   ChevronDown,
@@ -57,6 +60,8 @@ interface ToolbarProps {
   setIsUnderline: (underline: boolean) => void;
   textAlign: "left" | "center" | "right" | "justify";
   setTextAlign: (align: "left" | "center" | "right" | "justify") => void;
+  verticalAlign: "top" | "middle" | "bottom"; // Add this line
+  setVerticalAlign: (align: "top" | "middle" | "bottom") => void;
   selectedNode: string | null;
   onUndo: () => void;
   onRedo: () => void;
@@ -109,8 +114,8 @@ interface ToolbarProps {
   selectedEdge: string | null;
   onChangeEdgeStyle: (style: string) => void;
   currentEdgeStyle: string;
-  viewMode: "canvas" | "table";
-  onViewModeChange: (mode: "canvas" | "table") => void;
+  viewMode: "canvas" | "table" | "document";
+  onViewModeChange: (mode: "canvas" | "table" | "document") => void;
   edgeWidth: number;
   setEdgeWidth: (width: number) => void;
   edgeColor: string;
@@ -132,6 +137,8 @@ export const Toolbar = React.memo(function Toolbar({
   setIsUnderline,
   textAlign,
   setTextAlign,
+  verticalAlign,
+  setVerticalAlign,
   selectedNode,
   onUndo,
   onRedo,
@@ -481,6 +488,42 @@ export const Toolbar = React.memo(function Toolbar({
             <DropdownMenuItem onSelect={() => setTextAlign("justify")}>
               <AlignJustify className="mr-2 h-4 w-4" />
               Justify
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+
+        {/* vertical align dropdown - add this new dropdown */}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-8 w-8 rounded-lg"
+              disabled={isStyleDisabled}
+            >
+              {verticalAlign === "top" && (
+                <AlignStartVertical className="h-4 w-4" />
+              )}
+              {verticalAlign === "middle" && (
+                <AlignCenterVertical className="h-4 w-4" />
+              )}
+              {verticalAlign === "bottom" && (
+                <AlignEndVertical className="h-4 w-4" />
+              )}
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent>
+            <DropdownMenuItem onSelect={() => setVerticalAlign("top")}>
+              <AlignStartVertical className="h-4 w-4 mr-2" />
+              Top
+            </DropdownMenuItem>
+            <DropdownMenuItem onSelect={() => setVerticalAlign("middle")}>
+              <AlignCenterVertical className="h-4 w-4 mr-2" />
+              Middle
+            </DropdownMenuItem>
+            <DropdownMenuItem onSelect={() => setVerticalAlign("bottom")}>
+              <AlignEndVertical className="h-4 w-4 mr-2" />
+              Bottom
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
@@ -884,10 +927,10 @@ export const Toolbar = React.memo(function Toolbar({
           <Button
             variant="ghost"
             size="sm"
-            className="h-9 w-9 p-0 rounded-md"
-            onClick={() => {}}
+            className={`h-9 w-9 p-0 rounded-md ${viewMode === "document" ? "bg-white shadow-sm" : ""}`}
+            onClick={() => onViewModeChange("document")}
             aria-label="List view"
-            disabled
+            // disabled
           >
             <Image
               src="/assets/canvas/document.svg"

@@ -25,7 +25,7 @@ export function ImportModal({ isOpen, onClose, onImport }: ImportModalProps) {
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = event.target.files?.[0];
-    if (selectedFile && selectedFile.type === "application/json") {
+    if (selectedFile && selectedFile?.type === "application/json") {
       setFile(selectedFile);
       setError(null);
     } else {

@@ -60,21 +60,18 @@ import { SwimlaneNode } from "@/components/canvas-new/nodes/swimlane-node";
 import { TextNode } from "@/components/canvas-new/nodes/text-node";
 import { Lock, LockOpen } from "lucide-react";
 import ReactFlow, { Background, ReactFlowProvider } from "reactflow";
-import { reactFlowDiagrams } from "../../data/reactflowData";
+import CanvasCropDialog from "../../components/CanvasCropDialog";
+import TablePreview from "../../components/TablePreview";
+import TableSelectorDialog from "../../components/TableSelectorDialog";
 import DropDown, { DropDownItem } from "../../ui/DropDown";
 import DropdownColorPicker from "../../ui/DropdownColorPicker";
 import { getSelectedNode } from "../../utils/getSelectedNode";
 import { sanitizeUrl } from "../../utils/url";
 import { INSERT_COLLAPSIBLE_COMMAND } from "../CollapsiblePlugin";
-import {
-  INSERT_IMAGE_COMMAND,
-  InsertImageDialog,
-  InsertImagePayload,
-} from "../ImagesPlugin";
+import { InsertImageDialog } from "../ImagesPlugin";
 import { InsertInlineImageDialog } from "../InlineImagePlugin";
 import InsertLayoutDialog from "../LayoutPlugin/InsertLayoutDialog";
 import { INSERT_PAGE_BREAK } from "../PageBreakPlugin";
-import { INSERT_REACT_FLOW_COMMAND } from "../ReactflowPlugin";
 import { SHORTCUTS } from "../ShortcutsPlugin/shortcuts";
 import { InsertTableDialog } from "../TablePlugin";
 import FontSize from "./fontSize";
@@ -88,10 +85,7 @@ import {
   formatParagraph,
   formatQuote,
 } from "./utils";
-import TableSelectorDialog from "../../components/TableSelectorDialog";
-import TableView from "@/components/canvas-new/table-view";
-import TablePreview from "../../components/TablePreview";
-import CanvasCropDialog from "../../components/CanvasCropDialog";
+import { Button } from "@/components/ui/button";
 
 const rootTypeToRootName = {
   root: "Root",
@@ -328,28 +322,30 @@ function FlowPreview({
               style: {
                 ...styles[node.id],
                 width:
-                  node.type === "imageNode"
+                  node?.type === "imageNode"
                     ? node.style?.width
                     : node.style?.width ||
-                      (node.type === "textNode" ? 150 : 100),
+                      (node?.type === "textNode" ? 150 : 100),
                 height:
-                  node.type === "imageNode"
+                  node?.type === "imageNode"
                     ? node.style?.height
                     : node.style?.height ||
-                      (node.type === "textNode" ? 50 : 100),
+                      (node?.type === "textNode" ? 50 : 100),
               },
             },
             style: {
               width:
-                node.type === "imageNode"
+                node?.type === "imageNode"
                   ? node.style?.width
-                  : node.style?.width || (node.type === "textNode" ? 150 : 100),
+                  : node.style?.width ||
+                    (node?.type === "textNode" ? 150 : 100),
               height:
-                node.type === "imageNode"
+                node?.type === "imageNode"
                   ? node.style?.height
-                  : node.style?.height || (node.type === "textNode" ? 50 : 100),
+                  : node.style?.height ||
+                    (node?.type === "textNode" ? 50 : 100),
             },
-            connectable: node.type !== "textNode",
+            connectable: node?.type !== "textNode",
           }))}
           edges={edges?.map((edge) => ({
             ...edge,
@@ -568,12 +564,16 @@ export default function ToolbarPlugin({
   setActiveEditor,
   setIsLinkEditMode,
   folderCanvases,
+  isPartOfCanvas,
+  onBackToBoard,
 }: {
   editor: LexicalEditor;
   activeEditor: LexicalEditor;
   setActiveEditor: Dispatch<LexicalEditor>;
   setIsLinkEditMode: Dispatch<boolean>;
   folderCanvases: any[];
+  isPartOfCanvas?: boolean;
+  onBackToBoard?: () => void;
 }): JSX.Element {
   const [selectedElementKey, setSelectedElementKey] = useState<NodeKey | null>(
     null
@@ -581,7 +581,6 @@ export default function ToolbarPlugin({
   const [modal, showModal] = useModal();
   const [isEditable, setIsEditable] = useState(() => editor.isEditable());
   const { toolbarState, updateToolbarState } = useToolbarState();
-  const [setShowFlowDropdown, showFlowDropdown] = useState(false);
 
   const $updateToolbar = useCallback(() => {
     const selection = $getSelection();
@@ -1421,6 +1420,20 @@ export default function ToolbarPlugin({
           <LockOpen className="h-6 w-6" />
         )}
       </button>
+
+      {isPartOfCanvas && (
+        <Button
+          variant={"outline"}
+          className="mt-[6px]"
+          onClick={() => {
+            onBackToBoard?.();
+          }}
+          title="Back to Board"
+          aria-label="Back to Board"
+        >
+          Back to Board
+        </Button>
+      )}
 
       {modal}
     </div>

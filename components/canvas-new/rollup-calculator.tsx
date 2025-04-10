@@ -16,7 +16,7 @@ export const RollupCalculator: React.FC<RollupCalculatorProps> = ({
 }) => {
   useEffect(() => {
     columns.forEach((column) => {
-      if (column.type === "Rollup") {
+      if (column?.type === "Rollup") {
         nodes.forEach((node) => {
           const rollupValue = calculateRollup(node, column);
           onRollupChange(node.id, column.title, rollupValue);
