@@ -99,15 +99,13 @@ const EXCLUDED_PATTERNS = [
   /^id/, // Matches properties starting with "id"
 ];
 
-// Shapes that need special padding for content
-const SPECIAL_PADDING_SHAPES = ["hexagon", "diamond", "triangle", "circle"];
-
 // Base font size for scaling calculations
 const BASE_FONT_SIZE = 12;
 const BASE_NODE_SIZE = 100;
 
 export const GenericNode = memo(
   ({ data, id, selected, isConnectable }: GenericNodeProps) => {
+    console.log("🚀 ~ data:", data);
     const reactFlowInstance = useReactFlow();
     const [isEditing, setIsEditing] = useState(false);
     const [labelValue, setLabelValue] = useState(data.label);
@@ -135,9 +133,6 @@ export const GenericNode = memo(
 
     // Check if current shape is a human figure
     const currentShapeIsHumanFigure = isHumanFigure(data.shape);
-
-    // Check if current shape needs special padding
-    const needsSpecialPadding = SPECIAL_PADDING_SHAPES.includes(data.shape);
 
     // Sync label with data changes
     useEffect(() => {
@@ -513,6 +508,8 @@ export const GenericNode = memo(
 
         const PRESERVED_ASPECT_RATIO_SHAPES = ["circle", "square"];
 
+        console.log("----- data shape ------", data.shape);
+
         return (
           <div style={{ position: "relative", width: "100%", height: "100%" }}>
             {/* Render the shape as SVG */}
@@ -642,6 +639,66 @@ export const GenericNode = memo(
           </div>
         );
       }
+      // For capsule shape - fix the rendering to be oval/pill-shaped
+      if (data.shape === "capsule") {
+        return (
+          <div style={{ position: "relative", width: "100%", height: "100%" }}>
+            {/* Create a div with border-radius instead of using SVG for capsule */}
+            <div
+              style={{
+                width: "100%",
+                height: "100%",
+                borderRadius: `${Math.min(nodeSize.height, nodeSize.width) / 2}px`, // Make border radius half of the smaller dimension
+                border: `${data.style?.borderWidth || 1}px ${data.style?.borderStyle || "solid"} ${
+                  data.style?.borderColor || "#000000"
+                }`,
+                backgroundColor: data.style?.backgroundColor || "white",
+              }}
+            ></div>
+
+            {/* Overlay text on top of the shape */}
+            <div
+              style={{
+                position: "absolute",
+                top: 0,
+                left: 0,
+                width: "100%",
+                height: "100%",
+                display: "flex",
+                flexDirection: "column",
+                ...getAlignmentStyle(),
+                justifyContent:
+                  data.style?.verticalAlign === "top"
+                    ? "flex-start"
+                    : data.style?.verticalAlign === "bottom"
+                      ? "flex-end"
+                      : "center", // Apply vertical alignment
+                padding: "10%",
+                pointerEvents: "none",
+                overflow: "hidden",
+              }}
+            >
+              <div style={getTextStyle()}>{labelValue}</div>
+
+              {visibleProperties.length > 0 && (
+                <div
+                  style={{
+                    width: "100%",
+                    marginTop: "2px",
+                    overflow: "hidden",
+                  }}
+                >
+                  {visibleProperties.map((prop) => (
+                    <div key={prop.key} style={getTextStyle(true)}>
+                      {prop.value}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        );
+      }
 
       // For cylindar and document shapes - ensure text stays within bounds
       if (
@@ -680,9 +737,10 @@ export const GenericNode = memo(
                     : data.style?.verticalAlign === "bottom"
                       ? "flex-end"
                       : "center", // Apply vertical alignment
-                padding: "10%",
+                padding: "20px",
                 pointerEvents: "none",
-                overflow: "hidden",
+                // overflow: "hidden",
+                // background: "red",
               }}
             >
               <div style={getTextStyle()}>{labelValue}</div>
