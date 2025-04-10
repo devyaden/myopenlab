@@ -64,6 +64,8 @@ interface NodePropertiesSidebarProps {
   onClose: () => void;
   columns: any[];
   setColumns: (val: any) => void;
+  edges: any[];
+  nodes: any[];
 }
 
 type PropertyType =
@@ -104,21 +106,6 @@ const SHAPE_OPTIONS = [
   "actor",
   "class",
   "interface",
-];
-
-// Status options with colors
-const STATUS_OPTIONS = [
-  { label: "Not Started", value: "not_started", color: "#fecaca" },
-  { label: "In Progress", value: "in_progress", color: "#bfdbfe" },
-  { label: "Completed", value: "completed", color: "#bbf7d0" },
-  { label: "Blocked", value: "blocked", color: "#fed7aa" },
-];
-
-// Priority options with colors
-const PRIORITY_OPTIONS = [
-  { label: "Low", value: "low", color: "#dbeafe" },
-  { label: "Medium", value: "medium", color: "#fef3c7" },
-  { label: "High", value: "high", color: "#fee2e2" },
 ];
 
 // Get icon for property type
@@ -254,7 +241,10 @@ export function NodePropertiesSidebar({
   onClose,
   columns,
   setColumns,
+  edges,
+  nodes,
 }: NodePropertiesSidebarProps) {
+  console.log("🚀 ~ selectedNode:", selectedNode);
   const [title, setTitle] = useState("");
   const [properties, setProperties] = useState<Property[]>([]);
   const [newPropertyName, setNewPropertyName] = useState("");
@@ -268,15 +258,15 @@ export function NodePropertiesSidebar({
   const [validationErrors, setValidationErrors] = useState<
     Record<string, string>
   >({});
-  const [editingPropertyIndex, setEditingPropertyIndex] = useState<
-    number | null
-  >(null);
+
   const [editingPropertyName, setEditingPropertyName] = useState<number | null>(
     null
   );
+
   const [editingPropertyValue, setEditingPropertyValue] = useState<
     number | null
   >(null);
+
   const [tempPropertyName, setTempPropertyName] = useState("");
   const [tempPropertyValue, setTempPropertyValue] = useState("");
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
@@ -296,25 +286,43 @@ export function NodePropertiesSidebar({
   const propertyNameInputRef = useRef<HTMLInputElement>(null);
   const propertyValueInputRef = useRef<HTMLInputElement>(null);
 
+  const populateFromAndTo = () => {
+    const from = edges
+      .filter((edge) => edge.target === selectedNode?.id)
+      .map((edge) => edge.source);
+
+    const to = edges
+      .filter((edge) => edge.source === selectedNode?.id)
+      .map((edge) => edge.target);
+
+    const fromLabels = from.map((id) => {
+      const node = nodes.find((node) => node.id === id);
+      return node ? node.data.label : "";
+    });
+
+    const toLabels = to.map((id) => {
+      const node = nodes.find((node) => node.id === id);
+      return node ? node.data.label : "";
+    });
+
+    return {
+      fromLabels: fromLabels || [],
+      toLabels: toLabels || [],
+    };
+  };
+
   // Load node data when selected node changes
   useEffect(() => {
     if (selectedNode) {
+      const { fromLabels, toLabels } = populateFromAndTo();
       // Load title from node data
       setTitle(selectedNode.data?.label || "");
 
       // Initialize properties from node data
-      const nodeData = selectedNode.data || {};
+      const nodeData = selectedNode.data
+        ? { ...selectedNode.data, from: fromLabels, to: toLabels }
+        : {};
       const nodeProperties: Property[] = [];
-
-      // First add special properties (task and type)
-      // Add task property (using label)
-      // nodeProperties.push({
-      //   name: "task",
-      //   value: nodeData.label || "",
-      //   type: "text",
-      //   hidden: nodeData.hidden?.task || false,
-      //   isEditable: true,
-      // });
 
       // Add type property (using shape or node type)
       nodeProperties.push({
@@ -1238,9 +1246,6 @@ export function NodePropertiesSidebar({
           className="!text-3xl !font-bold border-none focus-visible:ring-0 px-0 h-auto"
           placeholder="Untitled"
         />
-        {/* <Button variant="ghost" size="icon" onClick={onClose}>
-          <X className="h-4 w-4" />
-        </Button> */}
       </div>
 
       <div className="px-4 space-y-4 flex-1 overflow-y-auto pb-20">

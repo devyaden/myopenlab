@@ -490,6 +490,8 @@ export function UMLEditor({
               onClose={closeNodeProperties}
               columns={columns}
               setColumns={setColumns}
+              nodes={nodes}
+              edges={edges}
             />
           )}
 

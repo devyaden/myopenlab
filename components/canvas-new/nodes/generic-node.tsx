@@ -14,6 +14,8 @@ import TextareaAutosize from "react-textarea-autosize";
 interface GenericNodeProps {
   data: {
     label: string;
+    from: string;
+    to: string;
     shape:
       | "rectangle"
       | "rounded"
@@ -338,7 +340,6 @@ export const GenericNode = memo(
     // Get visible properties (not hidden and not excluded)
     const visibleProperties = useMemo(() => {
       const properties: { key: string; value: any }[] = [];
-
       const isTypeHidden = data.hidden?.type === true;
 
       // Add type property (using shape) if not hidden
@@ -348,6 +349,31 @@ export const GenericNode = memo(
           value: data.shape || "",
         });
       }
+      let fromLabels = [],
+        toLabels = [];
+
+      // add from and to labels inside properties
+
+      const edges = reactFlowInstance.getEdges();
+      const nodes = reactFlowInstance.getNodes();
+
+      const from = edges
+        ?.filter((edge) => edge.target === id)
+        .map((edge) => edge.source);
+
+      const to = edges
+        ?.filter((edge) => edge.source === id)
+        .map((edge) => edge.target);
+
+      fromLabels = from.map((id) => {
+        const node = nodes.find((node) => node.id === id);
+        return node ? node.data.label : "";
+      });
+
+      toLabels = to.map((id) => {
+        const node = nodes.find((node) => node.id === id);
+        return node ? node.data.label : "";
+      });
 
       // Loop through all data properties
       Object.entries(data).forEach(([key, value]) => {
@@ -356,7 +382,13 @@ export const GenericNode = memo(
           !shouldExcludeProperty(key, value) &&
           !["task", "type"].includes(key)
         ) {
-          properties.push({ key, value: String(value) });
+          if (key === "from") {
+            properties.push({ key, value: fromLabels.join(", ") });
+          } else if (key === "to") {
+            properties.push({ key, value: toLabels.join(", ") });
+          } else {
+            properties.push({ key, value: String(value) });
+          }
         }
       });
 
