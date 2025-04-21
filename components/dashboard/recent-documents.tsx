@@ -1,19 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import {
-  Menu,
-  Info,
-  FileText,
-  MoreVertical,
-  Plus,
-  Trash,
-  Edit,
-  Download,
-} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -25,7 +13,10 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { FileText, Info, MoreVertical, Trash } from "lucide-react";
 import Link from "next/link";
+import { useEffect, useState } from "react";
 
 interface Document {
   id: string;
@@ -50,6 +41,16 @@ export function RecentDocuments() {
     localStorage.setItem("recentDocuments", JSON.stringify(updatedDocuments));
   };
 
+  const handleNavigate = (id: string, canvasType: string) => {
+    // Navigate to the document page
+
+    if (canvasType === "document") {
+      window.location.href = `/protected/documents/${id}`;
+    } else {
+      window.location.href = `/protected/canvas-new/${id}`;
+    }
+  };
+
   return (
     <div className="w-full  bg-white p-8">
       <div className="flex items-center justify-between mb-4">
@@ -61,7 +62,7 @@ export function RecentDocuments() {
         </div>
 
         <div className="flex items-center gap-1">
-          <DropdownMenu>
+          {/* <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" size="icon" className="h-8 w-8">
                 <Menu className="h-4 w-4" />
@@ -78,7 +79,7 @@ export function RecentDocuments() {
                 <span>Download All</span>
               </DropdownMenuItem>
             </DropdownMenuContent>
-          </DropdownMenu>
+          </DropdownMenu> */}
 
           <Popover>
             <PopoverTrigger asChild>
@@ -111,6 +112,7 @@ export function RecentDocuments() {
             <Card
               key={doc.id}
               className="flex items-center p-3 hover:bg-gray-50 transition-colors"
+              onClick={() => handleNavigate(doc.id, doc.type)}
             >
               <div className="h-10 w-10 rounded-lg bg-blue-100 flex items-center justify-center mr-3">
                 <FileText className="h-5 w-5 text-blue-600" />
@@ -139,15 +141,20 @@ export function RecentDocuments() {
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
-                  <DropdownMenuItem>
+                  {/* <DropdownMenuItem>
                     <Edit className="mr-2 h-4 w-4" />
                     <span>Edit</span>
                   </DropdownMenuItem>
                   <DropdownMenuItem>
                     <Download className="mr-2 h-4 w-4" />
                     <span>Download</span>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => handleDelete(doc.id)}>
+                  </DropdownMenuItem> */}
+                  <DropdownMenuItem
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleDelete(doc.id);
+                    }}
+                  >
                     <Trash className="mr-2 h-4 w-4" />
                     <span>Delete</span>
                   </DropdownMenuItem>

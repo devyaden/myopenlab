@@ -1,7 +1,11 @@
-import DocumentEditor from "@/components/document-editor";
+import Editor from "@/components/editor";
 
 const DocumentEditorScreen = ({ params }: { params: { id: string } }) => {
-  return <DocumentEditor canvasId={params.id} />;
+  return (
+    <main className="flex min-h-screen flex-col min-w-full">
+      <Editor canvasId={params.id} />
+    </main>
+  );
 };
 
 export default DocumentEditorScreen;

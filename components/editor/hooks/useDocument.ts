@@ -2,15 +2,15 @@
 
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import { supabase } from "../supabase/client";
+import { supabase } from "@/lib/supabase/client";
 import toast from "react-hot-toast";
-import { debounce } from "lodash"; // Make sure this import exists
+import { debounce } from "lodash";
 
 interface DocumentState {
   id: string;
   name: string;
   description: string;
-  lexical_state: any;
+  editor_state: any;
   version: number;
   canvas_id: string;
   isLoading: boolean;
@@ -33,7 +33,7 @@ const initialState: DocumentState = {
   id: "",
   name: "Untitled Document",
   description: "",
-  lexical_state: null,
+  editor_state: null,
   version: 1,
   canvas_id: "",
   isLoading: true,
@@ -60,7 +60,7 @@ export const useDocumentStore = create<DocumentState>()(
         if (get().isDirty) {
           await get().saveDocument();
         }
-      }, 3000); // Increase to 5 seconds to reduce save frequency
+      }, 3000);
 
       return {
         ...initialState,
@@ -81,9 +81,9 @@ export const useDocumentStore = create<DocumentState>()(
           // Update local state immediately but don't trigger unnecessary re-renders
           set((state) => {
             // Only update if state actually changed to prevent focus loss
-            if (state.lexical_state !== stateToStore) {
+            if (state.editor_state !== stateToStore) {
               return {
-                lexical_state: stateToStore,
+                editor_state: stateToStore,
                 isDirty: true,
               };
             }
@@ -98,29 +98,22 @@ export const useDocumentStore = create<DocumentState>()(
           try {
             const { data: canvas, error: canvasError } = await supabase
               .from("canvas")
-              .select("id, name, description, folder_id")
+              .select("id, name, description, folder_id, document_data(*)")
               .eq("id", canvasId)
               .single();
+
             if (canvasError) throw canvasError;
 
-            const { data: documentDataArray, error: documentError } =
-              await supabase
-                .from("document_data")
-                .select("*")
-                .eq("canvas_id", canvasId);
-
-            if (documentError) throw documentError;
-
             const documentData =
-              documentDataArray && documentDataArray.length > 0
-                ? documentDataArray[0]
+              canvas?.document_data && canvas?.document_data?.length > 0
+                ? canvas?.document_data[0]
                 : null;
 
             set({
               id: documentData?.id || "",
               name: canvas.name,
               description: canvas.description || "",
-              lexical_state: documentData?.lexical_state || null,
+              editor_state: documentData?.lexical_state || null,
               version: documentData?.version || 1,
               canvas_id: canvasId,
               isLoading: false,
@@ -156,7 +149,7 @@ export const useDocumentStore = create<DocumentState>()(
             if (checkError) throw checkError;
 
             const documentExists = existingDocs && existingDocs.length > 0;
-            const latestEditorState = state.lexical_state;
+            const latestEditorState = state.editor_state;
 
             if (documentExists) {
               const { error: updateError } = await supabase

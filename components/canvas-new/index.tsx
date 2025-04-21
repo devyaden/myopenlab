@@ -17,7 +17,8 @@ import { Sidebar } from "./sidebar";
 import { Toolbar } from "./toolbar";
 import { UMLEditor } from "./uml-editor";
 import { VerticalNav } from "./vertical-nav";
-import DocumentEditor from "@/components/document-editor";
+import DocumentEditor from "@/components/editor";
+import { add } from "date-fns";
 
 interface NodeStyle {
   fontFamily: string;
@@ -140,7 +141,7 @@ export default function CanvasNew({ canvasId }: FigmaInterfaceProps) {
           id: canvasId,
           title: canvasName,
           date: new Date().toLocaleDateString(),
-          type: "Canvas",
+          type: canvas_type,
         },
         ...recentDocuments.filter((doc: any) => doc.id !== canvasId),
       ].slice(0, 10); // Keep only the 10 most recent documents
@@ -149,7 +150,15 @@ export default function CanvasNew({ canvasId }: FigmaInterfaceProps) {
     []
   );
 
+  useEffect(() => {
+    if (canvasId) {
+      addToRecentDocuments(canvasId, projectName);
+    }
+  }, [nodes]);
+
   const updateState = useCallback((newState: Partial<AppState>) => {
+    console.log("🚀 ~ 2222222:", newState);
+
     if (newState.nodes) setNodes(newState.nodes);
     if (newState.edges) setEdges(newState.edges);
 
@@ -194,6 +203,8 @@ export default function CanvasNew({ canvasId }: FigmaInterfaceProps) {
 
   const onNodesChange = useCallback(
     (newNodes: Node[]) => {
+      console.log("🚀 ~ 3333333:", newNodes);
+
       updateState({ nodes: newNodes });
     },
     [updateState]
@@ -408,7 +419,7 @@ export default function CanvasNew({ canvasId }: FigmaInterfaceProps) {
 
     selectedNodes.forEach((nodeId) => deleteNodeAndChildren(nodeId));
 
-    const updatedNodes = currentState.nodes.filter(
+    const updatedNodes = currentState.nodes?.filter(
       (node) => !nodesToDeleteSet.has(node.id)
     );
     const updatedEdges = currentState.edges.filter(
@@ -984,7 +995,11 @@ export default function CanvasNew({ canvasId }: FigmaInterfaceProps) {
                     onAddColumn={handleAddColumn}
                     columns={columns}
                     setColumns={setColumns}
-                    currentFolderCanvases={folderCanvases}
+                    currentFolderCanvases={folderCanvases.map((canvas) => ({
+                      ...canvas,
+                      canvas_type:
+                        canvas.canvas_type || canvas_type || CANVAS_TYPE.HYBRID,
+                    }))}
                     canvasId={canvasId}
                     canvasType={canvas_type}
                     onReactFlowInit={setReactFlowInstance}

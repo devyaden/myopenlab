@@ -1,0 +1,89 @@
+.image-insert-dialog {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.image-insert-dialog-content {
+  background-color: white;
+  padding: 24px;
+  border-radius: 8px;
+  width: 400px;
+  max-width: 90%;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.image-insert-dialog-content h3 {
+  margin-top: 0;
+  margin-bottom: 16px;
+  font-size: 18px;
+  font-weight: 500;
+  color: #202124;
+}
+
+.image-insert-options {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 24px;
+}
+
+.image-insert-option {
+  display: flex;
+  align-items: center;
+  padding: 12px;
+  border: 1px solid #dadce0;
+  border-radius: 4px;
+  background: none;
+  cursor: pointer;
+  text-align: left;
+  font-size: 14px;
+  transition: background-color 0.2s;
+}
+
+.image-insert-option:hover {
+  background-color: #f8f9fa;
+}
+
+.image-insert-option svg {
+  margin-right: 12px;
+  color: #5f6368;
+  flex-shrink: 0;
+}
+
+.image-insert-dialog-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.image-insert-dialog-footer button {
+  padding: 8px 16px;
+  border: none;
+  border-radius: 4px;
+  background: none;
+  cursor: pointer;
+  font-size: 14px;
+  color: #1a73e8;
+  transition: background-color 0.2s;
+}
+
+.image-insert-dialog-footer button:hover {
+  background-color: rgba(26, 115, 232, 0.04);
+}
+
+.image-insert-dialog-footer button.primary {
+  background-color: #1a73e8;
+  color: white;
+}
+
+.image-insert-dialog-footer button.primary:hover {
+  background-color: #1765cc;
+}

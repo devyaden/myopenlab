@@ -68,7 +68,7 @@ interface UMLEditorProps {
   onAddColumn: (columnData: any) => void;
   columns: any[];
   setColumns: (columns: any[]) => void;
-  currentFolderCanvases: { id: string; name: string }[];
+  currentFolderCanvases: { id: string; name: string; canvas_type: string }[];
   canvasId: string;
   canvasType: CANVAS_TYPE | null;
   onReactFlowInit?: (instance: ReactFlowInstance) => void; // Add new prop
@@ -82,7 +82,7 @@ const sortNodes = (node: ReactFlowNode, nodes: ReactFlowNode[]) => {
     if (b.id === node.id) return -1;
     return 0;
   });
-  const children = nodes.filter((n) => n.parentNode === node.id);
+  const children = nodes?.filter((n) => n.parentNode === node.id);
   children.forEach((child) => {
     nodes = sortNodes(child, nodes);
   });
@@ -162,6 +162,8 @@ export function UMLEditor({
 
   const handleNodesChange = useCallback(
     (changes: NodeChange[]) => {
+      console.log("🚀 ~ 4444444 ~ changes:", changes);
+
       const updatedNodes = applyNodeChanges(changes, nodes).map((node) => {
         if (node.parentNode) {
           const parent = getNode(node.parentNode);
@@ -252,7 +254,7 @@ export function UMLEditor({
 
   const onNodeDragStop = useCallback(
     (event: React.MouseEvent, draggedNode: Node, draggedNodes: Node[]) => {
-      const children = nodes.filter((n) => n.parentNode === draggedNode.id);
+      const children = nodes?.filter((n) => n.parentNode === draggedNode.id);
       let sortedNodes: Node[];
       if (children.length === 0) {
         sortedNodes = [...nodes].sort((a, b) => {
@@ -308,6 +310,7 @@ export function UMLEditor({
   const handleTableNodesChange = useCallback(
     (updatedNodes: Node[]) => {
       // Check if any nodes were deleted
+
       const deletedNodeIds = nodes
         .filter((node) => !updatedNodes.some((n) => n.id === node.id))
         .map((node) => node.id);
@@ -324,7 +327,7 @@ export function UMLEditor({
           const existingNode = nodes.find((node) => node.id === updatedNode.id);
           if (existingNode) {
             // Update existing node
-            return {
+            const newNode = {
               ...existingNode,
               data: {
                 ...existingNode.data,
@@ -333,6 +336,8 @@ export function UMLEditor({
               },
               type: updatedNode?.type || existingNode?.type,
             };
+
+            return newNode;
           } else {
             // Add new node
             return {

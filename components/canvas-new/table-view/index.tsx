@@ -97,6 +97,7 @@ const TableView: React.FC<TableViewProps> = ({
     column: string;
   } | null>(null);
   const [editedValue, setEditedValue] = useState<any>(null);
+
   const [validationError, setValidationError] = useState<string | null>(null);
   const [selectedParentId, setSelectedParentId] = useState<string | null>(null);
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
@@ -130,62 +131,162 @@ const TableView: React.FC<TableViewProps> = ({
     hiddenColumns = [];
   }
 
+  // Cache for rollup and relation data
+  const [rollupCache, setRollupCache] = useState<Record<string, any>>({});
+  const [relationCache, setRelationCache] = useState<Record<string, any>>({});
+
+  // Update rollup cache when relevant data changes
   useEffect(() => {
-    if (canvasType !== CANVAS_TYPE.HYBRID) return;
+    console.log("Updating rollup cache for columns:", columns);
 
-    let newColumns = [...columns];
-    let hasChanges = false;
+    const newRollupCache: Record<string, any> = {};
+    const newRelationCache: Record<string, any> = {};
 
-    // Handle connection columns (from/to)
-    const hasEdges = edges.length > 0;
-    const currentHasFrom = newColumns.some((c) => c.title === "from");
-    const currentHasTo = newColumns.some((c) => c.title === "to");
+    // Process rollup columns
+    const rollupColumns = columns?.filter((col) => col?.type === "Rollup");
+    console.log("Found rollup columns:", rollupColumns);
 
-    if (hasEdges) {
-      if (!currentHasFrom) {
-        newColumns.push({ title: "from", type: "Text" });
-        hasChanges = true;
-      }
-      if (!currentHasTo) {
-        newColumns.push({ title: "to", type: "Text" });
-        hasChanges = true;
-      }
-    } else {
-      // Remove connection columns if no edges
-      const beforeLength = newColumns.length;
-      newColumns = newColumns.filter(
-        (c) => c.title !== "from" && c.title !== "to"
+    if (rollupColumns?.length) {
+      // Create a map of relation columns to easily lookup by related canvas ID
+      const relationColumns = columns?.filter(
+        (col) => col?.type === "Relation" && col.related_canvas_id
       );
-      if (newColumns.length < beforeLength) hasChanges = true;
-    }
 
-    // Handle hierarchy columns (parent/children)
-    const hasParentNodes = nodes.some((n) => n.parentNode);
-    const currentHasParent = newColumns.some((c) => c.title === "parent");
-    const currentHasChildren = newColumns.some((c) => c.title === "children");
-
-    if (hasParentNodes) {
-      if (!currentHasParent) {
-        newColumns.push({ title: "parent", type: "Text" });
-        hasChanges = true;
-      }
-      if (!currentHasChildren) {
-        newColumns.push({ title: "children", type: "Text" });
-        hasChanges = true;
-      }
-    } else {
-      // Remove hierarchy columns if no parent nodes
-      const beforeLength = newColumns.length;
-      newColumns = newColumns.filter(
-        (c) => c.title !== "parent" && c.title !== "children"
+      const relationColumnMap = new Map(
+        relationColumns.map((col) => [col.related_canvas_id, col])
       );
-      if (newColumns.length < beforeLength) hasChanges = true;
+
+      console.log("Available relation columns:", relationColumns);
+      console.log(
+        "Relation column map:",
+        Object.fromEntries(relationColumnMap)
+      );
+
+      nodes.forEach((node) => {
+        // First, populate relation cache for all relation columns
+        relationColumns.forEach((column) => {
+          const relationData = node.data[column.title];
+          if (relationData) {
+            // Ensure relation data is stored as an array
+            const relationArray = Array.isArray(relationData)
+              ? relationData
+              : [relationData];
+            newRelationCache[`${node.id}-${column.title}`] = relationArray;
+          } else {
+            newRelationCache[`${node.id}-${column.title}`] = [];
+          }
+        });
+
+        // Then process rollup columns
+        rollupColumns.forEach((column) => {
+          console.log(
+            `Processing rollup column ${column.title} for node ${node.id}`
+          );
+
+          // For rollup columns, we need to know:
+          // 1. Which canvas the rollup is related to (via rollup_relation)
+          // 2. Which property on the related canvas to use (via rollup_column_id)
+
+          const relatedCanvasId = column.rollup_relation;
+          if (!relatedCanvasId) {
+            console.warn(
+              `No related canvas ID for rollup column ${column.title}`
+            );
+            return;
+          }
+
+          // Find related canvas data
+          const relatedCanvas = column?.rollup_column?.canvas;
+          if (!relatedCanvas?.canvas_data?.[0]?.nodes) {
+            console.warn(
+              `No canvas data found for rollup related canvas ${relatedCanvasId}`
+            );
+            return;
+          }
+
+          const relatedCanvasNodes = relatedCanvas.canvas_data[0].nodes;
+          console.log(`Related canvas has ${relatedCanvasNodes.length} nodes`);
+
+          // Find the property to rollup
+          const rollupColumnTargetTitle = column?.rollup_column?.title;
+          if (!rollupColumnTargetTitle) {
+            console.warn(
+              `No target column specified for rollup ${column.title}`
+            );
+            return;
+          }
+
+          console.log("Rollup target property:", rollupColumnTargetTitle);
+
+          // Find the relation column that connects to the canvas used by this rollup
+          const relationColumn = relationColumnMap.get(relatedCanvasId);
+          if (!relationColumn) {
+            console.warn(
+              `No relation column found for canvas ID ${relatedCanvasId}`
+            );
+            return;
+          }
+
+          console.log(
+            "Using relation column for rollup:",
+            relationColumn.title
+          );
+
+          const relationColumnTitle = relationColumn.title;
+
+          // Get relation data from the node
+          const relationData = node.data[relationColumnTitle];
+          console.log(`Relation data for node ${node.id}:`, relationData);
+
+          // Skip if no relation data
+          if (
+            !relationData ||
+            !Array.isArray(relationData) ||
+            relationData.length === 0
+          ) {
+            console.log(`No relation data for node ${node.id}`);
+            newRollupCache[`${node.id}-${column.title}`] = [];
+            return;
+          }
+
+          // Extract IDs from relation data
+          const relationIds = relationData.map((item) => item.id);
+          console.log("Relation IDs:", relationIds);
+
+          // Create a set for faster lookups
+          const relationIdSet = new Set(relationIds);
+
+          // Filter related nodes that match the relation IDs
+          const matchingRelatedNodes = relatedCanvasNodes.filter(
+            (relNode: Node) => relationIdSet.has(relNode.id)
+          );
+
+          console.log(
+            `Found ${matchingRelatedNodes.length} matching related nodes`
+          );
+
+          // Create rollup data with label and value
+          const rollupData = matchingRelatedNodes.map((relNode: Node) => {
+            const value = relNode.data[rollupColumnTargetTitle];
+            return {
+              label: relNode.data.label || relNode.id,
+              value: value,
+              sourceId: relNode.id,
+            };
+          });
+
+          console.log("Generated rollup data:", rollupData);
+
+          // Store in cache
+          newRollupCache[`${node.id}-${column.title}`] = rollupData;
+        });
+      });
     }
 
-    if (hasChanges) {
-      setColumns(newColumns);
-    }
-  }, [columns, setColumns, canvasType, edges.length, nodes]);
+    // Set both caches with the new data
+    setRollupCache(newRollupCache);
+    setRelationCache(newRelationCache);
+  }, [nodes, columns]);
 
   const updateTableSettings = (newSettings: any) => {
     // @ts-ignore
@@ -224,11 +325,6 @@ const TableView: React.FC<TableViewProps> = ({
 
         const newWidth =
           mouseMoveEvent.clientX - columnElement.getBoundingClientRect().left;
-
-        // setColumnWidths((prev) => ({
-        //   ...prev,
-        //   [resizingColumn]: Math.max(100, newWidth),
-        // }));
 
         updateTableSettings({
           ...canvasSettings.table_settings,
@@ -380,52 +476,54 @@ const TableView: React.FC<TableViewProps> = ({
     return nodes.filter((node) => !hiddenNodeIds.has(node.id));
   }, [nodes, hiddenNodeIds]);
 
+  // Modified insertRollupDataIntoNodes to use cache
   const insertRollupDataIntoNodes = (nodes: Node[]): Node[] => {
-    if (!nodes?.length || !columns?.length) {
-      return nodes;
-    }
-
-    const rollupColumns = columns?.filter((col) => col?.type === "Rollup");
-    if (!rollupColumns.length) {
-      return nodes;
-    }
-
-    const relationColumnMap = new Map(
-      columns
-        ?.filter((col) => col?.type === "Relation" && col.related_canvas_id)
-        .map((col) => [col.related_canvas_id, col])
-    );
-
     return nodes.map((node) => {
-      rollupColumns.forEach((column) => {
-        const relatedCanvas = column?.rollup_column?.canvas;
-        if (!relatedCanvas?.canvas_data?.[0]?.nodes) return;
-
-        const relatedCanvasNodes = relatedCanvas.canvas_data[0].nodes;
-        const rollupColumnSourceTitle = column?.title;
-        const rollupColumnTargetTitle = column?.rollup_column?.title;
-
-        const relationColumn = relationColumnMap.get(relatedCanvas.id);
-        if (!relationColumn) return;
-
-        const relationColumnTitle = relationColumn.title;
-        const currentRelationColumnData = node.data[relationColumnTitle]?.map(
-          (n: Node) => n.id
-        );
-        if (!currentRelationColumnData?.length) return;
-
-        const relationIdSet = new Set(currentRelationColumnData);
-        const rollupData = relatedCanvasNodes
-          .filter((n: Node) => relationIdSet.has(n.id))
-          .map((filteredNode: Node) => ({
-            label: filteredNode.data[rollupColumnSourceTitle],
-            value: filteredNode.data[rollupColumnTargetTitle],
-          }));
-
-        node.data[column.title] = rollupData;
+      const newNode = { ...node };
+      columns?.forEach((column) => {
+        // Handle rollup data from cache
+        if (column.type === "Rollup") {
+          const rollupData = rollupCache[`${node.id}-${column.title}`];
+          if (rollupData) {
+            console.log(
+              `Found rollup data for node ${node.id}, column ${column.title}:`,
+              rollupData
+            );
+            newNode.data[column.title] = rollupData;
+          } else {
+            console.log(
+              `No rollup data found for node ${node.id}, column ${column.title}`
+            );
+            newNode.data[column.title] = [];
+          }
+        }
+        // Handle relation data from cache or directly from node data
+        else if (column.type === "Relation") {
+          // Check for data in the relationCache first
+          if (relationCache[`${node.id}-${column.title}`]) {
+            newNode.data[column.title] =
+              relationCache[`${node.id}-${column.title}`];
+          }
+          // If not in cache, use existing node data if it exists
+          else if (node.data[column.title]) {
+            // Ensure relation data is always an array
+            if (Array.isArray(node.data[column.title])) {
+              newNode.data[column.title] = node.data[column.title];
+            } else {
+              // Convert non-array data to array
+              console.warn(
+                `Relation data not in array format for node ${node.id}, column ${column.title}`
+              );
+              newNode.data[column.title] = [];
+            }
+          }
+          // Initialize as empty array if no data exists
+          else {
+            newNode.data[column.title] = [];
+          }
+        }
       });
-
-      return node;
+      return newNode;
     });
   };
 
@@ -576,6 +674,69 @@ const TableView: React.FC<TableViewProps> = ({
   const handleSave = (nodeId: string, column: string, value: any) => {
     const columnDef = columns?.find((col) => col.title === column);
     if (columnDef) {
+      // Skip saving for Rollup columns as they are calculated automatically
+      if (columnDef.type === "Rollup") {
+        console.log(
+          "Cannot edit rollup column, it's calculated automatically:",
+          column
+        );
+        setEditingCell(null);
+        setEditedValue(null);
+        setValidationError(null);
+        return;
+      }
+
+      // For relation columns, we don't need to validate as they are arrays of objects
+      if (columnDef.type === "Relation") {
+        console.log("Saving relation data:", { nodeId, column, value });
+
+        // Ensure value is an array
+        const relationValue = Array.isArray(value) ? value : [];
+
+        const updatedNodes = nodes.map((node) => {
+          if (node.id === nodeId) {
+            // Update the node data with the new relation value
+            const newData = { ...node.data, [column]: relationValue };
+            // Also update the relationCache to ensure consistent rendering
+            const newRelationCache = { ...relationCache };
+            newRelationCache[`${nodeId}-${column}`] = relationValue;
+            setRelationCache(newRelationCache);
+
+            // Update rollup data that depends on this relation
+            const relatedRollupColumns = columns.filter(
+              (col) =>
+                col.type === "Rollup" &&
+                col.rollup_relation === columnDef.related_canvas_id
+            );
+
+            if (relatedRollupColumns.length > 0) {
+              console.log(
+                "Found rollup columns that depend on this relation:",
+                relatedRollupColumns
+              );
+              // Force refresh of rollup data by simulating a change in nodes or columns
+              setTimeout(() => {
+                // This will trigger the useEffect that updates rollup data
+                const nodesCopy = [...nodes];
+                onNodesChange(nodesCopy);
+              }, 100);
+            }
+
+            console.log("Updated node data:", newData);
+            return { ...node, data: newData };
+          }
+          return node;
+        });
+
+        console.log("Calling onNodesChange with updated nodes");
+        onNodesChange(updatedNodes);
+        setEditingCell(null);
+        setEditedValue(null);
+        setValidationError(null);
+        return;
+      }
+
+      // For other column types, validate the data
       const { isValid, errorMessage } = validateField(columnDef?.type, value);
       if (isValid) {
         const updatedNodes = nodes.map((node) => {
@@ -704,8 +865,8 @@ const TableView: React.FC<TableViewProps> = ({
 
     // Rebuild the full nodes array with the updated sibling order
     const updatedNodes = [...nodes];
-    const siblingIndices = siblings.map((s) =>
-      nodes.findIndex((n) => n.id === s.id)
+    const siblingIndices = siblings.map((sibling) =>
+      nodes.findIndex((n) => n.id === sibling.id)
     );
 
     // Replace old sibling nodes with the reordered ones
@@ -805,7 +966,7 @@ const TableView: React.FC<TableViewProps> = ({
   const getRelatedCanvasNodes = (canvas_data: any) => {
     if (!canvas_data) return null;
 
-    const columnsData = canvas_data?.[0]?.nodes?.map((node: Node) => {
+    const columnsData = canvas_data?.nodes?.map((node: Node) => {
       return { ...node.data, id: node.id };
     });
 
@@ -929,8 +1090,11 @@ const TableView: React.FC<TableViewProps> = ({
               >
                 <TableHeader className="p-0 bg-gray-50 ">
                   <TableRow className="group">
-                    <TableHead className=" sticky left-0 z-30 flex items-center justify-center pl-0  bg-white border-r border-gray-200 max-w-[50px]">
-                      {/* Select All checkbox */}
+                    <TableHead
+                      className={`sticky left-0 z-20 bg-white border-r border-gray-200 w-16 text-center ${
+                        selectedNodes.length > 0 ? "bg-blue-50" : "bg-gray-50"
+                      }`}
+                    >
                       <Checkbox
                         className={`transition-opacity ${
                           selectedNodes.length > 0
@@ -970,7 +1134,7 @@ const TableView: React.FC<TableViewProps> = ({
                             ref={(el) =>
                               (columnRefs.current[column.title] = el)
                             }
-                            className={`border-r border-gray-200  ${
+                            className={`border-r border-gray-200 text-center ${
                               frozenColumns.has(column.title)
                                 ? "sticky left-16 z-10"
                                 : "relative"
@@ -1025,7 +1189,7 @@ const TableView: React.FC<TableViewProps> = ({
                                       className="h-7 w-32 focus-visible:ring-0"
                                     />
                                   ) : (
-                                    <div className="flex items-center">
+                                    <div className="flex items-center justify-center w-full">
                                       {/* {getColumnIcon(column.type)} */}
                                       <span>{column.title}</span>
                                       {/* {getSortIcon(column.title as SortField)} */}

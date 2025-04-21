@@ -1,0 +1,1772 @@
+.editor-container {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  width: 100%;
+  background-color: #f5f5f5;
+  color: #202124;
+  position: relative;
+  line-height: 1.5;
+  font-weight: 400;
+  font-family: "Roboto", Arial, sans-serif;
+  overflow: hidden;
+}
+
+.editor-inner {
+  background: #fff;
+  position: relative;
+  max-width: 100%;
+  min-height: 11in;
+  margin: 0 auto;
+  padding: 1in;
+  box-shadow:
+    0 1px 3px rgba(0, 0, 0, 0.12),
+    0 1px 2px rgba(0, 0, 0, 0.24);
+}
+
+.editor-input-container {
+  position: relative;
+}
+
+.editor-input {
+  width: 100%;
+  height: 100%;
+  background-color: white;
+  min-height: 11in;
+  resize: none;
+  font-size: 11pt;
+  position: relative;
+  tab-size: 1;
+  outline: 0;
+  caret-color: #1a73e8;
+  overflow-y: auto;
+}
+
+.editor-input:focus {
+  outline: none;
+}
+
+.editor-input img {
+  max-width: 100%;
+  height: auto;
+}
+
+.editor-input table {
+  border-collapse: collapse;
+  margin: 1rem 0;
+}
+
+.editor-input table td,
+.editor-input table th {
+  border: 1px solid #ddd;
+  padding: 8px;
+}
+
+.editor-input blockquote {
+  border-left: 4px solid #e2e8f0;
+  padding-left: 1rem;
+  color: #4a5568;
+  font-style: italic;
+}
+
+.editor-input pre {
+  background-color: #f7fafc;
+  padding: 1rem;
+  border-radius: 0.25rem;
+  overflow-x: auto;
+  font-family: monospace;
+}
+
+.editor-input code {
+  background-color: #f7fafc;
+  padding: 0.2rem 0.4rem;
+  border-radius: 0.25rem;
+  font-family: monospace;
+  font-size: 0.875em;
+}
+
+.editor-input ul,
+.editor-input ol {
+  padding-left: 2rem;
+}
+
+.editor-input ul {
+  list-style-type: disc;
+}
+
+.editor-input ol {
+  list-style-type: decimal;
+}
+
+/* Google Docs style toolbar */
+.editor-toolbar {
+  background-color: #f9fbfd;
+  border-bottom: 1px solid #e0e0e0;
+  position: sticky;
+  top: 57px;
+  z-index: 20;
+  padding: 4px 8px;
+  width: 100%;
+  overflow-x: auto;
+}
+
+.toolbar-inner {
+  display: flex;
+  align-items: center;
+  min-height: 40px;
+  width: 100%;
+}
+
+.toolbar-button {
+  height: 32px;
+  width: 32px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #5f6368;
+}
+
+.toolbar-button.with-text {
+  width: auto;
+  padding: 0 8px;
+}
+
+.toolbar-button:hover {
+  background-color: rgba(0, 0, 0, 0.05);
+}
+
+.toolbar-button.active {
+  background-color: rgba(0, 0, 0, 0.05);
+  color: #1a73e8;
+}
+
+/* Dropdown styles */
+.toolbar-dropdown {
+  position: relative;
+  display: inline-block;
+}
+
+.toolbar-dropdown-button {
+  height: 32px;
+  padding: 0 12px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #5f6368;
+  font-size: 14px;
+  white-space: nowrap;
+}
+
+.toolbar-dropdown-button:hover {
+  background-color: rgba(0, 0, 0, 0.05);
+}
+
+.toolbar-dropdown-content {
+  display: none;
+  position: absolute;
+  background-color: white;
+  min-width: 160px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+  border-radius: 4px;
+  z-index: 1;
+  max-height: 300px;
+  overflow-y: auto;
+  top: 100%;
+  left: 0;
+  margin-top: 4px;
+}
+
+.toolbar-dropdown:hover .toolbar-dropdown-content {
+  display: block;
+}
+
+.dropdown-item {
+  padding: 8px 16px;
+  text-align: left;
+  width: 100%;
+  border: none;
+  background: none;
+  cursor: pointer;
+  font-size: 14px;
+  color: #202124;
+  display: flex;
+  align-items: center;
+}
+
+.dropdown-item:hover {
+  background-color: rgba(0, 0, 0, 0.05);
+}
+
+/* Font size input */
+.font-size-input {
+  width: 32px;
+  height: 32px;
+  text-align: center;
+  border: 1px solid #dadce0;
+  border-radius: 4px;
+  font-size: 14px;
+}
+
+/* Zoom control */
+.toolbar-select {
+  height: 32px;
+  padding: 0 24px 0 8px;
+  border-radius: 4px;
+  background: none;
+  border: 1px solid transparent;
+  cursor: pointer;
+  color: #5f6368;
+  font-size: 14px;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+  background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3E%3C/svg%3E");
+  background-position: right 4px center;
+  background-repeat: no-repeat;
+  background-size: 16px 16px;
+}
+
+.toolbar-select:hover {
+  border-color: #dadce0;
+}
+
+/* Top menu bar */
+.top-menu-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 4px 16px;
+  border-bottom: 1px solid #e0e0e0;
+  height: 40px;
+}
+
+.left-section {
+  display: flex;
+  align-items: center;
+}
+
+.doc-icon {
+  margin-right: 8px;
+}
+
+.doc-title {
+  font-size: 18px;
+  font-weight: 400;
+  margin-right: 40px;
+  color: #202124;
+}
+
+.menu-items {
+  display: flex;
+}
+
+.menu-item {
+  padding: 0 8px;
+  font-size: 14px;
+  color: #202124;
+  background: none;
+  border: none;
+  cursor: pointer;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  border-radius: 4px;
+}
+
+.menu-item:hover {
+  background-color: rgba(0, 0, 0, 0.05);
+}
+
+.right-section {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.icon-button {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #5f6368;
+}
+
+.icon-button:hover {
+  background-color: rgba(0, 0, 0, 0.05);
+}
+
+.share-button {
+  background-color: #1a73e8;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 0 16px;
+  height: 36px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.share-button:hover {
+  background-color: #1765cc;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .menu-items {
+    display: none;
+  }
+
+  .toolbar-button.with-text span {
+    display: none;
+  }
+
+  .doc-title {
+    margin-right: 8px;
+  }
+}
+
+/* Add space to the right of the toolbar */
+.ml-auto {
+  margin-left: auto;
+}
+
+/* Add styles for the text case dropdown */
+.text-case-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  z-index: 10;
+  min-width: 280px;
+  padding: 8px 0;
+  margin-top: 4px;
+  background-color: #fff;
+  border-radius: 4px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+}
+
+.text-case-item {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  padding: 8px 16px;
+  text-align: left;
+  border: none;
+  background: none;
+  cursor: pointer;
+  font-size: 14px;
+  color: #202124;
+}
+
+.text-case-item:hover {
+  background-color: rgba(0, 0, 0, 0.05);
+}
+
+.text-case-icon {
+  width: 24px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: 12px;
+  color: #5f6368;
+  font-size: 16px;
+}
+
+.text-case-label {
+  flex-grow: 1;
+}
+
+.text-case-shortcut {
+  color: #5f6368;
+  font-size: 12px;
+  margin-left: 8px;
+}
+
+.line-through {
+  text-decoration: line-through;
+}
+
+/* Insert dropdown styles */
+.insert-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  z-index: 10;
+  min-width: 240px;
+  padding: 8px 0;
+  margin-top: 4px;
+  background-color: #fff;
+  border-radius: 4px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+}
+
+.insert-item {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  padding: 8px 16px;
+  text-align: left;
+  border: none;
+  background: none;
+  cursor: pointer;
+  font-size: 14px;
+  color: #202124;
+}
+
+.insert-item:hover {
+  background-color: rgba(0, 0, 0, 0.05);
+}
+
+.insert-icon {
+  width: 24px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: 12px;
+  color: #5f6368;
+}
+
+.insert-label {
+  flex-grow: 1;
+}
+
+/* Image selection and resizing styles */
+.selected-image {
+  outline: 2px solid #0070f3;
+}
+
+/* Update the image-container style to add some padding */
+.image-container {
+  position: relative;
+  display: inline-block;
+  max-width: 100%;
+}
+
+/* Update the resize handle positioning to ensure they're visible */
+.resize-handle {
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  background-color: #0070f3;
+  border: 1px solid white;
+  border-radius: 50%;
+}
+
+.resize-handle-nw {
+  top: -4px;
+  left: -4px;
+  cursor: nw-resize;
+}
+
+.resize-handle-n {
+  top: -4px;
+  left: 50%;
+  transform: translateX(-50%);
+  cursor: n-resize;
+}
+
+.resize-handle-ne {
+  top: -4px;
+  right: -4px;
+  cursor: ne-resize;
+}
+
+.resize-handle-e {
+  top: 50%;
+  right: -4px;
+  transform: translateY(-50%);
+  cursor: e-resize;
+}
+
+.resize-handle-se {
+  bottom: -4px;
+  right: -4px;
+  cursor: se-resize;
+}
+
+.resize-handle-s {
+  bottom: -4px;
+  left: 50%;
+  transform: translateX(-50%);
+  cursor: s-resize;
+}
+
+.resize-handle-sw {
+  bottom: -4px;
+  left: -4px;
+  cursor: sw-resize;
+}
+
+.resize-handle-w {
+  top: 50%;
+  left: -4px;
+  transform: translateY(-50%);
+  cursor: w-resize;
+}
+
+/* Update the dimension indicator to ensure it's visible */
+.dimension-indicator {
+  position: absolute;
+  bottom: -25px;
+  left: 50%;
+  transform: translateX(-50%);
+  background-color: rgba(0, 0, 0, 0.7);
+  color: white;
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-size: 12px;
+  pointer-events: none;
+}
+
+/* Multi-page editor styles */
+.editor-layout {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  overflow: hidden;
+  position: relative;
+  height: calc(100vh - 120px); /* Adjust based on your header/toolbar height */
+  background-color: #f0f0f0;
+}
+
+/* Add these styles for better zoom handling */
+.editor-with-pages {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 40px;
+  overflow-y: auto;
+  overflow-x: auto;
+  flex: 1;
+  background-color: #e0e0e0;
+  position: relative;
+  z-index: 0;
+  width: 100%;
+}
+
+/* Add a wrapper for the page content that will be zoomed */
+.editor-zoom-wrapper {
+  transform-origin: top center;
+  transition: transform 0.2s ease;
+  min-width: 100%;
+  display: flex;
+  justify-content: center;
+}
+
+/* Enhanced page styling */
+.editor-page {
+  background-color: white;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  margin-bottom: 20px;
+  position: relative;
+  transition: all 0.2s ease;
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+/* Add a subtle page curl effect */
+.editor-page::before {
+  content: "";
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  width: 20px;
+  height: 20px;
+  background: linear-gradient(135deg, transparent 50%, rgba(0, 0, 0, 0.05) 50%);
+  z-index: 2;
+  border-radius: 0 0 2px 0;
+}
+
+.editor-page::after {
+  content: attr(data-page-number);
+  position: absolute;
+  bottom: -20px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 12px;
+  color: #666;
+  z-index: 3;
+}
+
+/* Page with visible margins */
+.editor-page.with-margins {
+  padding: 0;
+}
+
+/* Page margins indicator */
+.page-margins-indicator {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.margin-top,
+.margin-bottom,
+.margin-left,
+.margin-right {
+  position: absolute;
+  background-color: rgba(200, 200, 200, 0.2);
+  border: 1px dashed rgba(0, 0, 0, 0.2);
+}
+
+.margin-top {
+  top: 0;
+  left: 0;
+  right: 0;
+}
+
+.margin-right {
+  top: 0;
+  right: 0;
+  bottom: 0;
+}
+
+.margin-bottom {
+  bottom: 0;
+  left: 0;
+  right: 0;
+}
+
+.margin-left {
+  top: 0;
+  left: 0;
+  bottom: 0;
+}
+
+/* TipTap specific styles */
+.ProseMirror {
+  outline: none;
+  min-height: 100%;
+  font-size: 11pt;
+  line-height: 1.5;
+  max-width: 816px; /* Standard letter width */
+  margin: 0 auto; /* Center the page */
+  overflow-y: visible; /* Allow content to overflow */
+  height: auto !important; /* Override any fixed height */
+  background-color: white; /* Add white background */
+  box-shadow:
+    0 1px 3px rgba(0, 0, 0, 0.12),
+    0 1px 2px rgba(0, 0, 0, 0.24); /* Add shadow for depth */
+  border-radius: 2px;
+  padding: 20px;
+  padding-top: 0 !important; /* Force remove top padding */
+  margin-top: 0 !important; /* Force remove top margin */
+}
+
+/* Fix for the extra space issue */
+.editor-content.no-top-margin {
+  margin-top: 0 !important;
+  padding-top: 0 !important;
+}
+
+/* Fix for paragraph spacing */
+.editor-paragraph {
+  margin-top: 0 !important;
+  margin-bottom: 0.3em !important;
+}
+
+/* First paragraph should have no top margin */
+.ProseMirror > p:first-child {
+  margin-top: 0 !important;
+}
+
+.ProseMirror p {
+  margin: 0.5em 0;
+}
+
+.ProseMirror h1 {
+  font-size: 2em;
+  margin: 0.4em 0; /* Reduced from 0.67em */
+}
+
+.ProseMirror h2 {
+  font-size: 1.5em;
+  margin: 0.4em 0; /* Reduced from 0.75em */
+}
+
+.ProseMirror h3 {
+  font-size: 1.17em;
+  margin: 0.4em 0; /* Reduced from 0.83em */
+}
+
+.ProseMirror h4 {
+  font-size: 1em;
+  margin: 0.4em 0; /* Reduced from 1.12em */
+}
+
+.ProseMirror h5 {
+  font-size: 0.83em;
+  margin: 0.4em 0; /* Reduced from 1.5em */
+}
+
+.ProseMirror h6 {
+  font-size: 0.75em;
+  margin: 0.4em 0; /* Reduced from 1.67em */
+}
+
+.ProseMirror blockquote {
+  border-left: 3px solid #ddd;
+  margin-left: 0;
+  padding-left: 1em;
+  color: #666;
+  font-style: italic;
+  margin: 0.5em 0; /* Reduced from 1em */
+}
+
+.ProseMirror pre {
+  background-color: #f5f5f5;
+  padding: 0.5em;
+  border-radius: 4px;
+  overflow-x: auto;
+  font-family: monospace;
+  margin: 0.5em 0; /* Reduced from 1em */
+}
+
+.ProseMirror code {
+  background-color: #f5f5f5;
+  padding: 0.2em 0.4em;
+  border-radius: 3px;
+  font-family: monospace;
+  font-size: 0.875em;
+}
+
+.ProseMirror ul,
+.ProseMirror ol {
+  padding-left: 2em;
+  margin: 0.5em 0; /* Reduced from 1em */
+}
+
+.ProseMirror ul {
+  list-style-type: disc;
+}
+
+.ProseMirror ol {
+  list-style-type: decimal;
+}
+
+.ProseMirror table {
+  border-collapse: collapse;
+  margin: 1em 0;
+  overflow: hidden;
+  width: 100%;
+}
+
+.ProseMirror table td,
+.ProseMirror table th {
+  border: 1px solid #ddd;
+  padding: 0.5em;
+  position: relative;
+}
+
+.ProseMirror table th {
+  background-color: #f5f5f5;
+  font-weight: bold;
+}
+
+.ProseMirror img {
+  max-width: 100%;
+  height: auto;
+}
+
+.ProseMirror hr {
+  border: none;
+  border-top: 1px solid #e2e8f0;
+  margin: 0.5em 0; /* Reduced from 1em */
+}
+
+/* Adjust heading spacing */
+.ProseMirror h1,
+.ProseMirror h2,
+.ProseMirror h3,
+.ProseMirror h4,
+.ProseMirror h5,
+.ProseMirror h6 {
+  margin: 1em 0 0.5em;
+  margin-top: 0.4em !important; /* Reduced top margin */
+  margin-bottom: 0.4em !important; /* Reduced bottom margin */
+}
+
+/* Page settings dropdown styles */
+.page-settings-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  z-index: 10;
+  min-width: 240px;
+  padding: 8px 0;
+  margin-top: 4px;
+  background-color: #fff;
+  border-radius: 4px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+}
+
+.page-settings-section {
+  padding: 8px 0;
+  border-bottom: 1px solid #f1f3f4;
+}
+
+.page-settings-section:last-child {
+  border-bottom: none;
+}
+
+.page-settings-header {
+  padding: 8px 16px;
+  font-size: 12px;
+  color: #5f6368;
+  font-weight: 500;
+}
+
+.page-settings-item {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  padding: 8px 16px;
+  text-align: left;
+  border: none;
+  background: none;
+  cursor: pointer;
+  font-size: 14px;
+  color: #202124;
+}
+
+.page-settings-item:hover {
+  background-color: rgba(0, 0, 0, 0.05);
+}
+
+.page-settings-item.active {
+  background-color: rgba(26, 115, 232, 0.08);
+  color: #1a73e8;
+}
+
+.page-settings-icon {
+  width: 24px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: 12px;
+  color: #5f6368;
+}
+
+.page-settings-item.active .page-settings-icon {
+  color: #1a73e8;
+}
+
+.page-settings-label {
+  flex-grow: 1;
+}
+
+/* Add styles for margin controls in the page settings dropdown */
+/* Add these styles to the file */
+
+.page-settings-margin-controls {
+  padding: 8px 16px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.margin-control {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.margin-control label {
+  width: 50px;
+  font-size: 12px;
+  color: #5f6368;
+}
+
+.margin-control input {
+  width: 50px;
+  height: 24px;
+  padding: 0 4px;
+  border: 1px solid #dadce0;
+  border-radius: 4px;
+  font-size: 12px;
+  text-align: right;
+}
+
+.margin-control span {
+  font-size: 12px;
+  color: #5f6368;
+}
+
+/* Page break styles from the library documentation */
+.page-break {
+  border-top: 2px dashed #999;
+  margin: 1em 0;
+  position: relative;
+  text-align: center;
+  color: #666;
+  font-size: 12px;
+  padding-top: 5px;
+}
+
+.page-break::before {
+  content: "";
+  position: absolute;
+  top: -2px;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: repeating-linear-gradient(
+    to right,
+    #999,
+    #999 5px,
+    transparent 5px,
+    transparent 10px
+  );
+}
+
+/* Print styles */
+@media print {
+  .editor-container {
+    background-color: white;
+  }
+
+  .page-break {
+    display: none;
+    page-break-before: always;
+    break-after: page;
+    border: none;
+    height: 0;
+    margin: 0;
+  }
+
+  .page-break::before {
+    display: none;
+  }
+
+  .editor-with-pages {
+    background-color: white;
+    padding: 0;
+  }
+
+  .editor-page {
+    box-shadow: none;
+    margin-bottom: 0;
+    margin: 0;
+    page-break-after: always;
+  }
+
+  .editor-page::before,
+  .editor-page::after,
+  .page-margins-indicator,
+  .resize-handle,
+  .dimension-indicator {
+    display: none;
+  }
+}
+
+/* Pagination styles based on GitHub discussion */
+.editor-content-container {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  overflow: auto;
+  z-index: 1;
+  opacity: 0;
+  pointer-events: all;
+}
+
+.editor-content-container .ProseMirror {
+  height: 100%;
+  overflow: auto;
+}
+
+.editor-page-content {
+  padding: 0;
+  min-height: 100%;
+  position: relative;
+  box-sizing: border-box;
+}
+
+.editor-page.with-margins .editor-page-content {
+  padding-top: var(--margin-top, 96px);
+  padding-right: var(--margin-right, 96px);
+  padding-bottom: var(--margin-bottom, 96px);
+  padding-left: var(--margin-left, 96px);
+}
+
+/* Add the necessary styles for the tiptap-extension-pagination */
+/* At the end of the file */
+
+/* Tiptap pagination extension styles */
+.tiptap-page {
+  background-color: white;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  margin-bottom: 30px;
+  width: var(--page-width, 816px);
+  min-height: var(--page-height, 1056px);
+  position: relative;
+  border-radius: 2px;
+  overflow: visible;
+  display: flex;
+  flex-direction: column;
+}
+
+.tiptap-page-content {
+  padding: var(--margin-top, 96px) var(--margin-right, 96px)
+    var(--margin-bottom, 96px) var(--margin-left, 96px);
+  min-height: calc(
+    var(--page-height, 1056px) - var(--margin-top, 96px) -
+      var(--margin-bottom, 96px)
+  );
+  flex: 1;
+}
+
+.tiptap-page-header,
+.tiptap-page-footer {
+  padding: 10px;
+  border-bottom: 1px solid #eee;
+  border-top: 1px solid #eee;
+  background-color: #f9f9f9;
+}
+
+/* Page number indicator */
+.tiptap-page::after {
+  content: attr(data-page-number);
+  position: absolute;
+  bottom: 10px;
+  right: 10px;
+  font-size: 12px;
+  color: #888;
+  background-color: rgba(255, 255, 255, 0.8);
+  padding: 2px 6px;
+  border-radius: 3px;
+}
+
+/* Page break styles */
+.tiptap-page-break {
+  height: 20px;
+  width: 100%;
+  border-top: 2px dashed #999;
+  margin: 10px 0;
+  position: relative;
+  text-align: center;
+}
+
+.tiptap-page-break::before {
+  content: "Page Break";
+  position: absolute;
+  top: -10px;
+  left: 50%;
+  transform: translateX(-50%);
+  background-color: white;
+  padding: 0 10px;
+  font-size: 12px;
+  color: #888;
+}
+
+/* Make the editor content visible */
+.editor-content {
+  width: 100%;
+  overflow: visible !important;
+  height: auto !important;
+}
+
+/* Print styles */
+@media print {
+  .editor-toolbar,
+  .toolbar-inner,
+  .editor-with-pages {
+    background-color: white !important;
+    padding: 0 !important;
+  }
+
+  .tiptap-page {
+    box-shadow: none !important;
+    margin: 0 !important;
+    page-break-after: always !important;
+  }
+
+  .tiptap-page-break {
+    break-after: page !important;
+    border: none !important;
+    height: 0 !important;
+    margin: 0 !important;
+    display: none !important;
+  }
+
+  .tiptap-page-break::before {
+    display: none !important;
+  }
+
+  .tiptap-page::after {
+    display: none !important;
+  }
+}
+
+.ProseMirror a {
+  color: #0070f3;
+  text-decoration: underline;
+}
+
+.editor-inline-image {
+  display: inline;
+  height: 1.2em;
+  vertical-align: middle;
+}
+
+/* Add new styles for pagination */
+.pagination-page-wrapper {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.pagination-page {
+  background-color: white;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  margin-bottom: 30px;
+  position: relative;
+  border-radius: 2px;
+  overflow: visible;
+  page-break-after: always;
+}
+
+/* Ensure editor-with-pages allows for multiple pages */
+.editor-with-pages {
+  overflow-y: auto !important;
+  overflow-x: hidden;
+}
+
+/* Update the pagination styles to fix the margin issues */
+/* Add these styles to the end of the file */
+
+/* Improved pagination styles */
+.tiptap-page {
+  background-color: white;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  margin-bottom: 30px;
+  width: var(--page-width, 816px);
+  min-height: var(--page-height, 1056px);
+  position: relative;
+  border-radius: 2px;
+  overflow: visible;
+  display: flex;
+  flex-direction: column;
+}
+
+.tiptap-page-content {
+  padding: var(--margin-top, 96px) var(--margin-right, 96px)
+    var(--margin-bottom, 96px) var(--margin-left, 96px);
+  min-height: calc(
+    var(--page-height, 1056px) - var(--margin-top, 96px) -
+      var(--margin-bottom, 96px)
+  );
+  flex: 1;
+  box-sizing: border-box;
+}
+
+/* Page margins visualization */
+.tiptap-page-dimensions {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.tiptap-page-dimensions::before {
+  content: "";
+  position: absolute;
+  top: var(--margin-top, 96px);
+  left: var(--margin-left, 96px);
+  right: var(--margin-right, 96px);
+  bottom: var(--margin-bottom, 96px);
+  border: 1px dashed rgba(0, 0, 0, 0.2);
+  pointer-events: none;
+}
+
+.tiptap-page-dimensions-top,
+.tiptap-page-dimensions-right,
+.tiptap-page-dimensions-bottom,
+.tiptap-page-dimensions-left {
+  position: absolute;
+  background-color: rgba(200, 200, 200, 0.2);
+}
+
+.tiptap-page-dimensions-top {
+  top: 0;
+  left: 0;
+  right: 0;
+  height: var(--margin-top, 96px);
+}
+
+.tiptap-page-dimensions-right {
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: var(--margin-right, 96px);
+}
+
+.tiptap-page-dimensions-bottom {
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: var(--margin-bottom, 96px);
+}
+
+.tiptap-page-dimensions-left {
+  top: 0;
+  left: 0;
+  bottom: 0;
+  width: var(--margin-left, 96px);
+}
+
+/* Fix editor content container */
+.editor-with-pages {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 40px;
+  overflow-y: auto;
+  flex: 1;
+  background-color: #e0e0e0;
+}
+
+.editor-content {
+  width: 100%;
+  max-width: none !important;
+}
+
+/* Fix ProseMirror container */
+.ProseMirror {
+  outline: none;
+  width: 100%;
+  box-shadow: none;
+  background-color: transparent;
+  padding: 0;
+  margin: 0;
+  border-radius: 0;
+}
+
+/* Ensure content is properly positioned within the page */
+.tiptap-page .ProseMirror-focused {
+  outline: none;
+  box-shadow: none;
+}
+
+/* Fix page break styling */
+.tiptap-page-break {
+  position: relative;
+  height: 24px;
+  margin: 12px 0;
+  border-top: 2px dashed #999;
+  text-align: center;
+  page-break-after: always;
+}
+
+.tiptap-page-break::before {
+  content: "Page Break";
+  position: absolute;
+  top: -10px;
+  left: 50%;
+  transform: translateX(-50%);
+  background-color: white;
+  padding: 0 10px;
+  font-size: 12px;
+  color: #888;
+}
+
+/* Ensure proper page number display */
+.tiptap-page-number {
+  position: absolute;
+  bottom: 20px;
+  left: 0;
+  right: 0;
+  text-align: center;
+  font-size: 12px;
+  color: #888;
+}
+
+/* Ensure content area scales with page size */
+.tiptap-page {
+  width: var(--page-width, 816px) !important;
+  min-height: var(--page-height, 1056px) !important;
+}
+
+.tiptap-page-content {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.ProseMirror {
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+/* Make sure the editor content expands to fill the available space */
+.editor-content {
+  width: 100%;
+  max-width: 100%;
+}
+
+/* Ensure the page content area adjusts to the page size */
+.tiptap-page .ProseMirror-focused {
+  width: 100%;
+  max-width: 100%;
+}
+
+.editor-code-block {
+  background-color: #f5f5f5;
+  border-radius: 4px;
+  font-family: "Courier New", Courier, monospace;
+  padding: 1rem;
+  margin: 1rem 0;
+  white-space: pre-wrap;
+  overflow-x: auto;
+  color: #333;
+  font-size: 0.9em;
+  line-height: 1.5;
+}
+
+.editor-code-block code {
+  background-color: transparent;
+  padding: 0;
+  border-radius: 0;
+}
+
+/* Add this new class to ensure the content is properly centered but allows scrolling */
+.editor-content-scroll-container {
+  min-width: min-content;
+  padding: 0 20px;
+}
+
+/* ReactFlow canvas styling */
+.react-flow-canvas {
+  position: relative;
+  width: 100%;
+  margin: 1rem 0;
+  padding: 16px;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  background-color: #f8f8f8;
+  min-height: 320px;
+}
+
+.canvas-renderer-container {
+  width: 100%;
+  height: 280px;
+  background-color: #fff;
+  border-radius: 4px;
+  overflow: hidden;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* Ensure ReactFlow renders properly */
+.react-flow__node {
+  padding: 10px;
+  border-radius: 5px;
+  border: 1px solid #ddd;
+  background: white;
+  font-size: 12px;
+}
+
+.react-flow__node-input {
+  background: #edf2ff;
+  border-color: #c5d3ff;
+}
+
+.react-flow__node-output {
+  background: #e6fcef;
+  border-color: #b3f0d1;
+}
+
+.react-flow__edge-path {
+  stroke: #555;
+  stroke-width: 2;
+}
+
+.react-flow__controls {
+  bottom: 20px;
+  right: 15px;
+  left: auto;
+  top: auto;
+}
+
+/* Fix for ReactFlow sizing issues */
+.react-flow,
+.react-flow__container {
+  height: 100%;
+  width: 100%;
+}
+
+@media print {
+  .canvas-placeholder {
+    display: none;
+  }
+  .react-flow-canvas {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+}
+
+/* Add these styles at the end of your CSS file */
+
+.flowchart-container {
+  width: 100%;
+  margin: 20px 0;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  padding: 10px;
+  background-color: #f8f8f8;
+}
+
+.canvas-placeholder {
+  width: 100%;
+  height: 50px;
+  border: 1px dashed #ccc;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 10px 0;
+  background-color: #f9f9f9;
+  color: #666;
+}
+
+.flow-chart-container {
+  width: 100%;
+  margin-bottom: 20px;
+}
+
+.react-flow__node {
+  padding: 10px;
+  border-radius: 5px;
+  border: 1px solid #ddd;
+  background: white;
+  font-size: 12px;
+}
+
+.react-flow__node-input {
+  background: #edf2ff;
+  border-color: #c5d3ff;
+}
+
+.react-flow__node-output {
+  background: #e6fcef;
+  border-color: #b3f0d1;
+}
+
+.react-flow__edge-path {
+  stroke: #555;
+  stroke-width: 2;
+}
+
+.react-flow__controls {
+  bottom: 20px;
+  right: 15px;
+  left: auto;
+  top: auto;
+}
+
+.react-flow__minimap {
+  bottom: 20px;
+  right: 15px;
+}
+
+.react-flow__background {
+  background-color: #f8f8f8;
+}
+
+/* Add these styles at the end of your CSS file */
+
+.react-flow-node-wrapper {
+  width: 100%;
+  margin: 20px 0;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  padding: 10px;
+  background-color: #f8f8f8;
+}
+
+.react-flow-title {
+  text-align: center;
+  margin-bottom: 10px;
+  font-weight: 600;
+  font-size: 16px;
+}
+
+.react-flow-loading {
+  width: 100%;
+  height: 300px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #666;
+  background-color: #f0f0f0;
+  border-radius: 4px;
+}
+
+.react-flow__node {
+  padding: 10px;
+  border-radius: 5px;
+  border: 1px solid #ddd;
+  background: white;
+  font-size: 12px;
+}
+
+.react-flow__node-input {
+  background: #edf2ff;
+  border-color: #c5d3ff;
+}
+
+.react-flow__node-output {
+  background: #e6fcef;
+  border-color: #b3f0d1;
+}
+
+.react-flow__edge-path {
+  stroke: #555;
+  stroke-width: 2;
+}
+
+.react-flow__controls {
+  bottom: 20px;
+  right: 15px;
+  left: auto;
+  top: auto;
+}
+
+.react-flow__minimap {
+  bottom: 20px;
+  right: 15px;
+}
+
+.react-flow__background {
+  background-color: #f8f8f8;
+}
+
+@media print {
+  .react-flow-node-wrapper {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+}
+
+/* Add these styles at the end of the file */
+
+/* Header and footer styles */
+.tiptap-page-header,
+.tiptap-page-footer {
+  padding: 10px 20px;
+  position: relative;
+  z-index: 10;
+}
+
+.tiptap-page-header {
+  margin-bottom: 20px;
+}
+
+.tiptap-page-footer {
+  margin-top: 20px;
+}
+
+/* Style variations */
+.tiptap-page-header.bold,
+.tiptap-page-footer.bold {
+  font-weight: bold;
+  color: #333;
+}
+
+.tiptap-page-header.minimal,
+.tiptap-page-footer.minimal {
+  font-size: 0.875rem;
+  color: #666;
+}
+
+.tiptap-page-header.corporate,
+.tiptap-page-footer.corporate {
+  border-bottom: 1px solid #e2e8f0;
+  padding-bottom: 0.5rem;
+}
+
+/* Page number styling */
+.tiptap-page-footer .page-number::before {
+  content: attr(data-page);
+}
+
+/* Logo styling in headers/footers */
+.tiptap-page-header img,
+.tiptap-page-footer img {
+  max-height: 36px;
+  width: auto;
+  margin-right: 8px;
+}
+
+/* Properly align flex items in header/footer */
+.tiptap-page-header > div,
+.tiptap-page-footer > div {
+  width: 100%;
+}
+
+/* Print styles for headers and footers */
+@media print {
+  .tiptap-page-header,
+  .tiptap-page-footer {
+    position: fixed;
+    left: 0;
+    right: 0;
+  }
+
+  .tiptap-page-header {
+    top: 0;
+  }
+
+  .tiptap-page-footer {
+    bottom: 0;
+  }
+}
+
+/* Add these styles at the end of the file to ensure proper header/footer display */
+
+/* Header and footer styles for pagination extension */
+.tiptap-header {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  padding: 10px var(--margin-right, 96px) 10px var(--margin-left, 96px);
+  min-height: 40px;
+  z-index: 10;
+  background-color: white;
+}
+
+.tiptap-footer {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding: 10px var(--margin-right, 96px) 10px var(--margin-left, 96px);
+  min-height: 40px;
+  z-index: 10;
+  background-color: white;
+}
+
+/* Ensure page content doesn't overlap with header/footer */
+.tiptap-page-content {
+  margin-top: 50px;
+  margin-bottom: 50px;
+}
+
+/* Style for page numbers in footer */
+.page-number:after {
+  content: attr(data-page);
+}
+
+/* Print styles for headers and footers */
+@media print {
+  .tiptap-header,
+  .tiptap-footer {
+    position: fixed;
+    left: 0;
+    right: 0;
+  }
+
+  .tiptap-header {
+    top: 0;
+  }
+
+  .tiptap-footer {
+    bottom: 0;
+  }
+}
+
+[data-page-body="true"] {
+  border: none !important;
+}
+
+/* Resizable image styles */
+.resizable-image-wrapper {
+  display: inline-block;
+  position: relative;
+}
+
+.resizable-image-container {
+  position: relative;
+  display: inline-block;
+}
+
+.resizable-image-container.selected {
+  outline: none;
+}
+
+.resizable-image-container img {
+  display: block;
+  max-width: 100%;
+}
+
+.resize-handle {
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  background-color: #1d4ed8;
+  border: 1px solid white;
+  border-radius: 50%;
+  z-index: 10;
+  box-shadow: 0 0 3px rgba(0, 0, 0, 0.5);
+}
+
+.resize-handle:hover {
+  transform: scale(1.2);
+}
+
+.resize-handle-se {
+  bottom: -5px;
+  right: -5px;
+  cursor: nwse-resize;
+}
+
+.resize-handle-sw {
+  bottom: -5px;
+  left: -5px;
+  cursor: nesw-resize;
+}
+
+.resize-handle-ne {
+  top: -5px;
+  right: -5px;
+  cursor: nesw-resize;
+}
+
+.resize-handle-nw {
+  top: -5px;
+  left: -5px;
+  cursor: nwse-resize;
+}
+
+.resize-frame {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  border: 1px solid #1d4ed8;
+  pointer-events: none;
+  z-index: 1;
+}

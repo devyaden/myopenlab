@@ -105,7 +105,6 @@ const BASE_NODE_SIZE = 100;
 
 export const GenericNode = memo(
   ({ data, id, selected, isConnectable }: GenericNodeProps) => {
-    console.log("🚀 ~ data:", data);
     const reactFlowInstance = useReactFlow();
     const [isEditing, setIsEditing] = useState(false);
     const [labelValue, setLabelValue] = useState(data.label);
@@ -344,8 +343,8 @@ export const GenericNode = memo(
           value: data.shape || "",
         });
       }
-      let fromLabels = [],
-        toLabels = [];
+      let fromLabels: any = [],
+        toLabels: any = [];
 
       // add from and to labels inside properties
 
@@ -507,8 +506,6 @@ export const GenericNode = memo(
                   : "8px";
 
         const PRESERVED_ASPECT_RATIO_SHAPES = ["circle", "square"];
-
-        console.log("----- data shape ------", data.shape);
 
         return (
           <div style={{ position: "relative", width: "100%", height: "100%" }}>

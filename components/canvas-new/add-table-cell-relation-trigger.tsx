@@ -33,13 +33,37 @@ const AddTableCellTrigger = ({
   onSelectValue,
 }: AddTableCellTriggerProps) => {
   const [visibleFields, setVisibleFields] = useState<string[]>(["label"]);
+  const [open, setOpen] = useState(false);
 
   const handleSelectedValue = (column: Column) => {
-    onSelectValue([...value, column]);
+    console.log("Adding relation value:", column);
+
+    // Ensure column has all required properties
+    if (!column.id || !column.label) {
+      console.error("Invalid column data:", column);
+      return;
+    }
+
+    // Create a clean object with just the needed properties
+    const cleanColumn = {
+      id: column.id,
+      label: column.label,
+    };
+
+    const newValue = [...value, cleanColumn];
+    console.log("New relation values:", newValue);
+
+    // Close dropdown and update value
+    setTimeout(() => {
+      onSelectValue(newValue);
+    }, 0);
   };
 
   const handleRemoveValue = (column: Column) => {
-    onSelectValue(value.filter((val) => val.label !== column.label));
+    console.log("Removing relation value:", column);
+    const newValue = value.filter((val) => val.id !== column.id);
+    console.log("Updated relation values after removal:", newValue);
+    onSelectValue(newValue);
   };
 
   const dropdownValues = useMemo(() => {
@@ -59,33 +83,52 @@ const AddTableCellTrigger = ({
     );
   };
 
+  const renderFieldValue = (value: any) => {
+    if (value === null || value === undefined) {
+      return "No value";
+    } else if (typeof value === "string") {
+      return value;
+    } else if (typeof value === "number" || typeof value === "boolean") {
+      return value.toString();
+    } else if (typeof value === "object") {
+      try {
+        // For objects, try to convert to JSON string
+        return JSON.stringify(value).substring(0, 20) + "...";
+      } catch (e) {
+        return "Complex object";
+      }
+    } else {
+      return "Unknown format";
+    }
+  };
+
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger className="flex items-center gap-2">
+    <DropdownMenu open={open} onOpenChange={setOpen}>
+      <DropdownMenuTrigger className="flex items-center gap-2 p-2 w-full">
         {value?.length ? (
-          value?.map((val, index) => (
-            <div key={index} className="flex items-center">
-              <File className="w-4 h-4" />
-              <div className="flex flex-col">
-                {val["label"]}
-                {/* {visibleFields.map((field) => (
-                  <p key={field} className="mr-2 text-sm">
-                    {val[field] || `No ${field}`}
-                  </p>
-                ))} */}
+          <div className="flex flex-wrap gap-2 w-full">
+            {value.map((val, index) => (
+              <div
+                key={index}
+                className="flex items-center bg-gray-100 rounded-md px-2 py-1"
+              >
+                <File className="w-4 h-4 mr-1" />
+                <span className="text-sm font-medium">
+                  {typeof val.label === "string" ? val.label : "Item"}
+                </span>
               </div>
-            </div>
-          ))
+            ))}
+          </div>
         ) : (
-          <Button variant="ghost">
+          <Button variant="ghost" className="w-full flex justify-start">
             <Plus className="mr-2" /> Add
           </Button>
         )}
       </DropdownMenuTrigger>
 
       <DropdownMenuContent align="start" className="w-64">
-        <div className="p-2  justify-between items-center">
-          <p>{relatedCanvasData?.canvasName}</p>
+        <div className="p-2 flex justify-between items-center">
+          <p className="font-medium">{relatedCanvasData?.canvasName}</p>
 
           <div className="flex items-center justify-between gap-2">
             <span className="text-gray-500 text-sm">
@@ -128,7 +171,7 @@ const AddTableCellTrigger = ({
                     field === "label" ? "font-medium" : "text-gray-500 text-xs"
                   }
                 >
-                  {column[field] || `No ${field}`}
+                  {field}: {renderFieldValue(column[field])}
                 </p>
               ))}
             </div>
@@ -166,7 +209,7 @@ const AddTableCellTrigger = ({
                     field === "label" ? "font-medium" : "text-gray-500 text-xs"
                   }
                 >
-                  {column[field] || `No ${field}`}
+                  {field}: {renderFieldValue(column[field])}
                 </p>
               ))}
             </div>

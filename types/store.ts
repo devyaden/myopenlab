@@ -63,6 +63,7 @@ export interface FolderCanvas {
   description?: string;
   updated_at: Date | null;
   columns: ColumnDefinition[];
+  canvas_type?: CANVAS_TYPE;
 }
 
 export interface CanvasSettings {

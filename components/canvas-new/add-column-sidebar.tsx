@@ -19,7 +19,7 @@ interface AddColumnSidebarProps {
   isOpen: boolean;
   onClose: () => void;
   onAddColumn: (columnData: ColumnDefinition) => void;
-  canvases: { id: string; name: string }[];
+  canvases: { id: string; name: string; canvas_type: string }[];
   canvasId: string;
   relationCanvases: any[];
   columns: any[];

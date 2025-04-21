@@ -115,11 +115,15 @@ export const useCanvasStore = create<CanvasStore>()(
 
         // Update nodes and track in history
         setNodes: (nodes) => {
+          console.log("🚀 ~ nodes:", nodes);
+
           const currentState = getUndoableState();
-          const newState = { ...currentState, nodes };
+          const newState = { ...currentState, nodes: [...nodes] };
+          console.log("🚀 ~ newState:", newState);
+
           addToHistory(newState);
 
-          set({ nodes });
+          set({ nodes: [...nodes] });
           updateStateAndSync();
         },
 
@@ -378,7 +382,7 @@ export const useCanvasStore = create<CanvasStore>()(
             let query = supabase
               .from("canvas")
               .select(
-                "id, name, description, updated_at, columns:column_definition!column_definition_canvas_id_fkey(*)"
+                "id, name, description, updated_at, canvas_type, columns:column_definition!column_definition_canvas_id_fkey(*)"
               )
               .order("updated_at", { ascending: false });
 
@@ -401,6 +405,7 @@ export const useCanvasStore = create<CanvasStore>()(
                 description: canvas.description || "",
                 updated_at: new Date(canvas.updated_at),
                 columns: canvas.columns,
+                canvas_type: canvas.canvas_type,
               })),
             });
           } catch (error) {

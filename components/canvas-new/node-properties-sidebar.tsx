@@ -2,7 +2,6 @@
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Switch } from "@/components/ui/switch";
 import {
   Select,
   SelectContent,
@@ -10,6 +9,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
 import { useCanvasStore } from "@/lib/store/useCanvas";
 import {
   CalendarIcon,
@@ -26,7 +26,7 @@ import {
   Users,
   X,
 } from "lucide-react";
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { Node } from "reactflow";
 
 // Add import for AlertDialog components
@@ -244,7 +244,6 @@ export function NodePropertiesSidebar({
   edges,
   nodes,
 }: NodePropertiesSidebarProps) {
-  console.log("🚀 ~ selectedNode:", selectedNode);
   const [title, setTitle] = useState("");
   const [properties, setProperties] = useState<Property[]>([]);
   const [newPropertyName, setNewPropertyName] = useState("");

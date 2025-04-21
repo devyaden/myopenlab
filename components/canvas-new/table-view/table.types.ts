@@ -19,7 +19,11 @@ export interface TableViewProps {
   columns: any[];
   setColumns: (columns: ColumnData[]) => void;
   onAddColumn: (columnData: ColumnData) => void;
-  currentFolderCanvases: { id: string; name: string }[];
+  currentFolderCanvases: {
+    id: string;
+    name: string;
+    canvas_type: string;
+  }[];
   canvasId: string;
   canvasType: CANVAS_TYPE | null;
   canvasSettings: CanvasSettings;

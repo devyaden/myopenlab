@@ -40,6 +40,10 @@ import {
   SidebarContent,
   SidebarHeader,
 } from "@/components/ui/sidebar";
+import { useUser } from "@/lib/contexts/userContext";
+import { useSidebarStore } from "@/lib/store/useSidebar";
+import { generateUntitledName } from "@/lib/utils";
+import type { Canvas, Folder as FolderType } from "@/types/sidebar";
 import {
   ChevronRight,
   Clock,
@@ -57,11 +61,6 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
-
-import { useUser } from "@/lib/contexts/userContext";
-import { useSidebarStore } from "@/lib/store/useSidebar";
-import { generateUntitledName } from "@/lib/utils";
-import type { Canvas, Folder as FolderType } from "@/types/sidebar";
 
 export function UserSidebar() {
   const {
@@ -125,8 +124,13 @@ export function UserSidebar() {
       fetchRootCanvases(user?.id);
     }
 
-    if (canvasId) {
+    if (
+      canvasId &&
+      (type === CANVAS_TYPE.HYBRID || type === CANVAS_TYPE.TABLE)
+    ) {
       window.location.href = `/protected/canvas-new/${canvasId}`;
+    } else if (canvasId && type === CANVAS_TYPE.DOCUMENT) {
+      window.location.href = `/protected/document-editor/${canvasId}`;
     }
 
     setCreateNewModalType(null);
