@@ -81,5 +81,9 @@
   }
   body {
     @apply bg-background text-yadn-primary-text;
+    font-family: var(--font-quicksand);
+  }
+  :lang(ar) {
+    font-family: var(--font-rubik);
   }
 }

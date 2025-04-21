@@ -3,12 +3,16 @@
 import { UserProvider } from "@/lib/contexts/userContext";
 import { Toaster } from "react-hot-toast";
 import { ThemeProvider } from "next-themes";
-import localFont from "next/font/local";
+import { Quicksand, Rubik } from "next/font/google";
 
-const plexSansArabic = localFont({
-  src: "../fonts/IBM_Plex_Sans_Arabic/IBMPlexSansArabic-Regular.ttf",
-  weight: "400",
-  style: "normal",
+const quicksand = Quicksand({
+  subsets: ["latin"],
+  variable: "--font-quicksand",
+});
+
+const rubik = Rubik({
+  subsets: ["arabic"],
+  variable: "--font-rubik",
 });
 
 export default function ClientLayout({
@@ -19,7 +23,7 @@ export default function ClientLayout({
   return (
     <html
       lang="en"
-      className={plexSansArabic.className}
+      className={`${quicksand.variable} ${rubik.variable}`}
       suppressHydrationWarning
       dir="ltr"
     >

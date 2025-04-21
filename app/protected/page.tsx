@@ -16,7 +16,7 @@ export default function Dashboard() {
 
         <main className="flex-grow overflow-auto">
           {/* <DashboardNavMenu /> */}
-          <DiagramsSection />
+          {/* <DiagramsSection /> */}
           <RecentDocuments />
         </main>
       </div>

@@ -18,6 +18,10 @@ const config = {
       },
     },
     extend: {
+      fontFamily: {
+        quicksand: ["var(--font-quicksand)"],
+        rubik: ["var(--font-rubik)"],
+      },
       colors: {
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",

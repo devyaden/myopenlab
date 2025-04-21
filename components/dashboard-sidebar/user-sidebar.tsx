@@ -205,7 +205,7 @@ export function UserSidebar() {
       </SidebarHeader>
 
       <SidebarContent className="px-2 bg-white">
-        <div className="space-y-1 mt-2">
+        {/* <div className="space-y-1 mt-2">
           <Link
             href="/dashboard"
             className="flex items-center px-3 py-2 text-sm text-gray-700 rounded-md hover:bg-gray-100"
@@ -246,7 +246,7 @@ export function UserSidebar() {
               />
             </CollapsibleTrigger>
             <CollapsibleContent className="pl-10">
-              {/* Document content can go here */}
+
             </CollapsibleContent>
           </Collapsible>
 
@@ -265,13 +265,12 @@ export function UserSidebar() {
                 }`}
               />
             </CollapsibleTrigger>
-            <CollapsibleContent className="pl-10">
-              {/* Shared content can go here */}
+           <CollapsibleContent className="pl-10">
             </CollapsibleContent>
           </Collapsible>
-        </div>
+        </div> */}
 
-        <div className="mt-8">
+        <div>
           <div className="flex items-center justify-between px-3 py-2">
             <h2 className="text-sm font-medium text-gray-900">Folders</h2>
             <Button
