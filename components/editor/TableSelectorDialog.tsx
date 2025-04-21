@@ -159,15 +159,87 @@ export default function TableSelectorDialog({
         .map((node: any) => {
           // For each node, only include data from selected columns
           return columnsData.map((columnTitle) => {
+            let cellValue;
             // Handle special case for 'task' column which is stored as 'label' in node data
             if (columnTitle === "task") {
-              return node?.data?.label || "";
+              cellValue = node?.data?.label || "";
+            } else if (columnTitle === "type") {
+              cellValue = node?.data?.shape || "";
+            } else {
+              cellValue = node?.data?.[columnTitle] || "";
             }
 
-            if (columnTitle === "type") {
-              return node?.data?.shape || "";
+            // Special handling for relation data
+            if (
+              cellValue &&
+              typeof cellValue === "object" &&
+              (Array.isArray(cellValue) || cellValue.id) &&
+              columnTitle.toLowerCase().includes("relation")
+            ) {
+              // We need to preserve the original relation data structure
+              // but also ensure it can be stringified properly
+
+              // For relation arrays, make sure each object can be safely stringified
+              if (Array.isArray(cellValue)) {
+                return cellValue.map((rel: any) => {
+                  if (rel && typeof rel === "object") {
+                    // Include only essential properties to avoid circular references
+                    return {
+                      id: rel.id,
+                      label: rel.label || rel.data?.label || "",
+                      // Include any important fields
+                      ...Object.entries(rel)
+                        .filter(
+                          ([key]) =>
+                            typeof key === "string" &&
+                            key !== "id" &&
+                            key !== "label"
+                        )
+                        .reduce(
+                          (acc, [key, val]) => {
+                            if (typeof val !== "object" || val === null) {
+                              acc[key] = val;
+                            }
+                            return acc;
+                          },
+                          {} as Record<string, any>
+                        ),
+                    };
+                  }
+                  return rel;
+                });
+              }
+              // For single relation object
+              else if (cellValue.id) {
+                return {
+                  id: cellValue.id,
+                  label: cellValue.label || cellValue.data?.label || "",
+                  // Include any important fields
+                  ...Object.entries(cellValue)
+                    .filter(
+                      ([key]) =>
+                        typeof key === "string" &&
+                        key !== "id" &&
+                        key !== "label"
+                    )
+                    .reduce(
+                      (acc, [key, val]) => {
+                        if (typeof val !== "object" || val === null) {
+                          acc[key] = val;
+                        }
+                        return acc;
+                      },
+                      {} as Record<string, any>
+                    ),
+                };
+              }
             }
-            return node?.data?.[columnTitle] || "";
+
+            // Ensure the value is a string to prevent React rendering issues
+            if (typeof cellValue === "object" && cellValue !== null) {
+              return JSON.stringify(cellValue);
+            }
+            return String(cellValue);
           });
         });
     } else {

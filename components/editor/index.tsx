@@ -790,6 +790,44 @@ export default function Editor({
       // Fix pointer events before inserting
       document.body.style.pointerEvents = "";
 
+      // Ensure data is properly stringified and all cell values are converted to strings
+      let dataString = "";
+
+      try {
+        // If data is already a string, try to parse it to process the values
+        if (typeof tableData.data === "string") {
+          const parsedData = JSON.parse(tableData.data);
+          // Convert each cell value to a string to avoid React rendering objects
+          const processedData = Array.isArray(parsedData)
+            ? parsedData.map((row: any[]) =>
+                row.map((cell: any) => {
+                  // Convert objects or complex types to strings
+                  return typeof cell === "object" && cell !== null
+                    ? JSON.stringify(cell)
+                    : String(cell);
+                })
+              )
+            : [];
+          dataString = JSON.stringify(processedData);
+        } else if (Array.isArray(tableData.data)) {
+          // If data is already an array, process it directly
+          const processedData = tableData.data.map((row: any[]) =>
+            row.map((cell: any) => {
+              return typeof cell === "object" && cell !== null
+                ? JSON.stringify(cell)
+                : String(cell);
+            })
+          );
+          dataString = JSON.stringify(processedData);
+        } else {
+          // Fallback to empty array if data is invalid
+          dataString = "[]";
+        }
+      } catch (error) {
+        console.error("Error processing table data:", error);
+        dataString = "[]";
+      }
+
       // Insert the canvas table node
       editor
         .chain()
@@ -800,7 +838,7 @@ export default function Editor({
             tableId: tableData.id,
             rows: tableData.rows,
             columns: tableData.columns,
-            data: tableData.data,
+            data: dataString,
           },
         })
         .run();
@@ -1361,7 +1399,9 @@ export default function Editor({
         tableData={selectedTableData}
         tables={folderCanvases.filter(
           (canvas) =>
-            canvas.canvas_type === "table" && canvas.columns?.length > 0
+            (canvas.canvas_type === "table" ||
+              canvas.canvas_type === "hybrid") &&
+            canvas.columns?.length > 0
         )}
       />
       <HeaderFooterDialog
