@@ -243,7 +243,7 @@ export const renderShapePreview = (shape: string, size = 24) => {
         xmlns="http://www.w3.org/2000/svg"
       >
         {SHAPE_DEFINITIONS[shape].render({
-          fill: isHumanFigure(shape) ? "none" : "white",
+          fill: isHumanFigure(shape) ? "none" : "transparent",
           stroke: "#000000",
           strokeWidth: isHumanFigure(shape) ? 1 : 2, // Thicker stroke for non-human shapes
         })}

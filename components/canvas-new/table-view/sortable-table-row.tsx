@@ -19,7 +19,14 @@ import { Switch } from "@/components/ui/switch";
 import { TableCell, TableRow } from "@/components/ui/table";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { File, GripVertical, MoreHorizontal, Plus } from "lucide-react";
+import {
+  ChevronDown,
+  ChevronRight,
+  File,
+  GripVertical,
+  MoreHorizontal,
+  Plus,
+} from "lucide-react";
 import type React from "react";
 import { Checkbox } from "../../ui/checkbox";
 import AddTableCellTrigger from "../add-table-cell-relation-trigger";
@@ -90,6 +97,8 @@ const SortableTableRow: React.FC<{
   };
 
   const isSelected = selectedNodes.includes(node.id);
+  const hasChildren = node.children && node.children.length > 0;
+  const isExpanded = expandedRows.has(node.id);
 
   const renderCellContent = (column: any) => {
     if (
@@ -173,8 +182,26 @@ const SortableTableRow: React.FC<{
 
     return (
       <div className="p-2 h-full">
-        {column.title === "task" &&
-          (node.data.label || <span className="text-gray-400"></span>)}
+        {column.title === "task" && (
+          <div className="flex items-center">
+            {hasChildren && (
+              <div
+                className="mr-2 cursor-pointer"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  toggleRowExpansion(node.id);
+                }}
+              >
+                {isExpanded ? (
+                  <ChevronDown className="h-4 w-4 text-gray-600" />
+                ) : (
+                  <ChevronRight className="h-4 w-4 text-gray-600" />
+                )}
+              </div>
+            )}
+            {node.data.label || <span className="text-gray-400"></span>}
+          </div>
+        )}
         {column.title === "type" &&
           (node.data.shape || node?.type || (
             <span className="text-gray-400"></span>
@@ -266,9 +293,15 @@ const SortableTableRow: React.FC<{
     }
   };
 
+  const handleExpandCollapse = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    toggleRowExpansion(node.id);
+  };
+
   return (
     <TableRow
       ref={setNodeRef}
+      style={style}
       {...attributes}
       className={`group ${isSelected ? "bg-gray-50" : "bg-white"} border-b border-gray-200`}
     >
@@ -281,16 +314,18 @@ const SortableTableRow: React.FC<{
           >
             <GripVertical className="h-5 w-5 text-gray-400" />
           </div>
-          <div
-            className="p-2"
-            onClick={() => toggleRowExpansion(node.id)}
-            onDoubleClick={(e) => e.stopPropagation()}
-          >
-            <Checkbox
-              checked={isSelected}
+          <div className="flex items-center">
+            <div
+              className="p-2"
               onClick={handleToggleSelect}
-              onKeyDown={(e) => e.stopPropagation()}
-            />
+              onDoubleClick={(e) => e.stopPropagation()}
+            >
+              <Checkbox
+                checked={isSelected}
+                onClick={handleToggleSelect}
+                onKeyDown={(e) => e.stopPropagation()}
+              />
+            </div>
           </div>
         </div>
       </TableCell>
@@ -360,7 +395,19 @@ const SortableTableRow: React.FC<{
                 }
               }}
             >
-              {renderCellContent(column)}
+              {/* Add indentation for hierarchical display on the first column */}
+              {index === 0 && level > 0 ? (
+                <div
+                  style={{
+                    display: "flex",
+                    paddingLeft: `${level * 16}px`,
+                  }}
+                >
+                  {renderCellContent(column)}
+                </div>
+              ) : (
+                renderCellContent(column)
+              )}
             </TableCell>
           );
         })}

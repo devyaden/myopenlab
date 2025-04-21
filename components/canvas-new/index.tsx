@@ -419,7 +419,28 @@ export default function CanvasNew({ canvasId }: FigmaInterfaceProps) {
 
     selectedNodes.forEach((nodeId) => deleteNodeAndChildren(nodeId));
 
-    const updatedNodes = currentState.nodes?.filter(
+    // First, identify all nodes that need their parentNode reference removed
+    const updatedNodesWithFixedParents = currentState.nodes.map((node) => {
+      if (
+        !nodesToDeleteSet.has(node.id) &&
+        node.parentNode &&
+        nodesToDeleteSet.has(node.parentNode)
+      ) {
+        // This node's parent will be deleted, so remove the parentNode reference
+        return {
+          ...node,
+          parentNode: undefined,
+          // Make position absolute since it was relative to parent before
+          position: {
+            ...node.position,
+          },
+        };
+      }
+      return node;
+    });
+
+    // Then filter out the deleted nodes
+    const updatedNodes = updatedNodesWithFixedParents.filter(
       (node) => !nodesToDeleteSet.has(node.id)
     );
     const updatedEdges = currentState.edges.filter(
