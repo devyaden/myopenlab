@@ -215,7 +215,21 @@ export const useDocumentStore = create<DocumentState>()(
         loadFolderCanvases: async (folderId: string | null) => {
           set({ isLoading: true, error: null });
 
+          if (!folderId) {
+            set({ folderCanvases: [] });
+            return;
+          }
+
           try {
+            // Get current user
+            const {
+              data: { user },
+            } = await supabase.auth.getUser();
+
+            if (!user) {
+              throw new Error("User not authenticated");
+            }
+
             let query = supabase
               .from("canvas")
               .select(
@@ -229,6 +243,7 @@ export const useDocumentStore = create<DocumentState>()(
           data:canvas_data(*)
         `
               )
+              .eq("user_id", user.id)
               .order("updated_at", { ascending: false });
 
             if (folderId !== null) {
