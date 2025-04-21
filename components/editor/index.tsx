@@ -374,7 +374,7 @@ export default function Editor({
         );
       } catch (error) {
         console.error("Error saving document:", error);
-        toast.error("Failed to save document");
+        // toast.error("Failed to save document");
       }
     }, 1000), // 1 second delay
     [editor, editorState, updateLexicalState]
@@ -1045,7 +1045,7 @@ export default function Editor({
       // toast.success("Document saved successfully");
     } catch (error) {
       console.error("Error saving document:", error);
-      toast.error("Failed to save document");
+      // toast.error("Failed to save document");
     }
   };
 
