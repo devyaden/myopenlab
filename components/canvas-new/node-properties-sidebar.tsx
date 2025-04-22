@@ -92,7 +92,15 @@ interface Property {
 // List of non-editable properties
 const NON_EDITABLE_PROPERTIES = ["id", "from", "to", "parent", "children"];
 // Properties to exclude from the sidebar
-const EXCLUDED_PROPERTIES = ["id", "label", "shape", "hidden", "type", "task"];
+const EXCLUDED_PROPERTIES = [
+  "id",
+  "label",
+  "shape",
+  "hidden",
+  "type",
+  "task",
+  "lanes",
+];
 
 // Shape options for the type property
 const SHAPE_OPTIONS = [
