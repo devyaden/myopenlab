@@ -87,3 +87,12 @@
     font-family: var(--font-rubik);
   }
 }
+
+.react-flow__node {
+  padding: initial !important;
+  border-radius: initial !important;
+  border: initial !important;
+  background: initial !important;
+  /* Keep only font-size */
+  /* font-size: 12px; */
+}
