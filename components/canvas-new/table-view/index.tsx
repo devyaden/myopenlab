@@ -137,8 +137,6 @@ const TableView: React.FC<TableViewProps> = ({
 
   // Update rollup cache when relevant data changes
   useEffect(() => {
-    console.log("Updating rollup cache for columns:", columns);
-
     const newRollupCache: Record<string, any> = {};
     const newRelationCache: Record<string, any> = {};
 
@@ -154,12 +152,6 @@ const TableView: React.FC<TableViewProps> = ({
 
       const relationColumnMap = new Map(
         relationColumns.map((col) => [col.related_canvas_id, col])
-      );
-
-      console.log("Available relation columns:", relationColumns);
-      console.log(
-        "Relation column map:",
-        Object.fromEntries(relationColumnMap)
       );
 
       nodes.forEach((node) => {
@@ -179,64 +171,39 @@ const TableView: React.FC<TableViewProps> = ({
 
         // Then process rollup columns
         rollupColumns.forEach((column) => {
-          console.log(
-            `Processing rollup column ${column.title} for node ${node.id}`
-          );
-
           // For rollup columns, we need to know:
           // 1. Which canvas the rollup is related to (via rollup_relation)
           // 2. Which property on the related canvas to use (via rollup_column_id)
 
           const relatedCanvasId = column.rollup_relation;
           if (!relatedCanvasId) {
-            console.warn(
-              `No related canvas ID for rollup column ${column.title}`
-            );
             return;
           }
 
           // Find related canvas data
           const relatedCanvas = column?.rollup_column?.canvas;
           if (!relatedCanvas?.canvas_data?.[0]?.nodes) {
-            console.warn(
-              `No canvas data found for rollup related canvas ${relatedCanvasId}`
-            );
             return;
           }
 
           const relatedCanvasNodes = relatedCanvas.canvas_data[0].nodes;
-          console.log(`Related canvas has ${relatedCanvasNodes.length} nodes`);
 
           // Find the property to rollup
           const rollupColumnTargetTitle = column?.rollup_column?.title;
           if (!rollupColumnTargetTitle) {
-            console.warn(
-              `No target column specified for rollup ${column.title}`
-            );
             return;
           }
-
-          console.log("Rollup target property:", rollupColumnTargetTitle);
 
           // Find the relation column that connects to the canvas used by this rollup
           const relationColumn = relationColumnMap.get(relatedCanvasId);
           if (!relationColumn) {
-            console.warn(
-              `No relation column found for canvas ID ${relatedCanvasId}`
-            );
             return;
           }
-
-          console.log(
-            "Using relation column for rollup:",
-            relationColumn.title
-          );
 
           const relationColumnTitle = relationColumn.title;
 
           // Get relation data from the node
           const relationData = node.data[relationColumnTitle];
-          console.log(`Relation data for node ${node.id}:`, relationData);
 
           // Skip if no relation data
           if (
@@ -244,14 +211,12 @@ const TableView: React.FC<TableViewProps> = ({
             !Array.isArray(relationData) ||
             relationData.length === 0
           ) {
-            console.log(`No relation data for node ${node.id}`);
             newRollupCache[`${node.id}-${column.title}`] = [];
             return;
           }
 
           // Extract IDs from relation data
           const relationIds = relationData.map((item) => item.id);
-          console.log("Relation IDs:", relationIds);
 
           // Create a set for faster lookups
           const relationIdSet = new Set(relationIds);
@@ -259,10 +224,6 @@ const TableView: React.FC<TableViewProps> = ({
           // Filter related nodes that match the relation IDs
           const matchingRelatedNodes = relatedCanvasNodes.filter(
             (relNode: Node) => relationIdSet.has(relNode.id)
-          );
-
-          console.log(
-            `Found ${matchingRelatedNodes.length} matching related nodes`
           );
 
           // Create rollup data with label and value
@@ -274,8 +235,6 @@ const TableView: React.FC<TableViewProps> = ({
               sourceId: relNode.id,
             };
           });
-
-          console.log("Generated rollup data:", rollupData);
 
           // Store in cache
           newRollupCache[`${node.id}-${column.title}`] = rollupData;
@@ -447,6 +406,7 @@ const TableView: React.FC<TableViewProps> = ({
         const parent = nodeMap.get(node.parentNode);
         if (parent) {
           let child = nodeMap.get(node.id);
+          console.log("🚀 ~ nodes.forEach ~ child:", child);
           child = {
             ...child,
             data: {
@@ -485,15 +445,9 @@ const TableView: React.FC<TableViewProps> = ({
         if (column.type === "Rollup") {
           const rollupData = rollupCache[`${node.id}-${column.title}`];
           if (rollupData) {
-            console.log(
-              `Found rollup data for node ${node.id}, column ${column.title}:`,
-              rollupData
-            );
             newNode.data[column.title] = rollupData;
           } else {
-            console.log(
-              `No rollup data found for node ${node.id}, column ${column.title}`
-            );
+            console.log();
             newNode.data[column.title] = [];
           }
         }
@@ -511,9 +465,7 @@ const TableView: React.FC<TableViewProps> = ({
               newNode.data[column.title] = node.data[column.title];
             } else {
               // Convert non-array data to array
-              console.warn(
-                `Relation data not in array format for node ${node.id}, column ${column.title}`
-              );
+
               newNode.data[column.title] = [];
             }
           }
@@ -882,6 +834,12 @@ const TableView: React.FC<TableViewProps> = ({
     const updatedNodes = nodes.filter(
       (node) => !selectedNodes.includes(node.id)
     );
+    // remove the parentNode with the selectnodes ids from other nodes as they are deleted
+    updatedNodes.forEach((node) => {
+      if (node.parentNode && selectedNodes.includes(node.parentNode)) {
+        node.parentNode = undefined;
+      }
+    });
     onNodesChange(updatedNodes);
     setExpandedRows((prev) => {
       const newExpandedRows = new Set(prev);
