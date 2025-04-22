@@ -156,19 +156,182 @@ export default function CanvasNew({ canvasId }: FigmaInterfaceProps) {
     }
   }, [nodes]);
 
-  const updateState = useCallback((newState: Partial<AppState>) => {
-    console.log("🚀 ~ 2222222:", newState);
+  // Function to detect and fix circular parent-child relationships
+  const fixCircularParentChildRelationships = useCallback(
+    (nodesToFix: Node[]): Node[] => {
+      if (
+        !nodesToFix ||
+        !Array.isArray(nodesToFix) ||
+        nodesToFix.length === 0
+      ) {
+        return nodesToFix;
+      }
 
-    if (newState.nodes) setNodes(newState.nodes);
-    if (newState.edges) setEdges(newState.edges);
+      // Create a map for quick lookup of nodes by id
+      const nodeMap = new Map<string, Node>();
+      nodesToFix.forEach((node) => nodeMap.set(node.id, node));
 
-    if (newState.nodeStyles) {
-      newState.nodeStyles &&
-        Object.entries(newState.nodeStyles).forEach(([nodeId, style]) => {
-          updateNodeStyle(nodeId, style);
-        });
+      // First pass - remove any self-referential parentNode values (node is its own parent)
+      const firstPassNodes = nodesToFix.map((node) => {
+        if (node.parentNode === node.id) {
+          console.warn(
+            `Node ${node.id} is its own parent - removing self reference`
+          );
+          return {
+            ...node,
+            parentNode: undefined,
+            positionAbsolute: node.positionAbsolute || node.position,
+          };
+        }
+        return node;
+      });
+
+      // Second pass - build parent-child hierarchy graph
+      // and detect any circular references
+      const parentMap = new Map<string, string>();
+      const visited = new Set<string>();
+      const processing = new Set<string>();
+      const circularNodes = new Set<string>();
+
+      // Depth-first search to detect cycles
+      const detectCycle = (nodeId: string): boolean => {
+        if (!nodeId) return false;
+        if (circularNodes.has(nodeId)) return true;
+        if (visited.has(nodeId)) return false;
+        if (processing.has(nodeId)) {
+          circularNodes.add(nodeId);
+          return true;
+        }
+
+        processing.add(nodeId);
+
+        const node = nodeMap.get(nodeId);
+        if (node && node.parentNode) {
+          const parentId = node.parentNode;
+          parentMap.set(nodeId, parentId);
+          if (detectCycle(parentId)) {
+            circularNodes.add(nodeId);
+            return true;
+          }
+        }
+
+        processing.delete(nodeId);
+        visited.add(nodeId);
+        return false;
+      };
+
+      // Check all nodes for cycles
+      firstPassNodes.forEach((node) => {
+        if (!visited.has(node.id)) {
+          detectCycle(node.id);
+        }
+      });
+
+      // Third pass - break any cycles we found
+      const fixedNodes = firstPassNodes.map((node) => {
+        if (circularNodes.has(node.id)) {
+          console.warn(`Breaking circular reference for node ${node.id}`);
+          return {
+            ...node,
+            parentNode: undefined,
+            positionAbsolute: node.positionAbsolute || node.position,
+          };
+        }
+        return node;
+      });
+
+      if (circularNodes.size > 0) {
+        console.warn(
+          `Fixed ${circularNodes.size} circular parent-child relationships`
+        );
+      }
+
+      return fixedNodes;
+    },
+    []
+  );
+
+  // Add a clean version of updateState that properly handles node updates
+  const updateState = useCallback(
+    (newState: Partial<AppState>) => {
+      // Always fix circular references on every update to be safe
+      try {
+        if (newState.nodes) {
+          // Always check for circular references on every node update
+          const fixedNodes = fixCircularParentChildRelationships(
+            newState.nodes
+          );
+          setNodes(fixedNodes);
+        }
+
+        if (newState.edges) {
+          setEdges(newState.edges);
+        }
+
+        if (newState.nodeStyles) {
+          Object.entries(newState.nodeStyles).forEach(([nodeId, style]) => {
+            updateNodeStyle(nodeId, style);
+          });
+        }
+      } catch (error) {
+        console.error("Error in updateState:", error);
+      }
+    },
+    [fixCircularParentChildRelationships, setNodes, setEdges, updateNodeStyle]
+  );
+
+  // Wrapper component to provide sanitized nodes to ReactFlow
+  const SafeUMLEditor = useCallback(
+    (props: any) => {
+      // Always sanitize nodes before passing to ReactFlow
+      const safeNodes = fixCircularParentChildRelationships(props.nodes);
+
+      // Check if we had to fix anything
+      if (JSON.stringify(safeNodes) !== JSON.stringify(props.nodes)) {
+        console.warn("Fixed circular references in nodes before rendering");
+        // Update the app state with fixed nodes to prevent future issues
+        setTimeout(() => setNodes(safeNodes), 0);
+      }
+
+      return <UMLEditor {...props} nodes={safeNodes} />;
+    },
+    [fixCircularParentChildRelationships, setNodes]
+  );
+
+  // Effect to load the canvas
+  useEffect(() => {
+    if (canvasId) {
+      useCanvasStore.persist.setOptions({
+        name: `canvas_${canvasId}`,
+      });
+
+      useCanvasStore.persist.rehydrate();
+      localStorage.removeItem("canvas-store");
+
+      loadCanvas(canvasId);
     }
-  }, []);
+  }, [canvasId, loadCanvas]);
+
+  // Effect to check for circular references on EVERY render
+  useEffect(() => {
+    if (nodes.length > 0) {
+      const fixedNodes = fixCircularParentChildRelationships(nodes);
+
+      // Check if any nodes were modified
+      let anyNodeFixed = false;
+      for (let i = 0; i < nodes.length; i++) {
+        if (nodes[i].parentNode !== fixedNodes[i].parentNode) {
+          anyNodeFixed = true;
+          break;
+        }
+      }
+
+      if (anyNodeFixed) {
+        console.log("Fixed circular relationships in nodes");
+        setNodes(fixedNodes);
+      }
+    }
+  }, [nodes, fixCircularParentChildRelationships, setNodes]);
 
   const getNodeStyle = useCallback(
     (nodeId: string): NodeStyle => {
@@ -670,8 +833,13 @@ export default function CanvasNew({ canvasId }: FigmaInterfaceProps) {
   );
 
   const toggleSidebar = useCallback(() => {
+    // Don't open sidebar in table view
+    if (viewMode === "table") {
+      setIsSidebarOpen(false);
+      return;
+    }
     setIsSidebarOpen((prev) => !prev);
-  }, []);
+  }, [viewMode]);
 
   const handleZoomIn = useCallback(() => {
     // This will be handled by the UMLEditor component
@@ -841,18 +1009,14 @@ export default function CanvasNew({ canvasId }: FigmaInterfaceProps) {
     [getViewportCenter, addNode]
   );
 
-  useEffect(() => {
-    if (canvasId) {
-      useCanvasStore.persist.setOptions({
-        name: `canvas_${canvasId}`,
-      });
-
-      useCanvasStore.persist.rehydrate();
-      localStorage.removeItem("canvas-store");
-
-      loadCanvas(canvasId);
+  // Modify this part to handle sidebar closing when navigating to table
+  const handleViewModeChange = (mode: "canvas" | "table" | "document") => {
+    // Close sidebar when switching to table view
+    if (mode === "table") {
+      setIsSidebarOpen(false);
     }
-  }, [canvasId]);
+    setViewMode(mode);
+  };
 
   if (isLoading) {
     return (
@@ -975,7 +1139,7 @@ export default function CanvasNew({ canvasId }: FigmaInterfaceProps) {
                 onChangeEdgeStyle={onChangeEdgeStyle}
                 currentEdgeStyle={selectedEdgeData?.type || "default"}
                 viewMode={viewMode}
-                onViewModeChange={setViewMode}
+                onViewModeChange={handleViewModeChange}
                 // edge styles
                 edgeWidth={edgeWidth}
                 setEdgeWidth={handleEdgeWidthChange}
@@ -997,7 +1161,7 @@ export default function CanvasNew({ canvasId }: FigmaInterfaceProps) {
                   onShapeClick={handleShapeClick}
                 />
                 <div className="flex-1 relative">
-                  <UMLEditor
+                  <SafeUMLEditor
                     viewMode={viewMode}
                     nodes={currentState.nodes}
                     edges={currentState.edges}
