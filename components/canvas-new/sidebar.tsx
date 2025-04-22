@@ -173,8 +173,8 @@ export function Sidebar({
         },
         {
           name: "Cylinder",
-          type: "cylindar",
-          component: renderShapePreview("cylindar", 32),
+          type: "cylinder",
+          component: renderShapePreview("cylinder", 32),
         },
         {
           name: "Message Bubble",

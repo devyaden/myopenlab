@@ -58,9 +58,9 @@ export const SHAPE_DEFINITIONS: any = {
   },
   capsule: {
     name: "Pill Shape",
-    viewBox: "0 0 100 50",
+    viewBox: "0 0 100 100",
     render: (props: ShapeProps) => (
-      <rect x="0" y="0" width="100" height="50" rx="25" ry="25" {...props} />
+      <rect x="5" y="20" width="90" height="60" rx="30" ry="30" {...props} />
     ),
   },
 
@@ -105,7 +105,7 @@ export const SHAPE_DEFINITIONS: any = {
       />
     ),
   },
-  cylindar: {
+  cylinder: {
     name: "Cylinder",
     viewBox: "0 0 100 100",
     render: (props: ShapeProps) => (
