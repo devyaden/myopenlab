@@ -1,13 +1,3 @@
-import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -15,6 +5,13 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { TableCell, TableRow } from "@/components/ui/table";
 import { useSortable } from "@dnd-kit/sortable";
@@ -31,13 +28,6 @@ import type React from "react";
 import { Checkbox } from "../../ui/checkbox";
 import AddTableCellTrigger from "../add-table-cell-relation-trigger";
 import { HierarchyNode } from "./table.types";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 
 // Component for sortable table rows (for row reordering)
 const SortableTableRow: React.FC<{
@@ -255,12 +245,12 @@ const SortableTableRow: React.FC<{
 
     if (column?.type === "Rollup") {
       return (
-        <div className="flex flex-wrap gap-1">
+        <div className="p-2 flex flex-wrap gap-1">
           {Array.isArray(cellValue) && cellValue.length > 0 ? (
             cellValue.map((item: any, index: number) => (
               <span
                 key={index}
-                className="text-sm text-gray-600 bg-slate-100 rounded-md px-2 py-1 m-1"
+                className="text-sm text-gray-600 bg-gray-100 rounded-md px-2 py-1"
               >
                 {typeof item.value !== "undefined"
                   ? typeof item.value === "object"
@@ -270,7 +260,7 @@ const SortableTableRow: React.FC<{
               </span>
             ))
           ) : (
-            <span className="text-gray-400">—</span>
+            <span className="text-gray-400 px-1">—</span>
           )}
         </div>
       );

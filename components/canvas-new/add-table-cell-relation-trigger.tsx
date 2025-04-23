@@ -36,8 +36,6 @@ const AddTableCellTrigger = ({
   const [open, setOpen] = useState(false);
 
   const handleSelectedValue = (column: Column) => {
-    console.log("Adding relation value:", column);
-
     // Ensure column has all required properties
     if (!column.id || !column.label) {
       console.error("Invalid column data:", column);
