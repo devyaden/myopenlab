@@ -16,89 +16,99 @@ export const updateSession = async (request: NextRequest) => {
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
       {
         cookies: {
-          getAll() {
-            return request.cookies.getAll();
+          get(name: string) {
+            return request.cookies.get(name)?.value;
           },
-          setAll(cookiesToSet) {
-            cookiesToSet.forEach(({ name, value }) =>
-              request.cookies.set(name, value)
-            );
-            response = NextResponse.next({
-              request,
+          set(name: string, value: string, options: any) {
+            response.cookies.set({
+              name,
+              value,
+              ...options,
             });
-            cookiesToSet.forEach(({ name, value, options }) =>
-              response.cookies.set(name, value, options)
-            );
+          },
+          remove(name: string, options: any) {
+            response.cookies.set({
+              name,
+              value: "",
+              ...options,
+            });
           },
         },
       }
     );
-    // Refresh session if expired - required for Server Components
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser();
 
-    // If auth error, just pass through
-    if (authError) {
-      console.error("Auth error:", authError);
-      return response;
+    // Get session and refresh if needed
+    const {
+      data: { session },
+      error: sessionError,
+    } = await supabase.auth.getSession();
+
+    if (sessionError) {
+      console.error("Session error:", sessionError);
+      return redirectToAuth(request);
     }
 
     // Check path information
     const { pathname } = request.nextUrl;
-    const isAuthenticated = !!user;
+    const isAuthenticated = !!session?.user;
     const isAdminRoute = pathname.startsWith("/admin");
     const isUserRoute = pathname.startsWith("/protected");
     const isRootRoute = pathname === "/";
+    const isAuthRoute = pathname === "/authentication";
 
-    // Only fetch database user if we need role information and user is authenticated
-    let userRole = null;
-    if (isAuthenticated && (isAdminRoute || isUserRoute || isRootRoute)) {
-      const { data: databaseUser, error: dbUserError } = await supabase
-        .from("user")
-        .select("role")
-        .eq("id", user.id)
-        .single();
-
-      if (dbUserError) {
-        console.error("Database user error:", dbUserError);
-        return response;
-      }
-
-      userRole = databaseUser?.role; // admin | user
+    // If user is not authenticated and trying to access protected routes
+    if (!isAuthenticated && (isAdminRoute || isUserRoute)) {
+      return redirectToAuth(request);
     }
 
-    // Handle routing based on authentication and role
-    if (!isAuthenticated) {
-      // Redirect unauthenticated users trying to access protected routes
-      if (isAdminRoute || isUserRoute) {
-        return NextResponse.redirect(new URL("/authentication", request.url));
+    // If user is authenticated and trying to access auth page
+    if (isAuthenticated && isAuthRoute) {
+      return redirectToHome(request);
+    }
+
+    // Only fetch user role if needed and user is authenticated
+    if (isAuthenticated && (isAdminRoute || isUserRoute || isRootRoute)) {
+      const { data: userRole, error: roleError } = await supabase
+        .from("user")
+        .select("role")
+        .eq("id", session.user.id)
+        .single();
+
+      if (roleError) {
+        console.error("Role fetch error:", roleError);
+        return redirectToAuth(request);
       }
-    } else {
-      // User is authenticated, handle role-based redirects
-      if (userRole === "admin") {
+
+      // Handle role-based access
+      if (userRole?.role === "admin") {
         if (isUserRoute || isRootRoute) {
           return NextResponse.redirect(new URL("/admin", request.url));
         }
-      } else if (userRole === "user") {
+      } else if (userRole?.role === "user") {
         if (isAdminRoute) {
           return NextResponse.redirect(new URL("/protected", request.url));
         }
         if (isRootRoute) {
           return NextResponse.redirect(new URL("/protected", request.url));
         }
+      } else {
+        // Invalid role
+        return redirectToAuth(request);
       }
     }
 
     return response;
-  } catch (e) {
-    console.error("Supabase client creation failed:", e);
-    // Return a default response if Supabase client couldn't be created
-    return NextResponse.next({
-      request: {
-        headers: request.headers,
-      },
-    });
+  } catch (error) {
+    console.error("Middleware error:", error);
+    return redirectToAuth(request);
   }
+};
+
+// Helper functions for redirects
+const redirectToAuth = (request: NextRequest) => {
+  return NextResponse.redirect(new URL("/authentication", request.url));
+};
+
+const redirectToHome = (request: NextRequest) => {
+  return NextResponse.redirect(new URL("/", request.url));
 };

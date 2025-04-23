@@ -19,16 +19,16 @@ export function AdminSidebar() {
       icon: Users,
       path: "/admin/members",
     },
-    {
-      title: "Invite",
-      icon: Mail,
-      path: "/admin/invite",
-    },
-    {
-      title: "Audit",
-      icon: Clock,
-      path: "/admin/audit",
-    },
+    // {
+    //   title: "Invite",
+    //   icon: Mail,
+    //   path: "/admin/invite",
+    // },
+    // {
+    //   title: "Audit",
+    //   icon: Clock,
+    //   path: "/admin/audit",
+    // },
   ];
 
   // Global settings items
@@ -95,8 +95,7 @@ export function AdminSidebar() {
           ))}
         </div>
 
-        {/* Global settings section */}
-        <div className="mt-6">
+        {/* <div className="mt-6">
           <h3 className="px-3 text-xs font-medium uppercase tracking-wider text-gray-500">
             GLOBAL SETTINGS
           </h3>
@@ -133,7 +132,7 @@ export function AdminSidebar() {
               </Link>
             ))}
           </div>
-        </div>
+        </div> */}
 
         {/* Footer section */}
         <div className="absolute bottom-4 left-0 w-full px-3">

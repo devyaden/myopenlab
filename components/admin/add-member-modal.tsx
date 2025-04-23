@@ -76,14 +76,14 @@ export function AddMemberModal({ isOpen, onClose }: AddMemberModalProps) {
         <DialogHeader>
           <div className="flex justify-between items-center">
             <DialogTitle>Add New Member</DialogTitle>
-            <Button
+            {/* <Button
               variant="ghost"
               size="icon"
               className="h-6 w-6 p-0"
               onClick={onClose}
             >
               <X className="h-4 w-4" />
-            </Button>
+            </Button> */}
           </div>
         </DialogHeader>
 
@@ -132,7 +132,7 @@ export function AddMemberModal({ isOpen, onClose }: AddMemberModalProps) {
 
             <Button
               type="submit"
-              className="w-full bg-[#E91E63] hover:bg-[#E91E63]/90 text-white"
+              className="w-full bg-yadn-accent-green hover:bg-yadn-accent-green/90 text-white"
               disabled={isLoading}
             >
               {isLoading ? "Inviting..." : "Invite"}
