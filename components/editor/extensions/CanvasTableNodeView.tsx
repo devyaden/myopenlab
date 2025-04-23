@@ -1,6 +1,7 @@
 "use client";
 
 import type React from "react";
+// @ts-ignore
 import { NodeViewWrapper } from "@tiptap/react";
 import { useEffect, useState, useRef } from "react";
 

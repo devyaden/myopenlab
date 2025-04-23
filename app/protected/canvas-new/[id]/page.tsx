@@ -1,7 +1,11 @@
 import CanvasNew from "@/components/canvas-new";
+import { Metadata } from "next";
 
-const Canvas = ({ params }: { params: { id: string } }) => (
-  <CanvasNew canvasId={params.id} />
-);
+interface PageProps {
+  params: { id: string };
+  searchParams: { [key: string]: string | string[] | undefined };
+}
 
-export default Canvas;
+export default function Canvas({ params }: any) {
+  return <CanvasNew canvasId={params.id} />;
+}

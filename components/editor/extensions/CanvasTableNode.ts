@@ -41,7 +41,7 @@ export const CanvasTableNode = Node.create({
     ];
   },
 
-  renderHTML({ HTMLAttributes }) {
+  renderHTML({ HTMLAttributes }: { HTMLAttributes: any }) {
     return ["div", { "data-type": "canvas-table", ...HTMLAttributes }];
   },
 

@@ -89,6 +89,9 @@ importers:
       '@tanstack/react-table':
         specifier: ^8.20.5
         version: 8.21.3(react-dom@18.2.0(react@18.2.0))(react@18.2.0)
+      '@tiptap/core':
+        specifier: ^2.11.7
+        version: 2.11.7(@tiptap/pm@2.11.7)
       '@tiptap/extension-character-count':
         specifier: latest
         version: 2.11.7(@tiptap/core@2.11.7(@tiptap/pm@2.11.7))(@tiptap/pm@2.11.7)
@@ -136,6 +139,9 @@ importers:
         version: 2.11.7(@tiptap/core@2.11.7(@tiptap/pm@2.11.7))
       '@tiptap/extension-text-align':
         specifier: latest
+        version: 2.11.7(@tiptap/core@2.11.7(@tiptap/pm@2.11.7))
+      '@tiptap/extension-text-style':
+        specifier: ^2.11.7
         version: 2.11.7(@tiptap/core@2.11.7(@tiptap/pm@2.11.7))
       '@tiptap/extension-typography':
         specifier: latest
