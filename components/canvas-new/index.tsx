@@ -19,6 +19,7 @@ import { UMLEditor } from "./uml-editor";
 import { VerticalNav } from "./vertical-nav";
 import DocumentEditor from "@/components/editor";
 import { add } from "date-fns";
+import { VIEW_MODE } from "./table-view/table.types";
 
 interface NodeStyle {
   fontFamily: string;
@@ -1021,6 +1022,7 @@ export default function CanvasNew({ canvasId }: FigmaInterfaceProps) {
 
   // Modify this part to handle sidebar closing when navigating to table
   const handleViewModeChange = (mode: "canvas" | "table" | "document") => {
+    console.log("🚀 ~ handleViewModeChange ~ mode:", mode);
     // Close sidebar when switching to table view
     if (mode === "table") {
       setIsSidebarOpen(false);
@@ -1076,87 +1078,88 @@ export default function CanvasNew({ canvasId }: FigmaInterfaceProps) {
 
             {/* conditional rendering based on canvas type */}
 
-            {canvas_type === CANVAS_TYPE.HYBRID && (
-              <Toolbar
-                key={selectedNode || selectedEdge || "no-selection"}
-                fontFamily={selectedStyle?.fontFamily || "Arial"}
-                setFontFamily={(font) =>
-                  selectedNode &&
-                  updateNodeStyle(selectedNode, { fontFamily: font })
-                }
-                fontSize={selectedStyle?.fontSize || 12}
-                setFontSize={(size) =>
-                  selectedNode &&
-                  updateNodeStyle(selectedNode, { fontSize: size })
-                }
-                isBold={selectedStyle?.isBold || false}
-                setIsBold={(bold) =>
-                  selectedNode &&
-                  updateNodeStyle(selectedNode, { isBold: bold })
-                }
-                isItalic={selectedStyle?.isItalic || false}
-                setIsItalic={(italic) =>
-                  selectedNode &&
-                  updateNodeStyle(selectedNode, { isItalic: italic })
-                }
-                isUnderline={selectedStyle?.isUnderline || false}
-                setIsUnderline={(underline) =>
-                  selectedNode &&
-                  updateNodeStyle(selectedNode, { isUnderline: underline })
-                }
-                textAlign={selectedStyle?.textAlign || "left"}
-                setTextAlign={(align) =>
-                  selectedNode &&
-                  updateNodeStyle(selectedNode, { textAlign: align })
-                }
-                verticalAlign={selectedStyle?.verticalAlign || "top"}
-                setVerticalAlign={(align) =>
-                  selectedNode &&
-                  updateNodeStyle(selectedNode, { verticalAlign: align })
-                }
-                selectedNode={selectedNode}
-                onUndo={undo}
-                onRedo={redo}
-                canUndo={canUndo}
-                canRedo={canRedo}
-                onCopy={copySelectedNodes}
-                onPaste={pasteNodes}
-                onLock={lockNode}
-                onChangeShape={changeShape}
-                shape={selectedStyle?.shape || "rectangle"}
-                isLocked={selectedStyle?.locked || false}
-                borderStyle={selectedStyle?.borderStyle || "solid"}
-                setBorderStyle={setBorderStyle}
-                borderWidth={selectedStyle?.borderWidth || 2}
-                setBorderWidth={setBorderWidth}
-                isSwimlane={selectedStyle?.shape === "swimlane"}
-                onDelete={
-                  selectedNodes.length > 0
-                    ? deleteSelectedNodes
-                    : selectedEdge
-                      ? deleteSelectedEdges
-                      : () => {}
-                }
-                backgroundColor={selectedStyle?.backgroundColor || "#ffffff"}
-                setBackgroundColor={setBackgroundColor}
-                borderColor={selectedStyle?.borderColor || "#000000"}
-                setBorderColor={setBorderColor}
-                textColor={selectedStyle?.textColor || "#000000"}
-                setTextColor={setTextColor}
-                lineHeight={selectedStyle?.lineHeight || 1.2}
-                setLineHeight={setLineHeight}
-                selectedEdge={selectedEdge}
-                onChangeEdgeStyle={onChangeEdgeStyle}
-                currentEdgeStyle={selectedEdgeData?.type || "default"}
-                viewMode={viewMode}
-                onViewModeChange={handleViewModeChange}
-                // edge styles
-                edgeWidth={edgeWidth}
-                setEdgeWidth={handleEdgeWidthChange}
-                edgeColor={edgeColor}
-                setEdgeColor={handleEdgeColorChange}
-              />
-            )}
+            {canvas_type === CANVAS_TYPE.HYBRID &&
+              viewMode === VIEW_MODE.canvas && (
+                <Toolbar
+                  key={selectedNode || selectedEdge || "no-selection"}
+                  fontFamily={selectedStyle?.fontFamily || "Arial"}
+                  setFontFamily={(font) =>
+                    selectedNode &&
+                    updateNodeStyle(selectedNode, { fontFamily: font })
+                  }
+                  fontSize={selectedStyle?.fontSize || 12}
+                  setFontSize={(size) =>
+                    selectedNode &&
+                    updateNodeStyle(selectedNode, { fontSize: size })
+                  }
+                  isBold={selectedStyle?.isBold || false}
+                  setIsBold={(bold) =>
+                    selectedNode &&
+                    updateNodeStyle(selectedNode, { isBold: bold })
+                  }
+                  isItalic={selectedStyle?.isItalic || false}
+                  setIsItalic={(italic) =>
+                    selectedNode &&
+                    updateNodeStyle(selectedNode, { isItalic: italic })
+                  }
+                  isUnderline={selectedStyle?.isUnderline || false}
+                  setIsUnderline={(underline) =>
+                    selectedNode &&
+                    updateNodeStyle(selectedNode, { isUnderline: underline })
+                  }
+                  textAlign={selectedStyle?.textAlign || "left"}
+                  setTextAlign={(align) =>
+                    selectedNode &&
+                    updateNodeStyle(selectedNode, { textAlign: align })
+                  }
+                  verticalAlign={selectedStyle?.verticalAlign || "top"}
+                  setVerticalAlign={(align) =>
+                    selectedNode &&
+                    updateNodeStyle(selectedNode, { verticalAlign: align })
+                  }
+                  selectedNode={selectedNode}
+                  onUndo={undo}
+                  onRedo={redo}
+                  canUndo={canUndo}
+                  canRedo={canRedo}
+                  onCopy={copySelectedNodes}
+                  onPaste={pasteNodes}
+                  onLock={lockNode}
+                  onChangeShape={changeShape}
+                  shape={selectedStyle?.shape || "rectangle"}
+                  isLocked={selectedStyle?.locked || false}
+                  borderStyle={selectedStyle?.borderStyle || "solid"}
+                  setBorderStyle={setBorderStyle}
+                  borderWidth={selectedStyle?.borderWidth || 2}
+                  setBorderWidth={setBorderWidth}
+                  isSwimlane={selectedStyle?.shape === "swimlane"}
+                  onDelete={
+                    selectedNodes.length > 0
+                      ? deleteSelectedNodes
+                      : selectedEdge
+                        ? deleteSelectedEdges
+                        : () => {}
+                  }
+                  backgroundColor={selectedStyle?.backgroundColor || "#ffffff"}
+                  setBackgroundColor={setBackgroundColor}
+                  borderColor={selectedStyle?.borderColor || "#000000"}
+                  setBorderColor={setBorderColor}
+                  textColor={selectedStyle?.textColor || "#000000"}
+                  setTextColor={setTextColor}
+                  lineHeight={selectedStyle?.lineHeight || 1.2}
+                  setLineHeight={setLineHeight}
+                  selectedEdge={selectedEdge}
+                  onChangeEdgeStyle={onChangeEdgeStyle}
+                  currentEdgeStyle={selectedEdgeData?.type || "default"}
+                  viewMode={viewMode}
+                  onViewModeChange={handleViewModeChange}
+                  // edge styles
+                  edgeWidth={edgeWidth}
+                  setEdgeWidth={handleEdgeWidthChange}
+                  edgeColor={edgeColor}
+                  setEdgeColor={handleEdgeColorChange}
+                />
+              )}
 
             <div className="flex flex-1 overflow-hidden">
               <VerticalNav
@@ -1172,7 +1175,6 @@ export default function CanvasNew({ canvasId }: FigmaInterfaceProps) {
                 />
                 <div className="flex-1 relative">
                   <SafeUMLEditor
-                    viewMode={viewMode}
                     nodes={currentState.nodes}
                     edges={currentState.edges}
                     onNodesChange={onNodesChange}
@@ -1200,6 +1202,8 @@ export default function CanvasNew({ canvasId }: FigmaInterfaceProps) {
                     onReactFlowInit={setReactFlowInstance}
                     canvasSettings={canvasSettings}
                     updateCanvasSettings={updateCanvasSettings}
+                    viewMode={viewMode}
+                    onViewModeChange={handleViewModeChange}
                   />
                 </div>
               </div>

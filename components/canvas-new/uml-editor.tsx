@@ -37,6 +37,7 @@ import { TextNode } from "./nodes/text-node";
 import TableView from "./table-view";
 import { UMLToolbar } from "./uml-toolbar";
 import { NodePropertiesSidebar } from "./node-properties-sidebar";
+import { VIEW_MODE, ViewMode } from "./table-view/table.types";
 
 const nodeTypes = {
   genericNode: GenericNode,
@@ -64,7 +65,6 @@ interface UMLEditorProps {
   onEdgeSelect: (edgeIds: string[]) => void;
   onChangeEdgeLabel: (edgeId: string, label: string) => void;
   onAddImage: (position?: any) => void;
-  viewMode: "canvas" | "table";
   onAddColumn: (columnData: any) => void;
   columns: any[];
   setColumns: (columns: any[]) => void;
@@ -74,6 +74,8 @@ interface UMLEditorProps {
   onReactFlowInit?: (instance: ReactFlowInstance) => void; // Add new prop
   canvasSettings: CanvasSettings;
   updateCanvasSettings: (settings: CanvasSettings) => void;
+  viewMode: ViewMode;
+  onViewModeChange: (viewMode: ViewMode) => void;
 }
 
 const sortNodes = (node: ReactFlowNode, nodes: ReactFlowNode[]) => {
@@ -126,6 +128,7 @@ export function UMLEditor({
   onChangeEdgeLabel,
   onAddImage,
   viewMode,
+  onViewModeChange,
   onAddColumn,
   columns,
   setColumns,
@@ -483,9 +486,11 @@ export function UMLEditor({
     },
   });
 
+  console.log("🚀 ~ viewMode:", viewMode);
+
   return (
     <div className="w-full h-[calc(100vh-132px)]" ref={reactFlowWrapper}>
-      {viewMode === "canvas" && canvasType === CANVAS_TYPE.HYBRID ? (
+      {viewMode === VIEW_MODE.canvas && canvasType === CANVAS_TYPE.HYBRID ? (
         <>
           {showNodeProperties && selectedNodes.length && (
             <NodePropertiesSidebar
@@ -500,17 +505,19 @@ export function UMLEditor({
             />
           )}
 
-          <UMLToolbar
-            onZoomIn={handleZoomIn}
-            onZoomOut={handleZoomOut}
-            onFitToScreen={handleFitToScreen}
-            onToggleRuler={() => {
-              setShowRulers(!showRulers);
-            }}
-            onChangeBackground={(background: BackgroundVariant) =>
-              setBackground(background)
-            }
-          />
+          {viewMode === VIEW_MODE.canvas && (
+            <UMLToolbar
+              onZoomIn={handleZoomIn}
+              onZoomOut={handleZoomOut}
+              onFitToScreen={handleFitToScreen}
+              onToggleRuler={() => {
+                setShowRulers(!showRulers);
+              }}
+              onChangeBackground={(background: BackgroundVariant) =>
+                setBackground(background)
+              }
+            />
+          )}
 
           <ReactFlow
             onInit={(instance) => {
@@ -604,6 +611,8 @@ export function UMLEditor({
           canvasType={canvasType}
           canvasSettings={canvasSettings}
           updateCanvasSettings={updateCanvasSettings}
+          viewMode={viewMode}
+          onViewModeChange={onViewModeChange}
         />
       )}
     </div>

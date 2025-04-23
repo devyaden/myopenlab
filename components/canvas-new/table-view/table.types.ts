@@ -11,6 +11,20 @@ export interface ColumnData {
   rollupColumn?: string;
 }
 
+export interface DOCUMENT_TYPE {
+  table: "table";
+  hybrid: "hybrid";
+  document: "document";
+}
+
+export const VIEW_MODE = {
+  table: "table",
+  canvas: "canvas",
+  document: "document",
+} as const;
+
+export type ViewMode = (typeof VIEW_MODE)[keyof typeof VIEW_MODE];
+
 export interface TableViewProps {
   nodes: Node[];
   edges: Edge[];
@@ -28,6 +42,8 @@ export interface TableViewProps {
   canvasType: CANVAS_TYPE | null;
   canvasSettings: CanvasSettings;
   updateCanvasSettings: (settings: CanvasSettings) => void;
+  viewMode: ViewMode;
+  onViewModeChange: (viewMode: ViewMode) => void;
 }
 
 export type SortDirection = "asc" | "desc" | null;

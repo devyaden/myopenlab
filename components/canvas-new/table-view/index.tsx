@@ -71,10 +71,12 @@ import {
   SortDirection,
   SortField,
   TableViewProps,
+  VIEW_MODE,
 } from "./table.types";
 import { validationSchemas } from "./validations";
 import { ALL_SHAPES, SHAPES } from "@/lib/types/flow-table.types";
 import { DropdownMenuSubTrigger } from "@radix-ui/react-dropdown-menu";
+import Image from "next/image";
 
 const TableView: React.FC<TableViewProps> = ({
   nodes,
@@ -89,6 +91,8 @@ const TableView: React.FC<TableViewProps> = ({
   canvasType,
   canvasSettings,
   updateCanvasSettings,
+  viewMode,
+  onViewModeChange,
 }) => {
   const { user } = useUser();
   const [sortField, setSortField] = useState<SortField>(null);
@@ -1387,6 +1391,61 @@ const TableView: React.FC<TableViewProps> = ({
                     </Button>
                   </>
                 )}
+              </>
+            )}
+
+            {canvasType === "hybrid" && (
+              <>
+                <div className="ml-auto flex items-center">
+                  <div className="bg-gray-100 p-1 rounded-lg flex">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className={`h-9 w-9 p-0 rounded-md ${viewMode === VIEW_MODE.table ? "bg-white shadow-sm" : ""}`}
+                      onClick={() => onViewModeChange(VIEW_MODE.table)}
+                      aria-label="Table view"
+                    >
+                      <Image
+                        src="/assets/canvas/table.svg"
+                        alt="Table Icon"
+                        height={10}
+                        width={10}
+                        className="h-4 w-4 "
+                      />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className={`h-9 w-9 p-0 rounded-md ${viewMode === VIEW_MODE.canvas ? "bg-white shadow-sm" : ""}`}
+                      onClick={() => onViewModeChange(VIEW_MODE.canvas)}
+                      aria-label="Canvas view"
+                    >
+                      <Image
+                        src="/assets/canvas/canvas.svg"
+                        alt="Table Icon"
+                        height={10}
+                        width={10}
+                        className="h-4 w-4 "
+                      />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className={`h-9 w-9 p-0 rounded-md ${viewMode === VIEW_MODE.document ? "bg-white shadow-sm" : ""}`}
+                      onClick={() => onViewModeChange(VIEW_MODE.document)}
+                      aria-label="List view"
+                      // disabled
+                    >
+                      <Image
+                        src="/assets/canvas/document.svg"
+                        alt="Table Icon"
+                        height={10}
+                        width={10}
+                        className="h-4 w-4 "
+                      />
+                    </Button>
+                  </div>
+                </div>
               </>
             )}
           </div>
