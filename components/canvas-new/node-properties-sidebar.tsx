@@ -25,6 +25,7 @@ import {
   Plus,
   Users,
   X,
+  File,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import type { Node } from "reactflow";
@@ -79,7 +80,9 @@ type PropertyType =
   | "url"
   | "longtext"
   | "multiselect"
-  | "email";
+  | "email"
+  | "relation"
+  | "rollup";
 
 interface Property {
   name: string;
@@ -104,7 +107,7 @@ const EXCLUDED_PROPERTIES = [
 ];
 
 // Shape options for the type property
-const SHAPE_OPTIONS = ALL_SHAPES;
+const SHAPE_OPTIONS = ALL_SHAPES.filter((shape) => shape !== "swimlane");
 
 // Get icon for property type
 const getPropertyIcon = (propertyName: string, propertyType: PropertyType) => {
@@ -133,6 +136,10 @@ const getPropertyIcon = (propertyName: string, propertyType: PropertyType) => {
       return <Check className="h-4 w-4 text-gray-500" />;
     case "select":
     case "multiselect":
+      return <ListTodo className="h-4 w-4 text-gray-500" />;
+    case "relation":
+      return <Users className="h-4 w-4 text-gray-500" />;
+    case "rollup":
       return <ListTodo className="h-4 w-4 text-gray-500" />;
     default:
       return <ListTodo className="h-4 w-4 text-gray-500" />;
@@ -355,17 +362,15 @@ export function NodePropertiesSidebar({
             propertyType = "email";
           }
 
-          // @ts-ignore
-          if (propertyType !== "relation" && propertyType !== "rollup") {
-            nodeProperties.push({
-              name: key,
-              value: value,
-              type: propertyType,
-              options: matchingColumn?.options,
-              hidden: nodeData.hidden?.[key] || false,
-              isEditable,
-            });
-          }
+          // Include relation and rollup types
+          nodeProperties.push({
+            name: key,
+            value: value,
+            type: propertyType,
+            options: matchingColumn?.options,
+            hidden: nodeData.hidden?.[key] || false,
+            isEditable,
+          });
         }
       });
 
@@ -425,9 +430,10 @@ export function NodePropertiesSidebar({
       "Created Time": "date",
       "Last edited time": "date",
       "Long Text": "longtext",
-      // Color: "color",
       URL: "url",
       Email: "email",
+      Relation: "relation",
+      Rollup: "rollup",
     };
     return typeMap[columnType] || "text";
   };
@@ -445,6 +451,8 @@ export function NodePropertiesSidebar({
       url: "URL",
       longtext: "Long Text",
       email: "Email",
+      relation: "Relation",
+      rollup: "Rollup",
     };
     return typeMap[propType] || "Text";
   };
@@ -1206,6 +1214,43 @@ export function NodePropertiesSidebar({
             <span style={valueStyle}>
               {property.value || "Click to add email"}
             </span>
+          </div>
+        );
+      case "relation":
+        return (
+          <div className="flex flex-wrap max-w-full">
+            {Array.isArray(property.value) && property.value.length > 0 ? (
+              property.value.map((item: any, index: number) => (
+                <p key={index} className="text-sm text-gray-600 flex mr-3">
+                  <File className="h-4 w-4 mr-1" /> {item.label}
+                </p>
+              ))
+            ) : (
+              <span className="text-gray-400 flex items-center">
+                <Plus className="h-4 w-4 mr-1" /> Add
+              </span>
+            )}
+          </div>
+        );
+      case "rollup":
+        return (
+          <div className="p-2 flex flex-wrap gap-1">
+            {Array.isArray(property.value) && property.value.length > 0 ? (
+              property.value.map((item: any, index: number) => (
+                <span
+                  key={index}
+                  className="text-sm text-gray-600 bg-gray-100 rounded-md px-2 py-1"
+                >
+                  {typeof item.value !== "undefined"
+                    ? typeof item.value === "object"
+                      ? JSON.stringify(item.value).substring(0, 30)
+                      : String(item.value)
+                    : "—"}
+                </span>
+              ))
+            ) : (
+              <span className="text-gray-400 px-1">—</span>
+            )}
           </div>
         );
       default:

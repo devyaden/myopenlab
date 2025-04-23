@@ -342,6 +342,8 @@ export const GenericNode = memo(
       const properties: { key: string; value: any }[] = [];
       const isTypeHidden = data.hidden?.type === true;
 
+      console.log("----- data ----------", data);
+
       // Add type property (using shape) if not hidden
       if (!isTypeHidden) {
         properties.push({
@@ -387,7 +389,15 @@ export const GenericNode = memo(
             return; // Skip this property
           }
 
-          if (key === "from") {
+          // if the value is of type array then display comma seperated values
+          if (Array.isArray(value)) {
+            properties.push({
+              key,
+              value: value
+                ?.map((item: any) => item?.value ?? item?.label)
+                .join(", "),
+            });
+          } else if (key === "from") {
             if (fromLabels.length > 0) {
               properties.push({ key, value: fromLabels.join(", ") });
             }
