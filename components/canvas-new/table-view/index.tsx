@@ -24,6 +24,7 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
@@ -55,6 +56,8 @@ import {
   Plus,
   Trash2,
   X,
+  Download,
+  File,
 } from "lucide-react";
 import type React from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -71,6 +74,7 @@ import {
 } from "./table.types";
 import { validationSchemas } from "./validations";
 import { CANVAS_TYPE } from "@/types/store";
+import { useUser } from "@/lib/contexts/userContext";
 
 const TableView: React.FC<TableViewProps> = ({
   nodes,
@@ -86,6 +90,7 @@ const TableView: React.FC<TableViewProps> = ({
   canvasSettings,
   updateCanvasSettings,
 }) => {
+  const { user } = useUser();
   const [sortField, setSortField] = useState<SortField>(null);
   const [sortDirection, setSortDirection] = useState<SortDirection>(null);
   const [newTaskName, setNewTaskName] = useState("");
@@ -480,39 +485,92 @@ const TableView: React.FC<TableViewProps> = ({
   };
 
   const sortedHierarchy = useMemo(() => {
-    let updatedNodes = insertRollupDataIntoNodes(visibleNodes); // Changed from nodes to visibleNodes
+    let updatedNodes = insertRollupDataIntoNodes(visibleNodes);
     updatedNodes = enhanceNodesWithConnectionData(updatedNodes, edges);
     const hierarchy = createHierarchy(updatedNodes);
 
     if (!sortField || !sortDirection) return hierarchy;
 
+    const getColumnType = (columnTitle: string) => {
+      const column = columns.find((col) => col.title === columnTitle);
+      return column?.type;
+    };
+
+    const getSortableValue = (node: HierarchyNode, field: string) => {
+      const columnType = getColumnType(field);
+
+      // Get the raw value
+      let value =
+        field === "task"
+          ? node.data.label
+          : field === "type"
+            ? node.data.shape || ""
+            : node.data[field];
+
+      // Handle different column types
+      switch (columnType) {
+        case "Number":
+          return typeof value === "number"
+            ? value
+            : typeof value === "string"
+              ? parseFloat(value) || 0
+              : 0;
+
+        case "Date":
+        case "Created Time":
+        case "Last edited time":
+          return value ? new Date(value).getTime() : 0;
+
+        case "Checkbox":
+          return value ? 1 : 0;
+
+        case "Select":
+        case "Multiselect":
+        case "Relation":
+        case "Rollup":
+          // These types are not sortable
+          return null;
+
+        default:
+          // For text and other types (including type/shape), convert to string
+          return String(value || "").toLowerCase();
+      }
+    };
+
     const sortNodes = (nodes: HierarchyNode[]): HierarchyNode[] => {
       return nodes
         .sort((a, b) => {
-          let aValue: string | number = "";
-          let bValue: string | number = "";
-          switch (sortField) {
-            case "id":
-              aValue = a.id;
-              bValue = b.id;
-              break;
-            case "task":
-              aValue = a.data.label || "";
-              bValue = b.data.label || "";
-              break;
-            case "type":
-              aValue = a.data.shape || a?.type || "";
-              bValue = b.data.shape || b?.type || "";
-              break;
+          const columnType = getColumnType(sortField);
+
+          // Skip sorting for unsortable types
+          if (
+            ["Select", "Multiselect", "Relation", "Rollup"].includes(
+              columnType || ""
+            )
+          ) {
+            return 0;
           }
+
+          const aValue = getSortableValue(a, sortField);
+          const bValue = getSortableValue(b, sortField);
+
+          // Handle null values
+          if (aValue === null && bValue === null) return 0;
+          if (aValue === null) return 1;
+          if (bValue === null) return -1;
+
           const sortOrder = sortDirection === "asc" ? 1 : -1;
-          return aValue > bValue ? sortOrder : -sortOrder;
+
+          if (aValue < bValue) return -1 * sortOrder;
+          if (aValue > bValue) return 1 * sortOrder;
+          return 0;
         })
         .map((node) => ({
           ...node,
           children: sortNodes(node.children),
         }));
     };
+
     return sortNodes(hierarchy);
   }, [visibleNodes, sortField, sortDirection, columns, edges]);
   // For bulk deletion: Get all visible nodes for "Select All" functionality
@@ -560,14 +618,30 @@ const TableView: React.FC<TableViewProps> = ({
       return;
     }
 
+    // Get current user from auth
+    const currentUser = user?.name || "Unknown User";
+    const currentTime = new Date().toISOString();
+
+    // Create initial data object
+    const initialData: Record<string, any> = {
+      label: newTaskName,
+      shape: newShapeType,
+    };
+
+    // Add system fields based on column types
+    columns.forEach((col) => {
+      if (col.type === "Last edited time" || col.type === "Created Time") {
+        initialData[col.title] = currentTime;
+      } else if (col.type === "Last edited by" || col.type === "Created by") {
+        initialData[col.title] = currentUser;
+      }
+    });
+
     const newNode = {
       id: `node-${Date.now()}`,
       type: "genericNode",
       position: { x: 0, y: 0 },
-      data: {
-        label: newTaskName,
-        shape: newShapeType,
-      },
+      data: initialData,
       parentNode:
         selectedParentId !== "no-parent" ? selectedParentId : undefined,
     };
@@ -638,6 +712,10 @@ const TableView: React.FC<TableViewProps> = ({
         return;
       }
 
+      // Get current user from auth
+      const currentUser = user?.name || "Unknown User";
+      const currentTime = new Date().toISOString();
+
       // For relation columns, we don't need to validate as they are arrays of objects
       if (columnDef.type === "Relation") {
         console.log("Saving relation data:", { nodeId, column, value });
@@ -647,9 +725,19 @@ const TableView: React.FC<TableViewProps> = ({
 
         const updatedNodes = nodes.map((node) => {
           if (node.id === nodeId) {
-            // Update the node data with the new relation value
+            // Create new data object with relation value
             const newData = { ...node.data, [column]: relationValue };
-            // Also update the relationCache to ensure consistent rendering
+
+            // Update system fields based on column types
+            columns.forEach((col) => {
+              if (col.type === "Last edited time") {
+                newData[col.title] = currentTime;
+              } else if (col.type === "Last edited by") {
+                newData[col.title] = currentUser;
+              }
+            });
+
+            // Update relation cache
             const newRelationCache = { ...relationCache };
             newRelationCache[`${nodeId}-${column}`] = relationValue;
             setRelationCache(newRelationCache);
@@ -693,7 +781,18 @@ const TableView: React.FC<TableViewProps> = ({
       if (isValid) {
         const updatedNodes = nodes.map((node) => {
           if (node.id === nodeId) {
+            // Create new data object with the updated value
             const newData = { ...node.data, [column]: value };
+
+            // Update system fields based on column types
+            columns.forEach((col) => {
+              if (col.type === "Last edited time") {
+                newData[col.title] = currentTime;
+              } else if (col.type === "Last edited by") {
+                newData[col.title] = currentUser;
+              }
+            });
+
             if (column === "task") {
               newData.label = value;
             } else if (column === "type") {
@@ -983,6 +1082,7 @@ const TableView: React.FC<TableViewProps> = ({
           columnWidths={columnWidths}
           nodeToDelete={nodeToDelete}
           handleDeleteConfirm={handleDeleteConfirm}
+          shapeOptions={shapeOptions}
         />,
         ...(isExpanded && hasChildren
           ? renderHierarchy(node.children, level + 1)
@@ -996,33 +1096,255 @@ const TableView: React.FC<TableViewProps> = ({
     setNewColumnTitle(columnTitle);
   };
 
+  const exportToCSV = () => {
+    // Get visible columns
+    const visibleColumns = columns.filter(
+      (column) =>
+        !hiddenColumns?.includes(column.title) && column.title !== "id"
+    );
+
+    // Create CSV header
+    const headers = visibleColumns.map((col) => col.title).join(",");
+
+    // Create CSV rows
+    const rows = flattenHierarchy(sortedHierarchy).map(({ node }) => {
+      return visibleColumns
+        .map((col) => {
+          let value = node.data[col.title];
+
+          // Handle special columns
+          if (col.title === "task") {
+            value = node.data.label;
+          } else if (col.title === "type") {
+            value = node.data.shape;
+          } else if (col.title === "parent") {
+            value = node.data.parent || "";
+          } else if (col.title === "children") {
+            value = node.data.children || "";
+          }
+
+          // Handle different column types
+          switch (col.type) {
+            case "Rollup":
+              const rollupData = rollupCache[`${node.id}-${col.title}`] || [];
+              value = rollupData.map((item: any) => item.value).join(", ");
+              break;
+            case "Relation":
+              const relationData =
+                relationCache[`${node.id}-${col.title}`] || [];
+              value = relationData
+                .map((item: any) => item.label || item.id)
+                .join(", ");
+              break;
+            case "Multiselect":
+              if (Array.isArray(value)) {
+                value = value.join(", ");
+              }
+              break;
+            case "Checkbox":
+              value = value ? "Yes" : "No";
+              break;
+            case "Date":
+            case "Created Time":
+            case "Last edited time":
+              if (value) {
+                value = new Date(value).toISOString();
+              }
+              break;
+            default:
+              if (Array.isArray(value)) {
+                value = value.map((v) => v.label || v).join(", ");
+              } else if (typeof value === "object" && value !== null) {
+                value = JSON.stringify(value);
+              }
+          }
+
+          // Handle strings with commas
+          return typeof value === "string" && value.includes(",")
+            ? `"${value}"`
+            : value || "";
+        })
+        .join(",");
+    });
+
+    // Combine header and rows
+    const csvContent = [headers, ...rows].join("\n");
+
+    // Create and download file
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const link = document.createElement("a");
+    const url = URL.createObjectURL(blob);
+    link.setAttribute("href", url);
+    link.setAttribute("download", "table_export.csv");
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const exportToExcel = () => {
+    // Get visible columns
+    const visibleColumns = columns.filter(
+      (column) =>
+        !hiddenColumns?.includes(column.title) && column.title !== "id"
+    );
+
+    // Create Excel content
+    const rows = flattenHierarchy(sortedHierarchy).map(({ node }) => {
+      return visibleColumns.map((col) => {
+        let value = node.data[col.title];
+
+        // Handle special columns
+        if (col.title === "task") {
+          value = node.data.label;
+        } else if (col.title === "type") {
+          value = node.data.shape;
+        } else if (col.title === "parent") {
+          value = node.data.parent || "";
+        } else if (col.title === "children") {
+          value = node.data.children || "";
+        }
+
+        // Handle different column types
+        switch (col.type) {
+          case "Rollup":
+            const rollupData = rollupCache[`${node.id}-${col.title}`] || [];
+            value = rollupData.map((item: any) => item.value).join(", ");
+            break;
+          case "Relation":
+            const relationData = relationCache[`${node.id}-${col.title}`] || [];
+            value = relationData
+              .map((item: any) => item.label || item.id)
+              .join(", ");
+            break;
+          case "Multiselect":
+            if (Array.isArray(value)) {
+              value = value.join(", ");
+            }
+            break;
+          case "Checkbox":
+            value = value ? "Yes" : "No";
+            break;
+          case "Date":
+          case "Created Time":
+          case "Last edited time":
+            if (value) {
+              value = new Date(value).toISOString();
+            }
+            break;
+          default:
+            if (Array.isArray(value)) {
+              value = value.map((v) => v.label || v).join(", ");
+            } else if (typeof value === "object" && value !== null) {
+              value = JSON.stringify(value);
+            }
+        }
+
+        return value || "";
+      });
+    });
+
+    // Create HTML table
+    const table = document.createElement("table");
+    const thead = document.createElement("thead");
+    const tbody = document.createElement("tbody");
+
+    // Add headers
+    const headerRow = document.createElement("tr");
+    visibleColumns.forEach((col) => {
+      const th = document.createElement("th");
+      th.textContent = col.title;
+      headerRow.appendChild(th);
+    });
+    thead.appendChild(headerRow);
+    table.appendChild(thead);
+
+    // Add rows
+    rows.forEach((row) => {
+      const tr = document.createElement("tr");
+      row.forEach((cell) => {
+        const td = document.createElement("td");
+        td.textContent = cell;
+        tr.appendChild(td);
+      });
+      tbody.appendChild(tr);
+    });
+    table.appendChild(tbody);
+
+    // Convert to Excel
+    const html = table.outerHTML;
+    const blob = new Blob([html], { type: "application/vnd.ms-excel" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "table_export.xls";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  // Add this helper function before the return statement
+  const isColumnSortable = (
+    columnType: string | undefined,
+    columnTitle: string
+  ) => {
+    // Special case for the type column which contains shape names
+    if (columnTitle === "type") {
+      return true;
+    }
+    const unsortableTypes = [
+      "Select",
+      "Multiselect",
+      "Relation",
+      "Rollup",
+      "Checkbox",
+    ];
+    return !unsortableTypes.includes(columnType || "");
+  };
+
   return (
     <>
       <div className="w-full bg-white">
         <div className="flex items-center justify-between px-8 py-2 border-b border-gray-100">
           <div className="text-base text-gray-700 font-medium"></div>
           <div className="flex items-center gap-2 min-h-10">
-            {selectedNodes.length > 0 && (
+            {(selectedNodes.length > 0 || sortField) && (
               <>
-                <Button
-                  variant="outline"
-                  className="text-gray-500 font-medium text-sm hover:bg-gray-50 ml-2 rounded-md"
-                  onClick={() => setDeleteSelectedDialogOpen(true)}
-                  disabled={selectedNodes.length === 0}
-                >
-                  <Trash2 className="h-4 w-4 mr-2" />
-                  Delete
-                </Button>
+                {sortField && (
+                  <Button
+                    variant="outline"
+                    className="text-red-600 font-medium text-sm hover:bg-red-50 ml-2 rounded-md"
+                    onClick={() => {
+                      setSortField(null);
+                      setSortDirection(null);
+                    }}
+                  >
+                    <X className="h-4 w-4 mr-2" />
+                    Clear sorting
+                  </Button>
+                )}
+                {selectedNodes.length > 0 && (
+                  <>
+                    <Button
+                      variant="outline"
+                      className="text-gray-500 font-medium text-sm hover:bg-gray-50 ml-2 rounded-md"
+                      onClick={() => setDeleteSelectedDialogOpen(true)}
+                      disabled={selectedNodes.length === 0}
+                    >
+                      <Trash2 className="h-4 w-4 mr-2" />
+                      Delete
+                    </Button>
 
-                <Button
-                  variant="outline"
-                  className="text-gray-500 font-medium text-sm hover:bg-gray-50 ml-2 rounded-md"
-                  onClick={handleDuplicateSelected}
-                  disabled={selectedNodes.length === 0}
-                >
-                  <Copy className="h-4 w-4 mr-2" />
-                  Duplicate
-                </Button>
+                    <Button
+                      variant="outline"
+                      className="text-gray-500 font-medium text-sm hover:bg-gray-50 ml-2 rounded-md"
+                      onClick={handleDuplicateSelected}
+                      disabled={selectedNodes.length === 0}
+                    >
+                      <Copy className="h-4 w-4 mr-2" />
+                      Duplicate
+                    </Button>
+                  </>
+                )}
               </>
             )}
           </div>
@@ -1040,262 +1362,310 @@ const TableView: React.FC<TableViewProps> = ({
                 maxHeight: "calc(100vh - 280px)",
               }}
             >
-              <Table
-                style={{
-                  minWidth: "max-content",
-                  position: "relative",
-                }}
+              <DndContext
+                collisionDetection={closestCenter}
+                onDragEnd={handleDragEnd}
               >
-                <TableHeader className="p-0 bg-gray-50 ">
-                  <TableRow className="group">
-                    <TableHead
-                      className={`sticky left-0 z-20 bg-white border-r border-gray-200 w-16 text-center ${
-                        selectedNodes.length > 0 ? "bg-blue-50" : "bg-gray-50"
-                      }`}
-                    >
-                      <Checkbox
-                        className={`transition-opacity ${
-                          selectedNodes.length > 0
-                            ? "opacity-100"
-                            : "opacity-0 group-hover:opacity-100"
+                <Table
+                  style={{
+                    minWidth: "max-content",
+                    position: "relative",
+                  }}
+                >
+                  <TableHeader className="p-0 bg-gray-50 ">
+                    <TableRow className="group">
+                      <TableHead
+                        className={`sticky left-0 z-20 bg-white border-r border-gray-200 w-16 text-center ${
+                          selectedNodes.length > 0 ? "bg-blue-50" : "bg-gray-50"
                         }`}
-                        ref={(el) => {
-                          if (el) {
-                            // @ts-ignore
-                            el.indeterminate =
-                              selectedNodes.length > 0 &&
-                              selectedNodes.length < visibleNodeIds.length;
-                          }
-                        }}
-                        checked={selectedNodes.length === visibleNodeIds.length}
-                        onCheckedChange={(checked) => {
-                          if (checked) {
-                            setSelectedNodes(visibleNodeIds);
-                          } else {
-                            setSelectedNodes([]);
-                          }
-                        }}
-                      />
-                    </TableHead>
-                    {columns
-                      .filter(
-                        (column) =>
-                          !hiddenColumns?.includes(column.title) &&
-                          column.title !== "id"
-                      )
-                      .map((column) => {
-                        const width = columnWidths[column.title] || 200;
-
-                        return (
-                          <TableHead
-                            key={column.title}
-                            ref={(el) =>
-                              (columnRefs.current[column.title] = el)
+                      >
+                        <Checkbox
+                          className={`transition-opacity ${
+                            selectedNodes.length > 0
+                              ? "opacity-100"
+                              : "opacity-0 group-hover:opacity-100"
+                          }`}
+                          ref={(el) => {
+                            if (el) {
+                              // @ts-ignore
+                              el.indeterminate =
+                                selectedNodes.length > 0 &&
+                                selectedNodes.length < visibleNodeIds.length;
                             }
-                            className={`border-r border-gray-200 text-center ${
-                              frozenColumns.has(column.title)
-                                ? "sticky left-16 z-10"
-                                : "relative"
-                            }`}
-                            style={{
-                              width: `${width}px`,
-                              minWidth: `${width}px`,
-                              maxWidth: `${width}px`,
-                            }}
-                          >
-                            <div
-                              className="absolute right-0 top-0 w-1 h-full cursor-col-resize hover:bg-blue-500 bg-transparent"
-                              onMouseDown={() => startResizing(column.title)}
-                            />
+                          }}
+                          checked={
+                            selectedNodes.length === visibleNodeIds.length
+                          }
+                          onCheckedChange={(checked) => {
+                            if (checked) {
+                              setSelectedNodes(visibleNodeIds);
+                            } else {
+                              setSelectedNodes([]);
+                            }
+                          }}
+                        />
+                      </TableHead>
+                      {columns
+                        .filter(
+                          (column) =>
+                            !hiddenColumns?.includes(column.title) &&
+                            column.title !== "id"
+                        )
+                        .map((column) => {
+                          const width = columnWidths[column.title] || 200;
 
-                            <DropdownMenu>
-                              <DropdownMenuTrigger
-                                asChild
-                                disabled={editingColumnTitle === column.title}
-                              >
-                                <div
-                                  className="flex items-center cursor-pointer"
-                                  onClick={(e) => {
-                                    if (editingColumnTitle === column.title) {
-                                      e.preventDefault();
-                                      e.stopPropagation();
-                                    }
-                                  }}
+                          return (
+                            <TableHead
+                              key={column.title}
+                              ref={(el) =>
+                                (columnRefs.current[column.title] = el)
+                              }
+                              className={`border-r border-gray-200 text-center group ${
+                                frozenColumns.has(column.title)
+                                  ? "sticky left-16 z-10"
+                                  : "relative"
+                              }`}
+                              style={{
+                                width: `${width}px`,
+                                minWidth: `${width}px`,
+                                maxWidth: `${width}px`,
+                              }}
+                            >
+                              <div
+                                className="absolute right-0 top-0 w-1 h-full cursor-col-resize hover:bg-blue-500 bg-transparent"
+                                onMouseDown={() => startResizing(column.title)}
+                              />
+
+                              <DropdownMenu>
+                                <DropdownMenuTrigger
+                                  asChild
+                                  disabled={editingColumnTitle === column.title}
                                 >
-                                  {editingColumnTitle === column.title ? (
-                                    <Input
-                                      value={newColumnTitle}
-                                      onChange={(e) =>
-                                        setNewColumnTitle(e.target.value)
+                                  <div
+                                    className="flex items-center cursor-pointer"
+                                    onClick={(e) => {
+                                      if (editingColumnTitle === column.title) {
+                                        e.preventDefault();
+                                        e.stopPropagation();
+                                      } else {
+                                        startEditingColumnTitle(column.title);
                                       }
-                                      onBlur={() =>
-                                        handleColumnTitleEdit(
-                                          column.title,
-                                          newColumnTitle
-                                        )
-                                      }
-                                      onKeyDown={(e) => {
-                                        if (e.key === "Enter") {
+                                    }}
+                                  >
+                                    {editingColumnTitle === column.title ? (
+                                      <Input
+                                        value={newColumnTitle}
+                                        onChange={(e) =>
+                                          setNewColumnTitle(e.target.value)
+                                        }
+                                        onBlur={() =>
                                           handleColumnTitleEdit(
                                             column.title,
                                             newColumnTitle
-                                          );
+                                          )
                                         }
-                                      }}
-                                      onClick={(e) => e.stopPropagation()}
-                                      autoFocus
-                                      className="h-7 w-32 focus-visible:ring-0"
-                                    />
-                                  ) : (
-                                    <div className="flex items-center justify-center w-full">
-                                      {/* {getColumnIcon(column.type)} */}
-                                      <span>{column.title}</span>
-                                      {/* {getSortIcon(column.title as SortField)} */}
-                                    </div>
+                                        onKeyDown={(e) => {
+                                          if (e.key === "Enter") {
+                                            handleColumnTitleEdit(
+                                              column.title,
+                                              newColumnTitle
+                                            );
+                                          }
+                                        }}
+                                        onClick={(e) => e.stopPropagation()}
+                                        autoFocus
+                                        className="h-7 w-32 focus-visible:ring-0"
+                                      />
+                                    ) : (
+                                      <div className="flex items-center justify-center w-full">
+                                        <span>{column.title}</span>
+                                        <div className="opacity-0 group-hover:opacity-100 transition-opacity ml-2">
+                                          {sortField === column.title && (
+                                            <span className="text-gray-500">
+                                              {sortDirection === "asc" ? (
+                                                <ChevronUp className="h-4 w-4" />
+                                              ) : (
+                                                <ChevronDown className="h-4 w-4" />
+                                              )}
+                                            </span>
+                                          )}
+                                        </div>
+                                      </div>
+                                    )}
+                                  </div>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent
+                                  align="start"
+                                  className="w-56"
+                                >
+                                  {sortField === column.title && (
+                                    <>
+                                      <DropdownMenuItem
+                                        onClick={() => {
+                                          setSortField(null);
+                                          setSortDirection(null);
+                                        }}
+                                        className="text-red-600 font-medium gap-2"
+                                      >
+                                        <X className="h-4 w-4" />
+                                        Clear sorting
+                                      </DropdownMenuItem>
+                                      <DropdownMenuSeparator />
+                                    </>
                                   )}
-                                </div>
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent
-                                align="start"
-                                className="w-56"
-                              >
-                                <DropdownMenuItem
-                                  onSelect={() =>
-                                    startEditingColumnTitle(column.title)
-                                  }
-                                >
-                                  Edit property
-                                </DropdownMenuItem>
-                                <DropdownMenuItem
-                                  onClick={() => {
-                                    setSortField(column.title as SortField);
-                                    setSortDirection("asc");
-                                  }}
-                                >
-                                  Sort ascending
-                                </DropdownMenuItem>
-                                <DropdownMenuItem
-                                  onClick={() => {
-                                    setSortField(column.title as SortField);
-                                    setSortDirection("desc");
-                                  }}
-                                >
-                                  Sort descending
-                                </DropdownMenuItem>
-                                {!hiddenColumns?.includes(column.title) && (
                                   <DropdownMenuItem
-                                    onClick={() =>
-                                      toggleColumnVisibility(column.title)
+                                    onSelect={() =>
+                                      startEditingColumnTitle(column.title)
                                     }
                                   >
-                                    Hide in view
+                                    Edit property
                                   </DropdownMenuItem>
-                                )}
-                                <DropdownMenuItem
-                                  onClick={() =>
-                                    handleDuplicateColumn(column.title)
-                                  }
-                                >
-                                  Duplicate property
-                                </DropdownMenuItem>
-                                {!isDefaultColumn(column.title) && (
-                                  <DropdownMenuItem
-                                    className="text-red-600"
-                                    onClick={() =>
-                                      setDeleteColumnDialog(column.title)
-                                    }
-                                  >
-                                    Delete property
-                                  </DropdownMenuItem>
-                                )}
-                              </DropdownMenuContent>
-                            </DropdownMenu>
-                          </TableHead>
-                        );
-                      })}
-
-                    <TableHead
-                      style={{
-                        position: "sticky",
-                        right: 0,
-                        zIndex: 30,
-                        backgroundColor: "#fff",
-                        boxShadow: "-2px 0 2px -1px rgba(0,0,0,0.1)",
-                      }}
-                    >
-                      <DropdownMenu>
-                        <DropdownMenuTrigger>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8 opacity-0 group-hover:opacity-100"
-                          >
-                            <MoreVertical className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={addNewColumn}>
-                            <Plus className="h-4 w-4 mr-2" />
-                            Add New Column
-                          </DropdownMenuItem>
-
-                          <Dialog>
-                            <DialogTrigger asChild>
-                              <DropdownMenuItem
-                                onSelect={(e) => e.preventDefault()}
-                                // onClick={() => setIsHiddenColumnsMenuOpen(true)}
-                              >
-                                <ChevronDown className="h-4 w-4 mr-2" />
-                                Show/Hide Columns
-                              </DropdownMenuItem>
-                            </DialogTrigger>
-                            <DialogContent>
-                              <DialogHeader>
-                                <DialogTitle>Manage Hidden Columns</DialogTitle>
-                              </DialogHeader>
-                              <div className="space-y-4">
-                                {columns.map((column) => (
-                                  <div
-                                    key={column.title}
-                                    className="flex items-center justify-between"
-                                  >
-                                    <span>{column.title}</span>
-                                    <Switch
-                                      checked={
-                                        !hiddenColumns?.includes(column.title)
-                                      }
-                                      onCheckedChange={() =>
+                                  {isColumnSortable(
+                                    column.type,
+                                    column.title
+                                  ) && (
+                                    <>
+                                      <DropdownMenuItem
+                                        onClick={() => {
+                                          setSortField(
+                                            column.title as SortField
+                                          );
+                                          setSortDirection("asc");
+                                        }}
+                                      >
+                                        Sort ascending
+                                      </DropdownMenuItem>
+                                      <DropdownMenuItem
+                                        onClick={() => {
+                                          setSortField(
+                                            column.title as SortField
+                                          );
+                                          setSortDirection("desc");
+                                        }}
+                                      >
+                                        Sort descending
+                                      </DropdownMenuItem>
+                                    </>
+                                  )}
+                                  {!hiddenColumns?.includes(column.title) && (
+                                    <DropdownMenuItem
+                                      onClick={() =>
                                         toggleColumnVisibility(column.title)
                                       }
-                                    />
-                                  </div>
-                                ))}
-                              </div>
-                              <DialogFooter>
-                                <DialogTrigger asChild>Close</DialogTrigger>
-                              </DialogFooter>
-                            </DialogContent>
-                          </Dialog>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {/* Wrap table body with DndContext and SortableContext for row reordering */}
-                  <DndContext
-                    collisionDetection={closestCenter}
-                    onDragEnd={handleDragEnd}
+                                    >
+                                      Hide in view
+                                    </DropdownMenuItem>
+                                  )}
+                                  <DropdownMenuItem
+                                    onClick={() =>
+                                      handleDuplicateColumn(column.title)
+                                    }
+                                  >
+                                    Duplicate property
+                                  </DropdownMenuItem>
+                                  {!isDefaultColumn(column.title) && (
+                                    <DropdownMenuItem
+                                      className="text-red-600"
+                                      onClick={() =>
+                                        setDeleteColumnDialog(column.title)
+                                      }
+                                    >
+                                      Delete property
+                                    </DropdownMenuItem>
+                                  )}
+                                </DropdownMenuContent>
+                              </DropdownMenu>
+                            </TableHead>
+                          );
+                        })}
+
+                      <TableHead
+                        style={{
+                          position: "sticky",
+                          right: 0,
+                          zIndex: 30,
+                          backgroundColor: "#fff",
+                          boxShadow: "-2px 0 2px -1px rgba(0,0,0,0.1)",
+                        }}
+                      >
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8 opacity-0 group-hover:opacity-100"
+                            >
+                              <MoreVertical className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={addNewColumn}>
+                              <Plus className="h-4 w-4 mr-2" />
+                              Add New Column
+                            </DropdownMenuItem>
+
+                            <DropdownMenuItem onClick={exportToCSV}>
+                              <Download className="h-4 w-4 mr-2" />
+                              Export as CSV
+                            </DropdownMenuItem>
+
+                            <DropdownMenuItem onClick={exportToExcel}>
+                              <Download className="h-4 w-4 mr-2" />
+                              Export as Excel
+                            </DropdownMenuItem>
+
+                            <Dialog>
+                              <DialogTrigger asChild>
+                                <DropdownMenuItem
+                                  onSelect={(e) => e.preventDefault()}
+                                  // onClick={() => setIsHiddenColumnsMenuOpen(true)}
+                                >
+                                  <ChevronDown className="h-4 w-4 mr-2" />
+                                  Show/Hide Columns
+                                </DropdownMenuItem>
+                              </DialogTrigger>
+                              <DialogContent>
+                                <DialogHeader>
+                                  <DialogTitle>
+                                    Manage Hidden Columns
+                                  </DialogTitle>
+                                </DialogHeader>
+                                <div className="space-y-4">
+                                  {columns.map((column) => (
+                                    <div
+                                      key={column.title}
+                                      className="flex items-center justify-between"
+                                    >
+                                      <span>{column.title}</span>
+                                      <Switch
+                                        checked={
+                                          !hiddenColumns?.includes(column.title)
+                                        }
+                                        onCheckedChange={() =>
+                                          toggleColumnVisibility(column.title)
+                                        }
+                                      />
+                                    </div>
+                                  ))}
+                                </div>
+                                <DialogFooter>
+                                  <DialogTrigger asChild>Close</DialogTrigger>
+                                </DialogFooter>
+                              </DialogContent>
+                            </Dialog>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <SortableContext
+                    items={sortedHierarchy.map((node) => node.id)}
+                    strategy={verticalListSortingStrategy}
                   >
-                    <SortableContext
-                      items={sortedHierarchy.map((node) => node.id)}
-                      strategy={verticalListSortingStrategy}
-                    >
-                      {renderHierarchy(sortedHierarchy)}
-                    </SortableContext>
-                  </DndContext>
-                </TableBody>
-              </Table>
+                    <TableBody>{renderHierarchy(sortedHierarchy)}</TableBody>
+                  </SortableContext>
+                </Table>
+              </DndContext>
             </div>
           </div>
           <div className="p-4 border-t sticky bottom-0 bg-white">

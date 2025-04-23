@@ -40,7 +40,6 @@ const validationTypes = [
   "Last edited time",
   "Last edited by",
   "Checkbox",
-  "User",
   "Relation",
   "Rollup",
 ];

@@ -536,10 +536,19 @@ export function Header({
                       if (typeof option === "object" && option.submenu) {
                         return (
                           <DropdownMenu key={option.label}>
-                            <DropdownMenuTrigger className="w-full px-2 py-1.5 text-sm hover:bg-accent hover:text-accent-foreground cursor-default flex items-center">
-                              <DownloadCloud className="mr-2 h-4 w-4" />
-                              {option.label}
-                              <ChevronDown className="ml-auto h-4 w-4" />
+                            <DropdownMenuTrigger
+                              asChild
+                              className="w-full px-2 py-1.5 text-sm hover:bg-accent hover:text-accent-foreground cursor-default flex items-center"
+                            >
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="w-full flex items-center"
+                              >
+                                <DownloadCloud className="mr-2 h-4 w-4" />
+                                {option.label}
+                                <ChevronDown className="ml-auto h-4 w-4" />
+                              </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent side="right" align="start">
                               {option.submenu.map((subOption: any) => (

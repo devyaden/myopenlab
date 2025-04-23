@@ -104,7 +104,10 @@ const AddTableCellTrigger = ({
 
   return (
     <DropdownMenu open={open} onOpenChange={setOpen}>
-      <DropdownMenuTrigger className="flex items-center gap-2 p-2 w-full">
+      <DropdownMenuTrigger
+        asChild
+        className="flex items-center gap-2 p-2 w-full"
+      >
         {value?.length ? (
           <div className="flex flex-wrap gap-2 w-full">
             {value.map((val, index) => (

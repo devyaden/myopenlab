@@ -31,6 +31,13 @@ import type React from "react";
 import { Checkbox } from "../../ui/checkbox";
 import AddTableCellTrigger from "../add-table-cell-relation-trigger";
 import { HierarchyNode } from "./table.types";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 // Component for sortable table rows (for row reordering)
 const SortableTableRow: React.FC<{
@@ -56,6 +63,7 @@ const SortableTableRow: React.FC<{
   columnWidths: Record<string, number>;
   handleDeleteConfirm: (deleteChildren: boolean) => void;
   nodeToDelete: any;
+  shapeOptions: string[];
 }> = ({
   node,
   level,
@@ -79,6 +87,7 @@ const SortableTableRow: React.FC<{
   columnWidths,
   handleDeleteConfirm,
   nodeToDelete,
+  shapeOptions,
 }) => {
   const { attributes, listeners, setNodeRef, transform, transition } =
     useSortable({ id: node.id });
@@ -89,6 +98,13 @@ const SortableTableRow: React.FC<{
   const nonEditableItems = [
     ...nonEditableColumns,
     ...columns.filter((col) => col.type === "Rollup").map((col) => col.title),
+    // disbale editing of Last edited time and Last edited by
+    ...columns
+      .filter(
+        (col) =>
+          col.type === "Last edited time" || col.type === "Last edited by"
+      )
+      .map((col) => col.title),
   ];
 
   const style = {
@@ -105,36 +121,134 @@ const SortableTableRow: React.FC<{
       editingCell?.nodeId === node.id &&
       editingCell?.column === column.title
     ) {
-      return column?.type === "Relation" ? (
-        <AddTableCellTrigger
-          value={editedValue || []}
-          label="Testing"
-          relatedCanvasData={getRelatedCanvasNodes({
-            ...column.related_canvas?.canvas_data,
-            name: column.related_canvas?.name,
-          })}
-          onSelectValue={(value) => {
-            console.log("Relation value selected in SortableTableRow:", value);
-            // First update the edited value state
-            setEditedValue(value);
-            // Then immediately trigger save to persist the data
-            handleSave(node.id, column.title, value);
-          }}
-        />
-      ) : (
-        <Input
-          value={editedValue}
-          onChange={(e) => setEditedValue(e.target.value)}
-          onBlur={() => handleSave(node.id, column.title, editedValue)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") {
-              handleSave(node.id, column.title, editedValue);
-            }
-          }}
-          autoFocus
-          className="h-8"
-        />
-      );
+      switch (column.type) {
+        case "Relation":
+          return (
+            <AddTableCellTrigger
+              value={editedValue || []}
+              label="Testing"
+              relatedCanvasData={getRelatedCanvasNodes({
+                ...column.related_canvas?.canvas_data,
+                name: column.related_canvas?.name,
+              })}
+              onSelectValue={(value) => {
+                setEditedValue(value);
+                handleSave(node.id, column.title, value);
+              }}
+            />
+          );
+        case "Select":
+          return (
+            <Select
+              value={editedValue}
+              onValueChange={(value) => {
+                setEditedValue(value);
+                handleSave(node.id, column.title, value);
+              }}
+            >
+              <SelectTrigger className="h-8 focus-visible:ring-0 focus-visible:ring-offset-0 border-0 p-0">
+                <SelectValue placeholder="Select an option" />
+              </SelectTrigger>
+              <SelectContent>
+                {column.options?.map((option: string) => (
+                  <SelectItem key={option} value={option}>
+                    {option}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          );
+        case "Number":
+          return (
+            <Input
+              type="number"
+              value={editedValue}
+              onChange={(e) => {
+                const value = e.target.value;
+                // Only allow numbers and decimal point
+                if (value === "" || /^-?\d*\.?\d*$/.test(value)) {
+                  setEditedValue(value);
+                }
+              }}
+              onBlur={() => handleSave(node.id, column.title, editedValue)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  handleSave(node.id, column.title, editedValue);
+                }
+              }}
+              autoFocus
+              className="h-8 focus-visible:ring-0 focus-visible:ring-offset-0 border-0 p-0"
+            />
+          );
+        case "Date":
+        case "Created Time":
+        case "Last edited time":
+          return (
+            <Input
+              type="datetime-local"
+              value={editedValue}
+              onChange={(e) => setEditedValue(e.target.value)}
+              onBlur={() => handleSave(node.id, column.title, editedValue)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  handleSave(node.id, column.title, editedValue);
+                }
+              }}
+              autoFocus
+              className="h-8 focus-visible:ring-0 focus-visible:ring-offset-0 border-0 p-0"
+            />
+          );
+        case "Checkbox":
+          return (
+            <div className="flex items-center justify-center h-full w-full min-h-[40px]">
+              <div className="flex items-center justify-center w-[42px]">
+                <Switch
+                  checked={editedValue === true}
+                  onCheckedChange={(checked) => {
+                    setEditedValue(checked);
+                    handleSave(node.id, column.title, checked);
+                  }}
+                />
+              </div>
+            </div>
+          );
+        case "type":
+          return (
+            <Select
+              value={editedValue}
+              onValueChange={(value) => {
+                setEditedValue(value);
+                handleSave(node.id, column.title, value);
+              }}
+            >
+              <SelectTrigger className="h-8 focus-visible:ring-0 focus-visible:ring-offset-0 border-0 p-0">
+                <SelectValue placeholder="Select shape type" />
+              </SelectTrigger>
+              <SelectContent>
+                {shapeOptions.map((shape) => (
+                  <SelectItem key={shape} value={shape}>
+                    {shape}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          );
+        default:
+          return (
+            <Input
+              value={editedValue}
+              onChange={(e) => setEditedValue(e.target.value)}
+              onBlur={() => handleSave(node.id, column.title, editedValue)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  handleSave(node.id, column.title, editedValue);
+                }
+              }}
+              autoFocus
+              className="h-8 focus-visible:ring-0 focus-visible:ring-offset-0 border-0 p-0"
+            />
+          );
+      }
     }
 
     const cellValue = node.data[column.title];
@@ -209,13 +323,40 @@ const SortableTableRow: React.FC<{
         {!["task", "type"].includes(column.title) && (
           <>
             {column?.type === "Checkbox" ? (
-              <Switch checked={node.data[column.title] === true} disabled />
+              <div className="flex items-center justify-center h-full w-full min-h-[40px]">
+                <div className="flex items-center justify-center w-[42px]">
+                  <Switch
+                    checked={cellValue === true}
+                    onCheckedChange={(checked) => {
+                      handleSave(node.id, column.title, checked);
+                    }}
+                  />
+                </div>
+              </div>
+            ) : column?.type === "Relation" ? (
+              <div className="flex flex-wrap max-w-full">
+                {Array.isArray(cellValue) && cellValue.length > 0 ? (
+                  <div className="flex flex-wrap max-w-full">
+                    {cellValue.map((item: any, index: number) => (
+                      <p
+                        key={index}
+                        className="text-sm text-gray-600 flex mr-3"
+                      >
+                        <File className="h-4 w-4 mr-1" /> {item.label}
+                      </p>
+                    ))}
+                  </div>
+                ) : (
+                  <span className="text-gray-400 flex items-center">
+                    <Plus className="h-4 w-4 mr-1" /> Add
+                  </span>
+                )}
+              </div>
             ) : column?.type === "Date" ||
               column?.type === "Created Time" ||
               column?.type === "Last edited time" ? (
-              node.data[column.title] &&
-              !isNaN(new Date(node.data[column.title]).getTime()) ? (
-                new Date(node.data[column.title]).toLocaleString()
+              cellValue && !isNaN(new Date(cellValue).getTime()) ? (
+                new Date(cellValue).toLocaleString()
               ) : (
                 <span className="text-gray-400"></span>
               )
@@ -228,9 +369,7 @@ const SortableTableRow: React.FC<{
                 }}
               >
                 <p className="line-clamp-3">
-                  {node.data[column.title] || (
-                    <span className="text-gray-400"></span>
-                  )}
+                  {cellValue || <span className="text-gray-400"></span>}
                 </p>
               </div>
             ) : column?.type === "Rollup" ? (
@@ -256,27 +395,10 @@ const SortableTableRow: React.FC<{
                   <span className="text-gray-400">—</span>
                 )}
               </>
-            ) : column?.type === "Relation" ? (
-              <>
-                {node.data[column.title] &&
-                node.data[column.title].length > 0 ? (
-                  <div className="flex flex-wrap max-w-full">
-                    {node.data[column.title]?.map((item: any) => (
-                      <p className="text-sm text-gray-600 flex mr-3">
-                        <File className="h-4 w-4 mr-1" /> {item.label}
-                      </p>
-                    ))}
-                  </div>
-                ) : (
-                  <span className="text-gray-400 flex items-center">
-                    <Plus className="h-4 w-4 mr-1" /> Add
-                  </span>
-                )}
-              </>
             ) : Array.isArray(node.data[column.title]) ? (
               node.data[column.title].join(", ")
             ) : (
-              node.data[column.title] || <span className="text-gray-400"></span>
+              cellValue || <span className="text-gray-400"></span>
             )}
           </>
         )}
@@ -303,20 +425,20 @@ const SortableTableRow: React.FC<{
       ref={setNodeRef}
       style={style}
       {...attributes}
-      className={`group ${isSelected ? "bg-gray-50" : "bg-white"} border-b border-gray-200`}
+      className={`group hover:bg-gray-50 ${isSelected ? "bg-gray-50" : "bg-white"} border-b border-gray-200`}
     >
       <TableCell className="sticky left-0 bg-gray-50 z-10 p-0 border-r border-gray-200 w-10">
         <div className="flex">
           <div
             {...listeners}
             {...attributes}
-            className="cursor-move h-full hover:bg-gray-100 p-2"
+            className="cursor-move h-full hover:bg-gray-100 p-2 opacity-0 group-hover:opacity-100 transition-opacity"
           >
             <GripVertical className="h-5 w-5 text-gray-400" />
           </div>
           <div className="flex items-center">
             <div
-              className="p-2"
+              className={`p-2 ${!isSelected && "opacity-0 group-hover:opacity-100 transition-opacity"}`}
               onClick={handleToggleSelect}
               onDoubleClick={(e) => e.stopPropagation()}
             >
@@ -349,40 +471,24 @@ const SortableTableRow: React.FC<{
               className={`relative p-0 text-gray-700 overflow-hidden border-r border-gray-200 ${
                 frozenColumns.has(column.title)
                   ? "sticky left-0 bg-gray-50 z-10"
-                  : ""
+                  : nonEditableItems.includes(column.title)
+                    ? "cursor-not-allowed"
+                    : ""
               }`}
               onClick={(e) => {
                 e.stopPropagation();
+                // Only skip edit mode for Checkbox type
+                if (column.type === "Checkbox") {
+                  return;
+                }
                 if (!nonEditableItems.includes(column.title)) {
                   setEditingCell({ nodeId: node.id, column: column.title });
 
-                  // For relation columns, make sure we set the correct initial value
                   if (column.type === "Relation") {
-                    console.log("Clicked relation column:", column.title);
-                    console.log(
-                      "Node data for relation:",
-                      node.data[column.title]
-                    );
-
-                    // Ensure we set a properly formatted array for relation data
                     const relationData = node.data[column.title];
-                    if (Array.isArray(relationData)) {
-                      setEditedValue(relationData);
-                    } else if (relationData) {
-                      // Try to handle non-array data gracefully
-                      try {
-                        const formattedData =
-                          typeof relationData === "object"
-                            ? [relationData]
-                            : [];
-                        setEditedValue(formattedData);
-                      } catch (e) {
-                        console.error("Error formatting relation data:", e);
-                        setEditedValue([]);
-                      }
-                    } else {
-                      setEditedValue([]);
-                    }
+                    setEditedValue(
+                      Array.isArray(relationData) ? relationData : []
+                    );
                   } else if (column.title === "task") {
                     setEditedValue(node.data.label);
                   } else if (column.title === "type") {
@@ -422,19 +528,21 @@ const SortableTableRow: React.FC<{
           boxShadow: "-2px 0 2px -1px rgba(0,0,0,0.1)",
         }}
       >
-        <DropdownMenu>
-          <DropdownMenuTrigger className="p-2 h-full w-full flex items-center justify-center hover:bg-gray-100">
-            <MoreHorizontal className="h-4 w-4" />
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuItem
-              onClick={() => handleDeleteClick(node)}
-              className="text-red-600"
-            >
-              Delete
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+        <div className="opacity-0 group-hover:opacity-100 transition-opacity">
+          <DropdownMenu>
+            <DropdownMenuTrigger className="p-2 h-full w-full flex items-center justify-center hover:bg-gray-100">
+              <MoreHorizontal className="h-4 w-4" />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem
+                onClick={() => handleDeleteClick(node)}
+                className="text-red-600"
+              >
+                Delete
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
       </TableCell>
     </TableRow>
   );
