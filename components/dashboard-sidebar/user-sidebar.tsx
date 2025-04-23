@@ -587,6 +587,7 @@ export function UserSidebar() {
         folders={folders}
         type={createNewModalType}
         currentFolderId={currentFolderForCreate}
+        rootCanvases={rootCanvases}
       />
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
         <DialogContent>

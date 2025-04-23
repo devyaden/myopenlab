@@ -419,13 +419,6 @@ const SortableTableRow: React.FC<{
     >
       <TableCell className="sticky left-0 bg-gray-50 z-10 p-0 border-r border-gray-200 w-10">
         <div className="flex">
-          <div
-            {...listeners}
-            {...attributes}
-            className="cursor-move h-full hover:bg-gray-100 p-2 opacity-0 group-hover:opacity-100 transition-opacity"
-          >
-            <GripVertical className="h-5 w-5 text-gray-400" />
-          </div>
           <div className="flex items-center">
             <div
               className={`p-2 ${!isSelected && "opacity-0 group-hover:opacity-100 transition-opacity"}`}
@@ -438,6 +431,14 @@ const SortableTableRow: React.FC<{
                 onKeyDown={(e) => e.stopPropagation()}
               />
             </div>
+          </div>
+
+          <div
+            {...listeners}
+            {...attributes}
+            className="cursor-move h-full hover:bg-gray-100 p-2 opacity-0 group-hover:opacity-100 transition-opacity"
+          >
+            <GripVertical className="h-5 w-5 text-gray-400" />
           </div>
         </div>
       </TableCell>

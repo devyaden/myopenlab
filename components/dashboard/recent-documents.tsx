@@ -65,7 +65,7 @@ export function RecentDocuments() {
   };
 
   return (
-    <div className="w-full  bg-white p-8">
+    <div className="w-full  bg-white p-8 h-full">
       <div className="flex items-center justify-between mb-4">
         <div className="relative">
           <h2 className="text-xl font-medium text-gray-900">
@@ -119,7 +119,7 @@ export function RecentDocuments() {
         </div>
       </div>
 
-      <ScrollArea className="h-[400px] pr-4">
+      <ScrollArea className="h-[600px] pr-4">
         {documents.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-[400px] text-gray-500">
             <FileText className="h-12 w-12 mb-4 opacity-50" />
