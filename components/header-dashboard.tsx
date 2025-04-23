@@ -66,7 +66,7 @@ export const HeaderSidebar = () => {
       </div>
 
       <div className="flex items-center gap-4">
-        <div className="flex items-center gap-2">
+        {/* <div className="flex items-center gap-2">
           <Button
             size="icon"
             variant="ghost"
@@ -83,7 +83,7 @@ export const HeaderSidebar = () => {
             <Bell className="h-5 w-5" />
             <span className="sr-only">Notifications</span>
           </Button>
-        </div>
+        </div> */}
         <div className="flex items-center gap-3">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -120,7 +120,7 @@ export const HeaderSidebar = () => {
           </DropdownMenu>
           <Button
             size="sm"
-            className="hidden items-center gap-2 bg-yadn-button-blue text-sm font-medium hover:bg-yadn-button-blue/90 sm:flex"
+            className="hidden items-center gap-2 bg-yadn-accent-dark-blue text-sm font-medium hover:bg-yadn-accent-dark-blue/90 sm:flex"
           >
             <Crown className="h-4 w-4" />
             Upgrade

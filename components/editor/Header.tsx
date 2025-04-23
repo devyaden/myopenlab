@@ -683,19 +683,19 @@ export function Header({
             Export PDF
           </Button>
 
-          <div className="inline-flex rounded-lg overflow-hidden border border-pink-500 h-8 sm:h-10">
+          <div className="inline-flex rounded-lg overflow-hidden border border-yadn-accent-green h-8 sm:h-10">
             <button
-              className="bg-pink-500 hover:bg-pink-600 text-white px-2 sm:px-4 py-1 sm:py-2 flex items-center gap-1 sm:gap-2"
+              className="bg-yadn-accent-green hover:bg-yadn-accent-green/90 text-white px-2 sm:px-4 py-1 sm:py-2 flex items-center gap-1 sm:gap-2"
               onClick={handleShareDialogOpen}
             >
               <Send className="w-4 h-4 sm:w-5 sm:h-5" />
               <span className="font-medium hidden sm:inline">Share</span>
             </button>
             <button
-              className="bg-white hover:bg-gray-50 border border-pink-500/20 px-2 sm:px-3 flex items-center justify-center"
+              className="bg-white hover:bg-gray-50 border border-yadn-accent-green/20 px-2 sm:px-3 flex items-center justify-center"
               onClick={handleCopyShareLink}
             >
-              <Link2 className="w-4 h-4 sm:w-5 sm:h-5 text-pink-500" />
+              <Link2 className="w-4 h-4 sm:w-5 sm:h-5 text-yadn-accent-green" />
             </button>
           </div>
 

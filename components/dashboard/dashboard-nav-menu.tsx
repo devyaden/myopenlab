@@ -52,7 +52,7 @@ export function DashboardNavMenu() {
   const [selectedItem, setSelectedItem] = useState<NavItem>(navItems[0]);
 
   return (
-    <nav className="w-full  py-8  bg-gradient-to-b from-yadn-gradient-pink-from to-yadn-gardient-pink-to ">
+    <nav className="w-full  py-8  bg-gradient-to-b from-yadn-gradient-green-from to-yadn-gradient-green-to ">
       <div className="mx-auto grid max-w-sm grid-cols-2 gap-4 px-4 sm:max-w-md sm:grid-cols-3 md:max-w-2xl md:grid-cols-4 lg:max-w-7xl lg:grid-cols-7">
         {navItems.map((item) => {
           const isActive = selectedItem?.href === item.href;

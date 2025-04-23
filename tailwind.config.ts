@@ -86,6 +86,11 @@ const config = {
           "secondary-gray": "#F9FAFB",
           "dark-gray": "#98A2B3",
           "accent-green": "#09BC8A",
+          "accent-blue": "#5DA9E9",
+          "accent-dark-blue": "#003F91",
+          "accent-pink": "#F7B2AD",
+          "accent-yellow": "#FFF0EA",
+          "accent-dark-orange": "#FF4A1C",
         },
       },
       borderRadius: {

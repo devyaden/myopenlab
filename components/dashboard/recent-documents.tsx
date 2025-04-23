@@ -28,6 +28,21 @@ interface Document {
 export function RecentDocuments() {
   const [documents, setDocuments] = useState<Document[]>([]);
 
+  const getDocumentTypeColor = (type: string) => {
+    console.log("---- type ----", type);
+
+    switch (type?.toLowerCase()) {
+      case "document":
+        return "bg-yadn-accent-blue";
+      case "hybrid":
+        return "bg-yadn-accent-pink";
+      case "table":
+        return "bg-yadn-accent-dark-orange";
+      default:
+        return "bg-yadn-accent-blue";
+    }
+  };
+
   useEffect(() => {
     const savedDocuments = localStorage.getItem("recentDocuments");
     if (savedDocuments) {
@@ -114,8 +129,10 @@ export function RecentDocuments() {
               className="flex items-center p-3 hover:bg-gray-50 transition-colors"
               onClick={() => handleNavigate(doc.id, doc.type)}
             >
-              <div className="h-10 w-10 rounded-lg bg-blue-100 flex items-center justify-center mr-3">
-                <FileText className="h-5 w-5 text-blue-600" />
+              <div
+                className={`h-10 w-10 rounded-lg ${getDocumentTypeColor(doc.type)} flex items-center justify-center mr-3`}
+              >
+                <FileText className="h-5 w-5 text-white" />
               </div>
 
               <div className="flex-1 min-w-0">

@@ -303,7 +303,7 @@ export default function ProfilePage() {
               </Avatar>
               <label
                 htmlFor="avatar-upload"
-                className="absolute bottom-0 right-0 bg-yadn-button-blue text-white p-2 rounded-full cursor-pointer shadow-md hover:bg-yadn-button-blue/90 transition-colors"
+                className="absolute bottom-0 right-0 bg-yadn-accent-green text-white p-2 rounded-full cursor-pointer shadow-md hover:bg-yadn-accent-green/90 transition-colors"
               >
                 {uploadingImage ? (
                   <Loader2 className="h-5 w-5 animate-spin" />
@@ -407,7 +407,7 @@ export default function ProfilePage() {
                     <div className="pt-4">
                       <Button
                         type="submit"
-                        className="bg-yadn-button-blue hover:bg-yadn-button-blue/90 text-white"
+                        className="bg-yadn-accent-green hover:bg-yadn-accent-green/90 text-white"
                         disabled={profileForm.formState.isSubmitting}
                       >
                         {profileForm.formState.isSubmitting ? (
@@ -464,7 +464,7 @@ export default function ProfilePage() {
                     <div className="pt-4">
                       <Button
                         type="submit"
-                        className="bg-yadn-button-blue hover:bg-yadn-button-blue/90 text-white"
+                        className="bg-yadn-accent-green hover:bg-yadn-accent-green/90 text-white"
                         disabled={passwordForm.formState.isSubmitting}
                       >
                         {passwordForm.formState.isSubmitting ? (
