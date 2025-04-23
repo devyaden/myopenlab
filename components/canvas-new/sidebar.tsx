@@ -7,9 +7,17 @@ import {
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 import { cn } from "@/lib/utils";
-import { ChevronDown, GripVertical, Search, Star, X } from "lucide-react";
+import {
+  ChevronDown,
+  GripVertical,
+  Search,
+  Star,
+  StarIcon,
+  StarOff,
+  X,
+} from "lucide-react";
 import type React from "react";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, useMemo } from "react";
 import { renderShapePreview } from "./shape-utils";
 
 interface SidebarProps {
@@ -43,6 +51,9 @@ export function Sidebar({
     Extras: false,
   });
 
+  const [starredCategories, setStarredCategories] = useState<Set<string>>(
+    new Set()
+  );
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [isSearching, setIsSearching] = useState<boolean>(false);
 
@@ -273,6 +284,33 @@ export function Sidebar({
     }
   }, [isSearching]);
 
+  const toggleStar = useCallback(
+    (categoryTitle: string, event: React.MouseEvent) => {
+      event.stopPropagation(); // Prevent category from toggling when clicking star
+      setStarredCategories((prev) => {
+        const newSet = new Set(prev);
+        if (newSet.has(categoryTitle)) {
+          newSet.delete(categoryTitle);
+        } else {
+          newSet.add(categoryTitle);
+        }
+        return newSet;
+      });
+    },
+    []
+  );
+
+  // Sort categories to show starred ones first
+  const sortedCategories = useMemo(() => {
+    return [...filteredCategories].sort((a, b) => {
+      const aStarred = starredCategories.has(a.title);
+      const bStarred = starredCategories.has(b.title);
+      if (aStarred && !bStarred) return -1;
+      if (!aStarred && bStarred) return 1;
+      return 0;
+    });
+  }, [filteredCategories, starredCategories]);
+
   // Function to handle dragging a shape - using the original implementation
   const handleShapeDragStart = useCallback(
     (e: React.DragEvent, shapeType: string) => {
@@ -282,17 +320,16 @@ export function Sidebar({
   );
 
   return (
-    <div
+    <aside
       className={cn(
-        "border-r border-gray-200 bg-white fixed md:relative transition-all duration-300 ease-in-out z-10 h-screen flex flex-col",
-        isVisible
-          ? "w-72 translate-x-0"
-          : "w-0 -translate-x-full md:w-0 md:-translate-x-full"
+        "border-r border-gray-200 bg-white fixed md:static transition-all duration-300 ease-in-out z-10",
+        isVisible ? "w-72 translate-x-0" : "w-0 -translate-x-full md:w-0"
       )}
     >
       {isVisible && (
-        <>
-          <div className="flex items-center justify-between pb-2 px-4 pt-3 sticky top-0 bg-white z-10">
+        <div className="flex flex-col h-full">
+          {/* Fixed Header */}
+          <header className="sticky top-0 bg-white z-10 px-4 py-3 border-b border-gray-200">
             {isSearching ? (
               <div className="flex items-center gap-2 w-full">
                 <input
@@ -313,7 +350,7 @@ export function Sidebar({
                 </Button>
               </div>
             ) : (
-              <>
+              <div className="flex items-center justify-between">
                 <h2 className="text-md font-semibold">Shapes</h2>
                 <Button
                   variant="ghost"
@@ -323,75 +360,170 @@ export function Sidebar({
                 >
                   <Search className="h-4 w-4" />
                 </Button>
-              </>
+              </div>
             )}
-          </div>
+          </header>
 
-          <div className="h-[calc(100vh-56px)] overflow-y-auto flex flex-col">
-            <div className="space-y-1 pb-4">
-              {filteredCategories.map((category) => (
-                <Collapsible
-                  key={category.title}
-                  open={openItems[category.title]}
-                  onOpenChange={() => toggleItem(category.title)}
-                >
-                  <CollapsibleTrigger asChild>
-                    <div className="flex items-center justify-between px-2 hover:bg-gray-100/80 rounded-md cursor-pointer py-4 border-t">
-                      <div className="flex items-center gap-2">
-                        <span
-                          className="text-sm font-normal cursor-move"
-                          draggable
-                        >
-                          <GripVertical className="h-5 w-5 text-[#98A2B3]" />
-                        </span>
-                        <span className="text-md font-semibold">
-                          {category.title}
-                        </span>
-                        <span className="text-xs text-gray-500">
-                          ({category.shapes.length})
-                        </span>
-                      </div>
-                      <div className="flex items-center">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-6 w-6 hover:bg-transparent"
-                        >
-                          <Star className="h-4 w-4" />
-                        </Button>
+          {/* Scrollable Content */}
+          <div className="overflow-y-auto h-[calc(100vh-57px)] [&::-webkit-scrollbar]:hidden [-ms-overflow-style:'none'] [scrollbar-width:none]">
+            <div>
+              {/* Favorites Section */}
+              {sortedCategories.some((cat) =>
+                starredCategories.has(cat.title)
+              ) && (
+                <>
+                  <div className="px-4 py-3 text-base text-gray-600 font-semibold">
+                    Favorites
+                  </div>
+                  {sortedCategories
+                    .filter((cat) => starredCategories.has(cat.title))
+                    .map((category) => (
+                      <Collapsible
+                        key={category.title}
+                        open={openItems[category.title]}
+                        onOpenChange={() => toggleItem(category.title)}
+                      >
+                        <CollapsibleTrigger asChild>
+                          <div className="flex items-center justify-between px-4 hover:bg-gray-100/80 cursor-pointer py-3 border-t border-gray-100">
+                            <div className="flex items-center gap-2">
+                              <span className="text-base text-gray-700">
+                                {category.title}
+                              </span>
+                              <span className="text-sm text-gray-500">
+                                ({category.shapes.length})
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-1">
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className={cn(
+                                  "h-6 w-6 hover:bg-transparent",
+                                  starredCategories.has(category.title) &&
+                                    "text-yellow-400"
+                                )}
+                                onClick={(e) => toggleStar(category.title, e)}
+                              >
+                                {starredCategories.has(category.title) ? (
+                                  <Star className="h-4 w-4 fill-current" />
+                                ) : (
+                                  <StarIcon className="h-4 w-4" />
+                                )}
+                              </Button>
 
-                        <ChevronDown
-                          className={`h-4 w-4 transition-transform duration-200 ${
-                            openItems[category.title] ? "rotate-180" : ""
-                          }`}
-                        />
-                      </div>
-                    </div>
-                  </CollapsibleTrigger>
-                  <CollapsibleContent>
-                    <div className="py-1 px-4 grid grid-cols-3 gap-2">
-                      {category.shapes.map((shape) => (
-                        <div
-                          key={shape.name}
-                          className="flex flex-col items-center justify-center py-2 cursor-move hover:bg-gray-100 rounded px-2"
-                          draggable
-                          onDragStart={(e) =>
-                            handleShapeDragStart(e, shape?.type)
-                          }
-                          onClick={() => onShapeClick?.(shape?.type)}
-                        >
-                          <div className="flex items-center justify-center h-10">
-                            {shape.component}
+                              <ChevronDown
+                                className={`h-4 w-4 transition-transform duration-200 ${
+                                  openItems[category.title] ? "rotate-180" : ""
+                                }`}
+                              />
+                            </div>
                           </div>
-                          <span className="text-xs text-center line-clamp-1 mt-1">
-                            {shape.name}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  </CollapsibleContent>
-                </Collapsible>
-              ))}
+                        </CollapsibleTrigger>
+                        <CollapsibleContent>
+                          <div className="py-2 px-4 grid grid-cols-3 gap-2">
+                            {category.shapes.map((shape) => (
+                              <div
+                                key={shape.name}
+                                className="flex flex-col items-center justify-center py-2 cursor-move hover:bg-gray-100 rounded px-2"
+                                draggable
+                                onDragStart={(e) =>
+                                  handleShapeDragStart(e, shape?.type)
+                                }
+                                onClick={() => onShapeClick?.(shape?.type)}
+                              >
+                                <div className="flex items-center justify-center h-10">
+                                  {shape.component}
+                                </div>
+                                <span className="text-xs text-center line-clamp-1 mt-1">
+                                  {shape.name}
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        </CollapsibleContent>
+                      </Collapsible>
+                    ))}
+                </>
+              )}
+
+              {/* Regular Categories Section */}
+              {sortedCategories.some(
+                (cat) => !starredCategories.has(cat.title)
+              ) && (
+                <>
+                  <div className="px-4 py-3 text-base text-gray-600 border-t border-gray-100 font-semibold">
+                    All Categories
+                  </div>
+                  {sortedCategories
+                    .filter((cat) => !starredCategories.has(cat.title))
+                    .map((category) => (
+                      <Collapsible
+                        key={category.title}
+                        open={openItems[category.title]}
+                        onOpenChange={() => toggleItem(category.title)}
+                      >
+                        <CollapsibleTrigger asChild>
+                          <div className="flex items-center justify-between px-4 hover:bg-gray-100/80 cursor-pointer py-3 border-t border-gray-100">
+                            <div className="flex items-center gap-2">
+                              <span className="text-base text-gray-700">
+                                {category.title}
+                              </span>
+                              <span className="text-sm text-gray-500">
+                                ({category.shapes.length})
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-1">
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className={cn(
+                                  "h-6 w-6 hover:bg-transparent",
+                                  starredCategories.has(category.title) &&
+                                    "text-yellow-400"
+                                )}
+                                onClick={(e) => toggleStar(category.title, e)}
+                              >
+                                {starredCategories.has(category.title) ? (
+                                  <Star className="h-4 w-4 fill-current" />
+                                ) : (
+                                  <StarIcon className="h-4 w-4" />
+                                )}
+                              </Button>
+
+                              <ChevronDown
+                                className={`h-4 w-4 transition-transform duration-200 ${
+                                  openItems[category.title] ? "rotate-180" : ""
+                                }`}
+                              />
+                            </div>
+                          </div>
+                        </CollapsibleTrigger>
+                        <CollapsibleContent>
+                          <div className="py-2 px-4 grid grid-cols-3 gap-2">
+                            {category.shapes.map((shape) => (
+                              <div
+                                key={shape.name}
+                                className="flex flex-col items-center justify-center py-2 cursor-move hover:bg-gray-100 rounded px-2"
+                                draggable
+                                onDragStart={(e) =>
+                                  handleShapeDragStart(e, shape?.type)
+                                }
+                                onClick={() => onShapeClick?.(shape?.type)}
+                              >
+                                <div className="flex items-center justify-center h-10">
+                                  {shape.component}
+                                </div>
+                                <span className="text-xs text-center line-clamp-1 mt-1">
+                                  {shape.name}
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        </CollapsibleContent>
+                      </Collapsible>
+                    ))}
+                </>
+              )}
 
               {filteredCategories.length === 0 && (
                 <div className="flex flex-col items-center justify-center py-10 text-gray-500">
@@ -404,8 +536,8 @@ export function Sidebar({
               )}
             </div>
           </div>
-        </>
+        </div>
       )}
-    </div>
+    </aside>
   );
 }
