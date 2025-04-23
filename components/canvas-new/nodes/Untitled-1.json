@@ -1,0 +1,150 @@
+[
+  {
+    "id": "e1-2",
+    "source": "lead-gen",
+    "target": "lead-qual",
+    "animated": true,
+    "style": { "stroke": "#1890ff", "strokeWidth": 2 },
+    "label": "Qualified Lead",
+    "labelStyle": { "fill": "#1890ff", "fontWeight": 600 },
+    "labelBgStyle": { "fill": "white", "fillOpacity": 0.8 }
+  },
+  {
+    "id": "e2-3",
+    "source": "lead-qual",
+    "target": "discovery",
+    "animated": true,
+    "style": { "stroke": "#fa8c16", "strokeWidth": 2 },
+    "label": "Schedule Call",
+    "labelStyle": { "fill": "#fa8c16", "fontWeight": 600 },
+    "labelBgStyle": { "fill": "white", "fillOpacity": 0.8 }
+  },
+  {
+    "id": "e3-4",
+    "source": "discovery",
+    "target": "needs-analysis",
+    "animated": true,
+    "style": { "stroke": "#52c41a", "strokeWidth": 2 },
+    "label": "Interested",
+    "labelStyle": { "fill": "#52c41a", "fontWeight": 600 },
+    "labelBgStyle": { "fill": "white", "fillOpacity": 0.8 }
+  },
+  {
+    "id": "e4-5",
+    "source": "needs-analysis",
+    "target": "proposal",
+    "animated": true,
+    "style": { "stroke": "#722ed1", "strokeWidth": 2 },
+    "label": "Requirements Gathered",
+    "labelStyle": { "fill": "#722ed1", "fontWeight": 600 },
+    "labelBgStyle": { "fill": "white", "fillOpacity": 0.8 }
+  },
+  {
+    "id": "e5-6",
+    "source": "proposal",
+    "target": "presentation",
+    "animated": true,
+    "style": { "stroke": "#ff4d4f", "strokeWidth": 2 },
+    "label": "Proposal Ready",
+    "labelStyle": { "fill": "#ff4d4f", "fontWeight": 600 },
+    "labelBgStyle": { "fill": "white", "fillOpacity": 0.8 }
+  },
+  {
+    "id": "e6-7",
+    "source": "presentation",
+    "target": "negotiation",
+    "animated": true,
+    "style": { "stroke": "#a0d911", "strokeWidth": 2 },
+    "label": "Interested",
+    "labelStyle": { "fill": "#3f6600", "fontWeight": 600 },
+    "labelBgStyle": { "fill": "white", "fillOpacity": 0.8 }
+  },
+  {
+    "id": "e7-8",
+    "source": "negotiation",
+    "target": "contract",
+    "animated": true,
+    "style": { "stroke": "#13c2c2", "strokeWidth": 2 },
+    "label": "Terms Agreed",
+    "labelStyle": { "fill": "#006d75", "fontWeight": 600 },
+    "labelBgStyle": { "fill": "white", "fillOpacity": 0.8 }
+  },
+  {
+    "id": "e8-9",
+    "source": "contract",
+    "target": "onboarding",
+    "animated": true,
+    "style": { "stroke": "#2f54eb", "strokeWidth": 2 },
+    "label": "Signed",
+    "labelStyle": { "fill": "#10239e", "fontWeight": 600 },
+    "labelBgStyle": { "fill": "white", "fillOpacity": 0.8 }
+  },
+  {
+    "id": "e9-10",
+    "source": "onboarding",
+    "target": "kickoff",
+    "animated": true,
+    "style": { "stroke": "#eb2f96", "strokeWidth": 2 },
+    "label": "Setup Complete",
+    "labelStyle": { "fill": "#9e1068", "fontWeight": 600 },
+    "labelBgStyle": { "fill": "white", "fillOpacity": 0.8 }
+  },
+  {
+    "id": "e10-11",
+    "source": "kickoff",
+    "target": "execution",
+    "animated": true,
+    "style": { "stroke": "#389e0d", "strokeWidth": 2 },
+    "label": "Project Start",
+    "labelStyle": { "fill": "#237804", "fontWeight": 600 },
+    "labelBgStyle": { "fill": "white", "fillOpacity": 0.8 }
+  },
+  {
+    "id": "e11-12",
+    "source": "execution",
+    "target": "upsell",
+    "animated": true,
+    "style": { "stroke": "#595959", "strokeWidth": 2 },
+    "label": "Additional Need Identified",
+    "labelStyle": { "fill": "#262626", "fontWeight": 600 },
+    "labelBgStyle": { "fill": "white", "fillOpacity": 0.8 }
+  },
+  {
+    "id": "e12-13",
+    "source": "upsell",
+    "target": "renewal",
+    "animated": true,
+    "style": { "stroke": "#faad14", "strokeWidth": 2 },
+    "label": "Contract End Approaching",
+    "labelStyle": { "fill": "#ad6800", "fontWeight": 600 },
+    "labelBgStyle": { "fill": "white", "fillOpacity": 0.8 }
+  },
+  {
+    "id": "e2-reject",
+    "source": "lead-qual",
+    "target": "lead-gen",
+    "animated": false,
+    "style": {
+      "stroke": "#ff4d4f",
+      "strokeWidth": 1,
+      "strokeDasharray": "5,5"
+    },
+    "label": "Not Qualified",
+    "labelStyle": { "fill": "#ff4d4f" },
+    "labelBgStyle": { "fill": "white", "fillOpacity": 0.8 }
+  },
+  {
+    "id": "e13-11",
+    "source": "renewal",
+    "target": "execution",
+    "animated": true,
+    "style": {
+      "stroke": "#389e0d",
+      "strokeWidth": 2,
+      "strokeDasharray": "5,5"
+    },
+    "label": "Renewed Contract",
+    "labelStyle": { "fill": "#237804", "fontWeight": 600 },
+    "labelBgStyle": { "fill": "white", "fillOpacity": 0.8 }
+  }
+]

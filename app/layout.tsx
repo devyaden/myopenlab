@@ -1,5 +1,6 @@
 import ClientLayout from "./client-layout";
 import "./globals.css";
+import { PostHogProvider } from "../components/PostHogProvider";
 
 const defaultUrl = process.env.VERCEL_URL
   ? `https://${process.env.VERCEL_URL}`
@@ -16,5 +17,13 @@ export default function RootLayout({
 }: {
   children: React.ReactNode;
 }) {
-  return <ClientLayout>{children}</ClientLayout>;
+  return (
+    <html lang="en">
+      <body>
+        <PostHogProvider>
+          <ClientLayout>{children}</ClientLayout>
+        </PostHogProvider>
+      </body>
+    </html>
+  );
 }
