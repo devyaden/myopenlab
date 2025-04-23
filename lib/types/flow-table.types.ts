@@ -11,4 +11,53 @@ interface ICreateColumn {
   target_column?: string;
 }
 
-export type { ICreateColumn };
+type SHAPES =
+  | "rectangle"
+  | "rounded"
+  | "circle"
+  | "diamond"
+  | "hexagon"
+  | "triangle"
+  | "actor"
+  | "interface"
+  | "standing-woman"
+  | "sitting"
+  | "arms-stretched"
+  | "walking-man"
+  | "square"
+  | "cylinder"
+  | "document"
+  | "left-arrow"
+  | "right-arrow"
+  | "top-arrow"
+  | "bottom-arrow"
+  | "message-bubble"
+  | "capsule"
+  | "swimlane";
+
+export const ALL_SHAPES: SHAPES[] = [
+  "rectangle",
+  "rounded",
+  "circle",
+  "diamond",
+  "hexagon",
+  "triangle",
+  "actor",
+  "interface",
+  "standing-woman",
+  "sitting",
+  "arms-stretched",
+  "walking-man",
+  "square",
+  "cylinder",
+  "document",
+  "left-arrow",
+  "right-arrow",
+  "top-arrow",
+  "bottom-arrow",
+  "message-bubble",
+  "capsule",
+  "swimlane",
+];
+
+export type { ICreateColumn, SHAPES };

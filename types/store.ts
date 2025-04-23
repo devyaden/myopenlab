@@ -1,3 +1,4 @@
+import { SHAPES } from "@/lib/types/flow-table.types";
 import type { Edge, Node } from "reactflow";
 
 export enum CANVAS_TYPE {
@@ -14,19 +15,7 @@ export interface NodeStyle {
   isUnderline: boolean;
   textAlign: "left" | "center" | "right" | "justify";
   verticalAlign: "top" | "middle" | "bottom";
-  shape:
-    | "rectangle"
-    | "rounded"
-    | "circle"
-    | "diamond"
-    | "hexagon"
-    | "triangle"
-    | "useCase"
-    | "actor"
-    | "class"
-    | "interface"
-    | "swimlane"
-    | "standing-woman";
+  shape: SHAPES;
   locked: boolean;
   isVertical?: boolean;
   borderStyle: string;

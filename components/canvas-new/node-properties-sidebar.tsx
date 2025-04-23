@@ -58,6 +58,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { format } from "date-fns";
+import { ALL_SHAPES } from "@/lib/types/flow-table.types";
 
 interface NodePropertiesSidebarProps {
   selectedNode: Node | null;
@@ -103,18 +104,7 @@ const EXCLUDED_PROPERTIES = [
 ];
 
 // Shape options for the type property
-const SHAPE_OPTIONS = [
-  "rectangle",
-  "rounded",
-  "circle",
-  "diamond",
-  "hexagon",
-  "triangle",
-  "useCase",
-  "actor",
-  "class",
-  "interface",
-];
+const SHAPE_OPTIONS = ALL_SHAPES;
 
 // Get icon for property type
 const getPropertyIcon = (propertyName: string, propertyType: PropertyType) => {

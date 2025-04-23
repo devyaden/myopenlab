@@ -35,12 +35,22 @@ interface NodeStyle {
     | "diamond"
     | "hexagon"
     | "triangle"
-    | "useCase"
     | "actor"
-    | "class"
     | "interface"
-    | "swimlane"
-    | "standing-woman";
+    | "standing-woman"
+    | "sitting"
+    | "arms-stretched"
+    | "walking-man"
+    | "square"
+    | "cylinder"
+    | "document"
+    | "left-arrow"
+    | "right-arrow"
+    | "top-arrow"
+    | "bottom-arrow"
+    | "message-bubble"
+    | "capsule"
+    | "swimlane";
   locked: boolean;
   isVertical?: boolean;
   borderStyle: string;

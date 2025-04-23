@@ -10,36 +10,14 @@ import {
 } from "reactflow";
 import { SHAPE_DEFINITIONS, isHumanFigure } from "../shape-utils";
 import TextareaAutosize from "react-textarea-autosize";
+import { SHAPES } from "@/lib/types/flow-table.types";
 
 interface GenericNodeProps {
   data: {
     label: string;
     from: string;
     to: string;
-    shape:
-      | "rectangle"
-      | "rounded"
-      | "circle"
-      | "diamond"
-      | "hexagon"
-      | "triangle"
-      | "useCase"
-      | "actor"
-      | "class"
-      | "interface"
-      | "standing-woman"
-      | "sitting"
-      | "arms-stretched"
-      | "walking-man"
-      | "square"
-      | "cylinder"
-      | "document"
-      | "left-arrow"
-      | "right-arrow"
-      | "top-arrow"
-      | "bottom-arrow"
-      | "message-bubble"
-      | "capsule";
+    shape: SHAPES;
     hidden?: Record<string, boolean>;
     width?: number;
     height?: number;
@@ -1084,58 +1062,6 @@ export const GenericNode = memo(
 
       // Special cases for class and interface
       switch (data.shape) {
-        case "class":
-          return (
-            <div
-              style={{
-                ...shapeStyle,
-                borderColor: data.style?.borderColor || "#000000",
-                borderStyle: data.style?.borderStyle || "solid",
-                borderWidth: `${data.style?.borderWidth || 1}px`,
-              }}
-              className="flex flex-col"
-            >
-              <div
-                className="border-b-2 p-2 font-bold"
-                style={{
-                  borderColor: data.style?.borderColor || "#000000",
-                  backgroundColor: data.style?.backgroundColor || "white",
-                  textAlign: data.style?.textAlign || "center",
-                }}
-              >
-                <div
-                  style={{
-                    ...getTextStyle(),
-                    whiteSpace: "normal",
-                    wordWrap: "break-word",
-                  }}
-                >
-                  {labelValue}
-                </div>
-              </div>
-              <div
-                className="border-b-2 p-2"
-                style={{
-                  borderColor: data.style?.borderColor || "#000000",
-                  backgroundColor: data.style?.backgroundColor || "white",
-                  // textAlign: data.style?.textAlign || "center",
-                  ...getTextStyle(true),
-                }}
-              >
-                Attributes
-              </div>
-              <div
-                className="p-2"
-                style={{
-                  backgroundColor: data.style?.backgroundColor || "white",
-                  // textAlign: data.style?.textAlign || "center",
-                  ...getTextStyle(true),
-                }}
-              >
-                Methods
-              </div>
-            </div>
-          );
         case "interface":
           return (
             <div

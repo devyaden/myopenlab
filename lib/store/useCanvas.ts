@@ -9,6 +9,7 @@ import { v4 as uuidv4 } from "uuid";
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
 import { supabase } from "../supabase/client";
+import { ALL_SHAPES } from "../types/flow-table.types";
 
 const initialUndoableState: UndoableState = {
   nodes: [],
@@ -21,19 +22,7 @@ const initialUndoableState: UndoableState = {
     {
       title: "type",
       type: "Select",
-      options: [
-        "rectangle",
-        "rounded",
-        "circle",
-        "diamond",
-        "hexagon",
-        "triangle",
-        "useCase",
-        "actor",
-        "class",
-        "interface",
-        "standing-woman",
-      ],
+      options: ALL_SHAPES,
     },
   ],
   name: "Untitled Canvas",

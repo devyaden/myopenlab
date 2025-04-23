@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/popover";
 import { Separator } from "@/components/ui/separator";
 import { Slider } from "@/components/ui/slider";
+import { SHAPES } from "@/lib/types/flow-table.types";
 import {
   AlignCenter,
   AlignCenterVertical,
@@ -68,34 +69,8 @@ interface ToolbarProps {
   onCopy: () => void;
   onPaste: () => void;
   onLock: () => void;
-  onChangeShape: (
-    shape:
-      | "rectangle"
-      | "rounded"
-      | "circle"
-      | "diamond"
-      | "hexagon"
-      | "triangle"
-      | "useCase"
-      | "actor"
-      | "class"
-      | "interface"
-      | "swimlane"
-      | "standing-woman"
-  ) => void;
-  shape:
-    | "rectangle"
-    | "rounded"
-    | "circle"
-    | "diamond"
-    | "hexagon"
-    | "triangle"
-    | "useCase"
-    | "actor"
-    | "class"
-    | "interface"
-    | "swimlane"
-    | "standing-woman";
+  onChangeShape: (shape: SHAPES) => void;
+  shape: SHAPES;
   isLocked: boolean;
   borderStyle: string;
   setBorderStyle: (style: string) => void;
@@ -588,9 +563,7 @@ export const Toolbar = React.memo(function Toolbar({
             {shape === "diamond" && <Diamond className="h-4 w-4 " />}
             {shape === "hexagon" && <Hexagon className="h-4 w-4 " />}
             {shape === "triangle" && <Triangle className="h-4 w-4 " />}
-            {shape === "useCase" && <Circle className="h-4 w-4 " />}
             {shape === "actor" && <User className="h-4 w-4 " />}
-            {shape === "class" && <Box className="h-4 w-4 " />}
             {shape === "interface" && <Box className="h-4 w-4 " />}
             {shape === "swimlane" && <Square className="h-4 w-4 " />}
           </Button>
@@ -620,18 +593,12 @@ export const Toolbar = React.memo(function Toolbar({
             <Triangle className="mr-2 h-4 w-4" />
             Triangle
           </DropdownMenuItem>
-          <DropdownMenuItem onSelect={() => onChangeShape("useCase")}>
-            <Circle className="mr-2 h-4 w-4" />
-            Use Case
-          </DropdownMenuItem>
+
           <DropdownMenuItem onSelect={() => onChangeShape("actor")}>
             <User className="mr-2 h-4 w-4" />
             Actor
           </DropdownMenuItem>
-          <DropdownMenuItem onSelect={() => onChangeShape("class")}>
-            <Box className="mr-2 h-4 w-4" />
-            Class
-          </DropdownMenuItem>
+
           <DropdownMenuItem onSelect={() => onChangeShape("interface")}>
             <Box className="mr-2 h-4 w-4" />
             Interface
