@@ -391,8 +391,35 @@ export default function Editor({
   useEffect(() => {
     if (canvasId) {
       loadDocument(canvasId);
+
+      // Add to recent documents
+      const savedDocuments = localStorage.getItem("recentDocuments");
+      const documents = savedDocuments ? JSON.parse(savedDocuments) : [];
+
+      // Check if document already exists
+      const existingDocIndex = documents.findIndex(
+        (doc: any) => doc.id === canvasId
+      );
+
+      if (existingDocIndex === -1) {
+        // Add new document
+        documents.unshift({
+          id: canvasId,
+          title: name || "Untitled Document",
+          date: new Date().toLocaleDateString(),
+          type: "document",
+        });
+      } else {
+        // Update existing document
+        documents[existingDocIndex].date = new Date().toLocaleDateString();
+        documents[existingDocIndex].title = name || "Untitled Document";
+      }
+
+      // Keep only the last 10 documents
+      const recentDocuments = documents.slice(0, 10);
+      localStorage.setItem("recentDocuments", JSON.stringify(recentDocuments));
     }
-  }, [canvasId]);
+  }, [canvasId, name]);
 
   useEffect(() => {
     if (editor && editor_state) {

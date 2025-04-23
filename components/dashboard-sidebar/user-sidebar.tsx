@@ -193,8 +193,11 @@ export function UserSidebar() {
   }, [user]);
 
   return (
-    <Sidebar className="border-r border-gray-100 bg-white w-64">
-      <SidebarHeader className="p-4 bg-white pt-24">
+    <Sidebar
+      className="border-r border-gray-100 bg-white w-64"
+      collapsible="offcanvas"
+    >
+      <SidebarHeader className="p-4 bg-white pt-4 md:pt-24">
         <Button
           className="w-full bg-yadn-accent-green hover:bg-yadn-accent-green/80 text-white rounded-md py-2 px-4 text-sm font-medium flex items-center justify-center"
           onClick={() => setCreateNewModalType("canvas")}

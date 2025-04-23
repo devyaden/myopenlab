@@ -29,13 +29,11 @@ export function RecentDocuments() {
   const [documents, setDocuments] = useState<Document[]>([]);
 
   const getDocumentTypeColor = (type: string) => {
-    console.log("---- type ----", type);
-
     switch (type?.toLowerCase()) {
       case "document":
-        return "bg-yadn-accent-blue";
+        return " bg-yadn-accent-pink";
       case "hybrid":
-        return "bg-yadn-accent-pink";
+        return " bg-yadn-accent-dark-orange";
       case "table":
         return "bg-yadn-accent-dark-orange";
       default:
@@ -122,64 +120,80 @@ export function RecentDocuments() {
       </div>
 
       <ScrollArea className="h-[400px] pr-4">
-        <div className="space-y-2">
-          {documents.map((doc) => (
-            <Card
-              key={doc.id}
-              className="flex items-center p-3 hover:bg-gray-50 transition-colors"
-              onClick={() => handleNavigate(doc.id, doc.type)}
-            >
-              <div
-                className={`h-10 w-10 rounded-lg ${getDocumentTypeColor(doc.type)} flex items-center justify-center mr-3`}
+        {documents.length === 0 ? (
+          <div className="flex flex-col items-center justify-center h-[400px] text-gray-500">
+            <FileText className="h-12 w-12 mb-4 opacity-50" />
+            <p className="text-lg font-medium">No recent documents</p>
+            <p className="text-sm">
+              Your recently accessed documents will appear here
+            </p>
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {documents.map((doc) => (
+              <Card
+                key={doc.id}
+                className="flex items-center p-3 hover:bg-gray-50 transition-colors"
+                onClick={() => handleNavigate(doc.id, doc.type)}
               >
-                <FileText className="h-5 w-5 text-white" />
-              </div>
-
-              <div className="flex-1 min-w-0">
-                <Link href={doc?.type === "Canvas" ? `/canvas/${doc.id}` : "#"}>
-                  <h3 className="text-sm font-medium text-gray-900 truncate">
-                    {doc.title}
-                  </h3>
-                </Link>
-                <div className="flex items-center gap-2 text-xs text-gray-500">
-                  <span>{doc.date}</span>
-                  <span>•</span>
-                  <span>{doc?.type}</span>
+                <div
+                  className={`h-10 w-10 rounded-lg ${getDocumentTypeColor(doc.type)} flex items-center justify-center mr-3`}
+                >
+                  <FileText className="h-5 w-5 text-white" />
                 </div>
-              </div>
 
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="icon" className="h-8 w-8 ml-2">
-                    <MoreVertical className="h-4 w-4" />
-                    <span className="sr-only">
-                      More options for {doc.title}
-                    </span>
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  {/* <DropdownMenuItem>
-                    <Edit className="mr-2 h-4 w-4" />
-                    <span>Edit</span>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem>
-                    <Download className="mr-2 h-4 w-4" />
-                    <span>Download</span>
-                  </DropdownMenuItem> */}
-                  <DropdownMenuItem
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleDelete(doc.id);
-                    }}
+                <div className="flex-1 min-w-0">
+                  <Link
+                    href={doc?.type === "Canvas" ? `/canvas/${doc.id}` : "#"}
                   >
-                    <Trash className="mr-2 h-4 w-4" />
-                    <span>Delete</span>
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </Card>
-          ))}
-        </div>
+                    <h3 className="text-sm font-medium text-gray-900 truncate">
+                      {doc.title}
+                    </h3>
+                  </Link>
+                  <div className="flex items-center gap-2 text-xs text-gray-500">
+                    <span>{doc.date}</span>
+                    <span>•</span>
+                    <span>{doc?.type ?? "table"}</span>
+                  </div>
+                </div>
+
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 ml-2"
+                    >
+                      <MoreVertical className="h-4 w-4" />
+                      <span className="sr-only">
+                        More options for {doc.title}
+                      </span>
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    {/* <DropdownMenuItem>
+                      <Edit className="mr-2 h-4 w-4" />
+                      <span>Edit</span>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem>
+                      <Download className="mr-2 h-4 w-4" />
+                      <span>Download</span>
+                    </DropdownMenuItem> */}
+                    <DropdownMenuItem
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDelete(doc.id);
+                      }}
+                    >
+                      <Trash className="mr-2 h-4 w-4" />
+                      <span>Delete</span>
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </Card>
+            ))}
+          </div>
+        )}
       </ScrollArea>
     </div>
   );

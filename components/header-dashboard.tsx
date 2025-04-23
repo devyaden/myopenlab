@@ -18,19 +18,31 @@ import {
   Crown,
   HelpCircle,
   LogOut,
+  Menu,
   SlidersHorizontal,
   User,
 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
+import { useSidebar } from "@/components/ui/sidebar";
 
 export const HeaderSidebar = () => {
   const { signOut, user } = useUser();
+  const { setOpenMobile } = useSidebar();
   const avatarUrl = STORAGE_URL + `avatars/` + user?.avatar_url;
 
   return (
     <header className="flex items-center justify-between gap-4 bg-yadn-dark-background px-6 z-50 py-4 min-w-full h-16">
       <div className="flex items-center gap-4 flex-1 ">
+        <Button
+          variant="ghost"
+          size="icon"
+          className="md:hidden text-white/70 hover:bg-transparent hover:text-white"
+          onClick={() => setOpenMobile(true)}
+        >
+          <Menu className="h-5 w-5" />
+          <span className="sr-only">Open Sidebar</span>
+        </Button>
         <Link
           href="/"
           className="flex items-center gap-2 justify-center !h-full"

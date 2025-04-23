@@ -159,6 +159,9 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
   };
 
   const signOut = async () => {
+    // Clear recent documents from localStorage
+    localStorage.removeItem("recentDocuments");
+
     await supabase.auth.signOut();
     setUser(null);
 
