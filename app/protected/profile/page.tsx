@@ -258,7 +258,7 @@ export default function ProfilePage() {
   if (!user) {
     return (
       <div className="flex items-center justify-center min-h-screen w-screen">
-        <Loader2 className="h-8 w-8 animate-spin text-yadn-pink" />
+        <Loader2 className="h-8 w-8 animate-spin text-yadn-accent-green" />
       </div>
     );
   }
@@ -297,7 +297,7 @@ export default function ProfilePage() {
                   src={avatarUrl || "/placeholder.svg?height=128&width=128"}
                   alt={user.name || "User"}
                 />
-                <AvatarFallback className="bg-yadn-pink text-white text-2xl">
+                <AvatarFallback className="bg-yadn-accent-green text-white text-2xl">
                   {user.name?.charAt(0) || user.username?.charAt(0) || "U"}
                 </AvatarFallback>
               </Avatar>

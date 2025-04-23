@@ -74,8 +74,8 @@ export default function SignupForm() {
         </div>
         <div className="text-center mb-3 mt-3">
           <h1 className="text-xl font-semibold">
-            <span className="text-yadn-pink">Hang tight!</span> Your setup is
-            almost finished.
+            <span className="text-yadn-accent-green">Hang tight!</span> Your
+            setup is almost finished.
           </h1>
         </div>
 
@@ -132,7 +132,7 @@ export default function SignupForm() {
 
           <Button
             type="submit"
-            className="w-full bg-yadn-pink hover:bg-yadn-pink-dark text-white font-medium mt-3"
+            className="w-full bg-yadn-accent-green hover:bg-yadn-accent-green-dark text-white font-medium mt-3"
           >
             {isSubmitting ? "Creating Account..." : "Create Account"}
           </Button>

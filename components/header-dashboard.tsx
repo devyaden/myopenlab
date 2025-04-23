@@ -40,7 +40,7 @@ export const HeaderSidebar = () => {
             alt="Logo"
             width={32}
             height={16}
-            className="h-8 w-full mb-3"
+            className="h-6 w-full "
           />
         </Link>
 
@@ -89,7 +89,7 @@ export const HeaderSidebar = () => {
             <DropdownMenuTrigger asChild>
               <Avatar className="h-8 w-8 cursor-pointer">
                 <AvatarImage src={avatarUrl} alt="User" />
-                <AvatarFallback className="bg-yadn-pink text-white text-2xl">
+                <AvatarFallback className="bg-yadn-accent-green text-white text-2xl">
                   {user?.name?.charAt(0) || user?.username?.charAt(0) || "U"}
                 </AvatarFallback>
               </Avatar>

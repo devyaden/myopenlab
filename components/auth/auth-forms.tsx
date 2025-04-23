@@ -16,13 +16,13 @@ export default function AuthForms() {
           <TabsList className="w-full grid grid-cols-2 p-0 h-auto bg-transparent gap-0">
             <TabsTrigger
               value="signin"
-              className="data-[state=active]:bg-yadn-pink-light data-[state=active]:text-yadn-pink bg-transparent h-12 rounded-none border-b-2 border-transparent data-[state=active]:border-yadn-pink"
+              className="data-[state=active]:bg-yadn-accent-green-light data-[state=active]:text-yadn-accent-green bg-transparent h-12 rounded-none border-b-2 border-transparent data-[state=active]:border-yadn-accent-green"
             >
               Sign In
             </TabsTrigger>
             <TabsTrigger
               value="signup"
-              className="data-[state=active]:bg-yadn-pink-light data-[state=active]:text-yadn-pink bg-transparent h-12 rounded-none border-b-2 border-transparent data-[state=active]:border-yadn-pink"
+              className="data-[state=active]:bg-yadn-accent-green-light data-[state=active]:text-yadn-accent-green bg-transparent h-12 rounded-none border-b-2 border-transparent data-[state=active]:border-yadn-accent-green"
             >
               Create Account
             </TabsTrigger>
@@ -39,11 +39,11 @@ export default function AuthForms() {
       </Tabs>
       <div className="text-center text-sm text-gray-500 mt-8">
         By Sign In In Tp Yadn You Agree To Our{" "}
-        <a href="#" className="text-yadn-pink hover:underline">
+        <a href="#" className="text-yadn-accent-green hover:underline">
           Term Of Services
         </a>{" "}
         And{" "}
-        <a href="#" className="text-yadn-pink hover:underline">
+        <a href="#" className="text-yadn-accent-green hover:underline">
           Privacy Policy
         </a>
       </div>

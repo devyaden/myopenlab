@@ -185,7 +185,7 @@ export default function CompanyForm() {
 
           <Button
             type="submit"
-            className="w-full bg-yadn-pink hover:bg-yadn-pink-dark text-white font-medium mt-4"
+            className="w-full bg-yadn-accent-green hover:bg-yadn-accent-green-dark text-white font-medium mt-4"
           >
             Continue
           </Button>

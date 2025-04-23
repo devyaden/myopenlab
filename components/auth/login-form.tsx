@@ -70,7 +70,7 @@ export function LoginForm() {
         <div className="flex justify-end w-full">
           <a
             href="/forgot-password"
-            className="text-sm text-gray-600 hover:text-yadn-pink"
+            className="text-sm text-gray-600 hover:text-yadn-accent-green"
           >
             Forgot Password?
           </a>
@@ -79,7 +79,7 @@ export function LoginForm() {
 
       <Button
         type="submit"
-        className="w-full h-12 bg-yadn-pink hover:bg-yadn-pink/90 text-white font-medium"
+        className="w-full h-12 bg-yadn-accent-green hover:bg-yadn-accent-green/90 text-white font-medium"
         disabled={isSubmitting}
       >
         {isSubmitting ? "Logging in..." : "Login To Dashboard"}

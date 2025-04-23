@@ -196,7 +196,7 @@ export function UserSidebar() {
     <Sidebar className="border-r border-gray-100 bg-white w-64">
       <SidebarHeader className="p-4 bg-white pt-24">
         <Button
-          className="w-full bg-pink-500 hover:bg-pink-600 text-white rounded-md py-2 px-4 text-sm font-medium flex items-center justify-center"
+          className="w-full bg-yadn-accent-green hover:bg-yadn-accent-green/80 text-white rounded-md py-2 px-4 text-sm font-medium flex items-center justify-center"
           onClick={() => setCreateNewModalType("canvas")}
         >
           <Plus className="mr-2 h-4 w-4" />

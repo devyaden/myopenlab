@@ -36,10 +36,10 @@ export function VerticalNav({
         <Button
           variant="outline"
           size="icon"
-          className="h-12 w-12 rounded-lg hover:bg-gray-100 border-yadn-pink"
+          className="h-12 w-12 rounded-lg hover:bg-gray-100 border-yadn-accent-green"
           onClick={onToggleSidebar}
         >
-          <Shapes className="!h-6 !w-6 text-yadn-pink" />
+          <Shapes className="!h-6 !w-6 text-yadn-accent-green" />
         </Button>
       )}
       <Button

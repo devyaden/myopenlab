@@ -385,7 +385,7 @@ export function Header({
             Back to Dashboard
           </Button>
 
-          <Button
+          {/* <Button
             variant="ghost"
             size="sm"
             className="gap-1 h-6 px-2 text-gray-600 hidden sm:flex"
@@ -397,7 +397,7 @@ export function Header({
               height={30}
             />
             <ChevronDown className="h-3 w-3" />
-          </Button>
+          </Button> */}
 
           <div>
             <div className="flex items-center gap-2">
@@ -436,7 +436,7 @@ export function Header({
                     size="sm"
                     className="px-2 hidden sm:flex items-center justify-center text-center"
                   >
-                    <div className="h-2 w-2 bg-yadn-pink rounded-full" />
+                    <div className="h-2 w-2 bg-yadn-accent-green rounded-full" />
                     {documentStatus}
                     <ChevronDown className="h-3 w-3" />
                   </Button>
@@ -594,13 +594,13 @@ export function Header({
             Save
           </Button>
 
-          <div className="inline-flex rounded-lg overflow-hidden border border-yadn-pink h-10">
-            <button className="bg-yadn-pink hover:bg-yadn-pink text-white px-4 py-2  flex items-center gap-2">
+          <div className="inline-flex rounded-lg overflow-hidden border border-yadn-accent-green h-10">
+            <button className="bg-yadn-accent-green hover:bg-yadn-accent-green text-white px-4 py-2  flex items-center gap-2">
               <Send className="w-5 h-5" />
               <span className="font-medium">Share</span>
             </button>
-            <button className="bg-white hover:bg-gray-50 border border-yadn-pink/20 px-3  flex items-center justify-center">
-              <Link2 className="w-5 h-5 text-yadn-pink" />
+            <button className="bg-white hover:bg-gray-50 border border-yadn-accent-green/20 px-3  flex items-center justify-center">
+              <Link2 className="w-5 h-5 text-yadn-accent-green" />
             </button>
           </div>
 

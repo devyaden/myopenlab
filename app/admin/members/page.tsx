@@ -104,7 +104,7 @@ export default function MembersPage() {
           <h1 className="text-xl font-medium">Members</h1>
         </div>
         <Button
-          className="bg-yadn-pink hover:bg-yadn-pink/90 text-white"
+          className="bg-yadn-accent-green hover:bg-yadn-accent-green/90 text-white"
           onClick={() => setIsAddModalOpen(true)}
         >
           Add New Members
