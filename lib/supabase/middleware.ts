@@ -108,7 +108,6 @@ export const updateSession = async (request: NextRequest) => {
 const redirectToAuth = (request: NextRequest) => {
   return NextResponse.redirect(new URL("/authentication", request.url));
 };
-
 const redirectToHome = (request: NextRequest) => {
   return NextResponse.redirect(new URL("/", request.url));
 };

@@ -58,6 +58,7 @@ model Canvas {
   history         CanvasHistory[]
   settings        CanvasSettings?
   shares          CanvasShare[]
+  visibility      String             @default("private")
   columns         ColumnDefinition[]
   related_columns ColumnDefinition[] @relation("RelatedColumn")
   canvas_type     String             @default("hybrid")
@@ -110,8 +111,8 @@ model ColumnDefinition {
 }
 
 model CanvasSettings {
-  theme          String?
   id             String   @id @default(uuid()) @db.Uuid
+  theme          String?
   canvas_id      String   @unique @db.Uuid
   grid_size      Int      @default(15)
   show_grid      Boolean  @default(true)
