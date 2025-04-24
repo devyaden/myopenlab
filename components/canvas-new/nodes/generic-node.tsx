@@ -342,8 +342,6 @@ export const GenericNode = memo(
       const properties: { key: string; value: any }[] = [];
       const isTypeHidden = data.hidden?.type === true;
 
-      console.log("----- data ----------", data);
-
       // Add type property (using shape) if not hidden
       if (!isTypeHidden) {
         properties.push({

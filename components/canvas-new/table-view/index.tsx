@@ -94,6 +94,8 @@ const TableView: React.FC<TableViewProps> = ({
   viewMode,
   onViewModeChange,
 }) => {
+  console.log("------ edges --------", edges);
+
   const { user } = useUser();
   const [sortField, setSortField] = useState<SortField>(null);
   const [sortDirection, setSortDirection] = useState<SortDirection>(null);
@@ -147,31 +149,62 @@ const TableView: React.FC<TableViewProps> = ({
 
   // Add or remove columns from hiddenColumns based on data availability
   useEffect(() => {
-    const columnsToUpdate = [];
-
-    // Check from/to columns
-    if (!edges || edges.length === 0) {
-      columnsToUpdate.push({ name: "from", shouldHide: true });
-      columnsToUpdate.push({ name: "to", shouldHide: true });
-    } else {
-      columnsToUpdate.push({ name: "from", shouldHide: false });
-      columnsToUpdate.push({ name: "to", shouldHide: false });
+    interface ColumnUpdate {
+      name: string;
+      shouldHide: boolean;
     }
 
-    // Check parent/children columns
+    const columnsToUpdate: ColumnUpdate[] = [];
+    const updatedColumns = [...columns];
+    const defaultColumns = ["from", "to", "parent", "children"];
+    const existingColumnTitles = new Set(columns.map((col) => col.title));
+
+    // Check and add from/to columns if needed
+    if (edges && edges.length > 0) {
+      ["from", "to"].forEach((colName) => {
+        if (!existingColumnTitles.has(colName)) {
+          updatedColumns.push({
+            title: colName,
+            type: "Text",
+          });
+        }
+        columnsToUpdate.push({ name: colName, shouldHide: false });
+      });
+    } else {
+      ["from", "to"].forEach((colName) => {
+        columnsToUpdate.push({ name: colName, shouldHide: true });
+      });
+    }
+
+    // Check and add parent/children columns if needed
     const hasParentChildRelations = nodes.some(
       (node) => node.parentNode || (node as HierarchyNode).children?.length > 0
     );
-    if (!hasParentChildRelations) {
-      columnsToUpdate.push({ name: "parent", shouldHide: true });
-      columnsToUpdate.push({ name: "children", shouldHide: true });
+
+    if (hasParentChildRelations) {
+      ["parent", "children"].forEach((colName) => {
+        if (!existingColumnTitles.has(colName)) {
+          updatedColumns.push({
+            title: colName,
+            type: "Text",
+          });
+        }
+        columnsToUpdate.push({ name: colName, shouldHide: false });
+      });
     } else {
-      columnsToUpdate.push({ name: "parent", shouldHide: false });
-      columnsToUpdate.push({ name: "children", shouldHide: false });
+      ["parent", "children"].forEach((colName) => {
+        columnsToUpdate.push({ name: colName, shouldHide: true });
+      });
+    }
+
+    // Update columns if new ones were added
+    if (updatedColumns.length !== columns.length) {
+      setColumns(updatedColumns);
     }
 
     // Update hiddenColumns based on the current state
     const updatedHiddenColumns = [...hiddenColumns];
+
     columnsToUpdate.forEach(({ name, shouldHide }) => {
       const isCurrentlyHidden = updatedHiddenColumns.includes(name);
       if (shouldHide && !isCurrentlyHidden) {
@@ -199,6 +232,8 @@ const TableView: React.FC<TableViewProps> = ({
     hiddenColumns,
     canvasSettings.table_settings,
     updateTableSettings,
+    columns,
+    setColumns,
   ]);
 
   // Cache for rollup and relation data

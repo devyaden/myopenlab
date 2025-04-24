@@ -1,6 +1,17 @@
 import ClientLayout from "./client-layout";
 import "./globals.css";
 import { PostHogProvider } from "../components/PostHogProvider";
+import { Quicksand, Rubik } from "next/font/google";
+
+const quicksand = Quicksand({
+  subsets: ["latin"],
+  variable: "--font-quicksand",
+});
+
+const rubik = Rubik({
+  subsets: ["arabic"],
+  variable: "--font-rubik",
+});
 
 const defaultUrl = process.env.VERCEL_URL
   ? `https://${process.env.VERCEL_URL}`
@@ -18,8 +29,13 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en">
-      <body>
+    <html
+      lang="en"
+      className={`${quicksand.variable} ${rubik.variable}`}
+      suppressHydrationWarning
+      dir="ltr"
+    >
+      <body className="bg-background text-foreground">
         <PostHogProvider>
           <ClientLayout>{children}</ClientLayout>
         </PostHogProvider>

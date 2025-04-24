@@ -385,20 +385,6 @@ export function Header({
             Back to Dashboard
           </Button>
 
-          {/* <Button
-            variant="ghost"
-            size="sm"
-            className="gap-1 h-6 px-2 text-gray-600 hidden sm:flex"
-          >
-            <Image
-              src="/assets/global/app-icon-small.svg"
-              alt="Logo"
-              width={30}
-              height={30}
-            />
-            <ChevronDown className="h-3 w-3" />
-          </Button> */}
-
           <div>
             <div className="flex items-center gap-2">
               {isEditing ? (
@@ -584,7 +570,7 @@ export function Header({
           </div>
         </div>
 
-        <div className="ml-auto flex items-center gap-2 ">
+        <div className="ml-auto flex items-center gap-2 h-10 ">
           <Button variant="outline" size="sm" onClick={onSave}>
             {saveLoading ? (
               <LoadingSpinner />
@@ -594,7 +580,7 @@ export function Header({
             Save
           </Button>
 
-          <div className="inline-flex rounded-lg overflow-hidden border border-yadn-accent-green h-10">
+          <div className="inline-flex rounded-lg overflow-hidden border border-yadn-accent-green h-9">
             <button className="bg-yadn-accent-green hover:bg-yadn-accent-green text-white px-4 py-2  flex items-center gap-2">
               <Send className="w-5 h-5" />
               <span className="font-medium">Share</span>
@@ -604,10 +590,10 @@ export function Header({
             </button>
           </div>
 
-          <Avatar>
+          {/* <Avatar>
             <AvatarImage src="/placeholder.svg?height=32&width=32" />
             <AvatarFallback>U</AvatarFallback>
-          </Avatar>
+          </Avatar> */}
         </div>
       </div>
       <ImportModal
