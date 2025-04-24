@@ -7,9 +7,9 @@ import { redirect } from "next/navigation";
 export default async function SharedCanvas({
   params,
 }: {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }) {
-  const canvasId = params.id;
+  const { id: canvasId } = await params;
   const supabase = createClient();
 
   // Check if the canvas exists and is public

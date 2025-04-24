@@ -1406,7 +1406,7 @@ export default function Editor({
         isPartOfCanvas={isPartOfCanvas}
         onBackToBoard={onBackToBoard}
         onViewModeChange={onViewModeChange || (() => {})}
-        viewMode={viewMode}
+        viewMode={viewMode ?? "document"}
         canvasType={canvasType ?? CANVAS_TYPE.DOCUMENT}
         isOwner={isOwner}
       />

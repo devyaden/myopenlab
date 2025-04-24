@@ -3,13 +3,13 @@ import { NextResponse } from "next/server";
 
 export async function GET(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const supabase = createClient();
 
   try {
     // Get the canvas ID from the URL parameter
-    const canvasId = params.id;
+    const { id: canvasId } = await params;
 
     if (!canvasId) {
       return NextResponse.json(
