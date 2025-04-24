@@ -25,6 +25,7 @@ import { VIEW_MODE } from "./table-view/table.types";
 import { Unauthorized } from "../unauthorized";
 import { useUser } from "@/lib/contexts/userContext";
 import { ViewModeSwitcher } from "./view-mode-switcher";
+import TableView from "./table-view";
 
 interface NodeStyle {
   fontFamily: string;
@@ -141,7 +142,6 @@ export default function CanvasNew({ canvasId }: FigmaInterfaceProps) {
 
   const [showGrid, setShowGrid] = useState(true);
   const [showRulers, setShowRulers] = useState(false);
-  // const [projectName, setProjectName] = useState<string>("Untitled Project");
   const [folders, setFolders] = useState<
     {
       id: string;
@@ -152,6 +152,9 @@ export default function CanvasNew({ canvasId }: FigmaInterfaceProps) {
 
   const [edgeWidth, setEdgeWidth] = useState(2);
   const [edgeColor, setEdgeColor] = useState("#000000");
+
+  // Add a tableViewRef to access the TableView component's methods
+  const tableViewRef = useRef<any>(null);
 
   const addToRecentDocuments = useCallback(
     (canvasId: string, canvasName: string) => {
@@ -315,9 +318,11 @@ export default function CanvasNew({ canvasId }: FigmaInterfaceProps) {
         setTimeout(() => setNodes(safeNodes), 0);
       }
 
-      return <UMLEditor {...props} nodes={safeNodes} />;
+      return (
+        <UMLEditor {...props} nodes={safeNodes} tableViewRef={tableViewRef} />
+      );
     },
-    [fixCircularParentChildRelationships, setNodes]
+    [fixCircularParentChildRelationships, setNodes, tableViewRef]
   );
 
   // Effect to load the canvas
@@ -1174,6 +1179,17 @@ export default function CanvasNew({ canvasId }: FigmaInterfaceProps) {
               visibility={visibility}
               onVisibilityChange={handleVisibilityChange}
               isOwner={isOwner}
+              viewMode={viewMode}
+              exportToCSV={
+                viewMode === VIEW_MODE.table
+                  ? tableViewRef.current?.exportToCSV
+                  : undefined
+              }
+              exportToExcel={
+                viewMode === VIEW_MODE.table
+                  ? tableViewRef.current?.exportToExcel
+                  : undefined
+              }
             />
 
             {/* Add view mode switcher for read-only mode */}
@@ -1274,7 +1290,7 @@ export default function CanvasNew({ canvasId }: FigmaInterfaceProps) {
               )}
 
             <div className="flex flex-1 overflow-hidden">
-              {!isReadOnly && (
+              {!isReadOnly && viewMode === VIEW_MODE.canvas && (
                 <VerticalNav
                   className="hidden md:flex"
                   onToggleSidebar={toggleSidebar}

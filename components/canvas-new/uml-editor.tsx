@@ -79,6 +79,7 @@ interface UMLEditorProps {
   viewMode: ViewMode;
   onViewModeChange: (viewMode: ViewMode) => void;
   readOnly?: boolean;
+  tableViewRef?: React.MutableRefObject<any>;
 }
 
 const sortNodes = (node: ReactFlowNode, nodes: ReactFlowNode[]) => {
@@ -142,6 +143,7 @@ export function UMLEditor({
   canvasSettings,
   updateCanvasSettings,
   readOnly,
+  tableViewRef,
 }: UMLEditorProps) {
   const { getNode } = useReactFlow();
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
@@ -618,6 +620,7 @@ export function UMLEditor({
           viewMode={viewMode}
           onViewModeChange={onViewModeChange}
           readOnly={readOnly}
+          ref={tableViewRef}
         />
       )}
     </div>
