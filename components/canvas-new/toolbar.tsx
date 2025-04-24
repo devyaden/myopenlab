@@ -47,6 +47,8 @@ import {
 } from "lucide-react";
 import Image from "next/image";
 import React from "react";
+import { ViewModeSwitcher } from "./view-mode-switcher";
+import { CANVAS_TYPE } from "@/types/store";
 
 interface ToolbarProps {
   fontFamily: string;
@@ -860,54 +862,11 @@ export const Toolbar = React.memo(function Toolbar({
       </div>
 
       <div className="ml-auto flex items-center">
-        <div className="bg-gray-100 p-1 rounded-lg flex">
-          <Button
-            variant="ghost"
-            size="sm"
-            className={`h-9 w-9 p-0 rounded-md ${viewMode === "table" ? "bg-white shadow-sm" : ""}`}
-            onClick={() => onViewModeChange("table")}
-            aria-label="Table view"
-          >
-            <Image
-              src="/assets/canvas/table.svg"
-              alt="Table Icon"
-              height={10}
-              width={10}
-              className="h-4 w-4 "
-            />
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            className={`h-9 w-9 p-0 rounded-md ${viewMode === "canvas" ? "bg-white shadow-sm" : ""}`}
-            onClick={() => onViewModeChange("canvas")}
-            aria-label="Canvas view"
-          >
-            <Image
-              src="/assets/canvas/canvas.svg"
-              alt="Table Icon"
-              height={10}
-              width={10}
-              className="h-4 w-4 "
-            />
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            className={`h-9 w-9 p-0 rounded-md ${viewMode === "document" ? "bg-white shadow-sm" : ""}`}
-            onClick={() => onViewModeChange("document")}
-            aria-label="List view"
-            // disabled
-          >
-            <Image
-              src="/assets/canvas/document.svg"
-              alt="Table Icon"
-              height={10}
-              width={10}
-              className="h-4 w-4 "
-            />
-          </Button>
-        </div>
+        <ViewModeSwitcher
+          viewMode={viewMode}
+          onViewModeChange={onViewModeChange}
+          canvasType={CANVAS_TYPE.HYBRID}
+        />
       </div>
     </div>
   );

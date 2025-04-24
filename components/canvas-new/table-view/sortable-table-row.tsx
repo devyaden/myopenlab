@@ -54,6 +54,7 @@ const SortableTableRow: React.FC<{
   handleDeleteConfirm: (deleteChildren: boolean) => void;
   nodeToDelete: any;
   shapeOptions: string[];
+  readOnly?: boolean;
 }> = ({
   node,
   level,
@@ -78,6 +79,7 @@ const SortableTableRow: React.FC<{
   handleDeleteConfirm,
   nodeToDelete,
   shapeOptions,
+  readOnly,
 }) => {
   const { attributes, listeners, setNodeRef, transform, transition } =
     useSortable({ id: node.id });
@@ -419,27 +421,31 @@ const SortableTableRow: React.FC<{
     >
       <TableCell className="sticky left-0 bg-gray-50 z-10 p-0 border-r border-gray-200 w-10">
         <div className="flex">
-          <div className="flex items-center">
-            <div
-              className={`p-2 ${!isSelected && "opacity-0 group-hover:opacity-100 transition-opacity"}`}
-              onClick={handleToggleSelect}
-              onDoubleClick={(e) => e.stopPropagation()}
-            >
-              <Checkbox
-                checked={isSelected}
-                onClick={handleToggleSelect}
-                onKeyDown={(e) => e.stopPropagation()}
-              />
-            </div>
-          </div>
+          {!readOnly && (
+            <>
+              <div className="flex items-center">
+                <div
+                  className={`p-2 ${!isSelected && "opacity-0 group-hover:opacity-100 transition-opacity"}`}
+                  onClick={handleToggleSelect}
+                  onDoubleClick={(e) => e.stopPropagation()}
+                >
+                  <Checkbox
+                    checked={isSelected}
+                    onClick={handleToggleSelect}
+                    onKeyDown={(e) => e.stopPropagation()}
+                  />
+                </div>
+              </div>
 
-          <div
-            {...listeners}
-            {...attributes}
-            className="cursor-move h-full hover:bg-gray-100 p-2 opacity-0 group-hover:opacity-100 transition-opacity"
-          >
-            <GripVertical className="h-5 w-5 text-gray-400" />
-          </div>
+              <div
+                {...listeners}
+                {...attributes}
+                className="cursor-move h-full hover:bg-gray-100 p-2 opacity-0 group-hover:opacity-100 transition-opacity"
+              >
+                <GripVertical className="h-5 w-5 text-gray-400" />
+              </div>
+            </>
+          )}
         </div>
       </TableCell>
       {columns
@@ -468,6 +474,9 @@ const SortableTableRow: React.FC<{
               }`}
               onClick={(e) => {
                 e.stopPropagation();
+                // Skip editing in readonly mode
+                if (readOnly) return;
+
                 // Only skip edit mode for Checkbox type
                 if (column.type === "Checkbox") {
                   return;
@@ -519,21 +528,23 @@ const SortableTableRow: React.FC<{
           boxShadow: "-2px 0 2px -1px rgba(0,0,0,0.1)",
         }}
       >
-        <div className="opacity-0 group-hover:opacity-100 transition-opacity">
-          <DropdownMenu>
-            <DropdownMenuTrigger className="p-2 h-full w-full flex items-center justify-center hover:bg-gray-100">
-              <MoreHorizontal className="h-4 w-4" />
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem
-                onClick={() => handleDeleteClick(node)}
-                className="text-red-600"
-              >
-                Delete
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
+        {!readOnly && (
+          <div className="opacity-0 group-hover:opacity-100 transition-opacity">
+            <DropdownMenu>
+              <DropdownMenuTrigger className="p-2 h-full w-full flex items-center justify-center hover:bg-gray-100">
+                <MoreHorizontal className="h-4 w-4" />
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem
+                  onClick={() => handleDeleteClick(node)}
+                  className="text-red-600"
+                >
+                  Delete
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+        )}
       </TableCell>
     </TableRow>
   );

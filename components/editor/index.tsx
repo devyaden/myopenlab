@@ -21,7 +21,7 @@ import Underline from "@tiptap/extension-underline";
 import { EditorContent, useEditor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import debounce from "lodash/debounce";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, useMemo } from "react";
 import toast from "react-hot-toast";
 import FontSize from "tiptap-extension-font-size";
 import PaginationExtension, {
@@ -147,10 +147,12 @@ export default function Editor({
   isPartOfCanvas,
   onBackToBoard,
   canvasId,
+  readOnly,
 }: {
   isPartOfCanvas?: boolean;
   onBackToBoard?: () => void;
   canvasId: string;
+  readOnly?: boolean;
 }) {
   const [currentDocument, setCurrentDocument] = useState<Document | null>(null);
   const [imageDialogOpen, setImageDialogOpen] = useState(false);
@@ -334,6 +336,7 @@ export default function Editor({
       ReactFlowNode,
       CanvasTableNode,
     ],
+    editable: !readOnly,
     content: "",
     onUpdate: ({ editor }) => {
       if (editor) {
@@ -349,12 +352,12 @@ export default function Editor({
       },
     },
     autofocus: true,
-    editable: true,
   });
 
   // Create a debounced save function
   const debouncedSave = useCallback(
     debounce(() => {
+      if (readOnly) return; // Don't save in read-only mode
       if (!editor) return;
 
       try {
@@ -364,20 +367,23 @@ export default function Editor({
         // Find all ReactFlow nodes in the editor and ensure their data is preserved
         const editorJSON = editor.getJSON();
 
-        // Store the complete JSON structure to preserve all custom node data
-        updateLexicalState(
-          JSON.stringify({
-            state: latestEditorState,
-            controls: editorState,
-            json: editorJSON,
-          })
-        );
+        // Save the complete state including HTML and JSON
+        const fullState = {
+          state: latestEditorState,
+          json: editorJSON,
+          controls: editorState,
+        };
+
+        // Update the Lexical state in the document store
+        updateLexicalState(JSON.stringify(fullState));
+
+        // Save the document to the database
+        saveDocument();
       } catch (error) {
         console.error("Error saving document:", error);
-        // toast.error("Failed to save document");
       }
-    }, 1000), // 1 second delay
-    [editor, editorState, updateLexicalState]
+    }, 1000),
+    [editor, editorState, saveDocument, updateLexicalState, readOnly]
   );
 
   // Cleanup debounced function on unmount

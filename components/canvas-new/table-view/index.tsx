@@ -77,6 +77,7 @@ import { validationSchemas } from "./validations";
 import { ALL_SHAPES, SHAPES } from "@/lib/types/flow-table.types";
 import { DropdownMenuSubTrigger } from "@radix-ui/react-dropdown-menu";
 import Image from "next/image";
+import { ViewModeSwitcher } from "../view-mode-switcher";
 
 const TableView: React.FC<TableViewProps> = ({
   nodes,
@@ -93,6 +94,7 @@ const TableView: React.FC<TableViewProps> = ({
   updateCanvasSettings,
   viewMode,
   onViewModeChange,
+  readOnly,
 }) => {
   console.log("------ edges --------", edges);
 
@@ -705,6 +707,8 @@ const TableView: React.FC<TableViewProps> = ({
   };
 
   const addNewRow = () => {
+    if (readOnly) return;
+
     if (newTaskName.trim() === "") {
       alert("Please enter a task name");
       return;
@@ -750,6 +754,7 @@ const TableView: React.FC<TableViewProps> = ({
   };
 
   const addNewColumn = () => {
+    if (readOnly) return;
     setIsAddColumnSidebarOpen(true);
   };
 
@@ -790,6 +795,8 @@ const TableView: React.FC<TableViewProps> = ({
   };
 
   const handleSave = (nodeId: string, column: string, value: any) => {
+    if (readOnly) return;
+
     const columnDef = columns?.find((col) => col.title === column);
     if (columnDef) {
       // Skip saving for Rollup columns as they are calculated automatically
@@ -924,6 +931,7 @@ const TableView: React.FC<TableViewProps> = ({
   };
 
   const handleDeleteClick = (node: HierarchyNode) => {
+    if (readOnly) return;
     setNodeToDelete(node);
     setDeleteDialogOpen(true);
   };
@@ -1147,7 +1155,7 @@ const TableView: React.FC<TableViewProps> = ({
           editingCell={editingCell}
           editedValue={editedValue}
           validationError={validationError}
-          setEditingCell={setEditingCell}
+          setEditingCell={readOnly ? () => {} : setEditingCell}
           setEditedValue={setEditedValue}
           setValidationError={setValidationError}
           handleSave={handleSave}
@@ -1164,6 +1172,7 @@ const TableView: React.FC<TableViewProps> = ({
           nodeToDelete={nodeToDelete}
           handleDeleteConfirm={handleDeleteConfirm}
           shapeOptions={shapeOptions}
+          readOnly={readOnly}
         />,
         ...(isExpanded && hasChildren
           ? renderHierarchy(node.children, level + 1)
@@ -1409,7 +1418,7 @@ const TableView: React.FC<TableViewProps> = ({
                       variant="outline"
                       className="text-gray-500 font-medium text-sm hover:bg-gray-50 ml-2 rounded-md"
                       onClick={() => setDeleteSelectedDialogOpen(true)}
-                      disabled={selectedNodes.length === 0}
+                      disabled={selectedNodes.length === 0 || readOnly}
                     >
                       <Trash2 className="h-4 w-4 mr-2" />
                       Delete
@@ -1419,7 +1428,7 @@ const TableView: React.FC<TableViewProps> = ({
                       variant="outline"
                       className="text-gray-500 font-medium text-sm hover:bg-gray-50 ml-2 rounded-md"
                       onClick={handleDuplicateSelected}
-                      disabled={selectedNodes.length === 0}
+                      disabled={selectedNodes.length === 0 || readOnly}
                     >
                       <Copy className="h-4 w-4 mr-2" />
                       Duplicate
@@ -1432,54 +1441,11 @@ const TableView: React.FC<TableViewProps> = ({
             {canvasType === "hybrid" && (
               <>
                 <div className="ml-auto flex items-center">
-                  <div className="bg-gray-100 p-1 rounded-lg flex">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className={`h-9 w-9 p-0 rounded-md ${viewMode === VIEW_MODE.table ? "bg-white shadow-sm" : ""}`}
-                      onClick={() => onViewModeChange(VIEW_MODE.table)}
-                      aria-label="Table view"
-                    >
-                      <Image
-                        src="/assets/canvas/table.svg"
-                        alt="Table Icon"
-                        height={10}
-                        width={10}
-                        className="h-4 w-4 "
-                      />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className={`h-9 w-9 p-0 rounded-md ${viewMode === VIEW_MODE.canvas ? "bg-white shadow-sm" : ""}`}
-                      onClick={() => onViewModeChange(VIEW_MODE.canvas)}
-                      aria-label="Canvas view"
-                    >
-                      <Image
-                        src="/assets/canvas/canvas.svg"
-                        alt="Table Icon"
-                        height={10}
-                        width={10}
-                        className="h-4 w-4 "
-                      />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className={`h-9 w-9 p-0 rounded-md ${viewMode === VIEW_MODE.document ? "bg-white shadow-sm" : ""}`}
-                      onClick={() => onViewModeChange(VIEW_MODE.document)}
-                      aria-label="List view"
-                      // disabled
-                    >
-                      <Image
-                        src="/assets/canvas/document.svg"
-                        alt="Table Icon"
-                        height={10}
-                        width={10}
-                        className="h-4 w-4 "
-                      />
-                    </Button>
-                  </div>
+                  <ViewModeSwitcher
+                    viewMode={viewMode}
+                    onViewModeChange={onViewModeChange}
+                    canvasType={canvasType}
+                  />
                 </div>
               </>
             )}
@@ -1515,31 +1481,33 @@ const TableView: React.FC<TableViewProps> = ({
                           selectedNodes.length > 0 ? "bg-blue-50" : "bg-gray-50"
                         }`}
                       >
-                        <Checkbox
-                          className={`transition-opacity ${
-                            selectedNodes.length > 0
-                              ? "opacity-100"
-                              : "opacity-0 group-hover:opacity-100"
-                          }`}
-                          ref={(el) => {
-                            if (el) {
-                              // @ts-ignore
-                              el.indeterminate =
-                                selectedNodes.length > 0 &&
-                                selectedNodes.length < visibleNodeIds.length;
+                        {!readOnly && (
+                          <Checkbox
+                            className={`transition-opacity ${
+                              selectedNodes.length > 0
+                                ? "opacity-100"
+                                : "opacity-0 group-hover:opacity-100"
+                            }`}
+                            ref={(el) => {
+                              if (el) {
+                                // @ts-ignore
+                                el.indeterminate =
+                                  selectedNodes.length > 0 &&
+                                  selectedNodes.length < visibleNodeIds.length;
+                              }
+                            }}
+                            checked={
+                              selectedNodes.length === visibleNodeIds.length
                             }
-                          }}
-                          checked={
-                            selectedNodes.length === visibleNodeIds.length
-                          }
-                          onCheckedChange={(checked) => {
-                            if (checked) {
-                              setSelectedNodes(visibleNodeIds);
-                            } else {
-                              setSelectedNodes([]);
-                            }
-                          }}
-                        />
+                            onCheckedChange={(checked) => {
+                              if (checked) {
+                                setSelectedNodes(visibleNodeIds);
+                              } else {
+                                setSelectedNodes([]);
+                              }
+                            }}
+                          />
+                        )}
                       </TableHead>
                       {columns
                         .filter(
@@ -1583,7 +1551,7 @@ const TableView: React.FC<TableViewProps> = ({
                                       if (editingColumnTitle === column.title) {
                                         e.preventDefault();
                                         e.stopPropagation();
-                                      } else {
+                                      } else if (!readOnly) {
                                         startEditingColumnTitle(column.title);
                                       }
                                     }}
@@ -1649,13 +1617,15 @@ const TableView: React.FC<TableViewProps> = ({
                                       <DropdownMenuSeparator />
                                     </>
                                   )}
-                                  <DropdownMenuItem
-                                    onSelect={() =>
-                                      startEditingColumnTitle(column.title)
-                                    }
-                                  >
-                                    Edit property
-                                  </DropdownMenuItem>
+                                  {!readOnly && (
+                                    <DropdownMenuItem
+                                      onSelect={() =>
+                                        startEditingColumnTitle(column.title)
+                                      }
+                                    >
+                                      Edit property
+                                    </DropdownMenuItem>
+                                  )}
                                   {isColumnSortable(
                                     column.type,
                                     column.title
@@ -1683,32 +1653,36 @@ const TableView: React.FC<TableViewProps> = ({
                                       </DropdownMenuItem>
                                     </>
                                   )}
-                                  {!hiddenColumns?.includes(column.title) && (
+                                  {!hiddenColumns?.includes(column.title) &&
+                                    !readOnly && (
+                                      <DropdownMenuItem
+                                        onClick={() =>
+                                          toggleColumnVisibility(column.title)
+                                        }
+                                      >
+                                        Hide in view
+                                      </DropdownMenuItem>
+                                    )}
+                                  {!readOnly && (
                                     <DropdownMenuItem
                                       onClick={() =>
-                                        toggleColumnVisibility(column.title)
+                                        handleDuplicateColumn(column.title)
                                       }
                                     >
-                                      Hide in view
+                                      Duplicate property
                                     </DropdownMenuItem>
                                   )}
-                                  <DropdownMenuItem
-                                    onClick={() =>
-                                      handleDuplicateColumn(column.title)
-                                    }
-                                  >
-                                    Duplicate property
-                                  </DropdownMenuItem>
-                                  {!isDefaultColumn(column.title) && (
-                                    <DropdownMenuItem
-                                      className="text-red-600"
-                                      onClick={() =>
-                                        setDeleteColumnDialog(column.title)
-                                      }
-                                    >
-                                      Delete property
-                                    </DropdownMenuItem>
-                                  )}
+                                  {!isDefaultColumn(column.title) &&
+                                    !readOnly && (
+                                      <DropdownMenuItem
+                                        className="text-red-600"
+                                        onClick={() =>
+                                          setDeleteColumnDialog(column.title)
+                                        }
+                                      >
+                                        Delete property
+                                      </DropdownMenuItem>
+                                    )}
                                 </DropdownMenuContent>
                               </DropdownMenu>
                             </TableHead>
@@ -1729,13 +1703,18 @@ const TableView: React.FC<TableViewProps> = ({
                             <Button
                               variant="ghost"
                               size="icon"
-                              className="h-8 w-8 opacity-0 group-hover:opacity-100"
+                              className={`h-8 w-8 opacity-0 group-hover:opacity-100 ${
+                                readOnly ? "hidden" : ""
+                              }`}
                             >
                               <MoreVertical className="h-4 w-4" />
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={addNewColumn}>
+                            <DropdownMenuItem
+                              onClick={addNewColumn}
+                              className={readOnly ? "hidden" : ""}
+                            >
                               <Plus className="h-4 w-4 mr-2" />
                               Add New Column
                             </DropdownMenuItem>
@@ -1836,12 +1815,13 @@ const TableView: React.FC<TableViewProps> = ({
               </div>
             ) : (
               <Button
-                variant="ghost"
-                className="w-full justify-start text-gray-500 hover:text-gray-900"
-                onClick={() => setIsAddingRow(true)}
+                size="sm"
+                onClick={addNewRow}
+                disabled={readOnly}
+                className="flex items-center text-xs"
               >
-                <Plus className="h-4 w-4 mr-2" />
-                Add New Row
+                <Plus className="h-3.5 w-3.5 mr-1" />
+                Add Row
               </Button>
             )}
           </div>

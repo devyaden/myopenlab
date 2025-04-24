@@ -53,29 +53,32 @@ const edgeTypes = {
 interface UMLEditorProps {
   nodes: Node[];
   edges: Edge[];
-  onNodesChange: (nodes: Node[]) => void;
-  onEdgesChange: (edges: Edge[]) => void;
+  onNodesChange: ((nodes: Node[]) => void) | undefined;
+  onEdgesChange: ((edges: Edge[]) => void) | undefined;
   nodeStyles: Record<string, any>;
   selectedNodes: string[];
-  onNodeSelect: (nodeIds: string[]) => void;
-  onAddNode: (type: string, position: { x: number; y: number }) => void;
-  onAddSwimlane: (position: { x: number; y: number }) => void;
-  onLabelChange: (nodeId: string, newLabel: string) => void;
-  onAddLane: (swimlaneId: string) => void;
-  onEdgeSelect: (edgeIds: string[]) => void;
-  onChangeEdgeLabel: (edgeId: string, label: string) => void;
-  onAddImage: (position?: any) => void;
-  onAddColumn: (columnData: any) => void;
+  onNodeSelect: ((nodeIds: string[]) => void) | undefined;
+  onAddNode:
+    | ((type: string, position: { x: number; y: number }) => void)
+    | undefined;
+  onAddSwimlane: ((position: { x: number; y: number }) => void) | undefined;
+  onLabelChange: ((nodeId: string, newLabel: string) => void) | undefined;
+  onAddLane: ((swimlaneId: string) => void) | undefined;
+  onEdgeSelect: ((edgeIds: string[]) => void) | undefined;
+  onChangeEdgeLabel: ((edgeId: string, label: string) => void) | undefined;
+  onAddImage: ((position?: any) => void) | undefined;
+  onAddColumn: ((columnData: any) => void) | undefined;
   columns: any[];
-  setColumns: (columns: any[]) => void;
+  setColumns: ((columns: any[]) => void) | undefined;
   currentFolderCanvases: { id: string; name: string; canvas_type: string }[];
   canvasId: string;
   canvasType: CANVAS_TYPE | null;
-  onReactFlowInit?: (instance: ReactFlowInstance) => void; // Add new prop
+  onReactFlowInit?: (instance: ReactFlowInstance) => void;
   canvasSettings: CanvasSettings;
-  updateCanvasSettings: (settings: CanvasSettings) => void;
+  updateCanvasSettings: ((settings: CanvasSettings) => void) | undefined;
   viewMode: ViewMode;
   onViewModeChange: (viewMode: ViewMode) => void;
+  readOnly?: boolean;
 }
 
 const sortNodes = (node: ReactFlowNode, nodes: ReactFlowNode[]) => {
@@ -138,6 +141,7 @@ export function UMLEditor({
   onReactFlowInit,
   canvasSettings,
   updateCanvasSettings,
+  readOnly,
 }: UMLEditorProps) {
   const { getNode } = useReactFlow();
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
@@ -187,7 +191,7 @@ export function UMLEditor({
         return node;
       });
 
-      onNodesChange(updatedNodes);
+      onNodesChange?.(updatedNodes);
 
       const selectChange = changes.find((change) => change?.type === "select");
 
@@ -195,7 +199,7 @@ export function UMLEditor({
         const selectedNodeIds = updatedNodes
           .filter((node) => node.selected)
           .map((node) => node.id);
-        onNodeSelect(selectedNodeIds);
+        onNodeSelect?.(selectedNodeIds);
       }
     },
     [getNode, onNodesChange, onNodeSelect, nodes]
@@ -204,14 +208,14 @@ export function UMLEditor({
   const handleEdgesChange = useCallback(
     (changes: EdgeChange[]) => {
       const updatedEdges = applyEdgeChanges(changes, edges);
-      onEdgesChange(updatedEdges);
+      onEdgesChange?.(updatedEdges);
 
       const selectChange = changes.find((change) => change?.type === "select");
       if (selectChange) {
         const selectedEdgeIds = updatedEdges
           .filter((edge) => edge.selected)
           .map((edge) => edge.id);
-        onEdgeSelect(selectedEdgeIds);
+        onEdgeSelect?.(selectedEdgeIds);
       }
     },
     [edges, onEdgesChange, onEdgeSelect]
@@ -226,7 +230,7 @@ export function UMLEditor({
         markerEnd: { type: MarkerType.Arrow },
       };
       const updatedEdges = addEdge(newEdge, edges);
-      onEdgesChange(updatedEdges);
+      onEdgesChange?.(updatedEdges);
 
       // Update the nodes to reflect the new connection
       const updatedNodes = nodes.map((node) => {
@@ -250,7 +254,7 @@ export function UMLEditor({
         }
         return node;
       });
-      onNodesChange(updatedNodes);
+      onNodesChange?.(updatedNodes);
     },
     [edges, onEdgesChange, nodes, onNodesChange, onChangeEdgeLabel]
   );
@@ -305,7 +309,7 @@ export function UMLEditor({
         return node;
       });
 
-      onNodesChange(updatedNodes);
+      onNodesChange?.(updatedNodes);
     },
     [nodes, onNodesChange]
   );
@@ -323,7 +327,7 @@ export function UMLEditor({
         const newNodes = nodes.filter(
           (node) => !deletedNodeIds.includes(node.id)
         );
-        onNodesChange(newNodes);
+        onNodesChange?.(newNodes);
       } else {
         // Update existing nodes or add new nodes
         const newNodes = updatedNodes.map((updatedNode) => {
@@ -349,7 +353,7 @@ export function UMLEditor({
             };
           }
         });
-        onNodesChange(newNodes);
+        onNodesChange?.(newNodes);
       }
     },
     [nodes, onNodesChange]
@@ -357,14 +361,14 @@ export function UMLEditor({
 
   const handleTableEdgesChange = useCallback(
     (updatedEdges: Edge[]) => {
-      onEdgesChange(updatedEdges);
+      onEdgesChange?.(updatedEdges);
     },
     [onEdgesChange]
   );
 
   const handleSwimlaneUpdate = useCallback(
     (nodeId: string, newLabel: string) => {
-      onLabelChange(nodeId, newLabel);
+      onLabelChange?.(nodeId, newLabel);
     },
     [onLabelChange]
   );
@@ -389,11 +393,11 @@ export function UMLEditor({
       });
 
       if (type === "image") {
-        onAddImage(position);
+        onAddImage?.(position);
       } else if (type === "swimlane") {
-        onAddSwimlane(position);
+        onAddSwimlane?.(position);
       } else {
-        onAddNode(type, position);
+        onAddNode?.(type, position);
       }
     },
     [reactFlowInstance, onAddNode, onAddSwimlane, onAddImage]
@@ -404,7 +408,7 @@ export function UMLEditor({
       const updatedEdges = edges.map((e) =>
         e.id === oldEdge.id ? { ...e, ...newConnection } : e
       );
-      onEdgesChange(updatedEdges as Edge[]);
+      onEdgesChange?.(updatedEdges as Edge[]);
     },
     [edges, onEdgesChange]
   );
@@ -435,8 +439,8 @@ export function UMLEditor({
           !nodesToDeleteSet.has(edge.target)
       );
 
-      onNodesChange(updatedNodes);
-      onEdgesChange(updatedEdges);
+      onNodesChange?.(updatedNodes);
+      onEdgesChange?.(updatedEdges);
     },
     [nodes, edges, onNodesChange, onEdgesChange]
   );
@@ -499,7 +503,7 @@ export function UMLEditor({
               }
               onClose={closeNodeProperties}
               columns={columns}
-              setColumns={setColumns}
+              setColumns={setColumns || (() => {})}
               nodes={nodes}
               edges={edges}
             />
@@ -581,7 +585,7 @@ export function UMLEditor({
             className="bg-white"
             multiSelectionKeyCode={["Meta", "Shift"]}
             selectNodesOnDrag={false}
-            elementsSelectable={true}
+            elementsSelectable={!readOnly}
             edgeUpdaterRadius={10}
             onEdgeUpdate={onEdgeUpdate}
             minZoom={0.1}
@@ -603,16 +607,17 @@ export function UMLEditor({
           edges={edges}
           onNodesChange={handleTableNodesChange}
           onEdgesChange={handleTableEdgesChange}
-          onAddColumn={onAddColumn}
+          onAddColumn={onAddColumn || (() => {})}
           columns={columns}
-          setColumns={setColumns}
+          setColumns={setColumns || (() => {})}
           currentFolderCanvases={currentFolderCanvases}
           canvasId={canvasId}
           canvasType={canvasType}
           canvasSettings={canvasSettings}
-          updateCanvasSettings={updateCanvasSettings}
+          updateCanvasSettings={updateCanvasSettings || (() => {})}
           viewMode={viewMode}
           onViewModeChange={onViewModeChange}
+          readOnly={readOnly}
         />
       )}
     </div>

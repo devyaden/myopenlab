@@ -44,6 +44,7 @@ export interface TableViewProps {
   updateCanvasSettings: (settings: CanvasSettings) => void;
   viewMode: ViewMode;
   onViewModeChange: (viewMode: ViewMode) => void;
+  readOnly?: boolean;
 }
 
 export type SortDirection = "asc" | "desc" | null;

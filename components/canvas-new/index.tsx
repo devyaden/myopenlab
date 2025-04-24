@@ -2,6 +2,8 @@
 
 import "./react-flow-fixes.css";
 
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useCanvasStore } from "@/lib/store/useCanvas";
 import { CANVAS_TYPE } from "@/types/store";
@@ -20,6 +22,9 @@ import { VerticalNav } from "./vertical-nav";
 import DocumentEditor from "@/components/editor";
 import { add } from "date-fns";
 import { VIEW_MODE } from "./table-view/table.types";
+import { Unauthorized } from "../unauthorized";
+import { useUser } from "@/lib/contexts/userContext";
+import { ViewModeSwitcher } from "./view-mode-switcher";
 
 interface NodeStyle {
   fontFamily: string;
@@ -80,11 +85,16 @@ interface FigmaInterfaceProps {
 
 export default function CanvasNew({ canvasId }: FigmaInterfaceProps) {
   const router = useRouter();
+  const { user } = useUser();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [selectedNode, setSelectedNode] = useState<string | null>(null);
   const [selectedNodes, setSelectedNodes] = useState<string[]>([]);
   const [reactFlowInstance, setReactFlowInstance] =
     useState<ReactFlowInstance | null>(null);
+  const [visibility, setVisibility] = useState<string>("private");
+  const [isOwner, setIsOwner] = useState<boolean>(false);
+  const [isLoaded, setIsLoaded] = useState<boolean>(false);
+  const [unauthorized, setUnauthorized] = useState<boolean>(false);
 
   const {
     loadCanvas,
@@ -109,6 +119,7 @@ export default function CanvasNew({ canvasId }: FigmaInterfaceProps) {
     canvas_type,
     updateCanvasSettings,
     canvasSettings,
+    user_id,
   } = useCanvasStore();
 
   const currentState: {
@@ -1027,8 +1038,93 @@ export default function CanvasNew({ canvasId }: FigmaInterfaceProps) {
     if (mode === "table") {
       setIsSidebarOpen(false);
     }
-    setViewMode(mode);
+
+    // If the canvas is hybrid, allow switching between all views
+    // If it's a specific type (table or document), restrict to that view
+    if (canvas_type === CANVAS_TYPE.HYBRID || mode === canvas_type) {
+      setViewMode(mode);
+    } else {
+      toast.error(
+        `This is a ${canvas_type} canvas and cannot be viewed as ${mode}`
+      );
+    }
   };
+
+  // Check if current user is the owner of the canvas
+  useEffect(() => {
+    if (user && user_id) {
+      setIsOwner(user.id === user_id);
+      setIsLoaded(true);
+    }
+  }, [user, user_id]);
+
+  // Check authorization when canvas is loaded
+  useEffect(() => {
+    const checkAuthorization = async () => {
+      if (!user || !isLoaded) return;
+
+      try {
+        // Get canvas details to check visibility
+        const response = await fetch(`/api/canvas/${canvasId}`);
+
+        if (!response.ok) {
+          if (response.status === 404) {
+            toast.error("Canvas not found");
+            router.push("/protected");
+            return;
+          }
+          throw new Error("Failed to fetch canvas");
+        }
+
+        const data = await response.json();
+        setVisibility(data.visibility || "private");
+
+        // If user is not owner and canvas is not public, show unauthorized component
+        if (user.id !== data.user_id && data.visibility !== "public") {
+          setUnauthorized(true);
+        }
+      } catch (error) {
+        console.error("Error checking authorization:", error);
+        toast.error("Failed to check authorization");
+      }
+    };
+
+    checkAuthorization();
+  }, [canvasId, user, isLoaded, router]);
+
+  // Function to change canvas visibility
+  const handleVisibilityChange = async (newVisibility: string) => {
+    try {
+      const response = await fetch("/api/canvas/visibility", {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          canvasId,
+          visibility: newVisibility,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to update visibility");
+      }
+
+      setVisibility(newVisibility);
+      return Promise.resolve();
+    } catch (error) {
+      console.error("Error updating visibility:", error);
+      return Promise.reject(error);
+    }
+  };
+
+  // If unauthorized, show the Unauthorized component
+  if (unauthorized) {
+    return <Unauthorized />;
+  }
+
+  // Create read-only props for non-owners viewing public canvases
+  const isReadOnly = !isOwner && visibility === "public";
 
   if (isLoading) {
     return (
@@ -1068,18 +1164,34 @@ export default function CanvasNew({ canvasId }: FigmaInterfaceProps) {
                 setProjectName(newName);
                 handleCanvasNameChange(canvasId, newName);
               }}
-              onBackToDashboard={() => router.push("/")}
+              onBackToDashboard={() => router.push("/protected")}
               onImportCanvas={handleImportCanvas}
               onBringForward={bringForward}
               onSendBackward={sendBackward}
               saveLoading={saveLoading}
               onSave={saveCanvas}
+              canvasId={canvasId}
+              visibility={visibility}
+              onVisibilityChange={handleVisibilityChange}
+              isOwner={isOwner}
             />
+
+            {/* Add view mode switcher for read-only mode */}
+            {isReadOnly && viewMode === VIEW_MODE.canvas && (
+              <div className="flex justify-end p-2 border-b">
+                <ViewModeSwitcher
+                  viewMode={viewMode}
+                  onViewModeChange={handleViewModeChange}
+                  canvasType={canvas_type}
+                />
+              </div>
+            )}
 
             {/* conditional rendering based on canvas type */}
 
             {canvas_type === CANVAS_TYPE.HYBRID &&
-              viewMode === VIEW_MODE.canvas && (
+              viewMode === VIEW_MODE.canvas &&
+              !isReadOnly && (
                 <Toolbar
                   key={selectedNode || selectedEdge || "no-selection"}
                   fontFamily={selectedStyle?.fontFamily || "Arial"}
@@ -1162,36 +1274,42 @@ export default function CanvasNew({ canvasId }: FigmaInterfaceProps) {
               )}
 
             <div className="flex flex-1 overflow-hidden">
-              <VerticalNav
-                className="hidden md:flex"
-                onToggleSidebar={toggleSidebar}
-                canvasType={canvas_type}
-              />
-              <div className="flex-1 flex flex-col md:flex-row relative ">
-                <Sidebar
-                  onDragStart={onDragStart}
-                  isVisible={isSidebarOpen}
-                  onShapeClick={handleShapeClick}
+              {!isReadOnly && (
+                <VerticalNav
+                  className="hidden md:flex"
+                  onToggleSidebar={toggleSidebar}
+                  canvasType={canvas_type}
                 />
+              )}
+              <div className="flex-1 flex flex-col md:flex-row relative ">
+                {!isReadOnly && (
+                  <Sidebar
+                    onDragStart={onDragStart}
+                    isVisible={isSidebarOpen}
+                    onShapeClick={handleShapeClick}
+                  />
+                )}
                 <div className="flex-1 relative">
                   <SafeUMLEditor
                     nodes={currentState.nodes}
                     edges={currentState.edges}
-                    onNodesChange={onNodesChange}
-                    onEdgesChange={onEdgesChange}
+                    onNodesChange={isReadOnly ? undefined : onNodesChange}
+                    onEdgesChange={isReadOnly ? undefined : onEdgesChange}
                     nodeStyles={currentState.nodeStyles}
-                    onNodeSelect={onNodeSelect}
+                    onNodeSelect={isReadOnly ? undefined : onNodeSelect}
                     selectedNodes={selectedNodes}
-                    onAddNode={addNode}
-                    onAddSwimlane={addSwimlane}
-                    onLabelChange={onLabelChange}
-                    onAddLane={addLaneToSwimlane}
-                    onEdgeSelect={onEdgeSelect}
-                    onChangeEdgeLabel={onChangeEdgeLabel}
-                    onAddImage={addImage}
-                    onAddColumn={handleAddColumn}
+                    onAddNode={isReadOnly ? undefined : addNode}
+                    onAddSwimlane={isReadOnly ? undefined : addSwimlane}
+                    onLabelChange={isReadOnly ? undefined : onLabelChange}
+                    onAddLane={isReadOnly ? undefined : addLaneToSwimlane}
+                    onEdgeSelect={isReadOnly ? undefined : onEdgeSelect}
+                    onChangeEdgeLabel={
+                      isReadOnly ? undefined : onChangeEdgeLabel
+                    }
+                    onAddImage={isReadOnly ? undefined : addImage}
+                    onAddColumn={isReadOnly ? undefined : handleAddColumn}
                     columns={columns}
-                    setColumns={setColumns}
+                    setColumns={isReadOnly ? undefined : setColumns}
                     currentFolderCanvases={folderCanvases.map((canvas) => ({
                       ...canvas,
                       canvas_type:
@@ -1201,9 +1319,12 @@ export default function CanvasNew({ canvasId }: FigmaInterfaceProps) {
                     canvasType={canvas_type}
                     onReactFlowInit={setReactFlowInstance}
                     canvasSettings={canvasSettings}
-                    updateCanvasSettings={updateCanvasSettings}
+                    updateCanvasSettings={
+                      isReadOnly ? undefined : updateCanvasSettings
+                    }
                     viewMode={viewMode}
                     onViewModeChange={handleViewModeChange}
+                    readOnly={isReadOnly}
                   />
                 </div>
               </div>
@@ -1223,6 +1344,7 @@ export default function CanvasNew({ canvasId }: FigmaInterfaceProps) {
             canvasId={canvasId}
             isPartOfCanvas={true}
             onBackToBoard={() => setViewMode("canvas")}
+            readOnly={isReadOnly}
           />
         </>
       )}
