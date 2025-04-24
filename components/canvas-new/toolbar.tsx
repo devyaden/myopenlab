@@ -216,109 +216,179 @@ export const Toolbar = React.memo(function Toolbar({
   ];
 
   const getLineStyleIcon = (style: string) => {
-    return (
-      <svg width="100" height="20" viewBox="0 0 100 20" className="mr-2">
-        {/* Bezier (default) */}
-        {style === "default" && (
-          <path
-            d="M0,10 C30,0 70,20 100,10"
+    switch (style) {
+      case "default":
+        return (
+          <svg
+            width="100%"
+            height="24"
+            viewBox="0 0 100 24"
             fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-          />
-        )}
-
-        {/* Straight */}
-        {style === "straight" && (
-          <line
-            x1="0"
-            y1="10"
-            x2="100"
-            y2="10"
-            stroke="currentColor"
-            strokeWidth="2"
-          />
-        )}
-
-        {/* Step */}
-        {style === "step" && (
-          <path
-            d="M0,10 H25 V5 H75 V10 H100"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <path
+              d="M5,12 C25,4 75,20 95,12"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+            />
+          </svg>
+        );
+      case "simplebezier":
+        return (
+          <svg
+            width="100%"
+            height="24"
+            viewBox="0 0 100 24"
             fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-          />
-        )}
-
-        {/* SmoothStep */}
-        {style === "smoothstep" && (
-          <path
-            d="M0,10 C12.5,10 25,5 50,5 S87.5,0 100,0"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <path
+              d="M5,12 Q50,4 95,12"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+            />
+          </svg>
+        );
+      case "straight":
+        return (
+          <svg
+            width="100%"
+            height="24"
+            viewBox="0 0 100 24"
             fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-          />
-        )}
-
-        {/* SimpleBezier */}
-        {style === "simplebezier" && (
-          <path
-            d="M0,10 Q50,0 100,10"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-          />
-        )}
-
-        {/* Dashed */}
-        {style === "dashed" && (
-          <line
-            x1="0"
-            y1="10"
-            x2="100"
-            y2="10"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeDasharray="8,4"
-          />
-        )}
-
-        {/* Dotted */}
-        {style === "dotted" && (
-          <line
-            x1="0"
-            y1="10"
-            x2="100"
-            y2="10"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeDasharray="2,4"
-          />
-        )}
-
-        {/* Double */}
-        {style === "double" && (
-          <>
+            xmlns="http://www.w3.org/2000/svg"
+          >
             <line
-              x1="0"
-              y1="7"
-              x2="100"
-              y2="7"
+              x1="5"
+              y1="12"
+              x2="95"
+              y2="12"
+              stroke="currentColor"
+              strokeWidth="2"
+            />
+          </svg>
+        );
+      case "step":
+        return (
+          <svg
+            width="100%"
+            height="24"
+            viewBox="0 0 100 24"
+            fill="none"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <path
+              d="M5,12 H35 V6 H65 V12 H95"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+            />
+          </svg>
+        );
+      case "smoothstep":
+        return (
+          <svg
+            width="100%"
+            height="24"
+            viewBox="0 0 100 24"
+            fill="none"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <path
+              d="M5,12 C20,12 30,4 50,4 S80,4 95,12"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+            />
+          </svg>
+        );
+      case "dashed":
+        return (
+          <svg
+            width="100%"
+            height="24"
+            viewBox="0 0 100 24"
+            fill="none"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <line
+              x1="5"
+              y1="12"
+              x2="95"
+              y2="12"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeDasharray="10,6"
+            />
+          </svg>
+        );
+      case "dotted":
+        return (
+          <svg
+            width="100%"
+            height="24"
+            viewBox="0 0 100 24"
+            fill="none"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <line
+              x1="5"
+              y1="12"
+              x2="95"
+              y2="12"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeDasharray="2,4"
+            />
+          </svg>
+        );
+      case "double":
+        return (
+          <svg
+            width="100%"
+            height="24"
+            viewBox="0 0 100 24"
+            fill="none"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <line
+              x1="5"
+              y1="8"
+              x2="95"
+              y2="8"
               stroke="currentColor"
               strokeWidth="1.5"
             />
             <line
-              x1="0"
-              y1="13"
-              x2="100"
-              y2="13"
+              x1="5"
+              y1="16"
+              x2="95"
+              y2="16"
               stroke="currentColor"
               strokeWidth="1.5"
             />
-          </>
-        )}
-      </svg>
-    );
+          </svg>
+        );
+      default:
+        return (
+          <svg
+            width="100%"
+            height="24"
+            viewBox="0 0 100 24"
+            fill="none"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <path
+              d="M5,12 C25,4 75,20 95,12"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+            />
+          </svg>
+        );
+    }
   };
   return (
     <div className="flex items-center gap-2 p-2  overflow-x-auto border-b">
@@ -506,7 +576,7 @@ export const Toolbar = React.memo(function Toolbar({
         </DropdownMenu>
 
         {/* line height change popover */}
-        <Popover>
+        {/* <Popover>
           <PopoverTrigger asChild>
             <Button
               variant="outline"
@@ -535,292 +605,147 @@ export const Toolbar = React.memo(function Toolbar({
               </div>
             </div>
           </PopoverContent>
-        </Popover>
+        </Popover> */}
       </div>
       <Separator orientation="vertical" className="h-6 hidden sm:block" />
 
-      {/* node background color changer */}
-      <Input
-        type="color"
-        value={backgroundColor}
-        className="!w-12 h-9 rounded-lg [&::-webkit-color-swatch-wrapper]:p-0 [&::-webkit-color-swatch]:border-none [&::-webkit-color-swatch]:rounded-md"
-        disabled={isStyleDisabled}
-        onChange={(e) => setBackgroundColor(e.target.value)}
-      />
-
-      {/* Shape change dropdown */}
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button
-            className="rounded-lg  hidden sm:flex"
-            variant="outline"
-            size="sm"
-            disabled={!isNodeSelected}
-          >
-            {!shape && <Shapes className="h-4 w-4 " />}
-
-            {shape === "rectangle" && <Square className="h-4 w-4 " />}
-            {shape === "rounded" && <Square className="h-4 w-4  rounded-sm" />}
-            {shape === "circle" && <Circle className="h-4 w-4 " />}
-            {shape === "diamond" && <Diamond className="h-4 w-4 " />}
-            {shape === "hexagon" && <Hexagon className="h-4 w-4 " />}
-            {shape === "triangle" && <Triangle className="h-4 w-4 " />}
-            {shape === "actor" && <User className="h-4 w-4 " />}
-            {shape === "interface" && <Box className="h-4 w-4 " />}
-            {shape === "swimlane" && <Square className="h-4 w-4 " />}
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent>
-          <DropdownMenuItem onSelect={() => onChangeShape("rectangle")}>
-            <Square className="mr-2 h-4 w-4" />
-            Rectangle
-          </DropdownMenuItem>
-          <DropdownMenuItem onSelect={() => onChangeShape("rounded")}>
-            <Square className="mr-2 h-4 w-4 rounded-sm" />
-            Rounded
-          </DropdownMenuItem>
-          <DropdownMenuItem onSelect={() => onChangeShape("circle")}>
-            <Circle className="mr-2 h-4 w-4" />
-            Circle
-          </DropdownMenuItem>
-          <DropdownMenuItem onSelect={() => onChangeShape("diamond")}>
-            <Diamond className="mr-2 h-4 w-4" />
-            Diamond
-          </DropdownMenuItem>
-          <DropdownMenuItem onSelect={() => onChangeShape("hexagon")}>
-            <Hexagon className="mr-2 h-4 w-4" />
-            Hexagon
-          </DropdownMenuItem>
-          <DropdownMenuItem onSelect={() => onChangeShape("triangle")}>
-            <Triangle className="mr-2 h-4 w-4" />
-            Triangle
-          </DropdownMenuItem>
-
-          <DropdownMenuItem onSelect={() => onChangeShape("actor")}>
-            <User className="mr-2 h-4 w-4" />
-            Actor
-          </DropdownMenuItem>
-
-          <DropdownMenuItem onSelect={() => onChangeShape("interface")}>
-            <Box className="mr-2 h-4 w-4" />
-            Interface
-          </DropdownMenuItem>
-          <DropdownMenuItem onSelect={() => onChangeShape("swimlane")}>
-            <Square className="mr-2 h-4 w-4" />
-            Swimlane
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
-
-      <Button variant="outline" size="sm" className="h-8 w-8 rounded-lg">
-        <SendToBack className="h-4 w-4" />
-      </Button>
-
-      <Separator orientation="vertical" className="h-6 hidden sm:block" />
-
-      <Input
-        type="color"
-        value={borderColor}
-        className="!w-12 h-9 rounded-lg [&::-webkit-color-swatch-wrapper]:p-0 [&::-webkit-color-swatch]:border-none [&::-webkit-color-swatch]:rounded-md"
-        disabled={isStyleDisabled}
-        onChange={(e) => setBorderColor(e.target.value)}
-      />
-
+      {/* Unified controls for shape/edge properties */}
       <div className="flex items-center gap-2">
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button
-              variant="outline"
-              size="sm"
-              className="rounded-lg"
-              disabled={isStyleDisabled || isSwimlane}
-            >
-              {getBorderStyleIcon(borderStyle)}
-              <ChevronDown className="h-3 w-3" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent className="min-w-[180px]">
-            <div className="p-2">
-              <div className="space-y-1">
-                <div className="text-xs text-muted-foreground mb-2">
-                  Border Style
-                </div>
-                {borderStyles.map((style) => (
-                  <DropdownMenuItem
-                    key={style.value}
-                    className="flex items-center justify-between"
-                    onSelect={() => setBorderStyle(style.value)}
-                  >
-                    <span>{style.name}</span>
-                    <div className="w-16 flex items-center justify-center">
-                      {getBorderStyleIcon(style.value)}
-                    </div>
-                  </DropdownMenuItem>
-                ))}
-              </div>
-            </div>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </div>
+        {/* Background color for shapes - only visible when node selected */}
+        {!selectedEdge && (
+          <div className="flex items-center justify-center h-9 w-10 border rounded-md overflow-hidden">
+            <Input
+              type="color"
+              value={backgroundColor}
+              className="!w-full !h-full !p-0 [&::-webkit-color-swatch-wrapper]:p-0 [&::-webkit-color-swatch]:border-none"
+              disabled={isStyleDisabled}
+              onChange={(e) => setBackgroundColor(e.target.value)}
+            />
+          </div>
+        )}
 
-      <div className="flex items-center gap-2">
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button
-              variant="outline"
-              size="sm"
-              disabled={isStyleDisabled || isSwimlane}
-            >
-              {borderWidth}px
-              <div className=" flex flex-col items-center justify-center">
-                <svg
-                  width="8"
-                  height="14"
-                  viewBox="0 0 8 14"
-                  fill="none"
-                  xmlns="http://www.w3.org/2000/svg"
-                >
-                  <path
-                    d="M0.538031 4.19115C0.500131 4.0998 0.490175 3.99926 0.509422 3.90225C0.528668 3.80524 0.576252 3.71612 0.646155 3.64615L3.64616 0.646155C3.69259 0.599667 3.74774 0.562787 3.80844 0.537625C3.86913 0.512463 3.9342 0.499512 3.99991 0.499512C4.06561 0.499512 4.13068 0.512463 4.19138 0.537625C4.25207 0.562787 4.30722 0.599667 4.35366 0.646155L7.35366 3.64615C7.42366 3.71608 7.47134 3.80521 7.49067 3.90225C7.51 3.99929 7.50009 4.09989 7.46222 4.1913C7.42434 4.28271 7.36019 4.36083 7.2779 4.41577C7.1956 4.4707 7.09885 4.49998 6.99991 4.49991H0.999905C0.901015 4.49988 0.804352 4.47054 0.722139 4.41558C0.639926 4.36063 0.575856 4.28253 0.538031 4.19115ZM6.99991 9.4999H0.999905C0.900958 9.49983 0.804212 9.52911 0.721915 9.58404C0.639618 9.63898 0.57547 9.7171 0.537594 9.80851C0.499718 9.89992 0.489816 10.0005 0.509141 10.0976C0.528466 10.1946 0.57615 10.2837 0.646155 10.3537L3.64616 13.3537C3.69259 13.4001 3.74774 13.437 3.80844 13.4622C3.86913 13.4873 3.9342 13.5003 3.99991 13.5003C4.06561 13.5003 4.13068 13.4873 4.19138 13.4622C4.25207 13.437 4.30722 13.4001 4.35366 13.3537L7.35366 10.3537C7.42366 10.2837 7.47134 10.1946 7.49067 10.0976C7.51 10.0005 7.50009 9.89992 7.46222 9.80851C7.42434 9.7171 7.36019 9.63898 7.2779 9.58404C7.1956 9.52911 7.09885 9.49983 6.99991 9.4999Z"
-                    fill="#344054"
-                  />
-                </svg>
-              </div>
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent className="min-w-[180px]">
-            <div className="mb-3">
-              <div className="flex items-center gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="h-6 w-6"
-                  onClick={() => setBorderWidth(Math.max(1, borderWidth - 1))}
-                  disabled={borderWidth <= 1}
-                >
-                  <Minus className="h-3 w-3" />
-                </Button>
-                <div className="w-12 text-center text-sm">{borderWidth}px</div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="h-6 w-6"
-                  onClick={() => setBorderWidth(Math.min(10, borderWidth + 1))}
-                  disabled={borderWidth >= 10}
-                >
-                  <Plus className="h-3 w-3" />
-                </Button>
-              </div>
-              <Slider
-                className="mt-2"
-                value={[borderWidth]}
-                min={1}
-                max={10}
-                step={1}
-                onValueChange={(value) => setBorderWidth(value[0])}
-              />
-            </div>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </div>
-
-      {/* <div className="flex items-center gap-2">
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button
-              variant="outline"
-              size="sm"
-              className="rounded-lg"
-              disabled={!selectedEdge}
-            >
-              <svg
-                width="24"
-                height="24"
-                viewBox="0 0 24 24"
-                className="text-gray-600"
-              >
-                {getLineStyleIcon(selectedEdge ? currentEdgeStyle : "default")}
-              </svg>
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent>
-            {lineStyles.map((style) => (
-              <DropdownMenuItem
-                key={style.value}
-                onSelect={() => onChangeEdgeStyle(style.value)}
-              >
-                {getLineStyleIcon(style.value)}
-                {style.name}
-              </DropdownMenuItem>
-            ))}
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </div> */}
-
-      <Separator orientation="vertical" className="h-6 hidden sm:block" />
-
-      <div className="flex items-center gap-2">
-        <Input
-          type="number"
-          min={1}
-          max={10}
-          value={edgeWidth}
-          onChange={(e) => setEdgeWidth(Number(e.target.value))}
-          className="w-16"
-          disabled={!selectedEdge}
-        />
-        <div className="relative">
+        {/* Border/Edge color */}
+        <div className="flex items-center justify-center h-9 w-10 border rounded-md overflow-hidden">
           <Input
             type="color"
-            value={edgeColor}
-            onChange={(e) => setEdgeColor(e.target.value)}
-            className="w-8 h-8 p-0 border-0"
-            disabled={!selectedEdge}
+            value={selectedEdge ? edgeColor : borderColor}
+            className="!w-full !h-full !p-0 [&::-webkit-color-swatch-wrapper]:p-0 [&::-webkit-color-swatch]:border-none"
+            disabled={isStyleDisabled && !selectedEdge}
+            onChange={(e) => {
+              if (selectedEdge) {
+                setEdgeColor(e.target.value);
+              } else if (selectedNode) {
+                setBorderColor(e.target.value);
+              }
+            }}
           />
-          {/* <Pipette className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 pointer-events-none" /> */}
         </div>
-      </div>
 
-      <div className="flex items-center gap-2">
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button
-              variant="outline"
-              size="sm"
-              className="rounded-lg"
-              disabled={!selectedEdge}
-            >
-              <svg
-                width="24"
-                height="24"
-                viewBox="0 0 24 24"
-                className="text-gray-600"
-              >
-                {getLineStyleIcon(selectedEdge ? currentEdgeStyle : "default")}
-              </svg>
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent>
-            {lineStyles.map((style) => (
-              <DropdownMenuItem
-                key={style.value}
-                onSelect={() => onChangeEdgeStyle(style.value)}
-              >
-                {getLineStyleIcon(style.value)}
-                {style.name}
-              </DropdownMenuItem>
-            ))}
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </div>
+        {/* Width control */}
+        <div className="border rounded-md overflow-hidden">
+          <Input
+            type="number"
+            min={1}
+            max={10}
+            value={selectedEdge ? edgeWidth : borderWidth}
+            onChange={(e) => {
+              const value = Number(e.target.value);
+              if (value >= 1 && value <= 10) {
+                if (selectedEdge) {
+                  setEdgeWidth(value);
+                } else {
+                  setBorderWidth(value);
+                }
+              }
+            }}
+            className="w-20 border-0 focus-visible:ring-0 focus-visible:ring-offset-0"
+            disabled={(isStyleDisabled || isSwimlane) && !selectedEdge}
+          />
+        </div>
 
-      <Separator orientation="vertical" className="h-6 hidden sm:block" />
+        {/* Edge style dropdown - only visible when edge selected */}
+        {selectedEdge && (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-9 rounded-md px-2 min-w-[90px]"
+              >
+                <div className="w-16 flex items-center">
+                  {getLineStyleIcon(currentEdgeStyle)}
+                </div>
+                <ChevronDown className="h-3 w-3 ml-1" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent className="min-w-[200px] p-0">
+              <div className="py-1 px-2">
+                <div className="text-sm font-medium py-2 border-b">
+                  Edge Style
+                </div>
+                <div className="py-1">
+                  {lineStyles.map((style) => (
+                    <DropdownMenuItem
+                      key={style.value}
+                      className="flex items-center justify-between px-2 py-3 hover:bg-gray-50 cursor-pointer rounded-sm"
+                      onSelect={() => onChangeEdgeStyle(style.value)}
+                    >
+                      <span className="text-sm">{style.name}</span>
+                      <div className="w-32 flex items-center">
+                        {getLineStyleIcon(style.value)}
+                      </div>
+                    </DropdownMenuItem>
+                  ))}
+                </div>
+              </div>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        )}
+
+        {/* Border style dropdown - only visible when node selected */}
+        {!selectedEdge && (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-9 rounded-md"
+                disabled={isStyleDisabled || isSwimlane}
+              >
+                {getBorderStyleIcon(borderStyle)}
+                <ChevronDown className="h-3 w-3" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent className="min-w-[200px] p-0">
+              <div className="py-1 px-2">
+                <div className="text-sm font-medium py-2 border-b">
+                  Border Style
+                </div>
+                <div className="py-1">
+                  {borderStyles.map((style) => (
+                    <DropdownMenuItem
+                      key={style.value}
+                      className="flex items-center justify-between px-2 py-3 hover:bg-gray-50 cursor-pointer rounded-sm"
+                      onSelect={() => setBorderStyle(style.value)}
+                    >
+                      <span className="text-sm">{style.name}</span>
+                      <div className="w-16 flex items-center justify-center">
+                        {getBorderStyleIcon(style.value)}
+                      </div>
+                    </DropdownMenuItem>
+                  ))}
+                </div>
+              </div>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        )}
+      </div>
 
       <div className="flex items-center gap-2">
         <Button
           variant="outline"
           size="sm"
-          className=" rounded-lg"
+          className="rounded-lg"
           onClick={onCopy}
           disabled={isStyleDisabled}
         >
@@ -829,7 +754,7 @@ export const Toolbar = React.memo(function Toolbar({
         <Button
           variant="outline"
           size="sm"
-          className=" rounded-lg"
+          className="rounded-lg"
           onClick={onPaste}
         >
           <Clipboard className="h-4 w-4" />
@@ -839,7 +764,7 @@ export const Toolbar = React.memo(function Toolbar({
           size="sm"
           className="rounded-lg"
           onClick={onDelete}
-          disabled={!selectedNode}
+          disabled={!selectedNode && !selectedEdge}
         >
           <Trash2 className="h-4 w-4" />
         </Button>
@@ -847,9 +772,9 @@ export const Toolbar = React.memo(function Toolbar({
 
       <Separator orientation="vertical" className="h-6 hidden sm:block" />
       <div className="flex items-center gap-2">
-        <Button variant="outline" size="sm" className="rounded-lg">
+        {/* <Button variant="outline" size="sm" className="rounded-lg">
           <Link className="h-4 w-4" />
-        </Button>
+        </Button> */}
         <Button
           variant="outline"
           size="sm"
