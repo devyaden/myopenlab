@@ -150,6 +150,8 @@ export const Toolbar = React.memo(function Toolbar({
   canUndo,
   canRedo,
 }: ToolbarProps) {
+  console.log("🚀 ~ currentEdgeStyle:", selectedEdge);
+
   const fontFamilies = [
     "Arial",
     "Helvetica",
@@ -221,10 +223,11 @@ export const Toolbar = React.memo(function Toolbar({
         return (
           <svg
             width="100%"
-            height="24"
+            height="100%"
             viewBox="0 0 100 24"
             fill="none"
             xmlns="http://www.w3.org/2000/svg"
+            preserveAspectRatio="xMidYMid meet"
           >
             <path
               d="M5,12 C25,4 75,20 95,12"
@@ -238,10 +241,11 @@ export const Toolbar = React.memo(function Toolbar({
         return (
           <svg
             width="100%"
-            height="24"
+            height="100%"
             viewBox="0 0 100 24"
             fill="none"
             xmlns="http://www.w3.org/2000/svg"
+            preserveAspectRatio="xMidYMid meet"
           >
             <path
               d="M5,12 Q50,4 95,12"
@@ -255,10 +259,11 @@ export const Toolbar = React.memo(function Toolbar({
         return (
           <svg
             width="100%"
-            height="24"
+            height="100%"
             viewBox="0 0 100 24"
             fill="none"
             xmlns="http://www.w3.org/2000/svg"
+            preserveAspectRatio="xMidYMid meet"
           >
             <line
               x1="5"
@@ -274,10 +279,11 @@ export const Toolbar = React.memo(function Toolbar({
         return (
           <svg
             width="100%"
-            height="24"
+            height="100%"
             viewBox="0 0 100 24"
             fill="none"
             xmlns="http://www.w3.org/2000/svg"
+            preserveAspectRatio="xMidYMid meet"
           >
             <path
               d="M5,12 H35 V6 H65 V12 H95"
@@ -291,10 +297,11 @@ export const Toolbar = React.memo(function Toolbar({
         return (
           <svg
             width="100%"
-            height="24"
+            height="100%"
             viewBox="0 0 100 24"
             fill="none"
             xmlns="http://www.w3.org/2000/svg"
+            preserveAspectRatio="xMidYMid meet"
           >
             <path
               d="M5,12 C20,12 30,4 50,4 S80,4 95,12"
@@ -308,10 +315,11 @@ export const Toolbar = React.memo(function Toolbar({
         return (
           <svg
             width="100%"
-            height="24"
+            height="100%"
             viewBox="0 0 100 24"
             fill="none"
             xmlns="http://www.w3.org/2000/svg"
+            preserveAspectRatio="xMidYMid meet"
           >
             <line
               x1="5"
@@ -328,10 +336,11 @@ export const Toolbar = React.memo(function Toolbar({
         return (
           <svg
             width="100%"
-            height="24"
+            height="100%"
             viewBox="0 0 100 24"
             fill="none"
             xmlns="http://www.w3.org/2000/svg"
+            preserveAspectRatio="xMidYMid meet"
           >
             <line
               x1="5"
@@ -348,10 +357,11 @@ export const Toolbar = React.memo(function Toolbar({
         return (
           <svg
             width="100%"
-            height="24"
+            height="100%"
             viewBox="0 0 100 24"
             fill="none"
             xmlns="http://www.w3.org/2000/svg"
+            preserveAspectRatio="xMidYMid meet"
           >
             <line
               x1="5"
@@ -375,10 +385,11 @@ export const Toolbar = React.memo(function Toolbar({
         return (
           <svg
             width="100%"
-            height="24"
+            height="100%"
             viewBox="0 0 100 24"
             fill="none"
             xmlns="http://www.w3.org/2000/svg"
+            preserveAspectRatio="xMidYMid meet"
           >
             <path
               d="M5,12 C25,4 75,20 95,12"
@@ -670,15 +681,17 @@ export const Toolbar = React.memo(function Toolbar({
               <Button
                 variant="outline"
                 size="sm"
-                className="h-9 rounded-md px-2 min-w-[90px]"
+                className="h-9 rounded-md px-2 min-w-[90px] overflow-hidden"
               >
-                <div className="w-16 flex items-center">
-                  {getLineStyleIcon(currentEdgeStyle)}
+                <div className="flex-1 flex items-center justify-center">
+                  <div className="w-20 h-6 flex items-center justify-center">
+                    {getLineStyleIcon(currentEdgeStyle)}
+                  </div>
                 </div>
-                <ChevronDown className="h-3 w-3 ml-1" />
+                <ChevronDown className="h-3 w-3 ml-1 flex-shrink-0" />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent className="min-w-[200px] p-0">
+            <DropdownMenuContent className="min-w-[220px] p-0">
               <div className="py-1 px-2">
                 <div className="text-sm font-medium py-2 border-b">
                   Edge Style
@@ -687,7 +700,11 @@ export const Toolbar = React.memo(function Toolbar({
                   {lineStyles.map((style) => (
                     <DropdownMenuItem
                       key={style.value}
-                      className="flex items-center justify-between px-2 py-3 hover:bg-gray-50 cursor-pointer rounded-sm"
+                      className={`flex items-center justify-between px-2 py-3 hover:bg-gray-50 cursor-pointer rounded-sm ${
+                        currentEdgeStyle === style.value
+                          ? "bg-gray-50 font-medium"
+                          : ""
+                      }`}
                       onSelect={() => onChangeEdgeStyle(style.value)}
                     >
                       <span className="text-sm">{style.name}</span>
@@ -725,7 +742,9 @@ export const Toolbar = React.memo(function Toolbar({
                   {borderStyles.map((style) => (
                     <DropdownMenuItem
                       key={style.value}
-                      className="flex items-center justify-between px-2 py-3 hover:bg-gray-50 cursor-pointer rounded-sm"
+                      className={`flex items-center justify-between px-2 py-3 hover:bg-gray-50 cursor-pointer rounded-sm ${
+                        borderStyle === style.value ? "bg-gray-50" : ""
+                      }`}
                       onSelect={() => setBorderStyle(style.value)}
                     >
                       <span className="text-sm">{style.name}</span>

@@ -9,12 +9,6 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
@@ -23,10 +17,8 @@ import {
 import { toJpeg, toPng, toSvg } from "html-to-image";
 import { jsPDF } from "jspdf";
 import {
-  ChevronDown,
   ChevronLeft,
   Download,
-  DownloadCloud,
   FileImage,
   FileJson,
   FileSpreadsheet,
@@ -43,30 +35,19 @@ import { LoadingSpinner } from "../loading-spinner";
 import { ImportModal } from "./import-modal";
 import { ShareModal } from "./share-modal";
 import { VIEW_MODE, ViewMode } from "./table-view/table.types";
+import Image from "next/image";
+import { CANVAS_TYPE } from "@/types/store";
 
 const MAX_TITLE_LENGTH = 50;
 
 interface HeaderProps {
-  onInsertImage: () => void;
-  onUndo: () => void;
-  onRedo: () => void;
-  onCut: () => void;
-  onCopy: () => void;
-  onPaste: () => void;
-  onDelete: () => void;
-  onZoomIn: () => void;
-  onZoomOut: () => void;
-  onFitToScreen: () => void;
-  onToggleGrid: () => void;
-  onToggleRulers: () => void;
   projectName: string;
   setProjectName: (name: string) => void;
   onSave: () => void;
   onBackToDashboard: () => void;
-  currentState: any;
+  currentState?: any;
   onImportCanvas: (data: any) => void;
-  onBringForward: () => void;
-  onSendBackward: () => void;
+
   saveLoading: boolean;
   canvasId: string;
   visibility: string;
@@ -75,29 +56,18 @@ interface HeaderProps {
   viewMode?: ViewMode;
   exportToCSV?: () => void;
   exportToExcel?: () => void;
+  exportAsJSON?: () => void;
+  exportAsPDF?: () => void;
+  canvasType: CANVAS_TYPE;
 }
 
 export function Header({
-  onInsertImage,
-  onUndo,
-  onRedo,
-  onCut,
-  onCopy,
-  onPaste,
-  onDelete,
-  onZoomIn,
-  onZoomOut,
-  onFitToScreen,
-  onToggleGrid,
-  onToggleRulers,
   projectName,
   setProjectName,
   onSave,
   onBackToDashboard,
   currentState,
   onImportCanvas,
-  onBringForward,
-  onSendBackward,
   saveLoading,
   canvasId,
   visibility,
@@ -106,6 +76,9 @@ export function Header({
   viewMode = VIEW_MODE.canvas,
   exportToCSV,
   exportToExcel,
+  exportAsJSON: propExportAsJSON,
+  exportAsPDF: propExportAsPDF,
+  canvasType,
 }: HeaderProps) {
   const [documentStatus, setDocumentStatus] = useState("Draft");
   const [isEditing, setIsEditing] = useState(false);
@@ -183,6 +156,10 @@ export function Header({
   };
 
   const exportAsPDF = async () => {
+    if (propExportAsPDF) {
+      propExportAsPDF();
+      return;
+    }
     try {
       const element = document.querySelector(".react-flow") as HTMLElement;
       if (!element) {
@@ -220,6 +197,10 @@ export function Header({
   };
 
   const exportAsJSON = () => {
+    if (propExportAsJSON) {
+      propExportAsJSON();
+      return;
+    }
     try {
       const dataStr = JSON.stringify(currentState, null, 2);
       const dataUri =
@@ -251,161 +232,6 @@ export function Header({
       exportToExcel();
       toast.success("Exported as Excel");
       setIsExportModalOpen(false);
-    }
-  };
-
-  const handleMenuAction = (action: string) => {
-    switch (action) {
-      case "Export as PNG":
-        exportAsImage("png");
-        break;
-      case "Export as JPEG":
-        exportAsImage("jpeg");
-        break;
-      case "Export as SVG":
-        exportAsImage("svg");
-        break;
-      case "Export as PDF":
-        exportAsPDF();
-        break;
-      case "Export as JSON":
-        exportAsJSON();
-        break;
-      case "New":
-        // Implement new document creation logic
-        console.log("Creating new document");
-        break;
-      case "Open":
-        setIsImportModalOpen(true);
-        console.log("Opening document");
-        break;
-      case "Save":
-        onSave();
-        break;
-      case "Save As":
-        // Implement save as logic
-        console.log("Saving document as");
-        break;
-      case "Export":
-        // Implement export logic
-        console.log("Exporting document");
-        break;
-      case "Close":
-        // Implement close document logic
-        console.log("Closing document");
-        break;
-      case "Undo":
-        onUndo();
-        break;
-      case "Redo":
-        onRedo();
-        break;
-      case "Cut":
-        onCut();
-        break;
-      case "Copy":
-        onCopy();
-        break;
-      case "Paste":
-        onPaste();
-        break;
-      case "Delete":
-        onDelete();
-        break;
-      case "Select All":
-        // Implement select all logic
-        console.log("Selecting all");
-        break;
-      case "Select None":
-        // Implement select none logic
-        console.log("Deselecting all");
-        break;
-      case "Inverse Selection":
-        // Implement inverse selection logic
-        console.log("Inverting selection");
-        break;
-      case "Same Type":
-        // Implement select same type logic
-        console.log("Selecting same type");
-        break;
-      case "Zoom In":
-        onZoomIn();
-        break;
-      case "Zoom Out":
-        onZoomOut();
-        break;
-      case "Fit to Screen":
-        onFitToScreen();
-        break;
-      case "Show Grid":
-        onToggleGrid();
-        break;
-      case "Show Rulers":
-        onToggleRulers();
-        break;
-      case "Shape":
-        // Implement insert shape logic
-        console.log("Inserting shape");
-        break;
-      case "Text":
-        // Implement insert text logic
-        console.log("Inserting text");
-        break;
-      case "Image":
-        onInsertImage();
-        break;
-      case "Frame":
-        // Implement insert frame logic
-        console.log("Inserting frame");
-        break;
-      case "Component":
-        // Implement insert component logic
-        console.log("Inserting component");
-        break;
-      case "Bring Forward":
-        onBringForward();
-        break;
-      case "Send Backward":
-        onSendBackward();
-        break;
-      case "Group":
-        // Implement group logic
-        console.log("Grouping elements");
-        break;
-      case "Ungroup":
-        // Implement ungroup logic
-        console.log("Ungrouping elements");
-        break;
-      case "Align":
-        // Implement align logic
-        console.log("Aligning elements");
-        break;
-      case "Invite to Project":
-        // Implement invite to project logic
-        console.log("Inviting to project");
-        break;
-      case "Share Link":
-        // Implement share link logic
-        console.log("Sharing link");
-        break;
-      case "Documentation":
-        // Open documentation in a new tab
-        window.open("https://example.com/docs", "_blank");
-        break;
-      case "Keyboard Shortcuts":
-        // Show keyboard shortcuts modal
-        console.log("Showing keyboard shortcuts");
-        break;
-      case "Community Forum":
-        // Open community forum in a new tab
-        window.open("https://example.com/forum", "_blank");
-        break;
-      case "Contact Support":
-        // Open support contact form
-        console.log("Opening support contact form");
-        break;
-      default:
-        console.log(`Action not implemented: ${action}`);
     }
   };
 
@@ -446,10 +272,12 @@ export function Header({
 
           {/* Cionay Logo */}
           <div className="flex items-center">
-            <img
+            <Image
+              width={32}
+              height={32}
               src="/assets/global/app-logo.svg"
               alt="Cionay Logo"
-              className="h-8 w-auto"
+              className="h-6 w-auto"
             />
           </div>
 
@@ -466,14 +294,14 @@ export function Header({
                     setTitleError(false);
                   }}
                   autoFocus
-                  className={`text-xl font-semibold bg-transparent border-none outline-none ${
+                  className={`text-2xl font-semibold bg-transparent border-none outline-none ${
                     titleError ? "border-red-500 border-b-2" : ""
                   }`}
                   maxLength={MAX_TITLE_LENGTH}
                 />
               ) : isOwner ? (
                 <h1
-                  className="text-xl font-semibold cursor-pointer"
+                  className="text-2xl font-semibold cursor-pointer"
                   onDoubleClick={handleTitleDoubleClick}
                 >
                   {projectName}
@@ -482,7 +310,7 @@ export function Header({
                 <TooltipProvider>
                   <Tooltip>
                     <TooltipTrigger>
-                      <h1 className="text-xl font-semibold cursor-default">
+                      <h1 className="text-2xl font-semibold cursor-default">
                         {projectName}
                       </h1>
                     </TooltipTrigger>
@@ -534,7 +362,7 @@ export function Header({
               */}
             </div>
 
-            <nav className="flex items-center gap-4 overflow-x-auto">
+            {/* <nav className="flex items-center gap-4 overflow-x-auto">
               {[
                 {
                   name: "File",
@@ -652,7 +480,7 @@ export function Header({
                   </DropdownMenuContent>
                 </DropdownMenu>
               ))}
-            </nav>
+            </nav> */}
           </div>
         </div>
 
@@ -716,6 +544,7 @@ export function Header({
         canvasName={projectName}
         visibility={visibility}
         onVisibilityChange={onVisibilityChange}
+        canvasType={canvasType}
       />
 
       {/* Export Modal */}

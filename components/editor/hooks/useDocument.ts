@@ -9,6 +9,7 @@ import { debounce } from "lodash";
 interface DocumentState {
   id: string;
   name: string;
+  user_id: string;
   description: string;
   editor_state: any;
   version: number;
@@ -33,6 +34,7 @@ const initialState: DocumentState = {
   id: "",
   name: "Untitled Document",
   description: "",
+  user_id: "",
   editor_state: null,
   version: 1,
   canvas_id: "",
@@ -98,7 +100,9 @@ export const useDocumentStore = create<DocumentState>()(
           try {
             const { data: canvas, error: canvasError } = await supabase
               .from("canvas")
-              .select("id, name, description, folder_id, document_data(*)")
+              .select(
+                "id, name, description, folder_id, document_data(*), user_id"
+              )
               .eq("id", canvasId)
               .single();
 
@@ -121,6 +125,7 @@ export const useDocumentStore = create<DocumentState>()(
               lastSaved: documentData
                 ? new Date(documentData.updated_at)
                 : null,
+              user_id: canvas.user_id,
             });
 
             get().loadFolderCanvases(canvas.folder_id);

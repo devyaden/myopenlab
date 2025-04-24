@@ -3,13 +3,13 @@
   flex-direction: column;
   height: 100vh;
   width: 100%;
-  background-color: #f5f5f5;
-  color: #202124;
+  /* background-color: #f5f5f5; */
+  /* color: #202124; */
   position: relative;
-  line-height: 1.5;
+  /* line-height: 1.5;
   font-weight: 400;
-  font-family: "Roboto", Arial, sans-serif;
-  overflow: hidden;
+  font-family: "Roboto", Arial, sans-serif; */
+  overflow: hidden; 
 }
 
 .editor-inner {
@@ -100,10 +100,9 @@
 
 /* Google Docs style toolbar */
 .editor-toolbar {
-  background-color: #f9fbfd;
+  background-color: #fff;
   border-bottom: 1px solid #e0e0e0;
   position: sticky;
-  top: 57px;
   z-index: 20;
   padding: 4px 8px;
   width: 100%;

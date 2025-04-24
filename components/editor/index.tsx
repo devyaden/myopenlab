@@ -29,6 +29,13 @@ import PaginationExtension, {
   HeaderFooterNode,
   PageNode,
 } from "tiptap-extension-pagination";
+import { Button } from "@/components/ui/button";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { Minus, Plus, RefreshCw } from "lucide-react";
 
 import type { PaperOrientation, PaperSize } from "@/types/paper";
 import { DEFAULT_MARGINS, PAPER_DIMENSIONS } from "@/utils/paper-sizes";
@@ -39,7 +46,7 @@ import EditorToolbar from "./EditorToolbar";
 import CanvasTableNode from "./extensions/CanvasTableNode";
 import { ReactFlowNode } from "./extensions/ReactFlowNode";
 import ResizableImageNode from "./extensions/ResizableImageNode";
-import { Header } from "./Header";
+
 import HeaderFooterDialog, {
   type HeaderFooterConfig,
 } from "./HeaderFooterDialog";
@@ -49,6 +56,10 @@ import LinkDialog from "./LinkDialog";
 import TableDialog from "./TableDialog";
 import TableSelectorDialog from "./TableSelectorDialog";
 import { useRouter } from "next/navigation";
+import { CANVAS_TYPE } from "@/types/store";
+import { Header } from "../canvas-new/header";
+import { useUser } from "@/lib/contexts/userContext";
+import { Unauthorized } from "../unauthorized";
 
 // Add the function to generate the HTML content for header/footer
 const generateHeaderFooterContent = (config: HeaderFooterConfig) => {
@@ -148,11 +159,17 @@ export default function Editor({
   onBackToBoard,
   canvasId,
   readOnly,
+  onViewModeChange,
+  viewMode,
+  canvasType,
 }: {
   isPartOfCanvas?: boolean;
   onBackToBoard?: () => void;
   canvasId: string;
   readOnly?: boolean;
+  onViewModeChange?: (viewMode: "canvas" | "table" | "document") => void;
+  canvasType: CANVAS_TYPE;
+  viewMode: "canvas" | "table" | "document";
 }) {
   const [currentDocument, setCurrentDocument] = useState<Document | null>(null);
   const [imageDialogOpen, setImageDialogOpen] = useState(false);
@@ -166,6 +183,12 @@ export default function Editor({
   const [selectedCanvasForCrop, setSelectedCanvasForCrop] = useState<any>(null);
   const [tableSelectorDialogOpen, setTableSelectorDialogOpen] = useState(false);
   const [selectedTableData, setSelectedTableData] = useState<any>(null);
+  const [visibility, setVisibility] = useState<string>("private");
+  const [isLoaded, setIsLoaded] = useState<boolean>(false);
+  const [isOwner, setIsOwner] = useState<boolean>(false);
+  const [unauthorized, setUnauthorized] = useState<boolean>(false);
+  const { user } = useUser();
+
   const [headerFooterDialogOpen, setHeaderFooterDialogOpen] =
     useState<boolean>(false);
   const [headerFooterType, setHeaderFooterType] = useState<"header" | "footer">(
@@ -240,6 +263,7 @@ export default function Editor({
     isLoading,
     saveLoading,
     folderCanvases,
+    user_id,
   } = useDocumentStore();
 
   // Initialize editor
@@ -1151,34 +1175,6 @@ export default function Editor({
     }
   };
 
-  const handleUndo = () => {
-    if (editor) editor.chain().focus().undo().run();
-  };
-
-  const handleRedo = () => {
-    if (editor) editor.chain().focus().redo().run();
-  };
-
-  const handleCut = () => {
-    document.execCommand("cut");
-  };
-
-  const handleCopy = () => {
-    document.execCommand("copy");
-  };
-
-  const handlePaste = () => {
-    document.execCommand("paste");
-  };
-
-  const handleDelete = () => {
-    if (editor) editor.chain().focus().deleteSelection().run();
-  };
-
-  const handleSelectAll = () => {
-    if (editor) editor.chain().focus().selectAll().run();
-  };
-
   // Improved zoom handling - only zoom the content, not the container
   const handleZoomChange = (newZoom: string) => {
     const zoomValue = Number.parseInt(newZoom) / 100;
@@ -1207,39 +1203,6 @@ export default function Editor({
       }
     }
     handleSave();
-  };
-
-  const handleZoomIn = () => {
-    const currentZoom = Number.parseInt(zoom);
-    if (currentZoom < 200) {
-      const newZoom = Math.min(currentZoom + 25, 200) + "%";
-      handleZoomChange(newZoom);
-    }
-  };
-
-  const handleZoomOut = () => {
-    const currentZoom = Number.parseInt(zoom);
-    if (currentZoom > 50) {
-      const newZoom = Math.max(currentZoom - 25, 50) + "%";
-      handleZoomChange(newZoom);
-    }
-  };
-
-  const handleFitToScreen = () => {
-    handleZoomChange("100%");
-  };
-
-  const handleToggleGrid = () => {
-    setEditorState((prev) => ({ ...prev, showGrid: !prev?.showGrid }));
-  };
-
-  const handleToggleRulers = () => {
-    setEditorState((prev) => ({ ...prev, showRulers: !prev.showRulers }));
-  };
-
-  const handleBackToDashboard = async () => {
-    await saveDocument();
-    router.push("/protected");
   };
 
   const handleImportCanvas = (data: any) => {
@@ -1312,34 +1275,101 @@ export default function Editor({
     handleSave();
   };
 
+  useEffect(() => {
+    if (user && user_id) {
+      setIsOwner(user.id === user_id);
+      setIsLoaded(true);
+    }
+  }, [user, user_id]);
+
+  const handleVisibilityChange = async (newVisibility: string) => {
+    try {
+      const response = await fetch("/api/canvas/visibility", {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          canvasId,
+          visibility: newVisibility,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to update visibility");
+      }
+
+      setVisibility(newVisibility);
+      return Promise.resolve();
+    } catch (error) {
+      console.error("Error updating visibility:", error);
+      return Promise.reject(error);
+    }
+  };
+
+  useEffect(() => {
+    const checkAuthorization = async () => {
+      if (!user || !isLoaded) return;
+
+      try {
+        // Get canvas details to check visibility
+        const response = await fetch(`/api/canvas/${canvasId}`);
+
+        if (!response.ok) {
+          if (response.status === 404) {
+            toast.error("Canvas not found");
+            router.push("/protected");
+            return;
+          }
+          throw new Error("Failed to fetch canvas");
+        }
+
+        const data = await response.json();
+        setVisibility(data.visibility || "private");
+
+        // If user is not owner and canvas is not public, show unauthorized component
+        if (user.id !== data.user_id && data.visibility !== "public") {
+          setUnauthorized(true);
+        }
+
+        if (user.id !== data.user_id && data.visibility === "public") {
+          // setIsOwner(true);
+          editor?.setOptions({ editable: false });
+        }
+      } catch (error) {
+        console.error("Error checking authorization:", error);
+        toast.error("Failed to check authorization");
+      }
+    };
+
+    checkAuthorization();
+  }, [canvasId, user, isLoaded, router]);
+
+  // If unauthorized, show the Unauthorized component
+  if (unauthorized) {
+    return <Unauthorized />;
+  }
+
   return (
-    <div className="editor-container w-full">
-      <Header
-        onInsertImage={() => insertContent("image")}
-        onUndo={handleUndo}
-        onRedo={handleRedo}
-        onCut={handleCut}
-        onCopy={handleCopy}
-        onPaste={handlePaste}
-        onDelete={handleDelete}
-        onSelectAll={handleSelectAll}
-        onZoomIn={handleZoomIn}
-        onZoomOut={handleZoomOut}
-        onFitToScreen={handleFitToScreen}
-        onToggleGrid={handleToggleGrid}
-        onToggleRulers={handleToggleRulers}
-        projectName={name}
-        setProjectName={setName}
-        onSave={handleSave}
-        onExportPDF={handleExportPDF}
-        onExportJSON={handleExportJSON}
-        onBackToDashboard={handleBackToDashboard}
-        onImportCanvas={handleImportCanvas}
-        saveLoading={saveLoading}
-        isExporting={isExporting}
-        wordCount={editorState?.wordCount}
-        characterCount={editorState?.characterCount}
-      />
+    <div className="w-full h-full editor-container">
+      {canvasType !== CANVAS_TYPE.HYBRID && (
+        <Header
+          projectName={name}
+          setProjectName={setName}
+          onBackToDashboard={() => router.push("/protected")}
+          onImportCanvas={handleImportCanvas}
+          saveLoading={saveLoading}
+          onSave={handleSave}
+          canvasId={canvasId}
+          visibility={visibility}
+          onVisibilityChange={handleVisibilityChange}
+          isOwner={isOwner}
+          viewMode={"document"}
+          exportAsJSON={handleExportJSON}
+          exportAsPDF={handleExportPDF}
+          canvasType={CANVAS_TYPE.DOCUMENT}
+        />
+      )}
       <EditorToolbar
         editorState={editorState}
         onFormatText={applyFormat}
@@ -1373,10 +1403,12 @@ export default function Editor({
           }));
         }}
         editor={editor}
-        zoom={zoom}
-        onZoomChange={handleZoomChange}
         isPartOfCanvas={isPartOfCanvas}
         onBackToBoard={onBackToBoard}
+        onViewModeChange={onViewModeChange || (() => {})}
+        viewMode={viewMode}
+        canvasType={canvasType ?? CANVAS_TYPE.DOCUMENT}
+        isOwner={isOwner}
       />
 
       <div className="editor-layout">
@@ -1388,6 +1420,79 @@ export default function Editor({
               </div>
             </div>
           </div>
+        </div>
+
+        {/* Zoom controls in bottom right */}
+        <div className="fixed bottom-4 right-4 bg-white border rounded-lg shadow-md p-1 flex items-center gap-1">
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-8 w-8"
+            onClick={() => {
+              const currentZoom = Number.parseInt(zoom);
+              if (currentZoom > 50) {
+                const newZoom = Math.max(currentZoom - 25, 50) + "%";
+                handleZoomChange(newZoom);
+              }
+            }}
+            aria-label="Zoom Out"
+          >
+            <Minus className="h-4 w-4" />
+          </Button>
+
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-8 px-2 min-w-[70px]"
+              >
+                {zoom}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-48 p-0">
+              <div className="flex flex-col">
+                {["50%", "75%", "90%", "100%", "125%", "150%", "200%"].map(
+                  (zoomLevel) => (
+                    <Button
+                      key={zoomLevel}
+                      variant="ghost"
+                      size="sm"
+                      className={`justify-start rounded-none ${zoom === zoomLevel ? "bg-accent" : ""}`}
+                      onClick={() => handleZoomChange(zoomLevel)}
+                    >
+                      {zoomLevel}
+                    </Button>
+                  )
+                )}
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="justify-start rounded-none border-t"
+                  onClick={() => handleZoomChange("100%")}
+                >
+                  <RefreshCw className="h-4 w-4 mr-2" />
+                  Reset zoom
+                </Button>
+              </div>
+            </PopoverContent>
+          </Popover>
+
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-8 w-8"
+            onClick={() => {
+              const currentZoom = Number.parseInt(zoom);
+              if (currentZoom < 200) {
+                const newZoom = Math.min(currentZoom + 25, 200) + "%";
+                handleZoomChange(newZoom);
+              }
+            }}
+            aria-label="Zoom In"
+          >
+            <Plus className="h-4 w-4" />
+          </Button>
         </div>
       </div>
 
