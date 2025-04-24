@@ -168,8 +168,8 @@ export default function Editor({
   canvasId: string;
   readOnly?: boolean;
   onViewModeChange?: (viewMode: "canvas" | "table" | "document") => void;
-  canvasType: CANVAS_TYPE;
-  viewMode: "canvas" | "table" | "document";
+  canvasType?: CANVAS_TYPE;
+  viewMode?: "canvas" | "table" | "document";
 }) {
   const [currentDocument, setCurrentDocument] = useState<Document | null>(null);
   const [imageDialogOpen, setImageDialogOpen] = useState(false);

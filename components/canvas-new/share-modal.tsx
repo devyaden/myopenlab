@@ -356,9 +356,9 @@ export function ShareModal({
   React.useEffect(() => {
     if (isOpen) {
       if (canvasType === CANVAS_TYPE.DOCUMENT) {
-        setShareLink(`${baseUrl}/protected/document-editor/${canvasId}`);
+        setShareLink(`${baseUrl}/document/${canvasId}`);
       } else {
-        setShareLink(`${baseUrl}/protected/canvas-new/${canvasId}`);
+        setShareLink(`${baseUrl}/canvas/${canvasId}`);
       }
     }
   }, [isOpen, canvasId, baseUrl]);
