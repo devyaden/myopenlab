@@ -441,8 +441,17 @@ export function Header({
             onClick={onBackToDashboard}
           >
             <ChevronLeft className="h-4 w-4" />
-            Back to Dashboard
+            Back
           </Button>
+
+          {/* Cionay Logo */}
+          <div className="flex items-center">
+            <img
+              src="/assets/global/app-logo.svg"
+              alt="Cionay Logo"
+              className="h-8 w-auto"
+            />
+          </div>
 
           <div>
             <div className="flex items-center gap-2">
