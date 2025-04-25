@@ -104,6 +104,7 @@ export interface CanvasActions {
   canUndo: boolean;
   canRedo: boolean;
   updateCanvasSettings: (settings?: any) => void;
+  createColumnInCanvas: (canvasId: string, columnData: any) => Promise<any>;
 }
 
 export interface UndoableState {

@@ -111,8 +111,6 @@ const TableView = forwardRef<
     },
     ref
   ) => {
-    console.log("------ edges --------", edges);
-
     const { user } = useUser();
     const [sortField, setSortField] = useState<SortField>(null);
     const [sortDirection, setSortDirection] = useState<SortDirection>(null);
@@ -1137,7 +1135,11 @@ const TableView = forwardRef<
     const getRelatedCanvasNodes = (canvas_data: any) => {
       if (!canvas_data) return null;
 
-      const columnsData = canvas_data?.nodes?.map((node: Node) => {
+      // debugger;
+
+      const canvasNodes = canvas_data?.[0]?.nodes ?? canvas_data?.nodes;
+
+      const columnsData = canvasNodes?.map((node: Node) => {
         return { ...node.data, id: node.id };
       });
 

@@ -566,6 +566,55 @@ export const useCanvasStore = create<CanvasStore>()(
           set(initialState);
         },
 
+        // Create a column in a specific canvas
+        createColumnInCanvas: async (canvasId: string, columnData: any) => {
+          try {
+            // Generate a new UUID for the column
+            const columnId = uuidv4();
+
+            // Get the current order of columns for the target canvas
+            const { data: existingColumns, error: columnsError } =
+              await supabase
+                .from("column_definition")
+                .select("order")
+                .eq("canvas_id", canvasId)
+                .order("order", { ascending: false })
+                .limit(1);
+
+            if (columnsError) throw columnsError;
+
+            // Determine the new order (highest + 1 or 0 if no columns exist)
+            const newOrder =
+              existingColumns && existingColumns.length > 0
+                ? existingColumns[0].order + 1
+                : 0;
+
+            // Insert the new column
+            const { data, error } = await supabase
+              .from("column_definition")
+              .insert({
+                id: columnId,
+                canvas_id: canvasId,
+                title: columnData.title,
+                type: columnData.type,
+                options: columnData.options || null,
+                required: columnData.required || false,
+                related_canvas_id: columnData.related_canvas_id || null,
+                order: newOrder,
+              })
+              .select()
+              .single();
+
+            if (error) throw error;
+
+            return data;
+          } catch (error) {
+            console.error("Error creating column in canvas:", error);
+            toast.error("Failed to create reciprocal relation column");
+            return null;
+          }
+        },
+
         // Undo action - apply previous state from history
         undo: () => {
           const { past, present, future } = history;

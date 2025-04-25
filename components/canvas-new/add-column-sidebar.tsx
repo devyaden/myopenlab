@@ -14,6 +14,7 @@ import type React from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ScrollArea } from "../ui/scroll-area";
 import { ColumnDefinition } from "@/types/store";
+import { useCanvasStore } from "@/lib/store/useCanvas";
 
 interface AddColumnSidebarProps {
   isOpen: boolean;
@@ -58,6 +59,7 @@ export const AddColumnSidebar: React.FC<AddColumnSidebarProps> = ({
     type: "Text",
   });
 
+  const canvasStore = useCanvasStore();
   const [error, setError] = useState<string | null>(null);
   const [selectedRelationCanvas, setSelectedRelationCanvas] = useState<
     any | null
@@ -66,20 +68,52 @@ export const AddColumnSidebar: React.FC<AddColumnSidebarProps> = ({
   const sidebarRef = useRef<HTMLDivElement>(null);
 
   const handleSubmit = useCallback(
-    (e: React.FormEvent) => {
+    async (e: React.FormEvent) => {
       e.preventDefault();
 
       if (!validateColumnData()) {
         return;
       }
 
+      // Add the column to the current canvas
       onAddColumn(columnData);
+
+      // If this is a relation column, create a reciprocal relation in the related canvas
+      if (columnData.type === "Relation" && columnData.related_canvas_id) {
+        try {
+          // Find the related canvas name
+          const relatedCanvas = canvases.find(
+            (canvas) => canvas.id === columnData.related_canvas_id
+          );
+
+          if (relatedCanvas) {
+            // Create reciprocal relation column data
+            const reciprocalColumnData = {
+              title: `${canvasStore.name} - ${columnData.title}`, // Name it as "SourceCanvas - ColumnName"
+              type: "Relation",
+              related_canvas_id: canvasId, // Point back to the current canvas
+              required: columnData.required || false,
+            };
+
+            // Create the reciprocal column in the related canvas
+            await canvasStore.createColumnInCanvas(
+              columnData.related_canvas_id,
+              reciprocalColumnData
+            );
+          }
+        } catch (error) {
+          console.error("Error creating reciprocal relation:", error);
+          // Continue with normal flow even if reciprocal creation fails
+        }
+      }
+
+      // Reset state and close sidebar
       setColumnData({ title: "", type: "Text" });
       setSelectedRelationCanvas(null);
       setError(null);
       onClose();
     },
-    [columnData]
+    [columnData, canvasId, canvases, canvasStore, onAddColumn, onClose]
   );
 
   const validateColumnData = (): boolean => {
