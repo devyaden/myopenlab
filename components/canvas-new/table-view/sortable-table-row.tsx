@@ -161,6 +161,70 @@ const SortableTableRow: React.FC<{
               </SelectContent>
             </Select>
           );
+        case "Multiselect":
+          return (
+            <div className="flex flex-col w-full">
+              <div className="flex flex-wrap gap-1 mb-1">
+                {Array.isArray(editedValue) && editedValue.length > 0
+                  ? editedValue.map((value: string, index: number) => (
+                      <div
+                        key={index}
+                        className="flex items-center bg-gray-100 rounded-md px-2 py-1 text-sm"
+                      >
+                        <span>{value}</span>
+                        <button
+                          type="button"
+                          className="ml-1 text-gray-500 hover:text-gray-700"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            const newValues = [...editedValue];
+                            newValues.splice(index, 1);
+                            setEditedValue(newValues);
+                            handleSave(node.id, column.title, newValues);
+                          }}
+                        >
+                          ×
+                        </button>
+                      </div>
+                    ))
+                  : null}
+              </div>
+              <Select
+                value=""
+                onValueChange={(value) => {
+                  if (value) {
+                    const newValues = Array.isArray(editedValue)
+                      ? [...editedValue]
+                      : [];
+
+                    // Only add if not already in the array
+                    if (!newValues.includes(value)) {
+                      newValues.push(value);
+                      setEditedValue(newValues);
+                      handleSave(node.id, column.title, newValues);
+                    }
+                  }
+                }}
+              >
+                <SelectTrigger className="h-8 focus-visible:ring-0 focus-visible:ring-offset-0 border-0 p-0">
+                  <SelectValue placeholder="Add an option" />
+                </SelectTrigger>
+                <SelectContent>
+                  {column.options
+                    ?.filter(
+                      (option: string) =>
+                        !Array.isArray(editedValue) ||
+                        !editedValue.includes(option)
+                    )
+                    .map((option: string) => (
+                      <SelectItem key={option} value={option}>
+                        {option}
+                      </SelectItem>
+                    ))}
+                </SelectContent>
+              </Select>
+            </div>
+          );
         case "Number":
           return (
             <Input
@@ -353,6 +417,21 @@ const SortableTableRow: React.FC<{
                   <span className="text-gray-400 flex items-center">
                     <Plus className="h-4 w-4 mr-1" /> Add
                   </span>
+                )}
+              </div>
+            ) : column?.type === "Multiselect" ? (
+              <div className="flex flex-wrap gap-1">
+                {Array.isArray(cellValue) && cellValue.length > 0 ? (
+                  cellValue.map((value: string, index: number) => (
+                    <span
+                      key={index}
+                      className="text-sm text-gray-600 bg-gray-100 rounded-md px-2 py-1"
+                    >
+                      {value}
+                    </span>
+                  ))
+                ) : (
+                  <span className="text-gray-400"></span>
                 )}
               </div>
             ) : column?.type === "Date" ||
