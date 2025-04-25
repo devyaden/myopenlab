@@ -226,6 +226,10 @@ export const useCanvasStore = create<CanvasStore>()(
                 .in("id", rollupIds);
               if (rollupError) throw rollupError;
               rollupColumnDefs = rollupData;
+              console.log(
+                "🚀 ~ refreshColumnsData: ~ rollupColumnDefs:",
+                rollupColumnDefs
+              );
             }
 
             // Map over column definitions and attach rollup column data when needed.
@@ -544,7 +548,7 @@ export const useCanvasStore = create<CanvasStore>()(
 
         syncChanges: () => {
           const state = get();
-          const debounceTime = 3000;
+          const debounceTime = 2000;
           if (state.isDirty) {
             if ((window as any).syncTimeout) {
               clearTimeout((window as any).syncTimeout);

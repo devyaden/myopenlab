@@ -6,14 +6,9 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
 import { Separator } from "@/components/ui/separator";
-import { Slider } from "@/components/ui/slider";
 import { SHAPES } from "@/lib/types/flow-table.types";
+import { CANVAS_TYPE } from "@/types/store";
 import {
   AlignCenter,
   AlignCenterVertical,
@@ -23,32 +18,18 @@ import {
   AlignRight,
   AlignStartVertical,
   Bold,
-  Box,
   ChevronDown,
-  Circle,
   Clipboard,
   Copy,
   CornerUpLeft,
   CornerUpRight,
-  Diamond,
-  Hexagon,
   Italic,
-  Link,
   Lock,
-  Minus,
-  Plus,
-  SendToBack,
-  Shapes,
-  Square,
   Trash2,
-  Triangle,
   Underline,
-  User,
 } from "lucide-react";
-import Image from "next/image";
 import React from "react";
 import { ViewModeSwitcher } from "./view-mode-switcher";
-import { CANVAS_TYPE } from "@/types/store";
 
 interface ToolbarProps {
   fontFamily: string;
@@ -150,8 +131,6 @@ export const Toolbar = React.memo(function Toolbar({
   canUndo,
   canRedo,
 }: ToolbarProps) {
-  console.log("🚀 ~ currentEdgeStyle:", selectedEdge);
-
   const fontFamilies = [
     "Arial",
     "Helvetica",

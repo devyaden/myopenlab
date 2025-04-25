@@ -199,9 +199,6 @@ export default function CanvasNew({ canvasId }: FigmaInterfaceProps) {
       // First pass - remove any self-referential parentNode values (node is its own parent)
       const firstPassNodes = nodesToFix.map((node) => {
         if (node.parentNode === node.id) {
-          console.warn(
-            `Node ${node.id} is its own parent - removing self reference`
-          );
           return {
             ...node,
             parentNode: undefined,
@@ -313,7 +310,6 @@ export default function CanvasNew({ canvasId }: FigmaInterfaceProps) {
 
       // Check if we had to fix anything
       if (JSON.stringify(safeNodes) !== JSON.stringify(props.nodes)) {
-        console.warn("Fixed circular references in nodes before rendering");
         // Update the app state with fixed nodes to prevent future issues
         setTimeout(() => setNodes(safeNodes), 0);
       }
@@ -354,7 +350,6 @@ export default function CanvasNew({ canvasId }: FigmaInterfaceProps) {
       }
 
       if (anyNodeFixed) {
-        console.log("Fixed circular relationships in nodes");
         setNodes(fixedNodes);
       }
     }
@@ -393,8 +388,6 @@ export default function CanvasNew({ canvasId }: FigmaInterfaceProps) {
 
   const onNodesChange = useCallback(
     (newNodes: Node[]) => {
-      console.log("🚀 ~ 3333333:", newNodes);
-
       updateState({ nodes: newNodes });
     },
     [updateState]
@@ -1038,7 +1031,6 @@ export default function CanvasNew({ canvasId }: FigmaInterfaceProps) {
 
   // Modify this part to handle sidebar closing when navigating to table
   const handleViewModeChange = (mode: "canvas" | "table" | "document") => {
-    console.log("🚀 ~ handleViewModeChange ~ mode:", mode);
     // Close sidebar when switching to table view
     if (mode === "table") {
       setIsSidebarOpen(false);
@@ -1089,7 +1081,6 @@ export default function CanvasNew({ canvasId }: FigmaInterfaceProps) {
           setUnauthorized(true);
         }
       } catch (error) {
-        console.error("Error checking authorization:", error);
         toast.error("Failed to check authorization");
       }
     };
@@ -1118,7 +1109,6 @@ export default function CanvasNew({ canvasId }: FigmaInterfaceProps) {
       setVisibility(newVisibility);
       return Promise.resolve();
     } catch (error) {
-      console.error("Error updating visibility:", error);
       return Promise.reject(error);
     }
   };

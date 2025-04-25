@@ -162,9 +162,136 @@ const TableView = forwardRef<
 
     // Add cache for rollup and relation data
     const [rollupCache, setRollupCache] = useState<{ [key: string]: any }>({});
+
     const [relationCache, setRelationCache] = useState<{ [key: string]: any }>(
       {}
     );
+
+    // Update rollup cache when relevant data changes
+    useEffect(() => {
+      const newRollupCache: Record<string, any> = {};
+      const newRelationCache: Record<string, any> = {};
+
+      // Process rollup columns
+      const rollupColumns = columns?.filter((col) => col?.type === "Rollup");
+
+      if (rollupColumns?.length) {
+        // Create a map of relation columns to easily lookup by related canvas ID
+        const relationColumns = columns?.filter(
+          (col) => col?.type === "Relation" && col.related_canvas_id
+        );
+
+        const relationColumnMap = new Map(
+          relationColumns.map((col) => [col.related_canvas_id, col])
+        );
+
+        nodes.forEach((node) => {
+          relationColumns.forEach((column) => {
+            // debugger;
+            const relationData = node.data[column.title];
+
+            if (relationData) {
+              const relationArray = Array.isArray(relationData)
+                ? relationData
+                : [relationData];
+              newRelationCache[`${node.id}-${column.title}`] = relationArray;
+            } else {
+              newRelationCache[`${node.id}-${column.title}`] = [];
+            }
+          });
+
+          rollupColumns.forEach((column) => {
+            const relatedCanvasId = column?.rollup_column?.canvas?.id;
+
+            if (!relatedCanvasId) {
+              return;
+            }
+
+            const relationColumn = relationColumnMap.get(relatedCanvasId);
+
+            if (!relationColumn) {
+              return;
+            }
+
+            // Get relation data from the node
+            const relationData = node.data[relationColumn.title];
+
+            if (
+              !relationData ||
+              !Array.isArray(relationData) ||
+              relationData.length === 0
+            ) {
+              newRollupCache[`${node.id}-${column.title}`] = [];
+              return;
+            }
+
+            // Get the target column to rollup
+            const rollupColumnTargetTitle = column?.rollup_column?.title;
+
+            if (!rollupColumnTargetTitle) {
+              return;
+            }
+
+            // Get the related canvas data from the relation column
+            const relatedCanvas = relationColumn.related_canvas;
+            // debugger;
+
+            // if (!relatedCanvas?.canvas_data?.nodes) {
+            //   return;
+            // }
+
+            const relatedCanvasNodes =
+              relatedCanvas?.canvas_data?.[0].nodes ??
+              relatedCanvas?.canvas_data?.nodes ??
+              [];
+
+            // Extract IDs from relation data
+            const relationIds = relationData.map((item) => item.id);
+
+            // Create a set for faster lookups
+            const relationIdSet = new Set(relationIds);
+
+            // Filter related nodes that match the relation IDs
+            const matchingRelatedNodes = relatedCanvasNodes.filter(
+              (relNode: Node) => relationIdSet.has(relNode.id)
+            );
+
+            const rollupData = matchingRelatedNodes.map((relNode: Node) => {
+              if (rollupColumnTargetTitle === "type") {
+                return {
+                  label: relNode.data.shape || relNode.id,
+                  value: relNode.data.shape || relNode.id,
+                  sourceId: relNode.id,
+                };
+              }
+
+              if (rollupColumnTargetTitle === "task") {
+                return {
+                  label: relNode.data.label || relNode.id,
+                  value: relNode.data.label || relNode.id,
+                  sourceId: relNode.id,
+                };
+              }
+
+              const value = relNode.data[rollupColumnTargetTitle];
+
+              return {
+                label: relNode.data.label || relNode.id,
+                value: value,
+                sourceId: relNode.id,
+              };
+            });
+
+            // Store in cache
+            newRollupCache[`${node.id}-${column.title}`] = rollupData;
+          });
+        });
+      }
+
+      // Set both caches with the new data
+      setRollupCache(newRollupCache);
+      setRelationCache(newRelationCache);
+    }, [nodes, columns]);
 
     // Function to update table settings
     const updateTableSettings = (settings: any) => {
@@ -999,10 +1126,6 @@ const TableView = forwardRef<
       if (columnDef) {
         // Skip saving for Rollup columns as they are calculated automatically
         if (columnDef.type === "Rollup") {
-          console.log(
-            "Cannot edit rollup column, it's calculated automatically:",
-            column
-          );
           setEditingCell(null);
           setEditedValue(null);
           setValidationError(null);
@@ -1015,8 +1138,6 @@ const TableView = forwardRef<
 
         // For relation columns, we don't need to validate as they are arrays of objects
         if (columnDef.type === "Relation") {
-          console.log("Saving relation data:", { nodeId, column, value });
-
           // Ensure value is an array
           const relationValue = Array.isArray(value) ? value : [];
 
@@ -1047,10 +1168,6 @@ const TableView = forwardRef<
               );
 
               if (relatedRollupColumns.length > 0) {
-                console.log(
-                  "Found rollup columns that depend on this relation:",
-                  relatedRollupColumns
-                );
                 // Force refresh of rollup data by simulating a change in nodes or columns
                 setTimeout(() => {
                   // This will trigger the useEffect that updates rollup data
@@ -1059,13 +1176,11 @@ const TableView = forwardRef<
                 }, 100);
               }
 
-              console.log("Updated node data:", newData);
               return { ...node, data: newData };
             }
             return node;
           });
 
-          console.log("Calling onNodesChange with updated nodes");
           onNodesChange(updatedNodes);
           setEditingCell(null);
           setEditedValue(null);
@@ -1309,8 +1424,6 @@ const TableView = forwardRef<
 
     const getRelatedCanvasNodes = (canvas_data: any) => {
       if (!canvas_data) return null;
-
-      // debugger;
 
       const canvasNodes = canvas_data?.[0]?.nodes ?? canvas_data?.nodes;
 

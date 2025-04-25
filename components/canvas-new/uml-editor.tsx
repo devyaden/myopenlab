@@ -171,8 +171,6 @@ export function UMLEditor({
 
   const handleNodesChange = useCallback(
     (changes: NodeChange[]) => {
-      console.log("🚀 ~ 4444444 ~ changes:", changes);
-
       const updatedNodes = applyNodeChanges(changes, nodes).map((node) => {
         if (node.parentNode) {
           const parent = getNode(node.parentNode);
@@ -491,8 +489,6 @@ export function UMLEditor({
       }
     },
   });
-
-  console.log("🚀 ~ viewMode:", viewMode);
 
   return (
     <div className="w-full h-[calc(100vh-132px)]" ref={reactFlowWrapper}>
