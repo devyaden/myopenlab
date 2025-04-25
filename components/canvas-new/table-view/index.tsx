@@ -54,8 +54,11 @@ import {
   ChevronUp,
   Copy,
   Download,
+  Filter,
+  FilterX,
   MoreVertical,
   Plus,
+  SlidersHorizontal,
   Trash2,
   X,
 } from "lucide-react";
@@ -75,6 +78,9 @@ import { Checkbox } from "../../ui/checkbox";
 import { AddColumnSidebar } from "../add-column-sidebar";
 import SortableTableRow from "./sortable-table-row";
 import {
+  Filter as FilterType,
+  FilterGroup,
+  FilterOperator,
   HierarchyNode,
   SortDirection,
   SortField,
@@ -149,11 +155,271 @@ const TableView = forwardRef<
 
     const [resizingColumn, setResizingColumn] = useState<string | null>(null);
 
+    // Add column refs for resizing
+    const columnRefs = useRef<{ [key: string]: HTMLTableCellElement | null }>(
+      {}
+    );
+
+    // Add cache for rollup and relation data
+    const [rollupCache, setRollupCache] = useState<{ [key: string]: any }>({});
+    const [relationCache, setRelationCache] = useState<{ [key: string]: any }>(
+      {}
+    );
+
+    // Function to update table settings
+    const updateTableSettings = (settings: any) => {
+      updateCanvasSettings({
+        ...canvasSettings,
+        table_settings: settings,
+      });
+    };
+
+    // Column resizing functionality
+    const startResizing = (columnTitle: string) => {
+      setResizingColumn(columnTitle);
+    };
+
+    // Handle duplicate selected rows
+    const handleDuplicateSelected = () => {
+      if (readOnly || selectedNodes.length === 0) return;
+
+      const nodesToDuplicate = nodes.filter((node) =>
+        selectedNodes.includes(node.id)
+      );
+      const newNodes = nodesToDuplicate.map((node) => {
+        const uniqueId = `node-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+        return {
+          ...node,
+          id: uniqueId,
+          // Keep parentNode if it exists and isn't being deleted
+          parentNode: node.parentNode,
+          data: { ...node.data },
+        };
+      });
+
+      onNodesChange([...nodes, ...newNodes]);
+      setSelectedNodes([]);
+    };
+
+    // Create hierarchy from nodes
+    const createHierarchy = (nodes: Node[]): HierarchyNode[] => {
+      const nodeMap = new Map<string, Node>();
+      nodes.forEach((node) => nodeMap.set(node.id, node));
+
+      // Convert nodes to hierarchy nodes
+      const hierarchyNodes: HierarchyNode[] = nodes.map((node) => ({
+        ...node,
+        children: [],
+      }));
+
+      // Establish parent-child relationships
+      hierarchyNodes.forEach((node) => {
+        const parentId = (nodeMap.get(node.id) as any)?.parentNode;
+        if (parentId) {
+          const parent = hierarchyNodes.find((n) => n.id === parentId);
+          if (parent) {
+            parent.children.push(node);
+          }
+        }
+      });
+
+      // Return only top-level nodes
+      return hierarchyNodes.filter((node) => {
+        const nodeData = nodeMap.get(node.id);
+        return !nodeData?.parentNode;
+      });
+    };
+
+    // Enhance nodes with connection data
+    const enhanceNodesWithConnectionData = (
+      nodes: Node[],
+      edges: Edge[]
+    ): Node[] => {
+      return nodes.map((node) => {
+        const incomingEdges = edges.filter((edge) => edge.target === node.id);
+        const outgoingEdges = edges.filter((edge) => edge.source === node.id);
+
+        return {
+          ...node,
+          data: {
+            ...node.data,
+            incoming: incomingEdges.map((edge) => edge.source),
+            outgoing: outgoingEdges.map((edge) => edge.target),
+          },
+        };
+      });
+    };
+
     let {
       columnWidths = {},
       hiddenNodeIds = new Set(),
       hiddenColumns = [],
     } = canvasSettings?.table_settings ?? {};
+
+    // Filter state
+    const [filterGroups, setFilterGroups] = useState<FilterGroup[]>([]);
+    const [filterDialogOpen, setFilterDialogOpen] = useState(false);
+    const [editingFilter, setEditingFilter] = useState<{
+      groupId: string;
+      filterId: string | null;
+    } | null>(null);
+    const [tempFilterValue, setTempFilterValue] = useState<any>("");
+    const [showFilterUI, setShowFilterUI] = useState(false);
+
+    // Generate a unique ID
+    const generateId = () =>
+      `id-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+
+    // Helper function to check if a column can be filtered
+    const isColumnFilterable = (
+      columnType: string | undefined,
+      columnTitle: string
+    ): boolean => {
+      // Exclude id, Relation, and Rollup columns from filtering
+      if (
+        columnTitle === "id" ||
+        columnType === "Relation" ||
+        columnType === "Rollup"
+      ) {
+        return false;
+      }
+
+      return true;
+    };
+
+    // Add a new filter group
+    const addFilterGroup = () => {
+      // Find the first filterable column
+      const firstFilterableColumn =
+        columns.find((col) => isColumnFilterable(col.type, col.title))?.title ||
+        "task";
+
+      const newGroup: FilterGroup = {
+        id: generateId(),
+        filters: [
+          {
+            id: generateId(),
+            column: firstFilterableColumn,
+            operator: "contains",
+            value: "placeholder_empty",
+          },
+        ],
+        conjunction: "AND",
+      };
+      setFilterGroups([...filterGroups, newGroup]);
+      setEditingFilter({
+        groupId: newGroup.id,
+        filterId: newGroup.filters[0].id,
+      });
+    };
+
+    // Add a filter to a group
+    const addFilterToGroup = (groupId: string) => {
+      // Find the first filterable column
+      const firstFilterableColumn =
+        columns.find((col) => isColumnFilterable(col.type, col.title))?.title ||
+        "task";
+
+      const newFilter: FilterType = {
+        id: generateId(),
+        column: firstFilterableColumn,
+        operator: "contains",
+        value: "placeholder_empty",
+      };
+
+      setFilterGroups((prev) =>
+        prev.map((group) =>
+          group.id === groupId
+            ? { ...group, filters: [...group.filters, newFilter] }
+            : group
+        )
+      );
+      setEditingFilter({ groupId, filterId: newFilter.id });
+    };
+
+    // Remove a filter
+    const removeFilter = (groupId: string, filterId: string) => {
+      setFilterGroups((prev) => {
+        // Get the current group
+        const currentGroup = prev.find((g) => g.id === groupId);
+
+        // If this is the only filter in the group, remove the whole group
+        if (currentGroup && currentGroup.filters.length === 1) {
+          return prev.filter((g) => g.id !== groupId);
+        }
+
+        // Otherwise just remove the filter from the group
+        return prev.map((group) =>
+          group.id === groupId
+            ? {
+                ...group,
+                filters: group.filters.filter((f) => f.id !== filterId),
+              }
+            : group
+        );
+      });
+
+      if (editingFilter?.filterId === filterId) {
+        setEditingFilter(null);
+      }
+    };
+
+    // Remove a filter group
+    const removeFilterGroup = (groupId: string) => {
+      setFilterGroups((prev) => prev.filter((group) => group.id !== groupId));
+
+      if (editingFilter?.groupId === groupId) {
+        setEditingFilter(null);
+      }
+    };
+
+    // Toggle conjunction (AND/OR) for a filter group
+    const toggleConjunction = (groupId: string) => {
+      setFilterGroups((prev) =>
+        prev.map((group) =>
+          group.id === groupId
+            ? {
+                ...group,
+                conjunction: group.conjunction === "AND" ? "OR" : "AND",
+              }
+            : group
+        )
+      );
+    };
+
+    // Update filter properties
+    const updateFilter = (
+      groupId: string,
+      filterId: string,
+      updates: Partial<FilterType>
+    ) => {
+      setFilterGroups((prev) =>
+        prev.map((group) =>
+          group.id === groupId
+            ? {
+                ...group,
+                filters: group.filters.map((filter) => {
+                  if (filter.id === filterId) {
+                    const updatedFilter = { ...filter, ...updates };
+                    // Ensure value is never an empty string
+                    if (updatedFilter.value === "") {
+                      updatedFilter.value = "placeholder_empty";
+                    }
+                    return updatedFilter;
+                  }
+                  return filter;
+                }),
+              }
+            : group
+        )
+      );
+    };
+
+    // Clear all filters
+    const clearAllFilters = () => {
+      setFilterGroups([]);
+      setEditingFilter(null);
+    };
 
     // if type of hidden columns is an empty object, initialize it as a Set
     if (
@@ -163,399 +429,157 @@ const TableView = forwardRef<
       hiddenColumns = [];
     }
 
-    const updateTableSettings = (newSettings: any) => {
-      // @ts-ignore
-      updateCanvasSettings({ table_settings: newSettings });
-    };
+    // Helper function to check if a node matches a filter
+    const matchesFilter = (node: Node, filter: FilterType): boolean => {
+      const { column, operator, value } = filter;
 
-    // Add or remove columns from hiddenColumns based on data availability
-    useEffect(() => {
-      interface ColumnUpdate {
-        name: string;
-        shouldHide: boolean;
-      }
+      // Handle placeholder empty values
+      const actualValue = value === "placeholder_empty" ? "" : value;
 
-      const columnsToUpdate: ColumnUpdate[] = [];
-      const updatedColumns = [...columns];
-      const defaultColumns = ["from", "to", "parent", "children"];
-      const existingColumnTitles = new Set(columns.map((col) => col.title));
-
-      // Check and add from/to columns if needed
-      if (edges && edges.length > 0) {
-        ["from", "to"].forEach((colName) => {
-          if (!existingColumnTitles.has(colName)) {
-            updatedColumns.push({
-              title: colName,
-              type: "Text",
-            });
-          }
-          columnsToUpdate.push({ name: colName, shouldHide: false });
-        });
+      // Get the column value
+      let nodeValue;
+      if (column === "task") {
+        nodeValue = node.data.label;
+      } else if (column === "type") {
+        nodeValue = node.data.shape;
       } else {
-        ["from", "to"].forEach((colName) => {
-          columnsToUpdate.push({ name: colName, shouldHide: true });
-        });
+        nodeValue = node.data[column];
       }
 
-      // Check and add parent/children columns if needed
-      const hasParentChildRelations = nodes.some(
-        (node) =>
-          node.parentNode || (node as HierarchyNode).children?.length > 0
-      );
-
-      if (hasParentChildRelations) {
-        ["parent", "children"].forEach((colName) => {
-          if (!existingColumnTitles.has(colName)) {
-            updatedColumns.push({
-              title: colName,
-              type: "Text",
-            });
-          }
-          columnsToUpdate.push({ name: colName, shouldHide: false });
-        });
-      } else {
-        ["parent", "children"].forEach((colName) => {
-          columnsToUpdate.push({ name: colName, shouldHide: true });
-        });
-      }
-
-      // Update columns if new ones were added
-      if (updatedColumns.length !== columns.length) {
-        setColumns(updatedColumns);
-      }
-
-      // Update hiddenColumns based on the current state
-      const updatedHiddenColumns = [...hiddenColumns];
-
-      columnsToUpdate.forEach(({ name, shouldHide }) => {
-        const isCurrentlyHidden = updatedHiddenColumns.includes(name);
-        if (shouldHide && !isCurrentlyHidden) {
-          updatedHiddenColumns.push(name);
-        } else if (!shouldHide && isCurrentlyHidden) {
-          const index = updatedHiddenColumns.indexOf(name);
-          if (index > -1) {
-            updatedHiddenColumns.splice(index, 1);
-          }
-        }
-      });
-
-      // Only update if there are changes
-      if (
-        JSON.stringify(updatedHiddenColumns) !== JSON.stringify(hiddenColumns)
-      ) {
-        updateTableSettings({
-          ...canvasSettings.table_settings,
-          hiddenColumns: updatedHiddenColumns,
-        });
-      }
-    }, [
-      edges,
-      nodes,
-      hiddenColumns,
-      canvasSettings.table_settings,
-      updateTableSettings,
-      columns,
-      setColumns,
-    ]);
-
-    // Cache for rollup and relation data
-    const [rollupCache, setRollupCache] = useState<Record<string, any>>({});
-    const [relationCache, setRelationCache] = useState<Record<string, any>>({});
-
-    // Update rollup cache when relevant data changes
-    useEffect(() => {
-      const newRollupCache: Record<string, any> = {};
-      const newRelationCache: Record<string, any> = {};
-
-      // Process rollup columns
-      const rollupColumns = columns?.filter((col) => col?.type === "Rollup");
-
-      if (rollupColumns?.length) {
-        // Create a map of relation columns to easily lookup by related canvas ID
-        const relationColumns = columns?.filter(
-          (col) => col?.type === "Relation" && col.related_canvas_id
+      // Check empty values
+      if (operator === "is_empty") {
+        return (
+          nodeValue === undefined || nodeValue === null || nodeValue === ""
         );
+      }
 
-        const relationColumnMap = new Map(
-          relationColumns.map((col) => [col.related_canvas_id, col])
+      if (operator === "is_not_empty") {
+        return (
+          nodeValue !== undefined && nodeValue !== null && nodeValue !== ""
         );
-
-        nodes.forEach((node) => {
-          console.log("\nProcessing node:", node.id);
-
-          // First, populate relation cache for all relation columns
-          relationColumns.forEach((column) => {
-            const relationData = node.data[column.title];
-
-            if (relationData) {
-              // Ensure relation data is stored as an array
-              const relationArray = Array.isArray(relationData)
-                ? relationData
-                : [relationData];
-              newRelationCache[`${node.id}-${column.title}`] = relationArray;
-            } else {
-              newRelationCache[`${node.id}-${column.title}`] = [];
-            }
-          });
-
-          rollupColumns.forEach((column) => {
-            const relatedCanvasId = column?.rollup_column?.canvas?.id;
-
-            if (!relatedCanvasId) {
-              return;
-            }
-
-            const relationColumn = relationColumnMap.get(relatedCanvasId);
-            console.log("Found relation column:", relationColumn?.title);
-
-            if (!relationColumn) {
-              return;
-            }
-
-            // Get relation data from the node
-            const relationData = node.data[relationColumn.title];
-
-            if (
-              !relationData ||
-              !Array.isArray(relationData) ||
-              relationData.length === 0
-            ) {
-              newRollupCache[`${node.id}-${column.title}`] = [];
-              return;
-            }
-
-            // Get the target column to rollup
-            const rollupColumnTargetTitle = column?.rollup_column?.title;
-
-            if (!rollupColumnTargetTitle) {
-              return;
-            }
-
-            // Get the related canvas data from the relation column
-            const relatedCanvas = relationColumn.related_canvas;
-
-            if (!relatedCanvas?.canvas_data?.nodes) {
-              return;
-            }
-
-            const relatedCanvasNodes = relatedCanvas.canvas_data.nodes;
-
-            // Extract IDs from relation data
-            const relationIds = relationData.map((item) => item.id);
-
-            // Create a set for faster lookups
-            const relationIdSet = new Set(relationIds);
-
-            // Filter related nodes that match the relation IDs
-            const matchingRelatedNodes = relatedCanvasNodes.filter(
-              (relNode: Node) => relationIdSet.has(relNode.id)
-            );
-
-            const rollupData = matchingRelatedNodes.map((relNode: Node) => {
-              if (rollupColumnTargetTitle === "type") {
-                return {
-                  label: relNode.data.shape || relNode.id,
-                  value: relNode.data.shape || relNode.id,
-                  sourceId: relNode.id,
-                };
-              }
-
-              if (rollupColumnTargetTitle === "task") {
-                return {
-                  label: relNode.data.label || relNode.id,
-                  value: relNode.data.label || relNode.id,
-                  sourceId: relNode.id,
-                };
-              }
-
-              const value = relNode.data[rollupColumnTargetTitle];
-
-              return {
-                label: relNode.data.label || relNode.id,
-                value: value,
-                sourceId: relNode.id,
-              };
-            });
-
-            // Store in cache
-            newRollupCache[`${node.id}-${column.title}`] = rollupData;
-            console.log("Final rollup data:", rollupData);
-          });
-        });
       }
 
-      // Set both caches with the new data
-      setRollupCache(newRollupCache);
-      setRelationCache(newRelationCache);
-    }, [nodes, columns]);
-
-    const columnRefs = useRef<Record<string, HTMLDivElement | null>>({});
-
-    const startResizing = (columnTitle: string) => {
-      document.body.classList.add("resizing");
-
-      setResizingColumn(columnTitle);
-    };
-
-    const handleResize = useCallback(
-      (mouseMoveEvent: MouseEvent) => {
-        if (resizingColumn) {
-          const columnElement = columnRefs.current[resizingColumn];
-          if (!columnElement) return;
-
-          const newWidth =
-            mouseMoveEvent.clientX - columnElement.getBoundingClientRect().left;
-
-          updateTableSettings({
-            ...canvasSettings.table_settings,
-            columnWidths: {
-              ...columnWidths,
-              [resizingColumn]: Math.max(100, newWidth),
-            },
-          });
-        }
-      },
-      [resizingColumn]
-    );
-
-    const stopResizing = useCallback(() => {
-      document.body.classList.remove("resizing");
-
-      setResizingColumn(null);
-    }, []);
-
-    // Event listeners for resizing
-    useEffect(() => {
-      if (resizingColumn) {
-        window.addEventListener("mousemove", handleResize);
-        window.addEventListener("mouseup", stopResizing);
+      // Checkbox specific operators
+      if (operator === "true") {
+        return nodeValue === true;
       }
 
-      return () => {
-        window.removeEventListener("mousemove", handleResize);
-        window.removeEventListener("mouseup", stopResizing);
-      };
-    }, [resizingColumn, handleResize, stopResizing]);
-
-    // column resizing ends here
-
-    const handleDuplicateSelected = () => {
-      let updatedNodes = [...nodes];
-      selectedNodes.forEach((nodeId) => {
-        const nodeToDuplicate = nodes.find((n) => n.id === nodeId);
-        if (nodeToDuplicate) {
-          const newNode = {
-            ...nodeToDuplicate,
-            id: `node-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-            data: { ...nodeToDuplicate.data },
-          };
-          const index = updatedNodes.findIndex((n) => n.id === nodeId);
-          updatedNodes.splice(index + 1, 0, newNode);
-        }
-      });
-      onNodesChange(updatedNodes);
-    };
-
-    const enhanceNodesWithConnectionData = (
-      nodes: Node[],
-      edges: Edge[]
-    ): Node[] => {
-      if (!nodes?.length || !edges?.length) {
-        return nodes;
+      if (operator === "false") {
+        return nodeValue === false;
       }
 
-      // Create a map of connections for quick lookup
-      const sourceConnections = new Map<string, string[]>();
-      const targetConnections = new Map<string, string[]>();
+      // Return false if we're trying to compare with empty values
+      if (nodeValue === undefined || nodeValue === null || nodeValue === "") {
+        return false;
+      }
 
-      // Process all edges to build connection maps
-      edges.forEach((edge) => {
-        // Add target to source's outgoing connections
-        if (!sourceConnections.has(edge.source)) {
-          sourceConnections.set(edge.source, []);
+      // Text comparison operators
+      if (operator === "equals") {
+        if (typeof nodeValue === "string" && typeof actualValue === "string") {
+          return nodeValue.toLowerCase() === actualValue.toLowerCase();
         }
-        sourceConnections.get(edge.source)?.push(edge.target);
+        return nodeValue === actualValue;
+      }
 
-        // Add source to target's incoming connections
-        if (!targetConnections.has(edge.target)) {
-          targetConnections.set(edge.target, []);
+      if (operator === "not_equals") {
+        if (typeof nodeValue === "string" && typeof actualValue === "string") {
+          return nodeValue.toLowerCase() !== actualValue.toLowerCase();
         }
-        targetConnections.get(edge.target)?.push(edge.source);
-      });
+        return nodeValue !== actualValue;
+      }
 
-      // Enhance nodes with connection data
-      return nodes.map((node) => {
-        // Get source nodes (nodes that connect to this node)
-        const fromNodes = targetConnections.get(node.id) || [];
-
-        // Get target nodes (nodes this node connects to)
-        const toNodes = sourceConnections.get(node.id) || [];
-
-        // Find the labels for the connected nodes
-        const fromLabels = fromNodes.map((id) => {
-          const sourceNode = nodes.find((n) => n.id === id);
-          return sourceNode ? sourceNode.data.label || id : id;
-        });
-
-        const toLabels = toNodes.map((id) => {
-          const targetNode = nodes.find((n) => n.id === id);
-          return targetNode ? targetNode.data.label || id : id;
-        });
-
-        return {
-          ...node,
-          data: {
-            ...node.data,
-            from: fromLabels.join(", "),
-            to: toLabels.join(", "),
-          },
-        };
-      });
-    };
-
-    const createHierarchy = (nodes: Node[]): HierarchyNode[] => {
-      const nodeMap = new Map<string, HierarchyNode>();
-      const rootNodes: HierarchyNode[] = [];
-
-      nodes.forEach((node) => {
-        const hierarchyNode: HierarchyNode = { ...node, children: [] };
-        nodeMap.set(node.id, hierarchyNode);
-      });
-
-      nodes.forEach((node) => {
-        if (node.parentNode) {
-          const parent = nodeMap.get(node.parentNode);
-          if (parent) {
-            let child = nodeMap.get(node.id);
-
-            child = {
-              ...child,
-              data: {
-                ...child?.data,
-                parent: parent.data.label,
-              },
-            } as HierarchyNode;
-
-            // Push child to parent's children
-            parent.children.push(child);
-
-            // Set children titles in parent's data
-            parent.data = {
-              ...parent.data,
-              children: parent.children.map((c) => c.data.label).join(", "),
-            };
-          }
-        } else {
-          rootNodes.push(nodeMap.get(node.id)!);
+      if (operator === "contains") {
+        if (typeof nodeValue === "string" && typeof actualValue === "string") {
+          return nodeValue.toLowerCase().includes(actualValue.toLowerCase());
         }
-      });
+        if (Array.isArray(nodeValue)) {
+          return nodeValue.some((item) =>
+            typeof item === "string"
+              ? item.toLowerCase().includes(String(actualValue).toLowerCase())
+              : String(item)
+                  .toLowerCase()
+                  .includes(String(actualValue).toLowerCase())
+          );
+        }
+        return String(nodeValue)
+          .toLowerCase()
+          .includes(String(actualValue).toLowerCase());
+      }
 
-      return rootNodes;
+      if (operator === "not_contains") {
+        if (typeof nodeValue === "string" && typeof actualValue === "string") {
+          return !nodeValue.toLowerCase().includes(actualValue.toLowerCase());
+        }
+        if (Array.isArray(nodeValue)) {
+          return !nodeValue.some((item) =>
+            typeof item === "string"
+              ? item.toLowerCase().includes(String(actualValue).toLowerCase())
+              : String(item)
+                  .toLowerCase()
+                  .includes(String(actualValue).toLowerCase())
+          );
+        }
+        return !String(nodeValue)
+          .toLowerCase()
+          .includes(String(actualValue).toLowerCase());
+      }
+
+      // Numeric comparison operators
+      if (operator === "greater_than") {
+        const numValue =
+          typeof actualValue === "string"
+            ? parseFloat(actualValue)
+            : actualValue;
+        const numNodeValue =
+          typeof nodeValue === "string" ? parseFloat(nodeValue) : nodeValue;
+
+        if (isNaN(numValue) || isNaN(numNodeValue)) {
+          return false;
+        }
+
+        return numNodeValue > numValue;
+      }
+
+      if (operator === "less_than") {
+        const numValue =
+          typeof actualValue === "string"
+            ? parseFloat(actualValue)
+            : actualValue;
+        const numNodeValue =
+          typeof nodeValue === "string" ? parseFloat(nodeValue) : nodeValue;
+
+        if (isNaN(numValue) || isNaN(numNodeValue)) {
+          return false;
+        }
+
+        return numNodeValue < numValue;
+      }
+
+      return false;
     };
 
     const visibleNodes = useMemo(() => {
-      return nodes.filter((node) => !hiddenNodeIds.has(node.id));
-    }, [nodes, hiddenNodeIds]);
+      let filteredNodes = nodes.filter((node) => !hiddenNodeIds.has(node.id));
+
+      // If we have active filters, apply them
+      if (filterGroups.length > 0) {
+        filteredNodes = filteredNodes.filter((node) => {
+          // A node passes if it matches at least one filter group
+          return filterGroups.some((group) => {
+            // For AND conjunction, all filters must match
+            // For OR conjunction, at least one filter must match
+            const filtersMatch =
+              group.conjunction === "AND"
+                ? group.filters.every((filter) => matchesFilter(node, filter))
+                : group.filters.some((filter) => matchesFilter(node, filter));
+
+            return filtersMatch;
+          });
+        });
+      }
+
+      return filteredNodes;
+    }, [nodes, hiddenNodeIds, filterGroups]);
 
     const insertRollupDataIntoNodes = (nodes: Node[]): Node[] => {
       return nodes.map((node) => {
@@ -704,6 +728,165 @@ const TableView = forwardRef<
     const visibleNodeIds = flattenHierarchy(sortedHierarchy).map(
       ({ node }) => node.id
     );
+
+    // Helper function to get operators based on column type
+    const getOperatorsForColumnType = (
+      columnType: string | undefined,
+      columnTitle: string
+    ): FilterOperator[] => {
+      // Special handling for task and type columns
+      if (
+        columnTitle === "task" ||
+        columnTitle === "type" ||
+        columnType === "Text" ||
+        columnType === "Long Text" ||
+        columnType === "Created by" ||
+        columnType === "Last edited by"
+      ) {
+        return [
+          "equals",
+          "not_equals",
+          "contains",
+          "not_contains",
+          "is_empty",
+          "is_not_empty",
+        ];
+      }
+
+      if (columnType === "Number") {
+        return [
+          "equals",
+          "not_equals",
+          "greater_than",
+          "less_than",
+          "is_empty",
+          "is_not_empty",
+        ];
+      }
+
+      if (
+        columnType === "Date" ||
+        columnType === "Created Time" ||
+        columnType === "Last edited time"
+      ) {
+        return [
+          "equals",
+          "not_equals",
+          "greater_than",
+          "less_than",
+          "is_empty",
+          "is_not_empty",
+        ];
+      }
+
+      if (columnType === "Checkbox") {
+        return ["true", "false"];
+      }
+
+      if (columnType === "Select" || columnType === "Multiselect") {
+        return ["equals", "not_equals", "is_empty", "is_not_empty"];
+      }
+
+      if (columnType === "Relation" || columnType === "Rollup") {
+        return ["contains", "not_contains", "is_empty", "is_not_empty"];
+      }
+
+      // Default operators
+      return [
+        "equals",
+        "not_equals",
+        "contains",
+        "not_contains",
+        "is_empty",
+        "is_not_empty",
+      ];
+    };
+
+    // Get human-readable operator label
+    const getOperatorLabel = (operator: FilterOperator): string => {
+      switch (operator) {
+        case "equals":
+          return "equals";
+        case "not_equals":
+          return "does not equal";
+        case "contains":
+          return "contains";
+        case "not_contains":
+          return "does not contain";
+        case "greater_than":
+          return "is greater than";
+        case "less_than":
+          return "is less than";
+        case "is_empty":
+          return "is empty";
+        case "is_not_empty":
+          return "is not empty";
+        case "true":
+          return "is checked";
+        case "false":
+          return "is not checked";
+        default:
+          return operator;
+      }
+    };
+
+    // Get input type for value based on column type
+    const getInputTypeForValue = (
+      columnType: string | undefined,
+      operator: FilterOperator
+    ): string => {
+      if (
+        operator === "is_empty" ||
+        operator === "is_not_empty" ||
+        operator === "true" ||
+        operator === "false"
+      ) {
+        return "none"; // No input needed for these operators
+      }
+
+      if (columnType === "Number") {
+        return "number";
+      }
+
+      if (
+        columnType === "Date" ||
+        columnType === "Created Time" ||
+        columnType === "Last edited time"
+      ) {
+        return "date";
+      }
+
+      return "text";
+    };
+
+    // Get column type from title
+    const getColumnTypeForFilter = (
+      columnTitle: string
+    ): string | undefined => {
+      if (columnTitle === "task") return "Text";
+      if (columnTitle === "type") return "Select";
+
+      const column = columns.find((col) => col.title === columnTitle);
+      return column?.type;
+    };
+
+    // Determine if a column should show a select input for values
+    const shouldUseSelectForValues = (
+      columnType: string | undefined,
+      columnTitle: string
+    ): boolean => {
+      return columnTitle === "type" || columnType === "Select";
+    };
+
+    // Get options for a column
+    const getOptionsForColumn = (columnTitle: string): string[] => {
+      if (columnTitle === "type") {
+        return shapeOptions;
+      }
+
+      const column = columns.find((col) => col.title === columnTitle);
+      return column?.options || [];
+    };
 
     const deleteNode = (nodeId: string, deleteChildren = false) => {
       const nodesToDelete = new Set<string>([nodeId]);
@@ -1157,6 +1340,85 @@ const TableView = forwardRef<
       });
     }, [{ ...columns }, canvasId]);
 
+    // Handle individual node sorting
+    const sortByNode = (nodeId: string, sortDirection: "asc" | "desc") => {
+      // Find the node and get a sortable column from it
+      const node = nodes.find((n) => n.id === nodeId);
+      if (!node) return;
+
+      // Choose the first sortable column
+      const firstSortableColumn =
+        columns.find((col) => isColumnSortable(col.type, col.title))?.title ||
+        "task";
+
+      // Set the sort parameters
+      setSortField(firstSortableColumn as SortField);
+      setSortDirection(sortDirection);
+    };
+
+    // Add filter for a specific node value
+    const addFilterForNode = (nodeId: string, columnTitle: string) => {
+      // Check if the column is filterable
+      const columnType = getColumnTypeForFilter(columnTitle);
+      if (!isColumnFilterable(columnType, columnTitle)) {
+        // Choose the first filterable column instead
+        const firstFilterableColumn =
+          columns.find((col) => isColumnFilterable(col.type, col.title))
+            ?.title || "task";
+        columnTitle = firstFilterableColumn;
+      }
+
+      // Find the node
+      const node = nodes.find((n) => n.id === nodeId);
+      if (!node) return;
+
+      // Get the value to filter for
+      const value =
+        columnTitle === "task"
+          ? node.data.label
+          : columnTitle === "type"
+            ? node.data.shape
+            : node.data[columnTitle];
+
+      // Don't create a filter for undefined values, but allow empty strings by using placeholder
+      if (value === undefined) return;
+
+      // Create a new filter group
+      const newGroup: FilterGroup = {
+        id: generateId(),
+        filters: [
+          {
+            id: generateId(),
+            column: columnTitle,
+            operator: typeof value === "string" ? "equals" : "equals",
+            value: value === "" ? "placeholder_empty" : value,
+          },
+        ],
+        conjunction: "AND",
+      };
+
+      // Add the filter and open the filter dialog
+      setFilterGroups([...filterGroups, newGroup]);
+      setFilterDialogOpen(true);
+    };
+
+    // Duplicate a single node
+    const duplicateNode = (nodeId: string) => {
+      if (readOnly) return;
+
+      const nodeToDuplicate = nodes.find((node) => node.id === nodeId);
+      if (!nodeToDuplicate) return;
+
+      const uniqueId = `node-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+      const newNode = {
+        ...nodeToDuplicate,
+        id: uniqueId,
+        data: { ...nodeToDuplicate.data },
+      };
+
+      onNodesChange([...nodes, newNode]);
+    };
+
     const renderHierarchy = (
       nodes: HierarchyNode[],
       level = 0
@@ -1192,6 +1454,9 @@ const TableView = forwardRef<
             handleDeleteConfirm={handleDeleteConfirm}
             shapeOptions={shapeOptions}
             readOnly={readOnly}
+            sortByNode={!readOnly ? sortByNode : undefined}
+            addFilterForNode={!readOnly ? addFilterForNode : undefined}
+            duplicateNode={!readOnly ? duplicateNode : undefined}
           />,
           ...(isExpanded && hasChildren
             ? renderHierarchy(node.children, level + 1)
@@ -1392,30 +1657,36 @@ const TableView = forwardRef<
       document.body.removeChild(link);
     };
 
-    // Add this helper function before the return statement
-    const isColumnSortable = (
-      columnType: string | undefined,
-      columnTitle: string
-    ) => {
-      // Special case for the type column which contains shape names
-      if (columnTitle === "type") {
-        return true;
-      }
-      const unsortableTypes = [
-        "Select",
-        "Multiselect",
-        "Relation",
-        "Rollup",
-        "Checkbox",
-      ];
-      return !unsortableTypes.includes(columnType || "");
-    };
-
     // Expose exportToCSV and exportToExcel methods to parent components
     useImperativeHandle(ref, () => ({
       exportToCSV,
       exportToExcel,
     }));
+
+    // Add this helper function before the return statement
+    const isColumnSortable = (
+      columnType: string | undefined,
+      columnTitle: string
+    ) => {
+      // Exclude id, Relation, and Rollup columns from sorting
+      if (
+        columnTitle === "id" ||
+        columnType === "Relation" ||
+        columnType === "Rollup"
+      ) {
+        return false;
+      }
+
+      // Special case for the type column which contains shape names
+      if (columnTitle === "type") {
+        return true;
+      }
+
+      // Other unsortable types
+      const unsortableTypes = ["Select", "Multiselect", "Checkbox"];
+
+      return !unsortableTypes.includes(columnType || "");
+    };
 
     return (
       <>
@@ -1423,7 +1694,9 @@ const TableView = forwardRef<
           <div className="flex items-center justify-between px-8 py-2 border-b border-gray-100">
             <div className="text-base text-gray-700 font-medium"></div>
             <div className="flex items-center gap-2 min-h-10">
-              {(selectedNodes.length > 0 || sortField) && (
+              {(selectedNodes.length > 0 ||
+                sortField ||
+                filterGroups.length > 0) && (
                 <>
                   {sortField && (
                     <Button
@@ -1436,6 +1709,16 @@ const TableView = forwardRef<
                     >
                       <X className="h-4 w-4 mr-2" />
                       Clear sorting
+                    </Button>
+                  )}
+                  {filterGroups.length > 0 && (
+                    <Button
+                      variant="outline"
+                      className="text-red-600 font-medium text-sm hover:bg-red-50 ml-2 rounded-md"
+                      onClick={clearAllFilters}
+                    >
+                      <FilterX className="h-4 w-4 mr-2" />
+                      Clear filters
                     </Button>
                   )}
                   {selectedNodes.length > 0 && (
@@ -1461,6 +1744,36 @@ const TableView = forwardRef<
                       </Button>
                     </>
                   )}
+                </>
+              )}
+
+              {!readOnly && (
+                <>
+                  <Button
+                    variant={filterGroups.length > 0 ? "default" : "outline"}
+                    className={`text-sm hover:bg-gray-50 ml-2 rounded-md ${filterGroups.length > 0 ? "bg-blue-50 text-blue-700 hover:bg-blue-100 border-blue-200" : "text-gray-500"}`}
+                    onClick={() => {
+                      // Just open the dialog without adding a filter group
+                      setFilterDialogOpen(true);
+                    }}
+                  >
+                    <Filter
+                      className={`h-4 w-4 mr-2 ${filterGroups.length > 0 ? "text-blue-700" : ""}`}
+                    />
+                    Filter{" "}
+                    {filterGroups.length > 0 ? `(${filterGroups.length})` : ""}
+                  </Button>
+
+                  <Button
+                    variant={sortField ? "default" : "outline"}
+                    className={`text-sm hover:bg-gray-50 ml-2 rounded-md ${sortField ? "bg-blue-50 text-blue-700 hover:bg-blue-100 border-blue-200" : "text-gray-500"}`}
+                    onClick={() => setShowFilterUI(!showFilterUI)}
+                  >
+                    <SlidersHorizontal
+                      className={`h-4 w-4 mr-2 ${sortField ? "text-blue-700" : ""}`}
+                    />
+                    Sort {sortField ? `(${sortField})` : ""}
+                  </Button>
                 </>
               )}
 
@@ -1503,7 +1816,7 @@ const TableView = forwardRef<
                     <TableHeader className="p-0 bg-gray-50 ">
                       <TableRow className="group">
                         <TableHead
-                          className={`sticky left-0 z-20 bg-white border-r border-gray-200 w-16 text-center ${
+                          className={`sticky left-0 z-20 bg-white border-r border-gray-200 w-16 text-left pl-2 ${
                             selectedNodes.length > 0
                               ? "bg-blue-50"
                               : "bg-gray-50"
@@ -1768,7 +2081,6 @@ const TableView = forwardRef<
                                 <DialogTrigger asChild>
                                   <DropdownMenuItem
                                     onSelect={(e) => e.preventDefault()}
-                                    // onClick={() => setIsHiddenColumnsMenuOpen(true)}
                                   >
                                     <ChevronDown className="h-4 w-4 mr-2" />
                                     Show/Hide Columns
@@ -1777,16 +2089,45 @@ const TableView = forwardRef<
                                 <DialogContent>
                                   <DialogHeader>
                                     <DialogTitle>
-                                      Manage Hidden Columns
+                                      Manage Column Visibility
                                     </DialogTitle>
+                                    <DialogDescription>
+                                      Toggle columns to show or hide them. Icons
+                                      indicate which operations are available.
+                                    </DialogDescription>
                                   </DialogHeader>
-                                  <div className="space-y-4">
+                                  <div className="space-y-4 my-4">
                                     {columns.map((column) => (
                                       <div
                                         key={column.title}
-                                        className="flex items-center justify-between"
+                                        className="flex items-center justify-between py-2 border-b border-gray-100"
                                       >
-                                        <span>{column.title}</span>
+                                        <div className="flex items-center">
+                                          <span>{column.title}</span>
+                                          <div className="flex ml-2 space-x-1">
+                                            {isColumnSortable(
+                                              column.type,
+                                              column.title
+                                            ) && (
+                                              <span
+                                                className="tooltip"
+                                                aria-label="Sortable"
+                                              >
+                                                <SlidersHorizontal className="h-3 w-3 text-gray-400" />
+                                              </span>
+                                            )}
+                                            {!["Rollup", "Relation"].includes(
+                                              column.type || ""
+                                            ) && (
+                                              <span
+                                                className="tooltip"
+                                                aria-label="Filterable"
+                                              >
+                                                <Filter className="h-3 w-3 text-gray-400" />
+                                              </span>
+                                            )}
+                                          </div>
+                                        </div>
                                         <Switch
                                           checked={
                                             !hiddenColumns?.includes(
@@ -1801,7 +2142,9 @@ const TableView = forwardRef<
                                     ))}
                                   </div>
                                   <DialogFooter>
-                                    <DialogTrigger asChild>Close</DialogTrigger>
+                                    <DialogTrigger asChild>
+                                      <Button>Close</Button>
+                                    </DialogTrigger>
                                   </DialogFooter>
                                 </DialogContent>
                               </Dialog>
@@ -1821,15 +2164,17 @@ const TableView = forwardRef<
               </div>
             </div>
             <div className="p-4 border-t sticky bottom-0 bg-white">
-              <Button
-                size="sm"
-                onClick={addNewRow}
-                disabled={readOnly}
-                className="flex items-center text-xs"
-              >
-                <Plus className="h-3.5 w-3.5 mr-1" />
-                Add Row
-              </Button>
+              {!readOnly && (
+                <div
+                  className="flex items-center cursor-pointer"
+                  onClick={addNewRow}
+                >
+                  <div className="w-6 h-6 flex items-center justify-center rounded-full border border-gray-300 mr-2">
+                    <Plus className="h-3.5 w-3.5 text-gray-600" />
+                  </div>
+                  <span className="text-sm text-gray-600">Add New Note</span>
+                </div>
+              )}
             </div>
           </div>
 
@@ -1924,6 +2269,411 @@ const TableView = forwardRef<
               </AlertDialogFooter>
             </AlertDialogContent>
           </AlertDialog>
+
+          {/* Filter Dialog */}
+          <Dialog open={filterDialogOpen} onOpenChange={setFilterDialogOpen}>
+            <DialogContent className="sm:max-w-[550px]">
+              <DialogHeader>
+                <DialogTitle>Filter</DialogTitle>
+                <DialogDescription>
+                  Add filters to show only the items that match your criteria.
+                </DialogDescription>
+              </DialogHeader>
+
+              <div className="space-y-6 py-4">
+                {filterGroups.length > 0 ? (
+                  // Show existing filter groups
+                  filterGroups.map((group, groupIndex) => (
+                    <div
+                      key={group.id}
+                      className="border border-gray-200 rounded-md p-4 space-y-4"
+                    >
+                      {group.filters.map((filter, filterIndex) => {
+                        const columnType = getColumnTypeForFilter(
+                          filter.column
+                        );
+                        const operators = getOperatorsForColumnType(
+                          columnType,
+                          filter.column
+                        );
+                        const inputType = getInputTypeForValue(
+                          columnType,
+                          filter.operator
+                        );
+                        const isEditing =
+                          editingFilter?.groupId === group.id &&
+                          editingFilter?.filterId === filter.id;
+
+                        return (
+                          <div
+                            key={filter.id}
+                            className="grid grid-cols-[1fr,auto] gap-2"
+                          >
+                            <div className="flex flex-col space-y-2">
+                              <div className="flex flex-wrap gap-2 items-center">
+                                <Select
+                                  value={filter.column}
+                                  onValueChange={(value) => {
+                                    // Reset operator and value when column changes
+                                    const newColumnType =
+                                      getColumnTypeForFilter(value);
+                                    const newOperators =
+                                      getOperatorsForColumnType(
+                                        newColumnType,
+                                        value
+                                      );
+                                    updateFilter(group.id, filter.id, {
+                                      column: value,
+                                      operator: newOperators[0],
+                                      value: "",
+                                    });
+                                    setEditingFilter({
+                                      groupId: group.id,
+                                      filterId: filter.id,
+                                    });
+                                  }}
+                                >
+                                  <SelectTrigger className="w-[150px]">
+                                    <SelectValue placeholder="Column" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    {[
+                                      { title: "task", type: "Text" },
+                                      { title: "type", type: "Select" },
+                                      ...columns.filter(
+                                        (col) =>
+                                          !hiddenColumns?.includes(col.title) &&
+                                          isColumnFilterable(
+                                            col.type,
+                                            col.title
+                                          ) &&
+                                          col.title !== "task" && // Exclude task since we added it manually
+                                          col.title !== "type" // Exclude type since we added it manually
+                                      ),
+                                    ].map((col) => (
+                                      <SelectItem
+                                        key={col.title}
+                                        value={col.title}
+                                      >
+                                        {col.title}
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+
+                                <Select
+                                  value={filter.operator}
+                                  onValueChange={(value) => {
+                                    updateFilter(group.id, filter.id, {
+                                      operator: value as FilterOperator,
+                                      // Clear value if operator doesn't need one
+                                      value: [
+                                        "is_empty",
+                                        "is_not_empty",
+                                        "true",
+                                        "false",
+                                      ].includes(value)
+                                        ? ""
+                                        : filter.value,
+                                    });
+                                    setEditingFilter({
+                                      groupId: group.id,
+                                      filterId: filter.id,
+                                    });
+                                  }}
+                                >
+                                  <SelectTrigger className="w-[170px]">
+                                    <SelectValue placeholder="Operator" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    {operators.map((op) => (
+                                      <SelectItem key={op} value={op}>
+                                        {getOperatorLabel(op)}
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+
+                                {inputType !== "none" && (
+                                  <>
+                                    {shouldUseSelectForValues(
+                                      columnType,
+                                      filter.column
+                                    ) ? (
+                                      <Select
+                                        value={
+                                          filter.value === "placeholder_empty"
+                                            ? undefined
+                                            : filter.value
+                                        }
+                                        onValueChange={(value) => {
+                                          updateFilter(group.id, filter.id, {
+                                            value,
+                                          });
+                                        }}
+                                      >
+                                        <SelectTrigger className="w-[150px]">
+                                          <SelectValue placeholder="Value" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                          {getOptionsForColumn(filter.column)
+                                            .length > 0 ? (
+                                            getOptionsForColumn(
+                                              filter.column
+                                            ).map((option) => (
+                                              <SelectItem
+                                                key={option}
+                                                value={
+                                                  option || "placeholder_empty"
+                                                }
+                                              >
+                                                {option || "(Empty)"}
+                                              </SelectItem>
+                                            ))
+                                          ) : (
+                                            <SelectItem value="no_options">
+                                              No options available
+                                            </SelectItem>
+                                          )}
+                                        </SelectContent>
+                                      </Select>
+                                    ) : (
+                                      <Input
+                                        type={inputType}
+                                        value={
+                                          filter.value === "placeholder_empty"
+                                            ? ""
+                                            : filter.value || ""
+                                        }
+                                        onChange={(e) => {
+                                          updateFilter(group.id, filter.id, {
+                                            value:
+                                              e.target.value ||
+                                              "placeholder_empty",
+                                          });
+                                        }}
+                                        placeholder="Value"
+                                        className="w-[150px]"
+                                      />
+                                    )}
+                                  </>
+                                )}
+                              </div>
+                            </div>
+
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => removeFilter(group.id, filter.id)}
+                              className="h-9 w-9 rounded-full"
+                            >
+                              <X className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        );
+                      })}
+
+                      <div className="flex justify-between items-center">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => addFilterToGroup(group.id)}
+                          className="flex items-center gap-1"
+                        >
+                          <Plus className="h-3 w-3" />
+                          Add filter
+                        </Button>
+
+                        {filterGroups.length > 1 && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="text-red-600 hover:text-red-700"
+                            onClick={() => removeFilterGroup(group.id)}
+                          >
+                            Remove group
+                          </Button>
+                        )}
+
+                        {groupIndex < filterGroups.length - 1 && (
+                          <div className="w-full text-center text-sm text-gray-500 mt-2">
+                            {group.conjunction === "AND" ? "AND" : "OR"}
+                          </div>
+                        )}
+                      </div>
+
+                      {groupIndex < filterGroups.length - 1 && (
+                        <div className="flex justify-center">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => toggleConjunction(group.id)}
+                            className="text-sm"
+                          >
+                            {group.conjunction === "AND"
+                              ? "Switch to OR"
+                              : "Switch to AND"}
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                  ))
+                ) : (
+                  // Empty state
+                  <div className="text-center py-8">
+                    <div className="text-gray-400 mb-4">
+                      <Filter className="h-8 w-8 mx-auto mb-2" />
+                      <p>No filters applied</p>
+                    </div>
+                    <Button
+                      variant="outline"
+                      onClick={addFilterGroup}
+                      className="flex items-center gap-1 mx-auto"
+                    >
+                      <Plus className="h-4 w-4" />
+                      Add your first filter
+                    </Button>
+                  </div>
+                )}
+
+                {filterGroups.length > 0 && (
+                  <Button
+                    variant="outline"
+                    onClick={addFilterGroup}
+                    className="w-full flex items-center justify-center gap-1"
+                  >
+                    <Plus className="h-4 w-4" />
+                    Add filter group
+                  </Button>
+                )}
+              </div>
+
+              <DialogFooter>
+                <Button
+                  variant="outline"
+                  onClick={() => setFilterDialogOpen(false)}
+                >
+                  Close
+                </Button>
+                <Button
+                  onClick={() => {
+                    // Apply filters
+                    setFilterDialogOpen(false);
+
+                    // Process any placeholder values before applying
+                    setFilterGroups((prevGroups) =>
+                      prevGroups.map((group) => ({
+                        ...group,
+                        filters: group.filters.map((filter) => {
+                          // If using placeholder, convert to empty string for the actual filter logic
+                          if (filter.value === "placeholder_empty") {
+                            return {
+                              ...filter,
+                              value: "",
+                            };
+                          }
+                          return filter;
+                        }),
+                      }))
+                    );
+                  }}
+                >
+                  Apply
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+
+          {/* Sort UI Dropdown */}
+          {showFilterUI && (
+            <div className="absolute top-20 right-10 z-50 bg-white border border-gray-200 rounded-md shadow-lg p-4 min-w-[300px] space-y-4">
+              <div className="flex justify-between items-center">
+                <h3 className="font-medium">Sort</h3>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => setShowFilterUI(false)}
+                  className="h-8 w-8"
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+
+              <div className="space-y-2">
+                <div className="text-sm font-medium">Sort by</div>
+                <Select
+                  value={sortField || "none"}
+                  onValueChange={(value) => {
+                    if (value && value !== "none") {
+                      setSortField(value as SortField);
+                      setSortDirection(sortDirection || "asc");
+                    } else {
+                      setSortField(null);
+                      setSortDirection(null);
+                    }
+                  }}
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Select a property" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">None</SelectItem>
+                    {columns
+                      .filter((col) => {
+                        // Filter only sortable columns
+                        return (
+                          isColumnSortable(col.type, col.title) &&
+                          !hiddenColumns?.includes(col.title)
+                        );
+                      })
+                      .map((col) => (
+                        <SelectItem key={col.title} value={col.title}>
+                          {col.title}
+                        </SelectItem>
+                      ))}
+                    <SelectItem value="task">task</SelectItem>
+                    <SelectItem value="type">type</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {sortField && (
+                <div className="space-y-2">
+                  <div className="text-sm font-medium">Direction</div>
+                  <div className="flex gap-2">
+                    <Button
+                      variant={sortDirection === "asc" ? "default" : "outline"}
+                      size="sm"
+                      className="flex-1"
+                      onClick={() => setSortDirection("asc")}
+                    >
+                      <ChevronUp className="h-4 w-4 mr-2" />
+                      Ascending
+                    </Button>
+                    <Button
+                      variant={sortDirection === "desc" ? "default" : "outline"}
+                      size="sm"
+                      className="flex-1"
+                      onClick={() => setSortDirection("desc")}
+                    >
+                      <ChevronDown className="h-4 w-4 mr-2" />
+                      Descending
+                    </Button>
+                  </div>
+                </div>
+              )}
+
+              <Button
+                variant="outline"
+                className="w-full"
+                onClick={() => {
+                  setShowFilterUI(false);
+                }}
+              >
+                Done
+              </Button>
+            </div>
+          )}
         </div>
       </>
     );

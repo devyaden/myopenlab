@@ -53,3 +53,29 @@ export type SortField = "id" | "task" | "type" | null;
 export interface HierarchyNode extends Node {
   children: HierarchyNode[];
 }
+
+// Add these missing type definitions for filtering functionality
+export type FilterOperator =
+  | "equals"
+  | "not_equals"
+  | "contains"
+  | "not_contains"
+  | "greater_than"
+  | "less_than"
+  | "is_empty"
+  | "is_not_empty"
+  | "true"
+  | "false";
+
+export interface Filter {
+  id: string;
+  column: string;
+  operator: FilterOperator;
+  value: any;
+}
+
+export interface FilterGroup {
+  id: string;
+  filters: Filter[];
+  conjunction: "AND" | "OR";
+}

@@ -3,6 +3,7 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
+  DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import {
@@ -23,6 +24,10 @@ import {
   GripVertical,
   MoreHorizontal,
   Plus,
+  Filter,
+  ArrowDown,
+  ArrowUp,
+  Copy,
 } from "lucide-react";
 import type React from "react";
 import { Checkbox } from "../../ui/checkbox";
@@ -55,6 +60,9 @@ const SortableTableRow: React.FC<{
   nodeToDelete: any;
   shapeOptions: string[];
   readOnly?: boolean;
+  sortByNode?: (nodeId: string, sortDirection: "asc" | "desc") => void;
+  addFilterForNode?: (nodeId: string, columnTitle: string) => void;
+  duplicateNode?: (nodeId: string) => void;
 }> = ({
   node,
   level,
@@ -80,6 +88,9 @@ const SortableTableRow: React.FC<{
   nodeToDelete,
   shapeOptions,
   readOnly,
+  sortByNode,
+  addFilterForNode,
+  duplicateNode,
 }) => {
   const { attributes, listeners, setNodeRef, transform, transition } =
     useSortable({ id: node.id });
@@ -535,6 +546,41 @@ const SortableTableRow: React.FC<{
                 <MoreHorizontal className="h-4 w-4" />
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
+                {sortByNode && (
+                  <>
+                    <DropdownMenuItem
+                      onClick={() => sortByNode(node.id, "asc")}
+                    >
+                      <ArrowUp className="h-4 w-4 mr-2" />
+                      Sort ascending
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onClick={() => sortByNode(node.id, "desc")}
+                    >
+                      <ArrowDown className="h-4 w-4 mr-2" />
+                      Sort descending
+                    </DropdownMenuItem>
+                  </>
+                )}
+
+                {addFilterForNode && columns[0] && (
+                  <DropdownMenuItem
+                    onClick={() => addFilterForNode(node.id, columns[0].title)}
+                  >
+                    <Filter className="h-4 w-4 mr-2" />
+                    Create filter
+                  </DropdownMenuItem>
+                )}
+
+                {duplicateNode && (
+                  <DropdownMenuItem onClick={() => duplicateNode(node.id)}>
+                    <Copy className="h-4 w-4 mr-2" />
+                    Duplicate
+                  </DropdownMenuItem>
+                )}
+
+                <DropdownMenuSeparator />
+
                 <DropdownMenuItem
                   onClick={() => handleDeleteClick(node)}
                   className="text-red-600"
