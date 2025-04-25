@@ -365,7 +365,7 @@ export default function CanvasNew({ canvasId }: FigmaInterfaceProps) {
           isItalic: false,
           isUnderline: false,
           textAlign: "left" as const,
-          verticalAlign: "top" as const,
+          verticalAlign: "middle" as const,
           shape: "rectangle" as const,
           locked: false,
           isVertical: true,

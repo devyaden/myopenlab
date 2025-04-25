@@ -115,6 +115,8 @@ export const GenericNode = memo(
     const [isEditing, setIsEditing] = useState(false);
     const [labelValue, setLabelValue] = useState(data.label);
 
+    console.log("-------- data style --------", data.style);
+
     // Initialize nodeSize from data if available, otherwise use default
     const [nodeSize, setNodeSize] = useState({
       width: data.width || 100,
