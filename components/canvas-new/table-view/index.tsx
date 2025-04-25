@@ -114,9 +114,9 @@ const TableView = forwardRef<
     const { user } = useUser();
     const [sortField, setSortField] = useState<SortField>(null);
     const [sortDirection, setSortDirection] = useState<SortDirection>(null);
-    const [newTaskName, setNewTaskName] = useState("");
-    const [newShapeType, setNewShapeType] = useState("rectangle");
-    const [isAddingRow, setIsAddingRow] = useState(false);
+    const [selectedParentId, setSelectedParentId] = useState<string | null>(
+      null
+    );
     const [isAddColumnSidebarOpen, setIsAddColumnSidebarOpen] = useState(false);
     const [editingCell, setEditingCell] = useState<{
       nodeId: string;
@@ -125,9 +125,6 @@ const TableView = forwardRef<
     const [editedValue, setEditedValue] = useState<any>(null);
 
     const [validationError, setValidationError] = useState<string | null>(null);
-    const [selectedParentId, setSelectedParentId] = useState<string | null>(
-      null
-    );
     const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
     const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
     const [nodeToDelete, setNodeToDelete] = useState<HierarchyNode | null>(
@@ -732,10 +729,8 @@ const TableView = forwardRef<
     const addNewRow = () => {
       if (readOnly) return;
 
-      if (newTaskName.trim() === "") {
-        alert("Please enter a task name");
-        return;
-      }
+      const taskName = "";
+      const shapeType = "rectangle";
 
       // Get current user from auth
       const currentUser = user?.name || "Unknown User";
@@ -743,8 +738,8 @@ const TableView = forwardRef<
 
       // Create initial data object
       const initialData: Record<string, any> = {
-        label: newTaskName,
-        shape: newShapeType,
+        label: taskName,
+        shape: shapeType,
       };
 
       // Add system fields based on column types
@@ -766,10 +761,7 @@ const TableView = forwardRef<
       };
 
       onNodesChange([...nodes, newNode] as Node[]);
-      setNewTaskName("");
-      setNewShapeType("rectangle");
       setSelectedParentId(null);
-      setIsAddingRow(false);
 
       if (newNode.parentNode) {
         setExpandedRows((prev) => new Set(prev).add(newNode.parentNode!));
@@ -1829,46 +1821,15 @@ const TableView = forwardRef<
               </div>
             </div>
             <div className="p-4 border-t sticky bottom-0 bg-white">
-              {isAddingRow ? (
-                <div className="flex items-center gap-4">
-                  <Input
-                    placeholder="Enter task name"
-                    value={newTaskName}
-                    onChange={(e) => setNewTaskName(e.target.value)}
-                    className="flex-grow focus-visible:ring-0"
-                  />
-                  <Select value={newShapeType} onValueChange={setNewShapeType}>
-                    <SelectTrigger className="w-[180px]">
-                      <SelectValue placeholder="Select shape type" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {shapeOptions.map((shape) => (
-                        <SelectItem key={shape} value={shape || "default"}>
-                          {shape || "Default"}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <Button onClick={addNewRow}>Add</Button>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => setIsAddingRow(false)}
-                  >
-                    <X className="h-4 w-4" />
-                  </Button>
-                </div>
-              ) : (
-                <Button
-                  size="sm"
-                  onClick={addNewRow}
-                  disabled={readOnly}
-                  className="flex items-center text-xs"
-                >
-                  <Plus className="h-3.5 w-3.5 mr-1" />
-                  Add Row
-                </Button>
-              )}
+              <Button
+                size="sm"
+                onClick={addNewRow}
+                disabled={readOnly}
+                className="flex items-center text-xs"
+              >
+                <Plus className="h-3.5 w-3.5 mr-1" />
+                Add Row
+              </Button>
             </div>
           </div>
 
