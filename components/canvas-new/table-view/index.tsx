@@ -187,7 +187,6 @@ const TableView = forwardRef<
 
         nodes.forEach((node) => {
           relationColumns.forEach((column) => {
-            // debugger;
             const relationData = node.data[column.title];
 
             if (relationData) {
@@ -234,7 +233,6 @@ const TableView = forwardRef<
 
             // Get the related canvas data from the relation column
             const relatedCanvas = relationColumn.related_canvas;
-            // debugger;
 
             // if (!relatedCanvas?.canvas_data?.nodes) {
             //   return;
