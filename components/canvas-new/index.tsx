@@ -1269,6 +1269,7 @@ export default function CanvasNew({ canvasId }: FigmaInterfaceProps) {
                 className="hidden md:flex"
                 onToggleSidebar={toggleSidebar}
                 canvasType={canvas_type}
+                onDragStart={onDragStart}
               />
             )}
             <div className="flex-1 flex flex-col md:flex-row relative ">

@@ -6,32 +6,19 @@ interface VerticalNavProps {
   className?: string;
   onToggleSidebar: () => void;
   canvasType: CANVAS_TYPE | null;
+  onDragStart?: (event: React.DragEvent, shapeType: string) => void;
 }
 
 export function VerticalNav({
   className,
   onToggleSidebar,
   canvasType,
+  onDragStart,
 }: VerticalNavProps) {
   return (
     <div
       className={`w-[72px] border-r border-gray-200 flex flex-col items-center py-4 gap-2 ${className} z-30 bg-white`}
     >
-      {/* <Button
-        variant="outline"
-        size="icon"
-        className="h-12 w-12 rounded-lg hover:bg-gray-100 mb-2"
-        onClick={onToggleSidebar}
-      >
-        <Menu className="!h-6 !w-6" />
-      </Button>
-      <Button
-        variant="outline"
-        size="icon"
-        className="h-12 w-12 rounded-lg hover:bg-gray-100"
-      >
-        <PanelsTopLeft className="!h-6 !w-6" />
-      </Button> */}
       {canvasType === CANVAS_TYPE.HYBRID && (
         <Button
           variant="outline"
@@ -53,7 +40,9 @@ export function VerticalNav({
       <Button
         variant="outline"
         size="icon"
-        className="h-12 w-12 rounded-lg hover:bg-gray-100"
+        className="h-12 w-12 rounded-lg hover:bg-gray-100 cursor-move"
+        draggable
+        onDragStart={(e) => onDragStart && onDragStart(e, "image")}
       >
         <Image className="!h-6 !w-6" />
       </Button>
