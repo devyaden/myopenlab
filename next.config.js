@@ -1,5 +1,8 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  images: {
+    domains: ["irtkurtmlknxxmcfytln.supabase.co"],
+  },
   async rewrites() {
     return [
       {

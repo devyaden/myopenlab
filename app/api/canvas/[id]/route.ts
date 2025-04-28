@@ -5,7 +5,7 @@ export async function GET(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const supabase = createClient();
+  const supabase = await createClient();
 
   try {
     // Get the canvas ID from the URL parameter

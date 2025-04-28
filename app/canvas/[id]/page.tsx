@@ -9,7 +9,7 @@ export default async function SharedCanvas({
   params: Promise<{ id: string }>;
 }) {
   const { id: canvasId } = await params;
-  const supabase = createClient();
+  const supabase = await createClient();
 
   // Check if the canvas exists and is public
   const { data: canvas, error } = await supabase

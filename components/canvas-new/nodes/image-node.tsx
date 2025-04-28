@@ -192,7 +192,7 @@ export const ImageNode = memo(({ data, selected, style }: ImageNodeProps) => {
           className="!bg-primary !border-foreground"
         />
 
-        {selected && (
+        {/* {selected && (
           <div className="absolute bottom-2 right-2 z-20">
             <label
               htmlFor="upload-image"
@@ -208,7 +208,7 @@ export const ImageNode = memo(({ data, selected, style }: ImageNodeProps) => {
               />
             </label>
           </div>
-        )}
+        )} */}
       </div>
     </div>
   );

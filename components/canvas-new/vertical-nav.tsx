@@ -7,6 +7,7 @@ interface VerticalNavProps {
   onToggleSidebar: () => void;
   canvasType: CANVAS_TYPE | null;
   onDragStart?: (event: React.DragEvent, shapeType: string) => void;
+  onOpenImageManager?: () => void;
 }
 
 export function VerticalNav({
@@ -14,6 +15,7 @@ export function VerticalNav({
   onToggleSidebar,
   canvasType,
   onDragStart,
+  onOpenImageManager,
 }: VerticalNavProps) {
   return (
     <div
@@ -43,6 +45,7 @@ export function VerticalNav({
         className="h-12 w-12 rounded-lg hover:bg-gray-100 cursor-move"
         draggable
         onDragStart={(e) => onDragStart && onDragStart(e, "image")}
+        onClick={onOpenImageManager}
       >
         <Image className="!h-6 !w-6" />
       </Button>

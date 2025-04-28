@@ -1,8 +1,8 @@
 import { createClient } from "@/lib/supabase/server";
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 
-export async function PATCH(request: Request) {
-  const supabase = createClient();
+export async function POST(request: NextRequest) {
+  const supabase = await createClient();
 
   try {
     const { canvasId, visibility } = await request.json();
@@ -29,6 +29,7 @@ export async function PATCH(request: Request) {
     } = await supabase.auth.getUser();
 
     if (userError || !user) {
+      console.error("User error:", userError);
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -56,16 +57,18 @@ export async function PATCH(request: Request) {
     const { error: updateError } = await supabase
       .from("canvas")
       .update({ visibility })
-      .eq("id", canvasId);
+      .eq("id", canvasId)
+      .eq("user_id", user.id);
 
     if (updateError) {
+      console.error("Update error:", updateError);
       return NextResponse.json(
         { error: "Failed to update canvas visibility" },
         { status: 500 }
       );
     }
 
-    return NextResponse.json({ success: true, visibility }, { status: 200 });
+    return NextResponse.json({ success: true });
   } catch (error) {
     console.error("Error updating canvas visibility:", error);
     return NextResponse.json(

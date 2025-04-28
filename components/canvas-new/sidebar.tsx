@@ -23,7 +23,8 @@ import { renderShapePreview } from "./shape-utils";
 interface SidebarProps {
   onDragStart: (event: React.DragEvent, shapeType: string) => void;
   isVisible?: boolean;
-  onShapeClick?: (shapeType: string) => void; // Add new prop
+  onShapeClick?: (shapeType: string) => void;
+  onOpenImageManager?: () => void;
 }
 
 // Shape definitions
@@ -42,6 +43,7 @@ export function Sidebar({
   onDragStart,
   isVisible = true,
   onShapeClick,
+  onOpenImageManager,
 }: SidebarProps) {
   const [openItems, setOpenItems] = useState<Record<string, boolean>>({
     "Basic Shapes": false,
@@ -319,6 +321,20 @@ export function Sidebar({
     [onDragStart]
   );
 
+  // Function to handle clicking a shape
+  const handleShapeClick = useCallback(
+    (shapeType: string) => {
+      // For image type, open the image manager
+      if (shapeType === "image" && onOpenImageManager) {
+        onOpenImageManager();
+      } else if (onShapeClick) {
+        // For other shapes, use the regular onClick handler
+        onShapeClick(shapeType);
+      }
+    },
+    [onShapeClick, onOpenImageManager]
+  );
+
   return (
     <aside
       className={cn(
@@ -429,7 +445,7 @@ export function Sidebar({
                                 onDragStart={(e) =>
                                   handleShapeDragStart(e, shape?.type)
                                 }
-                                onClick={() => onShapeClick?.(shape?.type)}
+                                onClick={() => handleShapeClick(shape?.type)}
                               >
                                 <div className="flex items-center justify-center h-10">
                                   {shape.component}
@@ -508,7 +524,7 @@ export function Sidebar({
                                 onDragStart={(e) =>
                                   handleShapeDragStart(e, shape?.type)
                                 }
-                                onClick={() => onShapeClick?.(shape?.type)}
+                                onClick={() => handleShapeClick(shape?.type)}
                               >
                                 <div className="flex items-center justify-center h-10">
                                   {shape.component}

@@ -37,20 +37,20 @@ export const updateSession = async (request: NextRequest) => {
       }
     );
 
-    // Get session and refresh if needed
+    // Get authenticated user data using getUser() instead of getSession()
     const {
-      data: { session },
-      error: sessionError,
-    } = await supabase.auth.getSession();
+      data: { user },
+      error: userError,
+    } = await supabase.auth.getUser();
 
-    if (sessionError) {
-      console.error("Session error:", sessionError);
+    if (userError) {
+      console.error("User authentication error:", userError);
       return redirectToAuth(request);
     }
 
     // Check path information
     const { pathname } = request.nextUrl;
-    const isAuthenticated = !!session?.user;
+    const isAuthenticated = !!user;
     const isAdminRoute = pathname.startsWith("/admin");
     const isUserRoute = pathname.startsWith("/protected");
     const isRootRoute = pathname === "/";
@@ -71,7 +71,7 @@ export const updateSession = async (request: NextRequest) => {
       const { data: userRole, error: roleError } = await supabase
         .from("user")
         .select("role")
-        .eq("id", session.user.id)
+        .eq("id", user.id)
         .single();
 
       if (roleError) {

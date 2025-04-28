@@ -26,6 +26,8 @@ import { Unauthorized } from "../unauthorized";
 import { useUser } from "@/lib/contexts/userContext";
 import { ViewModeSwitcher } from "./view-mode-switcher";
 import TableView from "./table-view";
+import { ImageManagerDialog } from "./image-manager-dialog";
+import { uploadImage, listImages, deleteImage } from "@/lib/storage-utils";
 
 interface NodeStyle {
   fontFamily: string;
@@ -155,6 +157,18 @@ export default function CanvasNew({ canvasId }: FigmaInterfaceProps) {
 
   // Add a tableViewRef to access the TableView component's methods
   const tableViewRef = useRef<any>(null);
+
+  const [imageManagerOpen, setImageManagerOpen] = useState(false);
+  const [uploadedImages, setUploadedImages] = useState<
+    Array<{
+      id: string;
+      src: string;
+      alt: string;
+      createdAt?: string;
+      path?: string;
+    }>
+  >([]);
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
 
   const addToRecentDocuments = useCallback(
     (canvasId: string, canvasName: string) => {
@@ -457,6 +471,16 @@ export default function CanvasNew({ canvasId }: FigmaInterfaceProps) {
   );
 
   const onDragStart = (event: React.DragEvent, nodeType: string) => {
+    // Special handling for image type - open image manager instead of dragging
+    if (nodeType === "image") {
+      event.preventDefault();
+      event.stopPropagation();
+      // Open the image manager dialog
+      setImageManagerOpen(true);
+      return;
+    }
+
+    // Default behavior for other shape types
     event.dataTransfer.setData("application/reactflow", nodeType);
     event.dataTransfer.effectAllowed = "move";
   };
@@ -795,12 +819,51 @@ export default function CanvasNew({ canvasId }: FigmaInterfaceProps) {
     [currentState.edges, updateState]
   );
 
+  // Load images from Supabase storage instead of localStorage
+  useEffect(() => {
+    const loadImages = async () => {
+      if (user?.id) {
+        try {
+          const images = await listImages(user.id);
+          setUploadedImages(images);
+        } catch (error) {
+          console.error("Failed to load images:", error);
+          toast.error("Failed to load your images");
+        }
+      }
+    };
+
+    if (user?.id) {
+      loadImages();
+    }
+
+    // Re-fetch images when component mounts or when user changes
+    return () => {
+      // Cleanup if needed
+    };
+  }, [user?.id]);
+
   const handleImageUpload = useCallback(
-    (event: React.ChangeEvent<HTMLInputElement>) => {
+    async (event: React.ChangeEvent<HTMLInputElement>) => {
       const file = event.target.files?.[0];
-      if (file) {
-        const reader = new FileReader();
-        reader.onload = (e) => {
+      if (!file || !user?.id) return;
+
+      setIsUploadingImage(true);
+
+      try {
+        // Upload to Supabase
+        const uploadedImage = await uploadImage(file, user.id);
+
+        if (!uploadedImage) {
+          toast.error("Failed to upload image");
+          return;
+        }
+
+        // Add to uploaded images list
+        setUploadedImages((prev) => [uploadedImage, ...prev]);
+
+        // Only create a node if not opened from image manager
+        if (!imageManagerOpen) {
           const img = new Image();
           img.onload = () => {
             const aspectRatio = img.width / img.height;
@@ -816,33 +879,166 @@ export default function CanvasNew({ canvasId }: FigmaInterfaceProps) {
               width = height * aspectRatio;
             }
 
+            // Get a position near the center of the viewport
+            const position = reactFlowInstance
+              ? reactFlowInstance.project({
+                  x: window.innerWidth / 2,
+                  y: window.innerHeight / 2,
+                })
+              : { x: 100, y: 100 };
+
             const newNode = {
-              id: `image-${Date.now()}`,
+              id: `node-${Date.now()}`,
               type: "imageNode",
-              position: { x: Math.random() * 500, y: Math.random() * 500 },
+              position: position,
               data: {
-                src: e.target?.result as string,
-                alt: file.name,
+                src: uploadedImage.src,
+                alt: uploadedImage.alt,
                 width: img.width,
                 height: img.height,
               },
               style: { width, height },
             };
+
             updateState({
               nodes: [...currentState.nodes, newNode],
             });
           };
-          img.src = e.target?.result as string;
-        };
-        reader.readAsDataURL(file);
+          img.src = uploadedImage.src;
+        }
+
+        toast.success("Image uploaded successfully");
+      } catch (error) {
+        console.error("Error uploading image:", error);
+        // Check if it's the limit error
+        if (
+          error instanceof Error &&
+          error.message.includes("maximum limit of 10 images")
+        ) {
+          toast.error(error.message);
+        } else {
+          toast.error("Failed to upload image");
+        }
+      } finally {
+        setIsUploadingImage(false);
+
+        // Reset file input
+        if (fileInputRef.current) {
+          fileInputRef.current.value = "";
+        }
       }
     },
-    [currentState.nodes, updateState]
+    [
+      currentState.nodes,
+      updateState,
+      imageManagerOpen,
+      user?.id,
+      reactFlowInstance,
+    ]
   );
 
   const addImage = useCallback(() => {
     fileInputRef.current?.click();
   }, []);
+
+  const handleDeleteImage = useCallback(
+    async (imageId: string) => {
+      // Find the image with the given ID
+      const imageToDelete = uploadedImages.find((img) => img.id === imageId);
+
+      if (!imageToDelete || !imageToDelete.path) {
+        toast.error("Image not found");
+        return;
+      }
+
+      try {
+        // Delete from Supabase
+        const success = await deleteImage(imageToDelete.path);
+
+        if (!success) {
+          toast.error("Failed to delete image");
+          return;
+        }
+
+        // Remove from local state
+        setUploadedImages((prev) => prev.filter((img) => img.id !== imageId));
+
+        // Also remove any nodes using this image from the canvas
+        const nodesToRemove = currentState.nodes.filter(
+          (node) =>
+            node.type === "imageNode" && node.data?.src === imageToDelete.src
+        );
+
+        if (nodesToRemove.length > 0) {
+          updateState({
+            nodes: currentState.nodes.filter(
+              (node) =>
+                !(
+                  node.type === "imageNode" &&
+                  node.data?.src === imageToDelete.src
+                )
+            ),
+          });
+        }
+
+        toast.success("Image deleted");
+      } catch (error) {
+        console.error("Error deleting image:", error);
+        toast.error("Failed to delete image");
+      }
+    },
+    [uploadedImages, currentState.nodes, updateState]
+  );
+
+  const handleSelectImage = useCallback(
+    (image: { id: string; src: string; alt: string }) => {
+      // Create a new image node from the selected image
+      const img = new Image();
+      img.onload = () => {
+        const aspectRatio = img.width / img.height;
+        const maxSize = 200;
+        let width = img.width;
+        let height = img.height;
+
+        if (width > height) {
+          width = Math.min(maxSize, width);
+          height = width / aspectRatio;
+        } else {
+          height = Math.min(maxSize, height);
+          width = height * aspectRatio;
+        }
+
+        // Get a position near the center of the viewport
+        const position = reactFlowInstance
+          ? reactFlowInstance.project({
+              x: window.innerWidth / 2,
+              y: window.innerHeight / 2,
+            })
+          : { x: 100, y: 100 };
+
+        const newNode = {
+          id: `node-${Date.now()}`,
+          type: "imageNode",
+          position: position,
+          data: {
+            src: image.src,
+            alt: image.alt,
+            width: img.width,
+            height: img.height,
+          },
+          style: { width, height },
+        };
+
+        updateState({
+          nodes: [...currentState.nodes, newNode],
+        });
+
+        toast.success("Image added to canvas");
+      };
+      img.src = image.src;
+    },
+    [currentState.nodes, updateState, reactFlowInstance]
+  );
 
   const handleAddColumn = useCallback(
     (columnData: ColumnData) => {
@@ -1023,10 +1219,17 @@ export default function CanvasNew({ canvasId }: FigmaInterfaceProps) {
   // Handle shape click from sidebar
   const handleShapeClick = useCallback(
     (shapeType: string) => {
-      const position = getViewportCenter();
+      // Get a position near the center of the viewport
+      const position = reactFlowInstance
+        ? reactFlowInstance.project({
+            x: window.innerWidth / 2,
+            y: window.innerHeight / 2,
+          })
+        : { x: 100, y: 100 };
+
       addNode(shapeType, position);
     },
-    [getViewportCenter, addNode]
+    [reactFlowInstance, addNode]
   );
 
   // Modify this part to handle sidebar closing when navigating to table
@@ -1112,6 +1315,11 @@ export default function CanvasNew({ canvasId }: FigmaInterfaceProps) {
       return Promise.reject(error);
     }
   };
+
+  // Toggle image manager dialog
+  const toggleImageManager = useCallback(() => {
+    setImageManagerOpen((prev) => !prev);
+  }, []);
 
   // If unauthorized, show the Unauthorized component
   if (unauthorized) {
@@ -1270,6 +1478,7 @@ export default function CanvasNew({ canvasId }: FigmaInterfaceProps) {
                 onToggleSidebar={toggleSidebar}
                 canvasType={canvas_type}
                 onDragStart={onDragStart}
+                onOpenImageManager={toggleImageManager}
               />
             )}
             <div className="flex-1 flex flex-col md:flex-row relative ">
@@ -1278,6 +1487,7 @@ export default function CanvasNew({ canvasId }: FigmaInterfaceProps) {
                   onDragStart={onDragStart}
                   isVisible={isSidebarOpen}
                   onShapeClick={handleShapeClick}
+                  onOpenImageManager={toggleImageManager}
                 />
               )}
               {viewMode === "canvas" || viewMode === "table" ? (
@@ -1338,6 +1548,17 @@ export default function CanvasNew({ canvasId }: FigmaInterfaceProps) {
             className="hidden"
             accept="image/*"
             onChange={handleImageUpload}
+            disabled={isUploadingImage}
+          />
+
+          {/* Image Manager Dialog */}
+          <ImageManagerDialog
+            isOpen={imageManagerOpen}
+            onClose={() => setImageManagerOpen(false)}
+            images={uploadedImages}
+            onImageDelete={handleDeleteImage}
+            onImageUpload={addImage}
+            onImageSelect={handleSelectImage}
           />
         </div>
       </>
