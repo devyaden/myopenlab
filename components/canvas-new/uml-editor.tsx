@@ -6,6 +6,7 @@ import {
   useRef,
   useState,
   type KeyboardEvent,
+  useMemo,
 } from "react";
 import ReactFlow, {
   Background,
@@ -553,6 +554,62 @@ export function UMLEditor({
     console.log("backgroundColor", backgroundColor);
   }, [backgroundColor]);
 
+  const memoizedNodes = useMemo(
+    () =>
+      nodes.map((node) => ({
+        ...node,
+        data: {
+          ...node.data,
+          style: {
+            ...nodeStyles[node.id],
+            width:
+              node?.type === "imageNode"
+                ? node.style?.width
+                : node.style?.width || (node?.type === "textNode" ? 150 : 100),
+            height:
+              node?.type === "imageNode"
+                ? node.style?.height
+                : node.style?.height || (node?.type === "textNode" ? 50 : 100),
+          },
+          onLabelChange:
+            node?.type === "swimlaneNode"
+              ? handleSwimlaneUpdate
+              : onLabelChange,
+          onAddLane: node?.type === "swimlaneNode" ? onAddLane : undefined,
+        },
+        style: {
+          width:
+            node?.type === "imageNode"
+              ? node.style?.width
+              : node.style?.width || (node?.type === "textNode" ? 150 : 100),
+          height:
+            node?.type === "imageNode"
+              ? node.style?.height
+              : node.style?.height || (node?.type === "textNode" ? 50 : 100),
+        },
+        connectable: node?.type !== "textNode",
+        selected: selectedNodes.includes(node.id),
+      })),
+    [
+      nodes,
+      nodeStyles,
+      selectedNodes,
+      handleSwimlaneUpdate,
+      onLabelChange,
+      onAddLane,
+    ]
+  );
+
+  const memoizedEdges = useMemo(
+    () =>
+      edges.map((edge) => ({
+        ...edge,
+        type: "custom",
+        data: { ...edge.data, onLabelChange: onChangeEdgeLabel },
+      })),
+    [edges, onChangeEdgeLabel]
+  );
+
   return (
     <div className="w-full h-[calc(100vh-132px)]" ref={reactFlowWrapper}>
       {viewMode === VIEW_MODE.canvas && canvasType === CANVAS_TYPE.HYBRID ? (
@@ -591,50 +648,8 @@ export function UMLEditor({
               onReactFlowInit?.(instance); // Pass instance to parent
             }}
             onPaneClick={onPaneClick}
-            nodes={nodes.map((node) => ({
-              ...node,
-              data: {
-                ...node.data,
-                style: {
-                  ...nodeStyles[node.id],
-                  width:
-                    node?.type === "imageNode"
-                      ? node.style?.width
-                      : node.style?.width ||
-                        (node?.type === "textNode" ? 150 : 100),
-                  height:
-                    node?.type === "imageNode"
-                      ? node.style?.height
-                      : node.style?.height ||
-                        (node?.type === "textNode" ? 50 : 100),
-                },
-                onLabelChange:
-                  node?.type === "swimlaneNode"
-                    ? handleSwimlaneUpdate
-                    : onLabelChange,
-                onAddLane:
-                  node?.type === "swimlaneNode" ? onAddLane : undefined,
-              },
-              style: {
-                width:
-                  node?.type === "imageNode"
-                    ? node.style?.width
-                    : node.style?.width ||
-                      (node?.type === "textNode" ? 150 : 100),
-                height:
-                  node?.type === "imageNode"
-                    ? node.style?.height
-                    : node.style?.height ||
-                      (node?.type === "textNode" ? 50 : 100),
-              },
-              connectable: node?.type !== "textNode",
-              selected: selectedNodes.includes(node.id),
-            }))}
-            edges={edges.map((edge) => ({
-              ...edge,
-              type: "custom",
-              data: { ...edge.data, onLabelChange: onChangeEdgeLabel },
-            }))}
+            nodes={memoizedNodes}
+            edges={memoizedEdges}
             onNodesChange={handleNodesChange}
             onEdgesChange={handleEdgesChange}
             onConnect={handleConnect}
