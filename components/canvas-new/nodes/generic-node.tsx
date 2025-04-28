@@ -1,16 +1,10 @@
 "use client";
+import { SHAPES } from "@/lib/types/flow-table.types";
 import type React from "react";
 import { memo, useCallback, useEffect, useMemo, useState } from "react";
-import {
-  Handle,
-  NodeResizer,
-  Position,
-  useReactFlow,
-  useStore,
-} from "reactflow";
-import { SHAPE_DEFINITIONS, isHumanFigure } from "../shape-utils";
 import TextareaAutosize from "react-textarea-autosize";
-import { SHAPES } from "@/lib/types/flow-table.types";
+import { Handle, NodeResizer, Position, useReactFlow } from "reactflow";
+import { SHAPE_DEFINITIONS, isHumanFigure } from "../shape-utils";
 
 interface GenericNodeProps {
   data: {
