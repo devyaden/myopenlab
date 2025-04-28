@@ -8,6 +8,7 @@ import {
   Ruler,
   ZoomIn,
   ZoomOut,
+  Map,
 } from "lucide-react";
 import { useState } from "react";
 import { BackgroundVariant } from "reactflow";
@@ -19,6 +20,8 @@ interface UMLToolbarProps {
   onToggleRuler: () => void;
   onChangeBackground: (background: BackgroundVariant) => void;
   onChangeBackgroundColor: (color: string) => void;
+  showMiniMap?: boolean;
+  onToggleMiniMap?: (show: boolean) => void;
 }
 
 export function UMLToolbar({
@@ -28,6 +31,8 @@ export function UMLToolbar({
   onChangeBackground,
   onToggleRuler,
   onChangeBackgroundColor,
+  showMiniMap = true,
+  onToggleMiniMap,
 }: UMLToolbarProps) {
   const [showColorDropdown, setShowColorDropdown] = useState(false);
 
@@ -83,6 +88,17 @@ export function UMLToolbar({
         >
           <Ruler className="h-5 w-5" />
         </Button>
+
+        {onToggleMiniMap && (
+          <Button
+            variant="ghost"
+            size="icon"
+            className={`h-10 w-10 ${!showMiniMap ? "opacity-50" : ""}`}
+            onClick={() => onToggleMiniMap(!showMiniMap)}
+          >
+            <Map className="h-5 w-5" />
+          </Button>
+        )}
 
         <Button
           variant="ghost"

@@ -59,6 +59,7 @@ interface HeaderProps {
   exportAsJSON?: () => void;
   exportAsPDF?: () => void;
   canvasType: CANVAS_TYPE;
+  toggleMiniMap?: (show: boolean) => void;
 }
 
 export function Header({
@@ -79,6 +80,7 @@ export function Header({
   exportAsJSON: propExportAsJSON,
   exportAsPDF: propExportAsPDF,
   canvasType,
+  toggleMiniMap,
 }: HeaderProps) {
   const [documentStatus, setDocumentStatus] = useState("Draft");
   const [isEditing, setIsEditing] = useState(false);
@@ -122,6 +124,12 @@ export function Header({
         return;
       }
 
+      // Hide miniMap for export
+      toggleMiniMap?.(false);
+
+      // Add a small delay to ensure the UI updates before capturing
+      await new Promise((resolve) => setTimeout(resolve, 100));
+
       let dataUrl;
       switch (format) {
         case "png":
@@ -147,9 +155,14 @@ export function Header({
       link.href = dataUrl;
       link.click();
 
+      // Show miniMap again after export
+      toggleMiniMap?.(true);
+
       toast.success(`Exported as ${format.toUpperCase()}`);
       setIsExportModalOpen(false);
     } catch (error) {
+      // Make sure to restore miniMap if there's an error
+      toggleMiniMap?.(true);
       console.error("Export failed:", error);
       toast.error("Export failed");
     }
@@ -166,6 +179,12 @@ export function Header({
         toast.error("No diagram found to export");
         return;
       }
+
+      // Hide miniMap for export
+      toggleMiniMap?.(false);
+
+      // Add a small delay to ensure the UI updates before capturing
+      await new Promise((resolve) => setTimeout(resolve, 100));
 
       const dataUrl = await toPng(element, {
         quality: 1,
@@ -188,9 +207,14 @@ export function Header({
       );
       pdf.save(`${projectName}.pdf`);
 
+      // Show miniMap again after export
+      toggleMiniMap?.(true);
+
       toast.success("Exported as PDF");
       setIsExportModalOpen(false);
     } catch (error) {
+      // Make sure to restore miniMap if there's an error
+      toggleMiniMap?.(true);
       console.error("PDF export failed:", error);
       toast.error("PDF export failed");
     }

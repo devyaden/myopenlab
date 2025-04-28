@@ -170,6 +170,11 @@ export default function CanvasNew({ canvasId }: FigmaInterfaceProps) {
   >([]);
   const [isUploadingImage, setIsUploadingImage] = useState(false);
 
+  // Add this state handler for toggleMiniMap used during export
+  const [miniMapRef, setMiniMapRef] = useState<
+    ((show: boolean) => void) | undefined
+  >(undefined);
+
   const addToRecentDocuments = useCallback(
     (canvasId: string, canvasName: string) => {
       const recentDocuments = JSON.parse(
@@ -1321,6 +1326,14 @@ export default function CanvasNew({ canvasId }: FigmaInterfaceProps) {
     setImageManagerOpen((prev) => !prev);
   }, []);
 
+  // Handler for UMLEditor's toggleMiniMap reference
+  const handleMiniMapToggleRef = useCallback(
+    (toggleFn: (show: boolean) => void) => {
+      setMiniMapRef(toggleFn);
+    },
+    []
+  );
+
   // If unauthorized, show the Unauthorized component
   if (unauthorized) {
     return <Unauthorized />;
@@ -1371,6 +1384,7 @@ export default function CanvasNew({ canvasId }: FigmaInterfaceProps) {
                 : undefined
             }
             canvasType={canvas_type!}
+            toggleMiniMap={miniMapRef}
           />
 
           {/* Add view mode switcher for read-only mode */}
@@ -1527,6 +1541,7 @@ export default function CanvasNew({ canvasId }: FigmaInterfaceProps) {
                     viewMode={viewMode}
                     onViewModeChange={handleViewModeChange}
                     readOnly={isReadOnly}
+                    onMiniMapToggleRef={handleMiniMapToggleRef}
                   />
                 </div>
               ) : (

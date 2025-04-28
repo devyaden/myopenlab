@@ -322,6 +322,11 @@ export function NodePropertiesSidebar({
       // Load title from node data
       setTitle(selectedNode.data?.label || "");
 
+      // Get canvas settings to determine hidden columns
+      const canvasStore = useCanvasStore.getState();
+      const canvasSettings = canvasStore.canvasSettings;
+      const hiddenColumns = canvasSettings?.table_settings?.hiddenColumns || [];
+
       // Initialize properties from node data
       const nodeData = selectedNode.data
         ? { ...selectedNode.data, from: fromLabels, to: toLabels }
@@ -334,7 +339,7 @@ export function NodePropertiesSidebar({
         value: nodeData.shape || selectedNode?.type || "",
         type: "select",
         options: SHAPE_OPTIONS,
-        hidden: nodeData.hidden?.type || false,
+        hidden: hiddenColumns.includes("type"),
         isEditable: true,
       });
 
@@ -368,7 +373,7 @@ export function NodePropertiesSidebar({
             value: value,
             type: propertyType,
             options: matchingColumn?.options,
-            hidden: nodeData.hidden?.[key] || false,
+            hidden: hiddenColumns.includes(key),
             isEditable,
           });
         }
@@ -640,12 +645,6 @@ export function NodePropertiesSidebar({
     updatedData[newName] = updatedData[oldName];
     delete updatedData[oldName];
 
-    // Update hidden state if it exists
-    if (updatedData.hidden && updatedData.hidden[oldName] !== undefined) {
-      updatedData.hidden[newName] = updatedData.hidden[oldName];
-      delete updatedData.hidden[oldName];
-    }
-
     // Update node in store
     const updatedNodes = useCanvasStore
       .getState()
@@ -661,6 +660,29 @@ export function NodePropertiesSidebar({
         col.title === oldName ? { ...col, title: newName } : col
       );
       setColumns(updatedColumns);
+    }
+
+    // Update canvas settings' hiddenColumns if the old property name was hidden
+    const canvasStore = useCanvasStore.getState();
+    const canvasSettings = canvasStore.canvasSettings;
+
+    if (canvasSettings && canvasSettings.table_settings) {
+      let hiddenColumns = canvasSettings.table_settings.hiddenColumns || [];
+
+      // If old property name was in hiddenColumns, replace it with new name
+      if (hiddenColumns.includes(oldName)) {
+        hiddenColumns = hiddenColumns.filter((col: string) => col !== oldName);
+        hiddenColumns.push(newName);
+
+        // Update canvas settings
+        canvasStore.updateCanvasSettings({
+          ...canvasSettings,
+          table_settings: {
+            ...canvasSettings.table_settings,
+            hiddenColumns,
+          },
+        });
+      }
     }
   };
 
@@ -713,6 +735,32 @@ export function NodePropertiesSidebar({
       );
 
     useCanvasStore.getState().setNodes(updatedNodes);
+
+    // Get canvas settings and update hiddenColumns
+    const canvasStore = useCanvasStore.getState();
+    const canvasSettings = canvasStore.canvasSettings;
+
+    if (canvasSettings && canvasSettings.table_settings) {
+      let hiddenColumns = canvasSettings.table_settings.hiddenColumns || [];
+
+      // Update hidden columns based on property visibility
+      if (property.hidden && !hiddenColumns.includes(property.name)) {
+        hiddenColumns = [...hiddenColumns, property.name];
+      } else if (!property.hidden && hiddenColumns.includes(property.name)) {
+        hiddenColumns = hiddenColumns.filter(
+          (col: string) => col !== property.name
+        );
+      }
+
+      // Update canvas settings
+      canvasStore.updateCanvasSettings({
+        ...canvasSettings,
+        table_settings: {
+          ...canvasSettings.table_settings,
+          hiddenColumns,
+        },
+      });
+    }
   };
 
   const handleRemoveProperty = (index: number) => {
@@ -754,14 +802,6 @@ export function NodePropertiesSidebar({
       const updatedData = { ...node.data };
       delete updatedData[propertyName];
 
-      // Remove from hidden state if it exists
-      if (
-        updatedData.hidden &&
-        updatedData.hidden[propertyName] !== undefined
-      ) {
-        delete updatedData.hidden[propertyName];
-      }
-
       return { ...node, data: updatedData };
     });
 
@@ -771,6 +811,30 @@ export function NodePropertiesSidebar({
     // Remove from columns array
     const updatedColumns = columns.filter((col) => col.title !== propertyName);
     setColumns(updatedColumns);
+
+    // Remove property from hiddenColumns if it exists
+    const canvasStore = useCanvasStore.getState();
+    const canvasSettings = canvasStore.canvasSettings;
+
+    if (canvasSettings && canvasSettings.table_settings) {
+      let hiddenColumns = canvasSettings.table_settings.hiddenColumns || [];
+
+      // Remove property from hiddenColumns
+      if (hiddenColumns.includes(propertyName)) {
+        hiddenColumns = hiddenColumns.filter(
+          (col: string) => col !== propertyName
+        );
+
+        // Update canvas settings
+        canvasStore.updateCanvasSettings({
+          ...canvasSettings,
+          table_settings: {
+            ...canvasSettings.table_settings,
+            hiddenColumns,
+          },
+        });
+      }
+    }
 
     // Close the confirmation dialog
     setDeleteConfirmation(null);
@@ -782,7 +846,7 @@ export function NodePropertiesSidebar({
     const property = properties[index];
     const isHidden = !property.hidden;
 
-    // Update properties state
+    // Update properties state for the UI
     const updatedProperties = [...properties];
     updatedProperties[index] = {
       ...updatedProperties[index],
@@ -790,21 +854,31 @@ export function NodePropertiesSidebar({
     };
     setProperties(updatedProperties);
 
-    // Update node data directly
-    const updatedData = { ...selectedNode.data };
-    if (!updatedData.hidden) {
-      updatedData.hidden = {};
+    // Get canvas settings to update hiddenColumns
+    const canvasStore = useCanvasStore.getState();
+    const canvasSettings = canvasStore.canvasSettings;
+
+    if (canvasSettings && canvasSettings.table_settings) {
+      let hiddenColumns = canvasSettings.table_settings.hiddenColumns || [];
+
+      // Update hidden columns based on property visibility
+      if (isHidden && !hiddenColumns.includes(property.name)) {
+        hiddenColumns = [...hiddenColumns, property.name];
+      } else if (!isHidden && hiddenColumns.includes(property.name)) {
+        hiddenColumns = hiddenColumns.filter(
+          (col: string) => col !== property.name
+        );
+      }
+
+      // Update canvas settings only, not node.data.hidden
+      canvasStore.updateCanvasSettings({
+        ...canvasSettings,
+        table_settings: {
+          ...canvasSettings.table_settings,
+          hiddenColumns,
+        },
+      });
     }
-    updatedData.hidden[property.name] = isHidden;
-
-    // Update node in store
-    const updatedNodes = useCanvasStore
-      .getState()
-      .nodes.map((node) =>
-        node.id === selectedNode.id ? { ...node, data: updatedData } : node
-      );
-
-    useCanvasStore.getState().setNodes(updatedNodes);
   };
 
   const handleAddOption = () => {
@@ -908,12 +982,6 @@ export function NodePropertiesSidebar({
     // Update node data directly
     const updatedData = { ...selectedNode.data };
     updatedData[newProperty.name] = updatedData[propertyToDuplicate.name];
-
-    // Track hidden state
-    if (!updatedData.hidden) {
-      updatedData.hidden = {};
-    }
-    updatedData.hidden[newProperty.name] = propertyToDuplicate.hidden || false;
 
     // Update node in store
     const updatedNodes = useCanvasStore

@@ -179,7 +179,7 @@ export function ImageManagerDialog({
                     </p>
                     <Button
                       onClick={onImageUpload}
-                      className="bg-yadn-button-blue hover:bg-yadn-accent-dark-blue"
+                      className="bg-yadn-accent-green hover:bg-yadn-accent-green/80"
                     >
                       Upload your first image
                     </Button>

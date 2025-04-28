@@ -1,4 +1,5 @@
 "use client";
+import { useCanvasStore } from "@/lib/store/useCanvas";
 import { SHAPES } from "@/lib/types/flow-table.types";
 import type React from "react";
 import { memo, useCallback, useEffect, useMemo, useState } from "react";
@@ -108,6 +109,8 @@ export const GenericNode = memo(
     const reactFlowInstance = useReactFlow();
     const [isEditing, setIsEditing] = useState(false);
     const [labelValue, setLabelValue] = useState(data.label);
+
+    const { canvasSettings } = useCanvasStore();
 
     // Initialize nodeSize from data if available, otherwise use default
     const [nodeSize, setNodeSize] = useState({
@@ -305,7 +308,7 @@ export const GenericNode = memo(
         opacity: selected ? 1 : 0,
         width: "0.75rem",
         height: "0.75rem",
-        backgroundColor: "#1a192b",
+        backgroundColor: "#09BC8A",
         border: "1px solid white",
         transition: "opacity 0.2s ease", // Smooth transition for handles
       }),
@@ -325,24 +328,23 @@ export const GenericNode = memo(
         if (pattern.test(key)) return true;
       }
 
-      // Check if it's hidden
-      if (data.hidden && data.hidden[key]) return true;
+      // We're no longer using node-level hiding
+      // Node visibility is controlled by the hiddenColumns array in canvas settings
 
       return false;
     };
 
     // Get visible properties (not hidden and not excluded)
     const visibleProperties = useMemo(() => {
-      const properties: { key: string; value: any }[] = [];
-      const isTypeHidden = data.hidden?.type === true;
+      let properties: { key: string; value: any }[] = [];
 
       // Add type property (using shape) if not hidden
-      if (!isTypeHidden) {
-        properties.push({
-          key: "type",
-          value: data.shape || "",
-        });
-      }
+
+      properties.push({
+        key: "type",
+        value: data.shape || "",
+      });
+
       let fromLabels: any = [],
         toLabels: any = [];
 
@@ -378,6 +380,10 @@ export const GenericNode = memo(
         ) {
           // Filter out null and undefined values, but keep boolean values
           if (value === null || value === undefined) {
+            console.log(
+              "🚀 ~ properties=properties.filter ~ properties:",
+              properties
+            );
             return; // Skip this property
           }
 
@@ -386,7 +392,7 @@ export const GenericNode = memo(
             properties.push({
               key,
               value: value
-                ?.map((item: any) => item?.value ?? item?.label)
+                ?.map((item: any) => item?.value ?? item?.label ?? item)
                 .join(", "),
             });
           } else if (key === "from") {
@@ -406,26 +412,16 @@ export const GenericNode = memo(
         }
       });
 
+      // filter out the propertis that are not hidden based on the hiddenColumns array in canvas settings
+
+      const hiddenColumns = canvasSettings?.table_settings?.hiddenColumns || [];
+
+      properties = properties.filter((property) => {
+        return !hiddenColumns.includes(property.key);
+      });
+
       return properties;
     }, [data]);
-
-    // Get alignment style for flex containers
-    const getAlignmentStyle = useCallback(() => {
-      return {
-        alignItems:
-          data.style?.textAlign === "left"
-            ? "flex-start"
-            : data.style?.textAlign === "right"
-              ? "flex-end"
-              : "center",
-        justifyContent:
-          data.style?.verticalAlign === "top"
-            ? "flex-start"
-            : data.style?.verticalAlign === "bottom"
-              ? "flex-end"
-              : "center",
-      };
-    }, [data.style?.textAlign, data.style?.verticalAlign]);
 
     // Update the renderShape function to handle special shapes better
     const renderShape = () => {
@@ -1186,12 +1182,12 @@ export const GenericNode = memo(
             width: 12,
             height: 12,
             borderRadius: 6,
-            backgroundColor: "#1a192b",
+            backgroundColor: "#09BC8A",
             border: "2px solid white",
           }}
           lineStyle={{
             borderWidth: 2,
-            borderColor: "#1a192b",
+            borderColor: "#003F91",
           }}
         />
         <div

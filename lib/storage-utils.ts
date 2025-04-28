@@ -77,8 +77,8 @@ export async function listImages(userId: string): Promise<StoredImage[]> {
   try {
     // List all files in the user's directory
     const { data, error } = await supabase.storage
-      .from(STORAGE_BUCKET)
-      .list(userId);
+      .from(`${STORAGE_BUCKET}`)
+      .list(`${STORAGE_PATH}/${userId}`);
 
     if (error) {
       console.error("Error listing images:", error);
@@ -89,7 +89,7 @@ export async function listImages(userId: string): Promise<StoredImage[]> {
 
     // Convert storage objects to StoredImage format
     return data.map((file) => {
-      const filePath = `${userId}/${file.name}`;
+      const filePath = `${STORAGE_PATH}/${userId}/${file.name}`;
       const {
         data: { publicUrl },
       } = supabase.storage.from(STORAGE_BUCKET).getPublicUrl(filePath);

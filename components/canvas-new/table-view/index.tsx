@@ -1414,6 +1414,8 @@ const TableView = forwardRef<
         ? hiddenColumns.filter((col: string) => col !== columnTitle)
         : [...hiddenColumns, columnTitle];
 
+      // We no longer need to update node.data.hidden
+      // Just update the canvas settings
       updateTableSettings({
         ...canvasSettings.table_settings,
         hiddenColumns: updatedHiddenColumns,
@@ -2197,7 +2199,7 @@ const TableView = forwardRef<
                                     Show/Hide Columns
                                   </DropdownMenuItem>
                                 </DialogTrigger>
-                                <DialogContent>
+                                <DialogContent className="sm:max-w-[600px] overflow-hidden">
                                   <DialogHeader>
                                     <DialogTitle>
                                       Manage Column Visibility
@@ -2207,7 +2209,7 @@ const TableView = forwardRef<
                                       indicate which operations are available.
                                     </DialogDescription>
                                   </DialogHeader>
-                                  <div className="space-y-4 my-4">
+                                  <div className="space-y-4 my-4 max-h-[50vh] overflow-y-auto pr-2">
                                     {columns.map((column) => (
                                       <div
                                         key={column.title}

@@ -83,6 +83,7 @@ interface UMLEditorProps {
   onViewModeChange: (viewMode: ViewMode) => void;
   readOnly?: boolean;
   tableViewRef?: React.MutableRefObject<any>;
+  onMiniMapToggleRef?: (toggleFn: (show: boolean) => void) => void;
 }
 
 const sortNodes = (node: ReactFlowNode, nodes: ReactFlowNode[]) => {
@@ -147,6 +148,7 @@ export function UMLEditor({
   updateCanvasSettings,
   readOnly,
   tableViewRef,
+  onMiniMapToggleRef,
 }: UMLEditorProps) {
   const { getNode } = useReactFlow();
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
@@ -160,6 +162,7 @@ export function UMLEditor({
   const [backgroundColor, setBackgroundColor] = useState<string>(
     canvasSettings?.backgroundColor || "#ffffff"
   );
+  const [showMiniMap, setShowMiniMap] = useState(true);
 
   const [selectedNode, setSelectedNode] = useState<Node | null>(null);
   const [showNodeProperties, setShowNodeProperties] = useState(false);
@@ -610,6 +613,18 @@ export function UMLEditor({
     [edges, onChangeEdgeLabel]
   );
 
+  // Add a new method to control minimap visibility
+  const toggleMiniMap = useCallback((show: boolean) => {
+    setShowMiniMap(show);
+  }, []);
+
+  // Register the toggleMiniMap function so it can be accessed by the parent component
+  useEffect(() => {
+    if (onMiniMapToggleRef) {
+      onMiniMapToggleRef(() => toggleMiniMap);
+    }
+  }, [onMiniMapToggleRef, toggleMiniMap]);
+
   return (
     <div className="w-full h-[calc(100vh-132px)]" ref={reactFlowWrapper}>
       {viewMode === VIEW_MODE.canvas && canvasType === CANVAS_TYPE.HYBRID ? (
@@ -639,6 +654,8 @@ export function UMLEditor({
                 setBackground(background)
               }
               onChangeBackgroundColor={handleBackgroundColorChange}
+              showMiniMap={showMiniMap}
+              onToggleMiniMap={toggleMiniMap}
             />
           )}
 
@@ -680,7 +697,7 @@ export function UMLEditor({
             {/* <Controls showZoom={false} /> */}
             {showRulers && <MeasureRuler />}
 
-            <MiniMap />
+            {showMiniMap && <MiniMap />}
             <HelperLinesRenderer
               horizontal={helperLineHorizontal}
               vertical={helperLineVertical}
