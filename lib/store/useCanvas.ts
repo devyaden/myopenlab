@@ -51,6 +51,7 @@ const initialState: Omit<CanvasStore, keyof CanvasActions> = {
     show_grid: true,
     show_rulers: false,
     table_settings: {},
+    backgroundColor: "#ffffff",
   },
 };
 
@@ -341,6 +342,8 @@ export const useCanvasStore = create<CanvasStore>()(
                   show_grid: state.canvasSettings?.show_grid ?? true,
                   show_rulers: state.canvasSettings?.show_rulers ?? false,
                   snap_to_grid: state.canvasSettings?.snap_to_grid ?? true,
+                  background_color:
+                    state.canvasSettings?.backgroundColor || "#ffffff",
                   table_settings: state.canvasSettings?.table_settings || null,
                 },
               }
@@ -497,6 +500,8 @@ export const useCanvasStore = create<CanvasStore>()(
               }
             }
 
+            console.log("🚀 ~ loadCanvas: ~ canvasSettings:", canvasSettings);
+
             if (canvas) {
               const newState = {
                 id: canvasId,
@@ -514,7 +519,13 @@ export const useCanvasStore = create<CanvasStore>()(
                 isDirty: false,
                 lastSaved: new Date(),
                 canvas_type: canvas.canvas_type,
-                canvasSettings: canvasSettings || {},
+                canvasSettings: canvasSettings
+                  ? {
+                      ...canvasSettings,
+                      backgroundColor:
+                        canvasSettings.background_color || "#ffffff",
+                    }
+                  : {},
               };
 
               // Reset history when loading a new canvas

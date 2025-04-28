@@ -154,6 +154,10 @@ export function UMLEditor({
   const [background, setBackground] = useState<BackgroundVariant>(
     BackgroundVariant.Dots
   );
+  const [backgroundColor, setBackgroundColor] = useState<string>(
+    canvasSettings?.backgroundColor || "#ffffff"
+  );
+
   const [selectedNode, setSelectedNode] = useState<Node | null>(null);
   const [showNodeProperties, setShowNodeProperties] = useState(false);
 
@@ -490,6 +494,21 @@ export function UMLEditor({
     },
   });
 
+  const handleBackgroundColorChange = useCallback(
+    (color: string) => {
+      setBackgroundColor(color);
+      updateCanvasSettings?.({
+        ...canvasSettings,
+        backgroundColor: color,
+      });
+    },
+    [canvasSettings, updateCanvasSettings]
+  );
+
+  useEffect(() => {
+    console.log("backgroundColor", backgroundColor);
+  }, [backgroundColor]);
+
   return (
     <div className="w-full h-[calc(100vh-132px)]" ref={reactFlowWrapper}>
       {viewMode === VIEW_MODE.canvas && canvasType === CANVAS_TYPE.HYBRID ? (
@@ -518,6 +537,7 @@ export function UMLEditor({
               onChangeBackground={(background: BackgroundVariant) =>
                 setBackground(background)
               }
+              onChangeBackgroundColor={handleBackgroundColorChange}
             />
           )}
 
@@ -591,8 +611,13 @@ export function UMLEditor({
             proOptions={{
               hideAttribution: true,
             }}
+            // style={{ backgroundColor: "red" }}
           >
-            <Background variant={background} />
+            <Background
+              id="1"
+              variant={background}
+              style={{ backgroundColor }}
+            />
             {/* <Controls showZoom={false} /> */}
             {showRulers && <MeasureRuler />}
 

@@ -62,6 +62,7 @@ export interface CanvasSettings {
   show_grid: boolean;
   table_settings: any;
   show_rulers: boolean;
+  backgroundColor?: string;
 }
 
 export interface CanvasState extends CanvasData {
