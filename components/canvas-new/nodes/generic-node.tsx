@@ -122,19 +122,19 @@ export const GenericNode = memo(
     });
 
     // Get the node dimensions from the store
-    const nodeWithPosition = useStore(
-      useCallback((store) => store.nodeInternals.get(id), [id])
-    );
+    // const nodeWithPosition = useStore(
+    //   useCallback((store) => store.nodeInternals.get(id), [id])
+    // );
 
     // Sync node dimensions from the actual node in the flow
-    useEffect(() => {
-      if (nodeWithPosition) {
-        const { width, height } = nodeWithPosition;
-        if (width && height) {
-          setNodeSize({ width, height });
-        }
-      }
-    }, [nodeWithPosition]);
+    // useEffect(() => {
+    //   if (nodeWithPosition) {
+    //     const { width, height } = nodeWithPosition;
+    //     if (width && height) {
+    //       setNodeSize({ width, height });
+    //     }
+    //   }
+    // }, [nodeWithPosition]);
 
     // Check if current shape is a human figure
     const currentShapeIsHumanFigure = isHumanFigure(data.shape);

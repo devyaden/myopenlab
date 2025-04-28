@@ -38,6 +38,8 @@ import TableView from "./table-view";
 import { UMLToolbar } from "./uml-toolbar";
 import { NodePropertiesSidebar } from "./node-properties-sidebar";
 import { VIEW_MODE, ViewMode } from "./table-view/table.types";
+import HelperLinesRenderer from "./HelperLines";
+import { getHelperLines } from "@/lib/canvas.utils";
 
 const nodeTypes = {
   genericNode: GenericNode,
@@ -161,6 +163,13 @@ export function UMLEditor({
   const [selectedNode, setSelectedNode] = useState<Node | null>(null);
   const [showNodeProperties, setShowNodeProperties] = useState(false);
 
+  const [helperLineHorizontal, setHelperLineHorizontal] = useState<
+    number | undefined
+  >(undefined);
+  const [helperLineVertical, setHelperLineVertical] = useState<
+    number | undefined
+  >(undefined);
+
   const handleZoomIn = useCallback(() => {
     zoomIn();
   }, [zoomIn]);
@@ -173,27 +182,62 @@ export function UMLEditor({
     fitView();
   }, [fitView]);
 
+  const customApplyNodeChanges = useCallback(
+    (changes: NodeChange[], nodes: Node[]): Node[] => {
+      // reset the helper lines (clear existing lines, if any)
+      setHelperLineHorizontal(undefined);
+      setHelperLineVertical(undefined);
+
+      // this will be true if it's a single node being dragged
+      // inside we calculate the helper lines and snap position for the position where the node is being moved to
+      if (
+        changes.length === 1 &&
+        changes[0].type === "position" &&
+        changes[0].dragging &&
+        changes[0].position
+      ) {
+        const helperLines = getHelperLines(changes[0], nodes as any);
+
+        // if we have a helper line, we snap the node to the helper line position
+        // this is being done by manipulating the node position inside the change object
+        changes[0].position.x =
+          helperLines.snapPosition.x ?? changes[0].position.x;
+        changes[0].position.y =
+          helperLines.snapPosition.y ?? changes[0].position.y;
+
+        // if helper lines are returned, we set them so that they can be displayed
+        setHelperLineHorizontal(helperLines.horizontal);
+        setHelperLineVertical(helperLines.vertical);
+      }
+
+      return applyNodeChanges(changes, nodes);
+    },
+    []
+  );
+
   const handleNodesChange = useCallback(
     (changes: NodeChange[]) => {
-      const updatedNodes = applyNodeChanges(changes, nodes).map((node) => {
-        if (node.parentNode) {
-          const parent = getNode(node.parentNode);
-          if (parent && node.position) {
-            const minX = 10; // Minimum X position to avoid overlapping with the vertical swimlane header
-            const maxX = (parent.width || 0) - (node.width || 0);
-            const maxY = (parent.height || 0) - (node.height || 0);
+      const updatedNodes = customApplyNodeChanges(changes, nodes).map(
+        (node) => {
+          if (node.parentNode) {
+            const parent = getNode(node.parentNode);
+            if (parent && node.position) {
+              const minX = 10; // Minimum X position to avoid overlapping with the vertical swimlane header
+              const maxX = (parent.width || 0) - (node.width || 0);
+              const maxY = (parent.height || 0) - (node.height || 0);
 
-            return {
-              ...node,
-              position: {
-                x: Math.max(minX, Math.min(node.position.x, maxX)),
-                y: Math.max(0, Math.min(node.position.y, maxY)),
-              },
-            };
+              return {
+                ...node,
+                position: {
+                  x: Math.max(minX, Math.min(node.position.x, maxX)),
+                  y: Math.max(0, Math.min(node.position.y, maxY)),
+                },
+              };
+            }
           }
+          return node;
         }
-        return node;
-      });
+      );
 
       onNodesChange?.(updatedNodes);
 
@@ -622,6 +666,10 @@ export function UMLEditor({
             {showRulers && <MeasureRuler />}
 
             <MiniMap />
+            <HelperLinesRenderer
+              horizontal={helperLineHorizontal}
+              vertical={helperLineVertical}
+            />
           </ReactFlow>
         </>
       ) : (

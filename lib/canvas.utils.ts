@@ -1,4 +1,4 @@
-import { Node, NodePositionChange, XYPosition } from "@xyflow/react";
+import { Node, NodePositionChange, XYPosition } from "reactflow";
 import { Node as ReactflowNode } from "reactflow";
 
 type GetHelperLinesResult = {
@@ -27,11 +27,11 @@ export function getHelperLines(
 
   const nodeABounds = {
     left: change.position.x,
-    right: change.position.x + (nodeA.measured?.width ?? 0),
+    right: change.position.x + (nodeA?.width ?? 0),
     top: change.position.y,
-    bottom: change.position.y + (nodeA.measured?.height ?? 0),
-    width: nodeA.measured?.width ?? 0,
-    height: nodeA.measured?.height ?? 0,
+    bottom: change.position.y + (nodeA?.height ?? 0),
+    width: nodeA?.width ?? 0,
+    height: nodeA?.height ?? 0,
   };
 
   let horizontalDistance = distance;
@@ -42,11 +42,11 @@ export function getHelperLines(
     .reduce<GetHelperLinesResult>((result, nodeB) => {
       const nodeBBounds = {
         left: nodeB.position.x,
-        right: nodeB.position.x + (nodeB.measured?.width ?? 0),
+        right: nodeB.position.x + (nodeB?.width ?? 0),
         top: nodeB.position.y,
-        bottom: nodeB.position.y + (nodeB.measured?.height ?? 0),
-        width: nodeB.measured?.width ?? 0,
-        height: nodeB.measured?.height ?? 0,
+        bottom: nodeB.position.y + (nodeB?.height ?? 0),
+        width: nodeB?.width ?? 0,
+        height: nodeB?.height ?? 0,
       };
 
       //  |‾‾‾‾‾‾‾‾‾‾‾|

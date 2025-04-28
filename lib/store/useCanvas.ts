@@ -105,11 +105,8 @@ export const useCanvasStore = create<CanvasStore>()(
 
         // Update nodes and track in history
         setNodes: (nodes) => {
-          console.log("🚀 ~ nodes:", nodes);
-
           const currentState = getUndoableState();
           const newState = { ...currentState, nodes: [...nodes] };
-          console.log("🚀 ~ newState:", newState);
 
           addToHistory(newState);
 
@@ -499,8 +496,6 @@ export const useCanvasStore = create<CanvasStore>()(
                 throw settingsError;
               }
             }
-
-            console.log("🚀 ~ loadCanvas: ~ canvasSettings:", canvasSettings);
 
             if (canvas) {
               const newState = {
