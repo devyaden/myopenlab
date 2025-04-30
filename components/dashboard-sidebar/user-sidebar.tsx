@@ -276,14 +276,6 @@ export function UserSidebar() {
         <div>
           <div className="flex items-center justify-between px-3 py-2">
             <h2 className="text-sm font-medium text-gray-900">Folders</h2>
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-6 w-6 p-0 rounded-full"
-              onClick={() => setCreateNewModalType("folder")}
-            >
-              <PlusCircle className="h-4 w-4 text-gray-500" />
-            </Button>
           </div>
 
           {/* Root folder to display items without a folder_id */}
@@ -360,14 +352,6 @@ export function UserSidebar() {
                   </div>
                 ))
               )}
-
-              <button
-                className="flex items-center text-sm text-gray-500 px-3 py-1 pl-7 hover:bg-gray-100 rounded-md w-full"
-                onClick={() => setCreateNewModalType("canvas")}
-              >
-                <Plus className="mr-1 h-3 w-3" />
-                Add File
-              </button>
             </CollapsibleContent>
           </Collapsible>
 

@@ -3,12 +3,15 @@
 import { HeaderSidebar } from "@/components/header-dashboard";
 import { RecentDocuments } from "@/components/dashboard/recent-documents";
 import { SidebarProvider } from "@/components/ui/sidebar";
-import { HomeContent } from "@/components/dashboard/home-content";
+import { FolderContent } from "@/components/dashboard/folder-content";
 import { useState, useEffect, useRef } from "react";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useParams } from "next/navigation";
 
-export default function Dashboard() {
+export default function FolderPage() {
+  const params = useParams();
+  const folderId = params.id as string;
   const [showSidebar, setShowSidebar] = useState(true);
   const [isMobile, setIsMobile] = useState(false);
   const [isAnimating, setIsAnimating] = useState(false);
@@ -96,7 +99,7 @@ export default function Dashboard() {
                 showSidebar && !isAnimating ? "calc(100% - 20rem)" : "100%",
             }}
           >
-            <HomeContent />
+            <FolderContent folderId={folderId} />
           </main>
 
           {!isMobile && !showSidebar && !isAnimating && (
@@ -121,12 +124,17 @@ export default function Dashboard() {
                     : "translateX(100%)",
               }}
             >
-              <RecentDocuments
-                handleToggleSidebar={(show) => {
-                  console.log("show", show);
-                  handleToggleSidebar(show);
-                }}
-              />
+              {/* <div className="relative">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="absolute right-2 top-4"
+                  onClick={() => handleToggleSidebar(false)}
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                </Button>
+              </div> */}
+              <RecentDocuments handleToggleSidebar={handleToggleSidebar} />
             </aside>
           )}
 

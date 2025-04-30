@@ -10,7 +10,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Input } from "@/components/ui/input";
 import { useUser } from "@/lib/contexts/userContext";
 import { STORAGE_URL } from "@/utils/constants";
 import {
@@ -19,30 +18,84 @@ import {
   HelpCircle,
   LogOut,
   Menu,
-  SlidersHorizontal,
   User,
+  ChevronRight,
+  Home,
+  PanelRight,
 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { useSidebar } from "@/components/ui/sidebar";
+import { usePathname } from "next/navigation";
+import { useSidebarStore } from "@/lib/store/useSidebar";
+import { useState, useEffect } from "react";
 
-export const HeaderSidebar = () => {
+interface HeaderSidebarProps {
+  onToggleSidebar?: () => void;
+}
+
+export const HeaderSidebar = ({ onToggleSidebar }: HeaderSidebarProps) => {
   const { signOut, user } = useUser();
   const { setOpenMobile } = useSidebar();
+  const pathname = usePathname();
+  const { folders } = useSidebarStore();
+  const [isMobile, setIsMobile] = useState(false);
+
   const avatarUrl = STORAGE_URL + `avatars/` + user?.avatar_url;
+
+  useEffect(() => {
+    const checkIsMobile = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+
+    checkIsMobile();
+    window.addEventListener("resize", checkIsMobile);
+
+    return () => {
+      window.removeEventListener("resize", checkIsMobile);
+    };
+  }, []);
+
+  // Generate breadcrumbs based on the current path
+  const generateBreadcrumbs = () => {
+    if (pathname === "/protected") {
+      return [{ label: "Home", href: "/protected" }];
+    }
+
+    const paths = pathname.split("/").filter(Boolean);
+    const breadcrumbs = [{ label: "Home", href: "/protected" }];
+
+    // Check if we're in a folder route
+    if (paths.includes("folder")) {
+      const folderId = paths[paths.indexOf("folder") + 1];
+
+      // Special case for root folder
+      if (folderId === "root") {
+        breadcrumbs.push({
+          label: "Root",
+          href: `/protected/folder/root`,
+        });
+      } else {
+        // Regular folder lookup
+        const folder = folders.find((f) => f.id === folderId);
+
+        if (folder) {
+          breadcrumbs.push({
+            label: folder.name,
+            href: `/protected/folder/${folderId}`,
+          });
+        }
+      }
+    }
+
+    return breadcrumbs;
+  };
+
+  const breadcrumbs = generateBreadcrumbs();
 
   return (
     <header className="flex items-center justify-between gap-4 bg-yadn-dark-background px-6 z-50 py-4 min-w-full h-16">
-      <div className="flex items-center gap-4 flex-1 ">
-        <Button
-          variant="ghost"
-          size="icon"
-          className="md:hidden text-white/70 hover:bg-transparent hover:text-white"
-          onClick={() => setOpenMobile(true)}
-        >
-          <Menu className="h-5 w-5" />
-          <span className="sr-only">Open Sidebar</span>
-        </Button>
+      <div className="flex items-center gap-4 flex-1">
         <Link
           href="/"
           className="flex items-center gap-2 justify-center !h-full"
@@ -52,50 +105,60 @@ export const HeaderSidebar = () => {
             alt="Logo"
             width={32}
             height={16}
-            className="h-6 w-full "
+            className="h-6 w-full"
           />
         </Link>
 
-        <div className="relative hidden flex-1 max-w-xl md:block">
-          <div className="flex items-center">
-            <Input
-              placeholder="Search"
-              className="rounded-md bg-white/[0.08] text-white placeholder:text-white/70"
-            />
-            <div className="absolute right-0 flex h-full items-center">
-              <div className="h-5 w-px bg-white/20" />
-              <Button
-                size="icon"
-                variant="ghost"
-                className="ml-2 h-full px-3 text-white/70 hover:bg-transparent hover:text-white"
+        {/* Breadcrumbs navigation */}
+        <nav className="hidden md:flex items-center">
+          {breadcrumbs.map((crumb, index) => (
+            <div key={index} className="flex items-center">
+              {index > 0 && (
+                <ChevronRight className="h-4 w-4 mx-2 text-white/50" />
+              )}
+              <Link
+                href={crumb.href}
+                className={`text-sm ${
+                  index === breadcrumbs.length - 1
+                    ? "text-white font-medium"
+                    : "text-white/70 hover:text-white"
+                }`}
               >
-                <SlidersHorizontal className="h-4 w-4" />
-                <span className="sr-only">Filters</span>
-              </Button>
+                {index === 0 && <Home className="h-4 w-4 mr-1 inline-block" />}
+                {crumb.label}
+              </Link>
             </div>
-          </div>
-        </div>
+          ))}
+        </nav>
       </div>
 
       <div className="flex items-center gap-4">
-        {/* <div className="flex items-center gap-2">
+        {/* Mobile menu toggle - only shown on mobile */}
+        {isMobile && (
           <Button
-            size="icon"
             variant="ghost"
-            className="text-white/70 hover:bg-transparent hover:text-white"
+            size="icon"
+            className="md:hidden text-white/70 hover:bg-transparent hover:text-white"
+            onClick={() => onToggleSidebar && onToggleSidebar()}
           >
-            <HelpCircle className="h-5 w-5" />
-            <span className="sr-only">Help</span>
+            <Menu className="h-5 w-5" />
+            <span className="sr-only">Menu</span>
           </Button>
+        )}
+
+        {/* Desktop sidebar toggle - only shown on desktop */}
+        {!isMobile && (
           <Button
-            size="icon"
             variant="ghost"
-            className="text-white/70 hover:bg-transparent hover:text-white"
+            size="icon"
+            className="hidden md:flex text-white/70 hover:bg-transparent hover:text-white"
+            onClick={() => onToggleSidebar && onToggleSidebar()}
           >
-            <Bell className="h-5 w-5" />
-            <span className="sr-only">Notifications</span>
+            <PanelRight className="h-5 w-5" />
+            <span className="sr-only">Toggle Sidebar</span>
           </Button>
-        </div> */}
+        )}
+
         <div className="flex items-center gap-3">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>

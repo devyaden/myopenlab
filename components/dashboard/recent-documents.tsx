@@ -14,7 +14,14 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { FileText, Info, MoreVertical, Trash } from "lucide-react";
+import {
+  ChevronLeft,
+  ChevronRight,
+  FileText,
+  Info,
+  MoreVertical,
+  Trash,
+} from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 
@@ -25,7 +32,11 @@ interface Document {
   type: string;
 }
 
-export function RecentDocuments() {
+export function RecentDocuments({
+  handleToggleSidebar,
+}: {
+  handleToggleSidebar?: (show: boolean) => void;
+}) {
   const [documents, setDocuments] = useState<Document[]>([]);
 
   const getDocumentTypeColor = (type: string) => {
@@ -55,45 +66,30 @@ export function RecentDocuments() {
   };
 
   const handleNavigate = (id: string, canvasType: string) => {
-    // Navigate to the document page
-
     if (canvasType === "document") {
-      window.location.href = `/protected/documents/${id}`;
+      window.location.href = `/protected/document-editor/${id}`;
     } else {
       window.location.href = `/protected/canvas-new/${id}`;
     }
   };
 
   return (
-    <div className="w-full  bg-white p-8 h-full">
-      <div className="flex items-center justify-between mb-4">
-        <div className="relative">
-          <h2 className="text-xl font-medium text-gray-900">
-            Recent Documents
-          </h2>
-          <div className="absolute bottom-0 left-0 right-0 border-b border-dotted border-gray-300" />
-        </div>
-
-        <div className="flex items-center gap-1">
-          {/* <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon" className="h-8 w-8">
-                <Menu className="h-4 w-4" />
-                <span className="sr-only">Menu</span>
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem>
-                <Plus className="mr-2 h-4 w-4" />
-                <span>New Document</span>
-              </DropdownMenuItem>
-              <DropdownMenuItem>
-                <Download className="mr-2 h-4 w-4" />
-                <span>Download All</span>
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu> */}
-
+    <div className="flex flex-col h-full">
+      {handleToggleSidebar && (
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-8 w-8 absolute top-2 left-2"
+          onClick={() => handleToggleSidebar(false)}
+        >
+          <ChevronRight className="h-4 w-4" />
+        </Button>
+      )}
+      <div className="p-6 pb-3 flex-shrink-0 bg-white">
+        <div className="flex items-center justify-between mb-3 pt-4">
+          <div className="flex items-center gap-2">
+            <h2 className="text-lg font-semibold text-gray-900">Recent</h2>
+          </div>
           <Popover>
             <PopoverTrigger asChild>
               <Button variant="ghost" size="icon" className="h-8 w-8">
@@ -101,59 +97,48 @@ export function RecentDocuments() {
                 <span className="sr-only">Information</span>
               </Button>
             </PopoverTrigger>
-            <PopoverContent className="w-80">
-              <div className="grid gap-4">
-                <div className="space-y-2">
-                  <h4 className="font-medium leading-none">
-                    About Recent Documents
-                  </h4>
-                  <p className="text-sm text-muted-foreground">
-                    This section displays your most recently accessed documents
-                    and canvases. Items are automatically added here when you
-                    create, edit, or open them.
-                  </p>
-                </div>
+            <PopoverContent className="w-72">
+              <div className="space-y-2">
+                <h4 className="font-medium leading-none">Recent Documents</h4>
+                <p className="text-sm text-muted-foreground">
+                  Your most recently accessed documents and canvases appear here
+                  automatically.
+                </p>
               </div>
             </PopoverContent>
           </Popover>
         </div>
       </div>
 
-      <ScrollArea className="h-[600px] pr-4">
+      <ScrollArea className="flex-grow px-6">
         {documents.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-[400px] text-gray-500">
-            <FileText className="h-12 w-12 mb-4 opacity-50" />
-            <p className="text-lg font-medium">No recent documents</p>
-            <p className="text-sm">
-              Your recently accessed documents will appear here
+          <div className="flex flex-col items-center justify-center h-60 text-gray-500">
+            <FileText className="h-10 w-10 mb-2 opacity-50" />
+            <p className="text-sm font-medium">No recent documents</p>
+            <p className="text-xs text-gray-400 mt-1">
+              Recently opened files will appear here
             </p>
           </div>
         ) : (
-          <div className="space-y-2">
+          <div className="space-y-2 pb-6">
             {documents.map((doc) => (
               <Card
                 key={doc.id}
-                className="flex items-center p-3 hover:bg-gray-50 transition-colors"
+                className="flex items-center p-3 hover:bg-gray-50 transition-colors cursor-pointer"
                 onClick={() => handleNavigate(doc.id, doc.type)}
               >
                 <div
-                  className={`h-10 w-10 rounded-lg ${getDocumentTypeColor(doc.type)} flex items-center justify-center mr-3`}
+                  className={`h-9 w-9 rounded-lg ${getDocumentTypeColor(doc.type)} flex items-center justify-center mr-3 flex-shrink-0`}
                 >
                   <FileText className="h-5 w-5 text-white" />
                 </div>
 
                 <div className="flex-1 min-w-0">
-                  <Link
-                    href={doc?.type === "Canvas" ? `/canvas/${doc.id}` : "#"}
-                  >
-                    <h3 className="text-sm font-medium text-gray-900 truncate">
-                      {doc.title}
-                    </h3>
-                  </Link>
-                  <div className="flex items-center gap-2 text-xs text-gray-500">
-                    <span>{doc.date}</span>
-                    <span>•</span>
-                    <span>{doc?.type ?? "table"}</span>
+                  <h3 className="text-sm font-medium text-gray-900 truncate">
+                    {doc.title}
+                  </h3>
+                  <div className="flex items-center gap-1 text-xs text-gray-500">
+                    <span className="truncate">{doc.date}</span>
                   </div>
                 </div>
 
@@ -162,7 +147,8 @@ export function RecentDocuments() {
                     <Button
                       variant="ghost"
                       size="icon"
-                      className="h-8 w-8 ml-2"
+                      className="h-7 w-7 ml-1"
+                      onClick={(e) => e.stopPropagation()}
                     >
                       <MoreVertical className="h-4 w-4" />
                       <span className="sr-only">
@@ -171,14 +157,6 @@ export function RecentDocuments() {
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
-                    {/* <DropdownMenuItem>
-                      <Edit className="mr-2 h-4 w-4" />
-                      <span>Edit</span>
-                    </DropdownMenuItem>
-                    <DropdownMenuItem>
-                      <Download className="mr-2 h-4 w-4" />
-                      <span>Download</span>
-                    </DropdownMenuItem> */}
                     <DropdownMenuItem
                       onClick={(e) => {
                         e.stopPropagation();
@@ -186,7 +164,7 @@ export function RecentDocuments() {
                       }}
                     >
                       <Trash className="mr-2 h-4 w-4" />
-                      <span>Delete</span>
+                      <span>Remove from recent</span>
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>

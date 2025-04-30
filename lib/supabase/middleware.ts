@@ -20,10 +20,13 @@ export const updateSession = async (request: NextRequest) => {
             return request.cookies.get(name)?.value;
           },
           set(name: string, value: string, options: any) {
+            // Add secure: false for local development
             response.cookies.set({
               name,
               value,
               ...options,
+              secure: process.env.NODE_ENV === "production",
+              path: "/",
             });
           },
           remove(name: string, options: any) {
@@ -31,26 +34,35 @@ export const updateSession = async (request: NextRequest) => {
               name,
               value: "",
               ...options,
+              secure: process.env.NODE_ENV === "production",
+              path: "/",
+              maxAge: 0,
             });
           },
         },
       }
     );
 
-    // Get authenticated user data using getUser() instead of getSession()
+    // Get authenticated user data using getSession instead of getUser
     const {
-      data: { user },
-      error: userError,
-    } = await supabase.auth.getUser();
+      data: { session },
+    } = await supabase.auth.getSession();
 
-    if (userError) {
-      console.error("User authentication error:", userError);
-      return redirectToAuth(request);
+    // More detailed debugging
+    if (!session) {
+      console.log("No session available in middleware");
+
+      // Only redirect to auth for protected routes, allow auth page to load
+      const { pathname } = request.nextUrl;
+      if (pathname.startsWith("/protected") || pathname.startsWith("/admin")) {
+        return redirectToAuth(request);
+      }
+      return response;
     }
 
     // Check path information
     const { pathname } = request.nextUrl;
-    const isAuthenticated = !!user;
+    const isAuthenticated = !!session;
     const isAdminRoute = pathname.startsWith("/admin");
     const isUserRoute = pathname.startsWith("/protected");
     const isRootRoute = pathname === "/";
@@ -71,7 +83,7 @@ export const updateSession = async (request: NextRequest) => {
       const { data: userRole, error: roleError } = await supabase
         .from("user")
         .select("role")
-        .eq("id", user.id)
+        .eq("id", session.user.id)
         .single();
 
       if (roleError) {
@@ -100,7 +112,15 @@ export const updateSession = async (request: NextRequest) => {
     return response;
   } catch (error) {
     console.error("Middleware error:", error);
-    return redirectToAuth(request);
+
+    // In case of error, only redirect for protected routes
+    const { pathname } = request.nextUrl;
+    if (pathname.startsWith("/protected") || pathname.startsWith("/admin")) {
+      return redirectToAuth(request);
+    }
+
+    // For other routes, continue normally to prevent redirect loops
+    return NextResponse.next();
   }
 };
 
