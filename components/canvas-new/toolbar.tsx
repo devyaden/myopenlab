@@ -194,6 +194,7 @@ export const Toolbar = React.memo(function Toolbar({
     { name: "Dashed", value: "dashed" },
     { name: "Dotted", value: "dotted" },
     { name: "Double", value: "double" },
+    { name: "Animated", value: "animated" },
   ];
 
   const getLineStyleIcon = (style: string) => {
@@ -300,14 +301,12 @@ export const Toolbar = React.memo(function Toolbar({
             xmlns="http://www.w3.org/2000/svg"
             preserveAspectRatio="xMidYMid meet"
           >
-            <line
-              x1="5"
-              y1="12"
-              x2="95"
-              y2="12"
+            <path
+              d="M5,12 C25,4 75,20 95,12"
+              fill="none"
               stroke="currentColor"
               strokeWidth="2"
-              strokeDasharray="10,6"
+              strokeDasharray="5,5"
             />
           </svg>
         );
@@ -321,14 +320,12 @@ export const Toolbar = React.memo(function Toolbar({
             xmlns="http://www.w3.org/2000/svg"
             preserveAspectRatio="xMidYMid meet"
           >
-            <line
-              x1="5"
-              y1="12"
-              x2="95"
-              y2="12"
+            <path
+              d="M5,12 C25,4 75,20 95,12"
+              fill="none"
               stroke="currentColor"
               strokeWidth="2"
-              strokeDasharray="2,4"
+              strokeDasharray="1,5"
             />
           </svg>
         );
@@ -342,21 +339,37 @@ export const Toolbar = React.memo(function Toolbar({
             xmlns="http://www.w3.org/2000/svg"
             preserveAspectRatio="xMidYMid meet"
           >
-            <line
-              x1="5"
-              y1="8"
-              x2="95"
-              y2="8"
+            <path
+              d="M5,10 C25,2 75,18 95,10"
+              fill="none"
               stroke="currentColor"
               strokeWidth="1.5"
             />
-            <line
-              x1="5"
-              y1="16"
-              x2="95"
-              y2="16"
+            <path
+              d="M5,14 C25,6 75,22 95,14"
+              fill="none"
               stroke="currentColor"
               strokeWidth="1.5"
+            />
+          </svg>
+        );
+      case "animated":
+        return (
+          <svg
+            width="100%"
+            height="100%"
+            viewBox="0 0 100 24"
+            fill="none"
+            xmlns="http://www.w3.org/2000/svg"
+            preserveAspectRatio="xMidYMid meet"
+          >
+            <path
+              d="M5,12 C25,4 75,20 95,12"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeDasharray="5,5"
+              className="animate-pulse"
             />
           </svg>
         );

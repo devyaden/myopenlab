@@ -121,8 +121,12 @@ const CustomEdge = (params: any) => {
         return getSimpleBezierPath(pathParams)[0];
       case "dashed":
         return getSmoothStepPath(pathParams)[0];
+      case "dotted":
+        return getSmoothStepPath(pathParams)[0];
       case "double":
         return getDoubleLinePath(pathParams);
+      case "animated":
+        return getSmoothStepPath(pathParams)[0];
       default:
         return getSmoothStepPath(pathParams)[0];
     }
@@ -223,6 +227,21 @@ const CustomEdge = (params: any) => {
             onDoubleClick={handleDoubleClick}
           />
         </>
+      ) : edgeType === "animated" ? (
+        <path
+          id={id}
+          d={edgePathData as string}
+          className="react-flow__edge-path animated-edge-path"
+          strokeWidth={style.strokeWidth || 2}
+          stroke={strokeColor}
+          style={{
+            ...style,
+            markerEnd: undefined,
+            strokeDasharray: "5, 5",
+          }}
+          markerEnd={customMarkerEnd}
+          onDoubleClick={handleDoubleClick}
+        />
       ) : (
         <path
           id={id}
@@ -248,23 +267,9 @@ const CustomEdge = (params: any) => {
               className="nodrag nopan"
               style={inputStyles}
               autoFocus
-              rows={Math.max(1, (labelText.match(/\n/g) || []).length + 1)}
             />
           ) : (
-            labelText.trim() && (
-              <div
-                onDoubleClick={handleDoubleClick}
-                style={{
-                  minHeight: "20px",
-                  wordBreak: "break-word",
-                  padding: "2px 4px",
-                  backgroundColor: "white",
-                  borderRadius: "4px",
-                }}
-              >
-                {labelText}
-              </div>
-            )
+            labelText
           )}
         </div>
       </EdgeLabelRenderer>

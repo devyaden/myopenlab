@@ -127,8 +127,10 @@ export function FolderContent({ folderId }: FolderContentProps) {
                 <div
                   className={`h-10 w-10 rounded-lg flex items-center justify-center ${
                     canvas.canvas_type === CANVAS_TYPE.DOCUMENT
-                      ? "bg-yadn-accent-pink"
-                      : "bg-yadn-accent-dark-orange"
+                      ? "bg-yadn-accent-blue"
+                      : canvas.canvas_type === CANVAS_TYPE.TABLE
+                        ? "bg-yadn-accent-dark-orange"
+                        : "bg-yadn-accent-pink"
                   }`}
                 >
                   <FileText className="h-5 w-5 text-white" />

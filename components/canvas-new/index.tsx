@@ -196,9 +196,60 @@ export default function CanvasNew({ canvasId }: FigmaInterfaceProps) {
 
   useEffect(() => {
     if (canvasId) {
+      useCanvasStore.persist.setOptions({
+        name: `canvas_${canvasId}`,
+      });
+
+      useCanvasStore.persist.rehydrate();
+      localStorage.removeItem("canvas-store");
+
+      // First load the canvas from the server
+      loadCanvas(canvasId).then(() => {
+        // After loading, check if there's AI data pending to be applied
+        const pendingTimestamp = sessionStorage.getItem(
+          "pending-ai-data-timestamp"
+        );
+
+        if (pendingTimestamp) {
+          const aiDataKey = `ai-data-${pendingTimestamp}`;
+          const aiDataJson = localStorage.getItem(aiDataKey);
+
+          if (aiDataJson) {
+            try {
+              const aiData = JSON.parse(aiDataJson);
+              if (aiData.pending && aiData.data) {
+                // Initialize the canvas with AI data
+                if (aiData.data.nodes) setNodes(aiData.data.nodes);
+                if (aiData.data.edges) setEdges(aiData.data.edges);
+                if (aiData.data.nodeStyles) {
+                  // Update each node style individually
+                  Object.entries(aiData.data.nodeStyles).forEach(
+                    ([nodeId, style]) => {
+                      updateNodeStyle(nodeId, style as NodeStyle);
+                    }
+                  );
+                }
+
+                // Clear the pending data
+                localStorage.removeItem(aiDataKey);
+                sessionStorage.removeItem("pending-ai-data-timestamp");
+                // Save the canvas with AI data
+                saveCanvas();
+              }
+            } catch (error) {
+              console.error("Error parsing AI data:", error);
+            }
+          }
+        }
+      });
+    }
+  }, [canvasId, loadCanvas, saveCanvas]);
+
+  useEffect(() => {
+    if (canvasId) {
       addToRecentDocuments(canvasId, projectName);
     }
-  }, [nodes]);
+  }, [canvasId, projectName, addToRecentDocuments]);
 
   // Function to detect and fix circular parent-child relationships
   const fixCircularParentChildRelationships = useCallback(
@@ -339,20 +390,6 @@ export default function CanvasNew({ canvasId }: FigmaInterfaceProps) {
     },
     [fixCircularParentChildRelationships, setNodes, tableViewRef]
   );
-
-  // Effect to load the canvas
-  useEffect(() => {
-    if (canvasId) {
-      useCanvasStore.persist.setOptions({
-        name: `canvas_${canvasId}`,
-      });
-
-      useCanvasStore.persist.rehydrate();
-      localStorage.removeItem("canvas-store");
-
-      loadCanvas(canvasId);
-    }
-  }, [canvasId, loadCanvas]);
 
   // Effect to check for circular references on EVERY render
   useEffect(() => {
@@ -795,8 +832,15 @@ export default function CanvasNew({ canvasId }: FigmaInterfaceProps) {
                         ? "5,5"
                         : style === "dotted"
                           ? "1,5"
+                          : style === "animated"
+                            ? "5,5"
+                            : undefined,
+                    className:
+                      style === "double"
+                        ? "double-line"
+                        : style === "animated"
+                          ? "animated-edge"
                           : undefined,
-                    className: style === "double" ? "double-line" : undefined,
                   },
                   markerEnd: { type: MarkerType.ArrowClosed },
                 }

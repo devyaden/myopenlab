@@ -32,6 +32,8 @@ import * as z from "zod";
 import { useState, useEffect } from "react";
 import { InputWithIcon } from "../input-with-icon";
 import { generateUntitledName } from "@/lib/utils";
+import { AIGenerationDialog } from "../canvas-new/ai-generation-dialog";
+import { Wand2 } from "lucide-react";
 
 export enum CANVAS_TYPE {
   HYBRID = "hybrid",
@@ -98,6 +100,7 @@ export function CreateNewModal({
   const [selectedCanvasType, setSelectedCanvasType] = useState<CANVAS_TYPE>(
     CANVAS_TYPE.HYBRID
   );
+  const [isAIDialogOpen, setIsAIDialogOpen] = useState(false);
 
   const folderForm = useForm<FolderFormValues>({
     resolver: zodResolver(folderSchema),
@@ -192,6 +195,55 @@ export function CreateNewModal({
     }
   };
 
+  // Handle AI generation
+  const handleOpenAIDialog = () => {
+    setIsAIDialogOpen(true);
+  };
+
+  const handleCloseAIDialog = () => {
+    setIsAIDialogOpen(false);
+  };
+
+  const handleGenerateCanvas = (aiData: any) => {
+    // Get all existing canvases from both folders and root
+    const allCanvases = [
+      ...folders.flatMap((folder) => folder.canvases),
+      ...(rootCanvases || []),
+    ].map((canvas) => ({
+      ...canvas,
+      canvas_type: CANVAS_TYPE.HYBRID,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    }));
+
+    const name = generateUntitledName(CANVAS_TYPE.HYBRID, allCanvases);
+
+    // Create a canvas with the AI-generated data
+    const success = onCreateCanvas(
+      name,
+      "AI Generated Canvas",
+      CANVAS_TYPE.HYBRID,
+      currentFolderId || null
+    );
+
+    if (success) {
+      // Store the AI data in localStorage to be picked up by the canvas component
+      // We use a temporary storage with a timestamp that will be consumed when the canvas loads
+      const timestamp = Date.now();
+      localStorage.setItem(
+        `ai-data-${timestamp}`,
+        JSON.stringify({
+          data: aiData,
+          pending: true,
+        })
+      );
+      // Store the timestamp in sessionStorage to be retrieved when redirected
+      sessionStorage.setItem("pending-ai-data-timestamp", timestamp.toString());
+
+      handleClose();
+    }
+  };
+
   // Update the handleTypeSelect function to immediately create an item without showing the form
   const handleTypeSelect = (selectedType: CANVAS_TYPE) => {
     // Get all existing canvases from both folders and root
@@ -219,7 +271,7 @@ export function CreateNewModal({
     // Step 1: Type selection (only for canvas)
     if (step === "select" && type === "canvas") {
       return (
-        <div className="grid grid-cols-3 gap-4 py-4">
+        <div className="grid grid-cols-2 gap-4 py-4">
           <div
             className="flex flex-col items-center justify-center p-6 bg-gray-50 rounded-lg hover:bg-gray-100 cursor-pointer transition-colors"
             onClick={() => handleTypeSelect(CANVAS_TYPE.HYBRID)}
@@ -296,6 +348,19 @@ export function CreateNewModal({
               Document will be the visual document to add content
             </span>
           </div>
+
+          <div
+            className="flex flex-col items-center justify-center p-6 bg-gray-50 rounded-lg hover:bg-gray-100 cursor-pointer transition-colors"
+            onClick={handleOpenAIDialog}
+          >
+            <div className="mb-4">
+              <Wand2 className="h-6 w-6 text-yadn-accent-green" />
+            </div>
+            <span className="font-medium text-center">Generate with AI</span>
+            <span className="text-xs text-center text-muted-foreground mt-1">
+              Let AI generate a diagram based on your requirements
+            </span>
+          </div>
         </div>
       );
     }
@@ -335,7 +400,9 @@ export function CreateNewModal({
                     Back
                   </Button>
                 )} */}
-                <Button type="submit">Create Folder</Button>
+                <Button type="submit" className="bg-yadn-accent-green">
+                  Create Folder
+                </Button>
               </DialogFooter>
             </form>
           </Form>
@@ -474,27 +541,35 @@ export function CreateNewModal({
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent
-        className={`${step === "select" ? "max-w-2xl" : "max-w-md"}`}
-      >
-        <DialogHeader>
-          <DialogTitle>
-            {step === "select"
-              ? "Create New"
-              : type === "folder"
-                ? "Create New Folder"
-                : `Create New ${selectedCanvasType.charAt(0).toUpperCase() + selectedCanvasType.slice(1)}`}
-          </DialogTitle>
-          <DialogDescription>
-            {step === "select"
-              ? "Select the type of item you want to create"
-              : "Enter the details for your new item"}
-          </DialogDescription>
-        </DialogHeader>
+    <>
+      <Dialog open={isOpen} onOpenChange={handleClose}>
+        <DialogContent
+          className={`${step === "select" ? "max-w-2xl" : "max-w-md"}`}
+        >
+          <DialogHeader>
+            <DialogTitle>
+              {step === "select"
+                ? "Create New"
+                : type === "folder"
+                  ? "Create New Folder"
+                  : `Create New ${selectedCanvasType.charAt(0).toUpperCase() + selectedCanvasType.slice(1)}`}
+            </DialogTitle>
+            <DialogDescription>
+              {step === "select"
+                ? "Select the type of item you want to create"
+                : "Enter the details for your new item"}
+            </DialogDescription>
+          </DialogHeader>
 
-        {renderContent()}
-      </DialogContent>
-    </Dialog>
+          {renderContent()}
+        </DialogContent>
+      </Dialog>
+
+      <AIGenerationDialog
+        isOpen={isAIDialogOpen}
+        onClose={handleCloseAIDialog}
+        onGenerateCanvas={handleGenerateCanvas}
+      />
+    </>
   );
 }

@@ -28,8 +28,24 @@
   animation: dashdraw 0.5s linear infinite;
 }
 
+/* New animated edge style */
+.animated-edge-path {
+  stroke-dasharray: 5, 5;
+  animation: flowingDash 1s linear infinite;
+}
+
+.animated-edge {
+  z-index: 5;
+}
+
 @keyframes dashdraw {
   from {
     stroke-dashoffset: 10;
+  }
+}
+
+@keyframes flowingDash {
+  to {
+    stroke-dashoffset: -10;
   }
 }

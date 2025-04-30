@@ -685,6 +685,58 @@ export const useCanvasStore = create<CanvasStore>()(
           return true;
           // return history.future.length > 0;
         },
+
+        // Method to initialize the canvas with AI-generated data
+        initializeWithAIData: (aiData: any) =>
+          set((state) => {
+            if (!aiData || !aiData.nodes || !aiData.edges) {
+              console.error("Invalid AI data format");
+              return state;
+            }
+
+            // Ensure all nodes have the required properties
+            const nodes = aiData.nodes.map((node: any) => {
+              return {
+                ...node,
+                id:
+                  node.id ||
+                  `node-${Math.random().toString(36).substring(2, 9)}`,
+                type: node.type || "generic",
+                position: node.position || { x: 0, y: 0 },
+                data: node.data || { label: "Node" },
+                style: node.style || {},
+                width: node.width || 150,
+                height: node.height || 50,
+              };
+            });
+
+            // Ensure all edges have the required properties
+            const edges = aiData.edges.map((edge: any) => {
+              return {
+                ...edge,
+                id:
+                  edge.id ||
+                  `edge-${Math.random().toString(36).substring(2, 9)}`,
+                type: edge.type || "custom",
+                data: edge.data || { label: "" },
+                style: edge.style || {},
+              };
+            });
+
+            // Merge any provided node styles with defaults
+            const nodeStyles = {
+              ...state.nodeStyles,
+              ...(aiData.nodeStyles || {}),
+            };
+
+            return {
+              ...state,
+              nodes,
+              edges,
+              nodeStyles,
+              isDirty: true,
+            };
+          }),
       };
     },
     {

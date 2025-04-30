@@ -31,13 +31,13 @@ export function VerticalNav({
           <Shapes className="!h-6 !w-6 text-yadn-accent-green" />
         </Button>
       )}
-      <Button
+      {/* <Button
         variant="outline"
         size="icon"
         className="h-12 w-12 rounded-lg hover:bg-gray-100"
       >
         <Printer className="!h-6 !w-6" />
-      </Button>
+      </Button> */}
 
       <Button
         variant="outline"
