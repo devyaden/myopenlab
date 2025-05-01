@@ -1,8 +1,6 @@
+import { ClaudeService } from "@/lib/services/claude-service";
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { ClaudeService } from "@/lib/services/claude-service";
-import { supabase } from "@/lib/supabase/client";
-import { posthog, PostHogEvents } from "@/lib/posthog";
 
 // Define enums for type safety
 export enum LanguageType {
@@ -13,25 +11,25 @@ export enum LanguageType {
   PORTUGUESE = "portuguese",
   JAPANESE = "japanese",
   CHINESE = "chinese",
+  ARABIC = "arabic",
 }
 
 export enum DiagramType {
-  ARCHITECTURE = "architecture",
-  FLOWCHART = "flowchart",
-  SEQUENCE = "sequence",
-  ERD = "erd",
+  WORKFLOW = "workflow",
+  WEBSITE_WIREFRAME = "website-wireframe",
+  EVENT_VISITOR_EXPERIENCE = "event-visitor-experience",
+  HIERARCHY = "hierarchy",
   MINDMAP = "mindmap",
-  GANTT = "gantt",
-  USER_JOURNEY = "user-journey",
 }
 
 export enum IndustryType {
+  MARKETING = "marketing",
+  PROFESSIONAL_SERVICES = "professional-services",
+  TRAINING_COACHING = "training-coaching",
+  PRODUCTION = "production",
   TECHNOLOGY = "technology",
-  FINANCE = "finance",
-  HEALTHCARE = "healthcare",
-  EDUCATION = "education",
-  RETAIL = "retail",
-  MANUFACTURING = "manufacturing",
+  EVENT_MANAGEMENT = "event-management",
+  FINANCIAL_SERVICES = "financial-services",
   GENERAL = "general",
 }
 
@@ -113,10 +111,10 @@ export async function POST(request: NextRequest) {
     console.error("Error generating canvas:", error);
 
     // Track error with PostHog
-    posthog.capture(PostHogEvents.AI_DIAGRAM_GENERATION_ERROR, {
-      errorMessage: error instanceof Error ? error.message : "Unknown error",
-      errorStack: error instanceof Error ? error.stack : undefined,
-    });
+    // posthog.capture(PostHogEvents.AI_DIAGRAM_GENERATION_ERROR, {
+    //   errorMessage: error instanceof Error ? error.message : "Unknown error",
+    //   errorStack: error instanceof Error ? error.stack : undefined,
+    // });
 
     // Return an appropriate error response
     return NextResponse.json(
