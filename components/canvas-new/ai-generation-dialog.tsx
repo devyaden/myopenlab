@@ -35,7 +35,7 @@ import {
   LanguageType,
   DiagramType,
   IndustryType,
-} from "@/app/api/ai/generate-canvas/route";
+} from "@/lib/types/diagram-types";
 import { InfoIcon } from "lucide-react";
 
 // Define the form schema

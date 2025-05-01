@@ -2,7 +2,7 @@ import {
   DiagramType,
   IndustryType,
   LanguageType,
-} from "@/app/api/ai/generate-canvas/route";
+} from "@/lib/types/diagram-types";
 import { Anthropic } from "@anthropic-ai/sdk";
 import { ALL_SHAPES } from "../types/flow-table.types";
 

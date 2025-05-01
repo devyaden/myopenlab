@@ -1,37 +1,11 @@
 import { ClaudeService } from "@/lib/services/claude-service";
+import {
+  DiagramType,
+  IndustryType,
+  LanguageType,
+} from "@/lib/types/diagram-types";
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-
-// Define enums for type safety
-export enum LanguageType {
-  ENGLISH = "english",
-  SPANISH = "spanish",
-  FRENCH = "french",
-  GERMAN = "german",
-  PORTUGUESE = "portuguese",
-  JAPANESE = "japanese",
-  CHINESE = "chinese",
-  ARABIC = "arabic",
-}
-
-export enum DiagramType {
-  WORKFLOW = "workflow",
-  WEBSITE_WIREFRAME = "website-wireframe",
-  EVENT_VISITOR_EXPERIENCE = "event-visitor-experience",
-  HIERARCHY = "hierarchy",
-  MINDMAP = "mindmap",
-}
-
-export enum IndustryType {
-  MARKETING = "marketing",
-  PROFESSIONAL_SERVICES = "professional-services",
-  TRAINING_COACHING = "training-coaching",
-  PRODUCTION = "production",
-  TECHNOLOGY = "technology",
-  EVENT_MANAGEMENT = "event-management",
-  FINANCIAL_SERVICES = "financial-services",
-  GENERAL = "general",
-}
 
 // Input validation schema
 const generateCanvasSchema = z.object({
