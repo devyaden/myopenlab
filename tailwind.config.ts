@@ -28,6 +28,7 @@ const config = {
       fontFamily: {
         quicksand: ["var(--font-quicksand)"],
         rubik: ["var(--font-rubik)"],
+        lato: ['Lato', 'sans-serif'],
       },
       colors: {
         border: "hsl(var(--border))",
