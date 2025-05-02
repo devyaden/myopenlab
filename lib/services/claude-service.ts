@@ -52,7 +52,7 @@ export class ClaudeService {
       // Determine the appropriate model based on diagram complexity
       const model = this.determineAppropriateModel(diagramType, prompt);
 
-      // Call the Claude API with basic retry logic
+      // Call the Claude API with robust error handling and retry logic
       const response = await this.callClaudeAPI(
         model,
         systemPrompt,
@@ -109,7 +109,7 @@ export class ClaudeService {
   }
 
   /**
-   * Call Claude API with basic retry logic
+   * Call Claude API with robust error handling and retry logic
    */
   private async callClaudeAPI(
     model: string,
@@ -131,27 +131,62 @@ export class ClaudeService {
         ],
       });
 
+      // Basic validation to ensure the response is meaningful
+      if (!response || !response.content || response.content.length === 0) {
+        throw new Error("Empty response from Claude API");
+      }
+
       return response;
-    } catch (error) {
-      // Simple retry logic for network errors
-      if (retryCount < 2) {
+    } catch (error: any) {
+      // Log the detailed error information
+      console.error("Claude API Error:", {
+        message: error.message,
+        type: error.type,
+        status: error.status,
+        model: model,
+        retryCount: retryCount,
+      });
+
+      // Check for rate limit errors (typically 429) or server errors (5xx)
+      const isRateLimitError = error.status === 429;
+      const isServerError = error.status >= 500 && error.status < 600;
+      const isNetworkError =
+        !error.status && error.message?.includes("network");
+      const isRetryableError =
+        isRateLimitError || isServerError || isNetworkError;
+
+      // Determine if we should retry
+      if (isRetryableError && retryCount < 2) {
+        // Calculate backoff time: 3 seconds for first retry, 6 for second
+        const backoffTime = (retryCount + 1) * 3000;
+
         console.warn(
-          `Claude API call failed, retrying (${retryCount + 1}/2)...`
+          `Claude API call failed with ${error.status || "network error"}, retrying in ${backoffTime / 1000}s (${retryCount + 1}/2)...`
         );
 
-        // Wait for 3 seconds before retrying
-        await new Promise((resolve) => setTimeout(resolve, 3000));
+        // Wait with exponential backoff before retrying
+        await new Promise((resolve) => setTimeout(resolve, backoffTime));
+
+        // Retry with an alternative model if the error might be model-specific
+        let retryModel = model;
+        if (isServerError && model.includes("opus")) {
+          // Fallback to a more reliable model if the high-end model fails
+          retryModel = "claude-3-5-sonnet-20241022";
+          console.log(`Falling back to ${retryModel} for retry`);
+        }
 
         return this.callClaudeAPI(
-          model,
+          retryModel,
           systemPrompt,
           userMessage,
           retryCount + 1
         );
       }
 
-      // After all retries fail, throw the error
-      throw error;
+      // After all retries fail, throw the error with more context
+      throw new Error(
+        `Claude API failed after retries: ${error.message || "Unknown error"}`
+      );
     }
   }
 
@@ -166,6 +201,17 @@ export class ClaudeService {
     language: LanguageType = LanguageType.ENGLISH
   ) {
     try {
+      // Check if the response is an error object or contains error information
+      if (response?.error) {
+        console.error("Claude API returned an error:", response.error);
+        return this.generateFallbackData(
+          diagramType,
+          industry,
+          prompt,
+          language
+        );
+      }
+
       // Handle case where the response is already in the expected format
       if (response && response.content && Array.isArray(response.content)) {
         // Extract text content from the response
@@ -175,10 +221,68 @@ export class ClaudeService {
           .join("")
           .trim();
 
-        if (textContent) {
+        if (!textContent) {
+          console.error("Claude returned empty text content");
+          return this.generateFallbackData(
+            diagramType,
+            industry,
+            prompt,
+            language
+          );
+        }
+
+        // Check if the response starts with an error message (common Claude error pattern)
+        if (
+          textContent.startsWith("An error occurred") ||
+          textContent.startsWith("I apologize") ||
+          textContent.startsWith("I'm sorry") ||
+          textContent.startsWith("Sorry,")
+        ) {
+          console.error(
+            "Claude returned an error message:",
+            textContent.substring(0, 100)
+          );
+          return this.generateFallbackData(
+            diagramType,
+            industry,
+            prompt,
+            language
+          );
+        }
+
+        try {
+          // First, try to parse the entire text content directly
+          const canvasData = JSON.parse(textContent);
+
+          // Store diagram metadata in the canvas data for validation and rendering
+          canvasData.diagramType = diagramType;
+          canvasData.language = language;
+          canvasData.industry = industry;
+
+          if (this.isCanvasDataMinimallyValid(canvasData)) {
+            // Improve edge handles if needed
+            const improvedData = this.improveEdgeHandles(canvasData);
+            return improvedData;
+          }
+        } catch (error) {
+          console.log(
+            "Failed to parse entire content as JSON, trying to extract JSON blocks..."
+          );
+          // Continue to JSON extraction approach
+        }
+
+        // Attempt to extract JSON using multiple patterns
+        // First try to find JSON between code blocks
+        let jsonMatch = textContent.match(/```(?:json)?\s*([\s\S]*?)```/);
+        if (!jsonMatch) {
+          // Try to find JSON between curly braces if no code blocks found
+          jsonMatch = textContent.match(/({[\s\S]*})/);
+        }
+
+        if (jsonMatch && jsonMatch[1]) {
           try {
-            // First, try to parse the entire text content directly
-            const canvasData = JSON.parse(textContent);
+            const extractedJson = jsonMatch[1].trim();
+            const canvasData = JSON.parse(extractedJson);
 
             // Store diagram metadata in the canvas data for validation and rendering
             canvasData.diagramType = diagramType;
@@ -191,37 +295,17 @@ export class ClaudeService {
               return improvedData;
             }
           } catch (error) {
-            console.log(
-              "Failed to parse entire content as JSON, trying to extract JSON blocks..."
-            );
-            // Continue to JSON extraction approach
-          }
-
-          // Extract JSON using regex if direct parsing failed
-          const jsonMatch = textContent.match(
-            /```(?:json)?\s*([\s\S]*?)```|({[\s\S]*})/
-          );
-
-          if (jsonMatch && jsonMatch[1]) {
-            try {
-              const extractedJson = jsonMatch[1].trim();
-              const canvasData = JSON.parse(extractedJson);
-
-              // Store diagram metadata in the canvas data for validation and rendering
-              canvasData.diagramType = diagramType;
-              canvasData.language = language;
-              canvasData.industry = industry;
-
-              if (this.isCanvasDataMinimallyValid(canvasData)) {
-                // Improve edge handles if needed
-                const improvedData = this.improveEdgeHandles(canvasData);
-                return improvedData;
-              }
-            } catch (error) {
-              console.log("Failed to parse extracted JSON block");
-            }
+            console.log("Failed to parse extracted JSON block:", error);
           }
         }
+
+        // If we still haven't found valid JSON, log the response and use fallback
+        console.log(
+          "No valid JSON found in Claude response. Text begins with:",
+          textContent.substring(0, 100)
+        );
+      } else {
+        console.error("Unexpected Claude response format:", response);
       }
 
       // If we reach here, we couldn't get valid data from Claude
@@ -502,7 +586,7 @@ export class ClaudeService {
     }
 
     // Include the JSON format requirements
-    return `${directive}\n\n${typeSpecificGuidance}\n\nIMPORTANT: Return ONLY valid JSON with nodes, edges, and nodeStyles as specified. Each node MUST use "genericNode" type and appropriate "data.shape" value. All edges MUST have proper sourceHandle and targetHandle values.`;
+    return `${directive}\n\n${typeSpecificGuidance}\n\nIMPORTANT: Return ONLY valid JSON with nodes, edges, and nodeStyles as specified. Each node MUST use "genericNode" type and appropriate "data.shape" value. All edges MUST have proper sourceHandle and targetHandle values.\n\nIMPORTANT: DO NOT RETURN EXPLANATORY TEXT OR ERROR MESSAGES. If you encounter any issues, return a simpler but valid JSON diagram.`;
   }
 
   /**
@@ -586,7 +670,21 @@ export class ClaudeService {
      }
    }
 
-RESPOND ONLY WITH VALID JSON INCLUDING: nodes array, edges array with handles, and nodeStyles object.`;
+CRITICAL REQUIREMENTS:
+1. ONLY output valid, parseable JSON with all required fields
+2. NEVER output explanatory text, prefixes, or suffixes - ONLY THE JSON ITSELF
+3. If you encounter issues or limitations, DO NOT explain or apologize - instead create a simpler but VALID diagram
+4. If anything is unclear, make reasonable assumptions rather than returning errors
+5. Always include ALL three components: 'nodes' array, 'edges' array, and 'nodeStyles' object
+6. ALWAYS ensure your JSON is valid and parseable
+7. The complete output MUST be surrounded with curly braces and MUST be valid JSON
+
+EXAMPLE FORMAT:
+{
+  "nodes": [...],
+  "edges": [...],
+  "nodeStyles": {...}
+}`;
   }
 
   /**
