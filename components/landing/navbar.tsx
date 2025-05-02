@@ -6,10 +6,12 @@ import { Menu } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { motion } from "framer-motion";
+import { useUser } from "@/lib/contexts/userContext";
 
 export default function Navbar() {
   const [isScrolled, setIsScrolled] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const { user } = useUser();
 
   useEffect(() => {
     const handleScroll = () => {
@@ -39,7 +41,7 @@ export default function Navbar() {
     >
       <div className="container mx-auto px-4 py-4 flex items-center justify-between">
         <Link href="/" className="flex items-center">
-          <img className="w-[69px]" src='./assets/global/app-logo.png' alt='' />
+          <img className="w-[69px]" src="./assets/global/app-logo.png" alt="" />
         </Link>
 
         {/* Desktop Navigation */}
@@ -87,11 +89,19 @@ export default function Navbar() {
               Book a demo
             </Button>
           </Link>
-          <Link href="#">
-            <Button className="w-[125px] h-[44px] px-4 py-3 rounded-[10px]  border-[1px] border-[#032A22] text-[#FFFFFF] font-inter font-medium text-[16px] leading-[20px] tracking-[-0.5px] bg-[#0FB492] shadow-[2px_2px_0px_0px_#032A22] transition-all duration-300 ease-in-out hover:scale-105">
-              Start for free
-            </Button>
-          </Link>
+          {user ? (
+            <Link href="/protected">
+              <Button className="w-[125px] h-[44px] px-4 py-3 rounded-[10px]  border-[1px] border-[#032A22] text-[#FFFFFF] font-inter font-medium text-[16px] leading-[20px] tracking-[-0.5px] bg-[#0FB492] shadow-[2px_2px_0px_0px_#032A22] transition-all duration-300 ease-in-out hover:scale-105">
+                Dashboard
+              </Button>
+            </Link>
+          ) : (
+            <Link href="/authentication">
+              <Button className="w-[125px] h-[44px] px-4 py-3 rounded-[10px]  border-[1px] border-[#032A22] text-[#FFFFFF] font-inter font-medium text-[16px] leading-[20px] tracking-[-0.5px] bg-[#0FB492] shadow-[2px_2px_0px_0px_#032A22] transition-all duration-300 ease-in-out hover:scale-105">
+                Start for free
+              </Button>
+            </Link>
+          )}
         </div>
 
         {/* Mobile Menu Button */}
@@ -128,19 +138,33 @@ export default function Navbar() {
               onClick={() => scrollToSection("about")}
               className="py-2 hover:text-green-500 transition-colors"
             >
-              About
+              Videos
             </button>
             <Link
               href="#"
               className="py-2 hover:text-green-500 transition-colors"
             >
-              Contact
+              Learn
             </Link>
-            <Link href="#">
-              <Button className="bg-green-500 hover:bg-green-600 text-white w-full">
-                Get Started
-              </Button>
+            <Link
+              href="#"
+              className="py-2 hover:text-green-500 transition-colors"
+            >
+              Free Tools
             </Link>
+            {user ? (
+              <Link href="/protected">
+                <Button className="bg-green-500 hover:bg-green-600 text-white w-full">
+                  Dashboard
+                </Button>
+              </Link>
+            ) : (
+              <Link href="/authentication">
+                <Button className="bg-green-500 hover:bg-green-600 text-white w-full">
+                  Start for free
+                </Button>
+              </Link>
+            )}
           </div>
         </motion.div>
       )}
