@@ -5,6 +5,7 @@ import Hero from "@/components/landing/hero";
 import Navbar from "@/components/landing/navbar";
 import PricingSection from "@/components/landing/pricing-section";
 import TrustSection from "@/components/landing/trust-section";
+import TryNow from "@/components/landing/tryNow";
 
 export default async function Index() {
   return (
@@ -12,6 +13,7 @@ export default async function Index() {
       <Navbar />
       <Hero />
       <Features />
+      <TryNow />
       <EngagementSection />
       <PricingSection />
       <TrustSection />

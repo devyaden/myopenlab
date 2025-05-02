@@ -76,58 +76,70 @@ export default function PricingSection() {
   };
 
   return (
-    <section id="pricing" className="py-16 md:py-24 bg-gray-50">
-      <div className="container mx-auto px-4">
+    <section
+      id="pricing"
+      className="py-12 sm:py-16 md:py-20 lg:py-24 bg-[#F2FFFC]"
+    >
+      <div className="container mx-auto px-4 sm:px-6">
         <motion.div
           variants={containerVariants}
           initial="hidden"
           whileInView="visible"
           viewport={{ once: true }}
-          className="flex gap-8 justify-between items-center"
+          className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8"
         >
           {plans.map((plan, index) => (
             <motion.div
               key={index}
               variants={itemVariants}
-              className="w-[488px] h-[667px] rounded-[32px] bg-white border-2 border-[#032A22] shadow-[5px_5px_0px_0px_#032A22]"
+              className={`relative w-full rounded-[20px] sm:rounded-[32px] bg-white border-2 border-[#032A22] shadow-[5px_5px_0px_0px_#032A22] ${
+                plan.popular
+                  ? "sm:transform sm:-translate-y-2 sm:scale-105 z-10"
+                  : ""
+              }`}
             >
-              <div className="p-6 flex flex-col justify-between items-start h-full">
-                <div>
-                  <h3 className="font-lato font-bold text-[48px] leading-[52px] text-left  text-black">
+              {plan.popular && (
+                <div className="absolute -top-3 right-4 bg-yadn-accent-green text-white text-xs font-bold py-1 px-3 rounded-full">
+                  Most Popular
+                </div>
+              )}
+              <div className="p-4 sm:p-5 lg:p-6 flex flex-col h-full">
+                <div className="mb-5">
+                  <h3 className="font-lato font-bold text-2xl sm:text-3xl md:text-4xl lg:text-[48px] leading-tight text-black">
                     {plan.name}
                   </h3>
 
-                  <p className="font-inter mt-4 font-normal text-[20px] leading-[160%] tracking-[-0.02em] text-left text-black">
+                  <p className="font-inter mt-2 font-normal text-base sm:text-lg md:text-[20px] leading-[160%] tracking-[-0.02em] text-black">
                     {plan.subtitle}
                   </p>
 
-                  <div className="mt-4 mb-6 flex items-baseline">
-                    <span className="font-inter font-bold text-[38px] leading-[160%] tracking-[-0.02em] text-black">
+                  <div className="mt-3 mb-4 flex items-baseline">
+                    <span className="font-inter font-bold text-2xl sm:text-3xl lg:text-[38px] leading-[160%] tracking-[-0.02em] text-black">
                       ${plan.price}
                     </span>
-                    <span className=" font-inter font-medium text-[18px] leading-[160%] tracking-[-0.02em] text-black text-center block">
+                    <span className="font-inter font-medium text-sm sm:text-base md:text-[18px] leading-[160%] tracking-[-0.02em] text-black text-center block">
                       {plan.period}
                     </span>
                   </div>
                 </div>
 
-                <ul className="space-y-4 mb-8">
+                <ul className="space-y-3 mb-6 flex-grow">
                   {plan.features.map((feature, i) => (
-                    <li key={i} className="flex items-start h-[37px]">
-                      <Check className="h-8 w-5 text-green-500 mr-3 mt-1 flex-shrink-0" />
-                      <span className="font-medium text-[20px] leading-[160%] tracking-[-0.02em] font-inter">
+                    <li key={i} className="flex items-start">
+                      <Check className="h-5 w-5 sm:h-6 sm:w-6 text-green-500 mr-2 mt-0.5 flex-shrink-0" />
+                      <span className="font-medium text-sm sm:text-base md:text-lg lg:text-[20px] leading-tight sm:leading-[160%] tracking-[-0.02em] font-inter">
                         {feature}
                       </span>
                     </li>
                   ))}
                 </ul>
 
-                <Link href="#" className="block">
+                <Link href="#" className="block w-full mt-auto">
                   <button
-                    className={`w-[424px] h-[50px] px-4 py-3 rounded-[10px] text-center font-normal text-[16px] leading-[160%] tracking-[-0.02em] shadow-[2px_2px_0px_0px_#032A22] border border-[#032A22] font-inter transition-colors ${
+                    className={`w-full h-10 sm:h-12 px-4 rounded-[10px] text-center font-normal text-sm sm:text-[16px] leading-[160%] tracking-[-0.02em] shadow-[2px_2px_0px_0px_#032A22] border border-[#032A22] font-inter transition-colors ${
                       plan.ctaColor === "green"
-                        ? "bg-emerald-500 hover:bg-emerald-600 text-white"
-                        : "hover:bg-gray-50 text-gray-800"
+                        ? "bg-yadn-accent-green hover:bg-yadn-accent-green/80 text-white"
+                        : "hover:bg-gray-100 text-gray-800"
                     }`}
                   >
                     {plan.cta}

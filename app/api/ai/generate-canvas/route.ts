@@ -1,39 +1,11 @@
+import { ClaudeService } from "@/lib/services/claude-service";
+import {
+  DiagramType,
+  IndustryType,
+  LanguageType,
+} from "@/lib/types/diagram-types";
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { ClaudeService } from "@/lib/services/claude-service";
-import { supabase } from "@/lib/supabase/client";
-import { posthog, PostHogEvents } from "@/lib/posthog";
-
-// Define enums for type safety
-export enum LanguageType {
-  ENGLISH = "english",
-  SPANISH = "spanish",
-  FRENCH = "french",
-  GERMAN = "german",
-  PORTUGUESE = "portuguese",
-  JAPANESE = "japanese",
-  CHINESE = "chinese",
-}
-
-export enum DiagramType {
-  ARCHITECTURE = "architecture",
-  FLOWCHART = "flowchart",
-  SEQUENCE = "sequence",
-  ERD = "erd",
-  MINDMAP = "mindmap",
-  GANTT = "gantt",
-  USER_JOURNEY = "user-journey",
-}
-
-export enum IndustryType {
-  TECHNOLOGY = "technology",
-  FINANCE = "finance",
-  HEALTHCARE = "healthcare",
-  EDUCATION = "education",
-  RETAIL = "retail",
-  MANUFACTURING = "manufacturing",
-  GENERAL = "general",
-}
 
 // Input validation schema
 const generateCanvasSchema = z.object({
@@ -113,10 +85,10 @@ export async function POST(request: NextRequest) {
     console.error("Error generating canvas:", error);
 
     // Track error with PostHog
-    posthog.capture(PostHogEvents.AI_DIAGRAM_GENERATION_ERROR, {
-      errorMessage: error instanceof Error ? error.message : "Unknown error",
-      errorStack: error instanceof Error ? error.stack : undefined,
-    });
+    // posthog.capture(PostHogEvents.AI_DIAGRAM_GENERATION_ERROR, {
+    //   errorMessage: error instanceof Error ? error.message : "Unknown error",
+    //   errorStack: error instanceof Error ? error.stack : undefined,
+    // });
 
     // Return an appropriate error response
     return NextResponse.json(

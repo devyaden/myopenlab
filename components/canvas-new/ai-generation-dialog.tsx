@@ -35,7 +35,7 @@ import {
   LanguageType,
   DiagramType,
   IndustryType,
-} from "@/app/api/ai/generate-canvas/route";
+} from "@/lib/types/diagram-types";
 import { InfoIcon } from "lucide-react";
 
 // Define the form schema
@@ -59,20 +59,16 @@ interface AIGenerationDialogProps {
 
 // Example prompts for different diagram types
 const examplePrompts = {
-  [DiagramType.FLOWCHART]:
-    "Create a flowchart showing the typical customer onboarding process, including registration, verification, initial setup, and first use.",
-  [DiagramType.ARCHITECTURE]:
-    "Design a system architecture diagram for a microservices-based e-commerce platform, including user service, product catalog, inventory, orders, and payment processing.",
-  [DiagramType.SEQUENCE]:
-    "Create a sequence diagram for user authentication flow, showing interactions between user, frontend, auth service, and database.",
-  [DiagramType.ERD]:
-    "Design an entity relationship diagram for a content management system with users, roles, permissions, content types, and content items.",
+  [DiagramType.WORKFLOW]:
+    "Create a workflow for handling client onboarding process, including registration, verification, approvals, documents, and first use.",
+  [DiagramType.WEBSITE_WIREFRAME]:
+    "Design a website wireframe for a business site with home page, about us, services, blog, and contact pages with appropriate sections on each page.",
+  [DiagramType.EVENT_VISITOR_EXPERIENCE]:
+    "Create an event floor plan for a tech conference with exhibition areas, speaker stages, networking zones, and refreshment areas with visitor journey paths.",
+  [DiagramType.HIERARCHY]:
+    "Design a company hierarchy chart showing the reporting structure from CEO to department heads to team leaders and team members.",
   [DiagramType.MINDMAP]:
     "Create a mind map for project planning phases including initiation, planning, execution, monitoring, and closure with key activities for each.",
-  [DiagramType.GANTT]:
-    "Design a Gantt chart for product development lifecycle from research through design, development, testing, to launch over a 6-month period.",
-  [DiagramType.USER_JOURNEY]:
-    "Create a user journey map for a customer purchasing a product online, from initial discovery to post-purchase support.",
 };
 
 export function AIGenerationDialog({
@@ -184,6 +180,9 @@ export function AIGenerationDialog({
                       <SelectItem value={LanguageType.CHINESE}>
                         Chinese
                       </SelectItem>
+                      <SelectItem value={LanguageType.ARABIC}>
+                        Arabic
+                      </SelectItem>
                     </SelectContent>
                   </Select>
                   <FormMessage />
@@ -210,26 +209,20 @@ export function AIGenerationDialog({
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      <SelectItem value={DiagramType.ARCHITECTURE}>
-                        Architecture
+                      <SelectItem value={DiagramType.WORKFLOW}>
+                        Workflow
                       </SelectItem>
-                      <SelectItem value={DiagramType.FLOWCHART}>
-                        Flowchart
+                      <SelectItem value={DiagramType.WEBSITE_WIREFRAME}>
+                        Website Wireframe
                       </SelectItem>
-                      <SelectItem value={DiagramType.SEQUENCE}>
-                        Sequence
+                      <SelectItem value={DiagramType.EVENT_VISITOR_EXPERIENCE}>
+                        Event Visitor Experience
                       </SelectItem>
-                      <SelectItem value={DiagramType.ERD}>
-                        Entity Relationship Diagram
+                      <SelectItem value={DiagramType.HIERARCHY}>
+                        Hierarchy
                       </SelectItem>
                       <SelectItem value={DiagramType.MINDMAP}>
                         Mind Map
-                      </SelectItem>
-                      <SelectItem value={DiagramType.GANTT}>
-                        Gantt Chart
-                      </SelectItem>
-                      <SelectItem value={DiagramType.USER_JOURNEY}>
-                        User Journey
                       </SelectItem>
                     </SelectContent>
                   </Select>
@@ -254,23 +247,26 @@ export function AIGenerationDialog({
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
+                      <SelectItem value={IndustryType.MARKETING}>
+                        Marketing
+                      </SelectItem>
+                      <SelectItem value={IndustryType.PROFESSIONAL_SERVICES}>
+                        Professional Services & Consulting
+                      </SelectItem>
+                      <SelectItem value={IndustryType.TRAINING_COACHING}>
+                        Training & Coaching
+                      </SelectItem>
+                      <SelectItem value={IndustryType.PRODUCTION}>
+                        Production
+                      </SelectItem>
                       <SelectItem value={IndustryType.TECHNOLOGY}>
                         Technology
                       </SelectItem>
-                      <SelectItem value={IndustryType.FINANCE}>
-                        Finance
+                      <SelectItem value={IndustryType.EVENT_MANAGEMENT}>
+                        Event Management
                       </SelectItem>
-                      <SelectItem value={IndustryType.HEALTHCARE}>
-                        Healthcare
-                      </SelectItem>
-                      <SelectItem value={IndustryType.EDUCATION}>
-                        Education
-                      </SelectItem>
-                      <SelectItem value={IndustryType.RETAIL}>
-                        Retail
-                      </SelectItem>
-                      <SelectItem value={IndustryType.MANUFACTURING}>
-                        Manufacturing
+                      <SelectItem value={IndustryType.FINANCIAL_SERVICES}>
+                        Financial Services
                       </SelectItem>
                       <SelectItem value={IndustryType.GENERAL}>
                         General
