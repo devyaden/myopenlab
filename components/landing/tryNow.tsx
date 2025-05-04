@@ -5,7 +5,7 @@ import { motion } from "framer-motion";
 export default function TryNow() {
   return (
     <section className="pb-16 pt-4 md:pb-20" id="learn">
-      <div className="container mx-auto px-4">
+      <div className="container mx-auto px-4" id="previous-section">
         <motion.h2
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}

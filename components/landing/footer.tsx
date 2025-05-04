@@ -1,128 +1,94 @@
-import Link from "next/link"
-import { Linkedin, Youtube, Twitter, Globe } from "lucide-react"
+import Link from "next/link";
+import { Linkedin, Youtube, Twitter, Globe } from "lucide-react";
 
 export default function Footer() {
+  const footerLinkClass =
+    "text-sm hover:text-gray-300 transition-colors text-white/70 font-medium";
+
   return (
     <footer className="bg-[#003329] text-white py-16 rounded-tl-[48px] rounded-tr-[48px]">
       <div className="container mx-auto px-4">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-10">
-          {/* Logo and tagline column */}
+        <div className="flex flex-wrap justify-evenly gap-10">
+          {/* Logo and tagline */}
           <div>
             <div className="mb-6">
-              <img className="w-[69px]" src='./assets/global/app-logo.png' alt='' />
+              <img
+                className="w-[69px]"
+                src="./assets/global/white-logo.png"
+                alt="Logo"
+              />
             </div>
-            <p className="text-sm mb-6">
+            <p className="text-sm font-bold mb-6 leading-relaxed">
               Fun, engaging
               <br />
               and authentic webinars
             </p>
             <div className="flex space-x-4">
               <Link href="#" className="hover:text-gray-300 transition-colors">
-                <Linkedin size={20} />
+                <img src='./assets/icons/in-white.png' alt=''  className="w-[20px]" />
                 <span className="sr-only">LinkedIn</span>
               </Link>
               <Link href="#" className="hover:text-gray-300 transition-colors">
-                <Youtube size={20} />
+                <img src='./assets/icons/youtube-white.png' alt=''  className="w-[20px]" />
                 <span className="sr-only">YouTube</span>
               </Link>
               <Link href="#" className="hover:text-gray-300 transition-colors">
-                <Twitter size={20} />
+              <img src='./assets/icons/twitter-white.png' alt=''  className="w-[20px]" />
                 <span className="sr-only">Twitter</span>
               </Link>
               <Link href="#" className="hover:text-gray-300 transition-colors">
-                <Globe size={20} />
+              <img src='./assets/icons/globe-white.png' alt=''  className="w-[20px]" />
                 <span className="sr-only">Website</span>
               </Link>
             </div>
           </div>
 
-          {/* Product column */}
+          {/* Columns */}
           <div>
-            <h3 className="font-medium text-lg mb-4">Product</h3>
+            <h3 className="font-bold text-lg mb-4">Product</h3>
             <ul className="space-y-3">
-              <li>
-                <Link href="#" className="text-sm hover:text-gray-300 transition-colors">
-                  Features
-                </Link>
-              </li>
-              <li>
-                <Link href="#" className="text-sm hover:text-gray-300 transition-colors">
-                  HubSpot Integration
-                </Link>
-              </li>
-              <li>
-                <Link href="#" className="text-sm hover:text-gray-300 transition-colors">
-                  What's new
-                </Link>
-              </li>
-              <li>
-                <Link href="#" className="text-sm hover:text-gray-300 transition-colors">
-                  Pricing
-                </Link>
-              </li>
-              <li>
-                <Link href="#" className="text-sm hover:text-gray-300 transition-colors">
-                  Log in
-                </Link>
-              </li>
+              {["Features", "HubSpot Integration", "What's new", "Pricing", "Log in"].map((item) => (
+                <li key={item}>
+                  <Link href="#" className={footerLinkClass}>
+                    {item}
+                  </Link>
+                </li>
+              ))}
             </ul>
           </div>
 
-          {/* Resources column */}
           <div>
-            <h3 className="font-medium text-lg mb-4">Resources</h3>
+            <h3 className="font-bold text-lg mb-4">Resources</h3>
             <ul className="space-y-3">
-              <li>
-                <Link href="#" className="text-sm hover:text-gray-300 transition-colors">
-                  Learn
-                </Link>
-              </li>
-              <li>
-                <Link href="#" className="text-sm hover:text-gray-300 transition-colors">
-                  Videos
-                </Link>
-              </li>
-              <li>
-                <Link href="#" className="text-sm hover:text-gray-300 transition-colors">
-                  Help Center
-                </Link>
-              </li>
-              <li>
-                <Link href="#" className="text-sm hover:text-gray-300 transition-colors">
-                  Webinar Glossary
-                </Link>
-              </li>
+              {["Learn", "Videos", "Help Center", "Webinar Glossary"].map((item) => (
+                <li key={item}>
+                  <Link href="#" className={footerLinkClass}>
+                    {item}
+                  </Link>
+                </li>
+              ))}
             </ul>
           </div>
 
-          {/* More column */}
           <div>
-            <h3 className="font-medium text-lg mb-4">More</h3>
+            <h3 className="font-bold text-lg mb-4">More</h3>
             <ul className="space-y-3">
-              <li>
-                <Link href="#" className="text-sm hover:text-gray-300 transition-colors">
-                  Our story
-                </Link>
-              </li>
-              <li>
-                <Link href="#" className="text-sm hover:text-gray-300 transition-colors">
-                  We're hiring
-                </Link>
-              </li>
-              <li>
-                <Link href="#" className="text-sm hover:text-gray-300 transition-colors">
-                  Contrast vs. Livestorm
-                </Link>
-              </li>
-              <li>
-                <Link href="#" className="text-sm hover:text-gray-300 transition-colors">
-                  Contrast vs. Zoom
-                </Link>
-              </li>
+              {[
+                "Our story",
+                "We're hiring",
+                "Contrast vs. Livestorm",
+                "Contrast vs. Zoom",
+              ].map((item) => (
+                <li key={item}>
+                  <Link href="#" className={footerLinkClass}>
+                    {item}
+                  </Link>
+                </li>
+              ))}
             </ul>
           </div>
         </div>
       </div>
     </footer>
-  )
+  );
 }

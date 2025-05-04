@@ -80,7 +80,7 @@ export default function PricingSection() {
       id="pricing"
       className="py-12 sm:py-16 md:py-20 lg:py-24 bg-[#F2FFFC]"
     >
-      <div className="container mx-auto px-4 sm:px-6">
+      <div className="container mx-auto px-4 sm:px-6" id="next-section">
         <motion.div
           variants={containerVariants}
           initial="hidden"
