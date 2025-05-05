@@ -118,18 +118,29 @@ export class ClaudeService {
     retryCount = 0
   ): Promise<Anthropic.Messages.Message> {
     try {
-      // Simple direct API call without timeout restrictions
-      const response = await this.client.messages.create({
-        model: model,
-        max_tokens: 8192,
-        system: systemPrompt,
-        messages: [
-          {
-            role: "user",
-            content: userMessage,
-          },
-        ],
-      });
+      // Add request timeout to prevent hanging in production environments
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 25000); // 25 second timeout
+
+      // API call with timeout control
+      const response = await this.client.messages.create(
+        {
+          model: model,
+          max_tokens: 4000, // Reduced from 8000 to improve response time
+          system: systemPrompt,
+          messages: [
+            {
+              role: "user",
+              content: userMessage,
+            },
+          ],
+        },
+        {
+          signal: controller.signal,
+        }
+      );
+
+      clearTimeout(timeoutId);
 
       // Basic validation to ensure the response is meaningful
       if (!response || !response.content || response.content.length === 0) {
@@ -152,8 +163,10 @@ export class ClaudeService {
       const isServerError = error.status >= 500 && error.status < 600;
       const isNetworkError =
         !error.status && error.message?.includes("network");
+      const isTimeoutError =
+        error.name === "AbortError" || error.message?.includes("timeout");
       const isRetryableError =
-        isRateLimitError || isServerError || isNetworkError;
+        isRateLimitError || isServerError || isNetworkError || isTimeoutError;
 
       // Determine if we should retry
       if (isRetryableError && retryCount < 2) {
@@ -161,7 +174,7 @@ export class ClaudeService {
         const backoffTime = (retryCount + 1) * 3000;
 
         console.warn(
-          `Claude API call failed with ${error.status || "network error"}, retrying in ${backoffTime / 1000}s (${retryCount + 1}/2)...`
+          `Claude API call failed with ${error.status || "network/timeout error"}, retrying in ${backoffTime / 1000}s (${retryCount + 1}/2)...`
         );
 
         // Wait with exponential backoff before retrying
@@ -169,10 +182,23 @@ export class ClaudeService {
 
         // Retry with an alternative model if the error might be model-specific
         let retryModel = model;
-        if (isServerError && model.includes("opus")) {
-          // Fallback to a more reliable model if the high-end model fails
-          retryModel = "claude-3-5-sonnet-20241022";
-          console.log(`Falling back to ${retryModel} for retry`);
+
+        // For timeouts or server errors, fallback to a simpler model and reduce complexity
+        if (isServerError || isTimeoutError) {
+          retryModel = "claude-3-haiku-20240307";
+          console.log(
+            `Falling back to ${retryModel} for retry due to timeout/server error`
+          );
+
+          // Simplify system prompt and user message for retry
+          systemPrompt =
+            systemPrompt.split("\n\n").slice(0, 2).join("\n\n") +
+            "\nCRITICAL: Generate a SIMPLIFIED diagram with fewer nodes and connections.";
+
+          userMessage =
+            userMessage.split("\n")[0] +
+            "\n" +
+            "Create a SIMPLIFIED version with 5-7 nodes maximum. Quality over quantity.";
         }
 
         return this.callClaudeAPI(

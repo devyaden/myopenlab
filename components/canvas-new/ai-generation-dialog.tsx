@@ -101,17 +101,30 @@ export function AIGenerationDialog({
     setIsLoading(true);
 
     try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 55000); // Client-side timeout after 55s
+
       const response = await fetch("/api/ai/generate-canvas", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify(data),
+        signal: controller.signal,
       });
+
+      clearTimeout(timeoutId);
 
       if (!response.ok) {
         const error = await response.json();
-        throw new Error(error.error || "Failed to generate canvas");
+        if (response.status === 408 || error.error?.includes("timeout")) {
+          toast.error(
+            "Request timed out. Please try a simpler request or try again later."
+          );
+        } else {
+          throw new Error(error.error || "Failed to generate canvas");
+        }
+        return;
       }
 
       const result = await response.json();
@@ -120,9 +133,18 @@ export function AIGenerationDialog({
       onClose();
     } catch (error) {
       console.error("Error generating canvas:", error);
-      toast.error(
-        error instanceof Error ? error.message : "Failed to generate canvas"
-      );
+
+      let errorMessage = "Failed to generate canvas";
+      if (error instanceof Error) {
+        if (error.name === "AbortError") {
+          errorMessage =
+            "Request took too long. Try a simpler prompt or try again later.";
+        } else {
+          errorMessage = error.message;
+        }
+      }
+
+      toast.error(errorMessage);
     } finally {
       setIsLoading(false);
     }

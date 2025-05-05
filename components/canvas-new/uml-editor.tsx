@@ -163,7 +163,6 @@ export function UMLEditor({
     canvasSettings?.backgroundColor || "#ffffff"
   );
 
-  console.log("nodes", edges);
   const [showMiniMap, setShowMiniMap] = useState(true);
 
   const [selectedNode, setSelectedNode] = useState<Node | null>(null);

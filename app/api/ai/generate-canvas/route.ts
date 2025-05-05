@@ -18,6 +18,9 @@ const generateCanvasSchema = z.object({
 // Type for the parsed input
 type GenerateCanvasInput = z.infer<typeof generateCanvasSchema>;
 
+// Configure longer timeout for production environments
+export const maxDuration = 60; // For Vercel's Edge and Serverless Functions
+
 export async function POST(request: NextRequest) {
   try {
     // Parse and validate the request body
@@ -60,13 +63,20 @@ export async function POST(request: NextRequest) {
     // Initialize Claude service
     const claudeService = new ClaudeService();
 
-    // Generate canvas data
-    const canvasData = await claudeService.generateCanvas(
-      input.language,
-      input.diagramType,
-      input.industry,
-      input.prompt
-    );
+    // Generate canvas data with timeout
+    const timeoutPromise = new Promise((_, reject) => {
+      setTimeout(() => reject(new Error("Canvas generation timed out")), 50000);
+    });
+
+    const canvasData = await Promise.race([
+      claudeService.generateCanvas(
+        input.language,
+        input.diagramType,
+        input.industry,
+        input.prompt
+      ),
+      timeoutPromise,
+    ]);
 
     // Track successful completion
     // posthog.capture(PostHogEvents.AI_DIAGRAM_GENERATION_COMPLETED, {
@@ -91,9 +101,16 @@ export async function POST(request: NextRequest) {
     // });
 
     // Return an appropriate error response
+    const errorMessage =
+      error instanceof Error
+        ? error.message === "Canvas generation timed out"
+          ? "The AI diagram generation is taking too long. Please try a simpler request."
+          : error.message
+        : "Failed to generate canvas";
+
     return NextResponse.json(
-      { error: "Failed to generate canvas" },
-      { status: 500 }
+      { error: errorMessage },
+      { status: error.message === "Canvas generation timed out" ? 408 : 500 }
     );
   }
 }
