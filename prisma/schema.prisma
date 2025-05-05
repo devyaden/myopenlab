@@ -24,6 +24,7 @@ model User {
   canvases        Canvas[]
   shared_canvases CanvasShare[]
   folders         Folder[]
+  notifications   String[]
 
   @@map("user")
 }
