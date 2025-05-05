@@ -163,7 +163,7 @@ export function UMLEditor({
     canvasSettings?.backgroundColor || "#ffffff"
   );
 
-  console.log("nodes", nodeStyles);
+  console.log("nodes", edges);
   const [showMiniMap, setShowMiniMap] = useState(true);
 
   const [selectedNode, setSelectedNode] = useState<Node | null>(null);
@@ -368,10 +368,77 @@ export function UMLEditor({
     [nodes, onNodesChange]
   );
 
+  // Enhance nodes with connection data
+  const enhanceNodesWithConnectionData = useCallback(
+    (nodes: Node[], edges: Edge[]): Node[] => {
+      // Create a map of node IDs to their labels for quick lookup
+      const nodeLabelsMap = new Map(
+        nodes.map((node) => [node.id, node.data.label || node.id])
+      );
+
+      return nodes.map((node) => {
+        // Find incoming and outgoing edges
+        const incomingEdges = edges.filter((edge) => edge.target === node.id);
+        const outgoingEdges = edges.filter((edge) => edge.source === node.id);
+
+        // Find parent and child nodes
+        const parentNodeId = node.parentNode;
+        const childNodeIds = nodes
+          .filter((n) => n.parentNode === node.id)
+          .map((n) => n.id);
+
+        // Get parent node label if it exists
+        const parentLabel = parentNodeId
+          ? nodeLabelsMap.get(parentNodeId) || parentNodeId
+          : "";
+
+        // Get child node labels if they exist
+        const childrenLabels = childNodeIds
+          .map((id) => nodeLabelsMap.get(id) || id)
+          .join(", ");
+
+        // Format edge information with labels
+        const fromInfo = incomingEdges
+          .map((edge) => {
+            const sourceLabel = nodeLabelsMap.get(edge.source) || edge.source;
+            const edgeLabel = edge.data?.label ? ` (${edge.data.label})` : "";
+            return `${sourceLabel}${edgeLabel}`;
+          })
+          .join(", ");
+
+        const toInfo = outgoingEdges
+          .map((edge) => {
+            const targetLabel = nodeLabelsMap.get(edge.target) || edge.target;
+            const edgeLabel = edge.data?.label ? ` (${edge.data.label})` : "";
+            return `${targetLabel}${edgeLabel}`;
+          })
+          .join(", ");
+
+        // Prepare enhanced data with only properties that have values
+        const enhancedData = {
+          ...node.data,
+          incoming: incomingEdges.map((edge) => edge.source),
+          outgoing: outgoingEdges.map((edge) => edge.target),
+        };
+
+        // Only add these properties if they have actual values
+        if (fromInfo) enhancedData.from = fromInfo;
+        if (toInfo) enhancedData.to = toInfo;
+        if (parentNodeId) enhancedData.parent = parentLabel;
+        if (childNodeIds.length > 0) enhancedData.children = childrenLabels;
+
+        return {
+          ...node,
+          data: enhancedData,
+        };
+      });
+    },
+    []
+  );
+
   const handleTableNodesChange = useCallback(
     (updatedNodes: Node[]) => {
       // Check if any nodes were deleted
-
       const deletedNodeIds = nodes
         .filter((node) => !updatedNodes.some((n) => n.id === node.id))
         .map((node) => node.id);
@@ -384,10 +451,17 @@ export function UMLEditor({
         onNodesChange?.(newNodes);
       } else {
         // Update existing nodes or add new nodes
+        const enhancedNodes = enhanceNodesWithConnectionData(nodes, edges);
+        const nodeLookup = new Map(
+          enhancedNodes.map((node) => [node.id, node])
+        );
+
         const newNodes = updatedNodes.map((updatedNode) => {
-          const existingNode = nodes.find((node) => node.id === updatedNode.id);
+          const existingNode =
+            nodeLookup.get(updatedNode.id) ||
+            nodes.find((node) => node.id === updatedNode.id);
           if (existingNode) {
-            // Update existing node
+            // Update existing node but preserve the enhanced data properties
             const newNode = {
               ...existingNode,
               data: {
@@ -397,6 +471,19 @@ export function UMLEditor({
               },
               type: updatedNode?.type || existingNode?.type,
             };
+
+            // Preserve relationship properties only if they exist in the source node
+            if (existingNode.data.from)
+              newNode.data.from = existingNode.data.from;
+            if (existingNode.data.to) newNode.data.to = existingNode.data.to;
+            if (existingNode.data.parent)
+              newNode.data.parent = existingNode.data.parent;
+            if (existingNode.data.children)
+              newNode.data.children = existingNode.data.children;
+            if (existingNode.data.incoming)
+              newNode.data.incoming = existingNode.data.incoming;
+            if (existingNode.data.outgoing)
+              newNode.data.outgoing = existingNode.data.outgoing;
 
             return newNode;
           } else {
@@ -410,7 +497,7 @@ export function UMLEditor({
         onNodesChange?.(newNodes);
       }
     },
-    [nodes, onNodesChange]
+    [nodes, edges, onNodesChange, enhanceNodesWithConnectionData]
   );
 
   const handleTableEdgesChange = useCallback(
@@ -708,12 +795,36 @@ export function UMLEditor({
         </>
       ) : (
         <TableView
-          nodes={nodes}
+          nodes={enhanceNodesWithConnectionData(nodes, edges)}
           edges={edges}
           onNodesChange={handleTableNodesChange}
           onEdgesChange={handleTableEdgesChange}
           onAddColumn={onAddColumn || (() => {})}
-          columns={columns}
+          columns={[
+            ...columns,
+            // Only add parent column if there are parent-child relationships
+            ...(nodes.some((node) => node.parentNode) &&
+            !columns.some((col) => col.title === "parent")
+              ? [{ title: "parent", type: "Text" }]
+              : []),
+
+            // Only add children column if there are nodes with children
+            ...(nodes.some((node) =>
+              nodes.some((n) => n.parentNode === node.id)
+            ) && !columns.some((col) => col.title === "children")
+              ? [{ title: "children", type: "Text" }]
+              : []),
+
+            // Only add from column if there are incoming connections
+            ...(edges.length > 0 && !columns.some((col) => col.title === "from")
+              ? [{ title: "from", type: "Text" }]
+              : []),
+
+            // Only add to column if there are outgoing connections
+            ...(edges.length > 0 && !columns.some((col) => col.title === "to")
+              ? [{ title: "to", type: "Text" }]
+              : []),
+          ]}
           setColumns={setColumns || (() => {})}
           currentFolderCanvases={currentFolderCanvases}
           canvasId={canvasId}
