@@ -211,7 +211,7 @@ export function HomeContent() {
 
       {/* Scrollable Folders Grid */}
       <ScrollArea className="flex-grow p-6 pt-0">
-        <div className="grid grid-cols-1 xs:grid-cols-2 md:grid-cols-3 lg:grid-cols-12 gap-4">
+        <div className="grid grid-cols-1 xs:grid-cols-3 md:grid-cols-8 lg:grid-cols-12 gap-4">
           {/* Root Folder - Only show if it matches search or search is empty */}
           {showRootFolder && (
             <Link href={`/protected/folder/root`}>
