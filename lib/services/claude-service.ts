@@ -126,7 +126,7 @@ export class ClaudeService {
       const response = await this.client.messages.create(
         {
           model: model,
-          max_tokens: 4000, // Reduced from 8000 to improve response time
+          max_tokens: 8000, // Reduced from 8000 to improve response time
           system: systemPrompt,
           messages: [
             {
