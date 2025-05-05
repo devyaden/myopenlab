@@ -102,7 +102,7 @@ export function AIGenerationDialog({
 
     try {
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 55000); // Client-side timeout after 55s
+      const timeoutId = setTimeout(() => controller.abort(), 150000); // Client-side timeout after 150s
 
       const response = await fetch("/api/ai/generate-canvas", {
         method: "POST",
