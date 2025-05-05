@@ -48,56 +48,56 @@ export default function Navbar() {
         <nav className="hidden md:flex items-center space-x-10">
           <button
             onClick={() => scrollToSection("features")}
-            className="text-base xl:text-lg  font-medium xl:font-semibold leading-none align-middle hover:text-green-500 transition-colors"
+            className="text-base xl:text-lg  font-medium xl:font-semibold leading-none align-middle hover:text-yadn-accent-green transition-colors"
             style={{ letterSpacing: "-0.5px" }}
           >
             Features
           </button>
           <button
             onClick={() => scrollToSection("pricing")}
-            className="text-base xl:text-lg font-medium xl:font-semibold leading-none align-middle hover:text-green-500 transition-colors"
+            className="text-base xl:text-lg font-medium xl:font-semibold leading-none align-middle hover:text-yadn-accent-green transition-colors"
             style={{ letterSpacing: "-0.5px" }}
           >
             Pricing
           </button>
           <button
-            onClick={() => scrollToSection("about")}
-            className="text-base xl:text-lg font-medium xl:font-semibold leading-none align-middle hover:text-green-500 transition-colors"
+            onClick={() => scrollToSection("video")}
+            className="text-base xl:text-lg font-medium xl:font-semibold leading-none align-middle hover:text-yadn-accent-green transition-colors"
             style={{ letterSpacing: "-0.5px" }}
           >
             Videos
           </button>
-          <Link
-            href="#"
-            className="text-base xl:text-lg font-medium xl:font-semibold leading-none align-middle hover:text-green-500 transition-colors"
+          <button
+            onClick={() => scrollToSection("learn")}
+            className="text-base xl:text-lg font-medium xl:font-semibold leading-none align-middle hover:text-yadn-accent-green transition-colors"
             style={{ letterSpacing: "-0.5px" }}
           >
             Learn
-          </Link>
-          <Link
-            href="#"
-            className="text-base xl:text-lg font-medium xl:font-semibold leading-none align-middle hover:text-green-500 transition-colors"
+          </button>
+          <button
+            onClick={() => scrollToSection("trust")}
+            className="text-base xl:text-lg font-medium xl:font-semibold leading-none align-middle hover:text-yadn-accent-green transition-colors"
             style={{ letterSpacing: "-0.5px" }}
           >
             Free Tools
-          </Link>
+          </button>
         </nav>
 
         <div className="hidden md:flex items-center gap-4">
           <Link href="#">
-            <Button className="w-[125px] h-[44px] px-4 py-3   text-[#032A22] font-inter font-medium text-[16px] leading-[20px] tracking-[-0.5px] bg-transparent">
+            <Button className="w-[125px] h-[44px] px-4 py-3 text-[#032A22] font-inter font-medium text-[16px] leading-[20px] tracking-[-0.5px] bg-transparent hover:bg-transparent">
               Book a demo
             </Button>
           </Link>
           {user ? (
             <Link href="/protected">
-              <Button className="w-[125px] h-[44px] px-4 py-3 rounded-[10px]  border-[1px] border-[#032A22] text-[#FFFFFF] font-inter font-medium text-[16px] leading-[20px] tracking-[-0.5px] bg-[#0FB492] shadow-[2px_2px_0px_0px_#032A22] transition-all duration-300 ease-in-out hover:scale-105">
+              <Button className="w-[125px] h-[44px] px-4 py-3 rounded-[10px]  border-[1px] border-yadn-accent-green text-[#FFFFFF] bg-yadn-accent-green font-inter font-medium text-[16px] leading-[20px] tracking-[-0.5px] bg-yadnyadn- shadow-[2px_2px_0px_0px_#032A22] transition-all duration-300 ease-in-out hover:scale-105 hover:bg-yadn-accent-green/80">
                 Dashboard
               </Button>
             </Link>
           ) : (
             <Link href="/authentication">
-              <Button className="w-[125px] h-[44px] px-4 py-3 rounded-[10px]  border-[1px] border-[#032A22] text-[#FFFFFF] font-inter font-medium text-[16px] leading-[20px] tracking-[-0.5px] bg-[#0FB492] shadow-[2px_2px_0px_0px_#032A22] transition-all duration-300 ease-in-out hover:scale-105">
+              <Button className="w-[125px] h-[44px] px-4 py-3 rounded-[10px]  border-[1px] border-yadn-accent-green text-[#FFFFFF] font-inter font-medium text-[16px] leading-[20px] tracking-[-0.5px] bg-yadn-accent-green shadow-[2px_2px_0px_0px_#032A22] transition-all duration-300 ease-in-out hover:scale-105 hover:bg-yadn-accent-green/80">
                 Start for free
               </Button>
             </Link>

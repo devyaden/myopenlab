@@ -8,7 +8,7 @@ export default function Features() {
   const features = [
     {
       icon: (
-        <Hand className="h-6 w-6 sm:h-7 sm:w-7 md:h-8 md:w-8 text-gray-900" />
+        <img src='./assets/icons/drag.png' alt='' className="h-6 w-6 sm:h-7 sm:w-7 md:h-8 md:w-8 lg:w-[42px] lg:h-[42px] text-gray-900" />
       ),
       title: "Drag-and-Drop Editor",
       description:
@@ -16,7 +16,7 @@ export default function Features() {
     },
     {
       icon: (
-        <Clock className="h-6 w-6 sm:h-7 sm:w-7 md:h-8 md:w-8 text-gray-900" />
+        <img src='./assets/icons/time.png' alt='' className="h-6 w-6 sm:h-7 sm:w-7 md:h-8 md:w-8 lg:w-[42px] lg:h-[42px] text-gray-900" />
       ),
       title: "Collaboration & Real-Time Editing",
       description:
@@ -24,7 +24,7 @@ export default function Features() {
     },
     {
       icon: (
-        <LayoutTemplate className="h-6 w-6 sm:h-7 sm:w-7 md:h-8 md:w-8 text-gray-900" />
+        <img src='./assets/icons/template.png' alt='' className="h-6 w-6 sm:h-7 sm:w-7 md:h-8 md:w-8 lg:w-[32px] lg:h-[32px] text-gray-900" />
       ),
       title: "Smart Auto-Layout & Templates",
       description:
@@ -32,7 +32,7 @@ export default function Features() {
     },
     {
       icon: (
-        <Share2 className="h-6 w-6 sm:h-7 sm:w-7 md:h-8 md:w-8 text-gray-900" />
+        <img src='./assets/icons/export.png' alt='' className="h-6 w-6 sm:h-7 sm:w-7 md:h-8 md:w-8 lg:w-[42px] lg:h-[42px] text-gray-900" />
       ),
       title: "Export & Integration",
       description:
@@ -86,7 +86,7 @@ export default function Features() {
                 className="flex flex-col items-center text-center hover:border-[2px] hover:border-black hover:shadow-[3px_3px_0_0_#000000] rounded-[12px] gap-4 sm:gap-6 md:gap-8 w-full h-full bg-[#F8F8F8] hover:bg-gray-50 transition-colors py-5 sm:py-6 md:py-7 px-3 sm:px-4 md:px-[16px]"
                 whileHover={{ y: -5 }}
               >
-                <div className="mb-2 sm:mb-3 md:mb-4 p-2 sm:p-3 rounded-full">
+                <div className=" p-2 sm:p-3 rounded-full">
                   {feature.icon}
                 </div>
 

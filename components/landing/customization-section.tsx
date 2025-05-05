@@ -67,7 +67,7 @@ export default function CustomizationSection() {
             transition={{ duration: 0.6 }}
             className="md:w-1/2 mt-8 md:mt-0"
           >
-            <div className="bg-green-500 rounded-xl aspect-video"></div>
+            <div className="bg-yadn-accent-green rounded-xl aspect-video"></div>
           </motion.div>
         </div>
       </div>

@@ -34,22 +34,23 @@ export default function Hero() {
           <div className="flex flex-col sm:flex-row justify-center gap-4">
             <Link href="#" className="w-full sm:w-auto mx-auto sm:mx-0">
               <Button
-                className="bg-[#0FB492] text-white rounded-[10px] border-[1px] border-[#032A22] shadow-[2px_2px_0_0_#000000]
+                className="bg-yadn-accent-green text-white rounded-[10px] border-[1px] border-[#032A22] shadow-[2px_2px_0_0_#000000]
                 px-4 py-3 h-[44px] w-full min-w-[164px] sm:w-[164px] gap-2
                 xl:w-[180px] xl:h-[50px]
                 2xl:w-[200px] 2xl:h-[56px]
                 font-inter font-medium text-[15px] xs:text-[16px] sm:text-[18px] xl:text-[20px] 2xl:text-[22px] leading-[20px] tracking-[-0.5px]
                 flex items-center justify-center
-                transition-all duration-300 ease-in-out hover:scale-105 hover:border-2 hover:border-[#032A22]"
+                transition-all duration-300 ease-in-out hover:scale-105 hover:bg-yadn-accent-green/80 hover:border-1 hover:border-[#032A22]"
               >
                 Start for free
               </Button>
             </Link>
             <Link href="#" className="w-full sm:w-auto mx-auto sm:mx-0">
               <Button
+              variant='outline'
                 className="bg-transparent text-[#032A22] border-[#032A22] border-[1px] px-4 py-3 h-[44px] w-full min-w-[164px] sm:w-[164px] rounded-[10px] flex items-center justify-center gap-2
                 xl:h-[50px] xl:w-[180px] 2xl:h-[56px] 2xl:w-[200px] font-inter font-medium text-[15px] xs:text-[16px] sm:text-[18px] xl:text-[20px] 2xl:text-[22px] leading-[20px] tracking-[-0.5px]
-                hover:bg-transparent hover:border-[#032A22] hover:text-[#032A22]"
+                 hover:border-[#032A22] hover:text-[#032A22]"
               >
                 Book a demo
               </Button>
@@ -61,13 +62,14 @@ export default function Hero() {
           initial={{ opacity: 0, y: 50 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.7, delay: 0.2 }}
+          id='video'
           className="mt-8 sm:mt-10 md:mt-12 max-w-4xl mx-auto px-2 sm:px-0"
         >
           <Link href="#" className="block">
             <div className="relative aspect-video bg-[#C9ACAC] rounded-[20px] sm:rounded-[25px] md:rounded-[32px] overflow-hidden flex items-center justify-center border-[2px] border-black shadow-[3px_3px_0_0_#000000] sm:shadow-[4px_4px_0_0_#000000] md:shadow-[5px_5px_0_0_#000000]">
               <div className="absolute inset-0 flex items-center justify-center">
                 <button
-                  className="w-12 h-12 sm:w-14 sm:h-14 md:w-16 md:h-16 bg-[#0FB492] rounded-full flex items-center justify-center border-none hover:bg-[#0FB492] hover:scale-110 transition-all duration-300 ease-in-out 
+                  className="w-12 h-12 sm:w-14 sm:h-14 md:w-16 md:h-16 bg-yadn-accent-green rounded-full flex items-center justify-center border-none hover:bg-yadn-accent-green/80 hover:scale-110 transition-all duration-300 ease-in-out 
                   xl:w-[64px] xl:h-[64px] 2xl:w-[72px] 2xl:h-[72px]"
                 >
                   <svg

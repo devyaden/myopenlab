@@ -47,9 +47,8 @@ export default function EngagementSection() {
 
   // Handle scroll within the section
   const handleWheel = (e: WheelEvent) => {
+    console.log("🚀 ~ handleWheel ~ e:", e)
     e.preventDefault();
-
-    if (scrollLocked.current) return;
 
     // Lock scrolling temporarily to prevent rapid scrolling
     scrollLocked.current = true;
@@ -57,9 +56,23 @@ export default function EngagementSection() {
     if (e.deltaY > 0) {
       // Scroll down - next feature
       setActiveIndex((prev) => (prev < features.length - 1 ? prev + 1 : prev));
+
+      if (activeIndex === features.length - 1) {
+        if (sectionRef.current) {
+          sectionRef.current.removeEventListener("wheel", handleWheel as EventListener);
+        }
+        return;
+      }
     } else {
       // Scroll up - previous feature
       setActiveIndex((prev) => (prev > 0 ? prev - 1 : prev));
+
+      if (activeIndex === 0) {
+        if (sectionRef.current) {
+          sectionRef.current.removeEventListener("wheel", handleWheel as EventListener);
+        }
+        return;
+      }
     }
 
     // Unlock scrolling after a delay
@@ -70,11 +83,13 @@ export default function EngagementSection() {
     scrollTimeout.current = setTimeout(() => {
       scrollLocked.current = false;
     }, 500);
+
   };
 
   // Set up and clean up wheel event listener
   useEffect(() => {
     const section = sectionRef.current;
+    console.log(1)
 
     if (section) {
       section.addEventListener("wheel", handleWheel as EventListener, {
@@ -88,10 +103,11 @@ export default function EngagementSection() {
         }
       };
     }
-  }, []);
+  }, [activeIndex]);
 
   // Scroll the active item into view when it changes
   useEffect(() => {
+    console.log(activeIndex, 'activeIndex > 101')
     if (sectionRefs.current[activeIndex]) {
       sectionRefs.current[activeIndex]?.scrollIntoView({
         behavior: "smooth",

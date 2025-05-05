@@ -78,9 +78,9 @@ export default function PricingSection() {
   return (
     <section
       id="pricing"
-      className="py-12 sm:py-16 md:py-20 lg:py-24 bg-gray-50"
+      className="py-12 sm:py-16 md:py-20 lg:py-24 bg-[#F2FFFC]"
     >
-      <div className="container mx-auto px-4 sm:px-6">
+      <div className="container mx-auto px-4 sm:px-6" id="next-section">
         <motion.div
           variants={containerVariants}
           initial="hidden"
@@ -99,7 +99,7 @@ export default function PricingSection() {
               }`}
             >
               {plan.popular && (
-                <div className="absolute -top-3 right-4 bg-emerald-500 text-white text-xs font-bold py-1 px-3 rounded-full">
+                <div className="absolute -top-3 right-4 bg-yadn-accent-green text-white text-xs font-bold py-1 px-3 rounded-full">
                   Most Popular
                 </div>
               )}
@@ -136,10 +136,10 @@ export default function PricingSection() {
 
                 <Link href="#" className="block w-full mt-auto">
                   <button
-                    className={`w-full h-10 sm:h-12 px-4 py-2 sm:py-3 rounded-[10px] text-center font-normal text-sm sm:text-[16px] leading-[160%] tracking-[-0.02em] shadow-[2px_2px_0px_0px_#032A22] border border-[#032A22] font-inter transition-colors ${
+                    className={`w-full h-10 sm:h-12 px-4 rounded-[10px] text-center font-normal text-sm sm:text-[16px] leading-[160%] tracking-[-0.02em] shadow-[2px_2px_0px_0px_#032A22] border border-[#032A22] font-inter transition-colors ${
                       plan.ctaColor === "green"
-                        ? "bg-emerald-500 hover:bg-emerald-600 text-white"
-                        : "hover:bg-gray-50 text-gray-800"
+                        ? "bg-yadn-accent-green hover:bg-yadn-accent-green/80 text-white"
+                        : "hover:bg-gray-100 text-gray-800"
                     }`}
                   >
                     {plan.cta}
