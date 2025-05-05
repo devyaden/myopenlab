@@ -120,7 +120,7 @@ export class ClaudeService {
     try {
       // Add request timeout to prevent hanging in production environments
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 25000); // 25 second timeout
+      const timeoutId = setTimeout(() => controller.abort(), 125000); // 25 second timeout
 
       // API call with timeout control
       const response = await this.client.messages.create(
