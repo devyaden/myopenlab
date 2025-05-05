@@ -187,50 +187,38 @@ export function HomeContent() {
   return (
     <div className="flex flex-col h-full">
       <div className="p-6 flex-shrink-0 bg-white">
-        <div className="flex justify-between items-center mb-6">
+        <div className="flex flex-col md:flex-row justify-between md:items-center mb-6">
           <h1 className="text-2xl font-semibold">Home</h1>
-          <Button
-            onClick={() => setCreateNewModalType("canvas")}
-            className="bg-yadn-accent-green hover:bg-yadn-accent-green/80 text-white"
-          >
-            <Plus className="mr-2 h-4 w-4" /> Create New
-          </Button>
-        </div>
-
-        <div className="relative max-w-3xl mx-auto mb-6">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
-          <Input
-            placeholder="Search folders and files..."
-            className="pl-10 h-12 rounded-lg border-gray-200"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-          />
-        </div>
-
-        {/* Folders Section Header */}
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-medium">Folders</h2>
-          <Button
-            variant="ghost"
-            size="sm"
-            className="text-sm"
-            onClick={() => setCreateNewModalType("folder")}
-          >
-            <Plus className="mr-1 h-4 w-4" /> New Folder
-          </Button>
+          <div className="flex justify-end items-center w-full">
+            <div className="relative max-w-3xl w-full mr-2 mt-1 md:mt-auto md:mx-2">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+              <Input
+                placeholder="Search folders and files..."
+                className="pl-10 h-12 rounded-lg border-gray-200"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+            </div>
+            <Button
+              onClick={() => setCreateNewModalType("canvas")}
+              className="bg-yadn-accent-green hover:bg-yadn-accent-green/80 text-white"
+            >
+              <Plus className="mr-2 h-4 w-4" /> Create New
+            </Button>
+          </div>
         </div>
       </div>
 
       {/* Scrollable Folders Grid */}
       <ScrollArea className="flex-grow p-6 pt-0">
-        <div className="grid grid-cols-1 xs:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 xs:grid-cols-2 md:grid-cols-3 lg:grid-cols-12 gap-4">
           {/* Root Folder - Only show if it matches search or search is empty */}
           {showRootFolder && (
             <Link href={`/protected/folder/root`}>
               <Card className="p-4 hover:shadow-md transition-shadow cursor-pointer group border-2 border-dashed border-yadn-accent-blue/30">
-                <div className="flex items-start justify-between">
-                  <div className="flex items-center">
-                    <Folder className="h-10 w-10 text-yadn-accent-blue mr-3" />
+                <div className="flex items-start justify-center">
+                  <div className="flex flex-col items-center justify-center">
+                    <Folder className="h-14 w-14 text-yadn-accent-blue mr-3" />
                     <div>
                       <h3 className="font-medium text-gray-900 truncate max-w-[150px]">
                         Root
@@ -255,9 +243,9 @@ export function HomeContent() {
             filteredFolders.map((folder) => (
               <Link href={`/protected/folder/${folder.id}`} key={folder.id}>
                 <Card className="p-4 hover:shadow-md transition-shadow cursor-pointer group">
-                  <div className="flex items-start justify-between">
-                    <div className="flex items-center">
-                      <Folder className="h-10 w-10 text-yadn-accent-dark-orange mr-3" />
+                  <div className="flex items-start justify-center">
+                    <div className="flex flex-col items-center justify-center">
+                      <Folder className="h-14 w-14 text-yadn-accent-dark-orange mr-3" />
                       <div>
                         <h3 className="font-medium text-gray-900 truncate max-w-[150px]">
                           {folder.name}
@@ -304,6 +292,17 @@ export function HomeContent() {
               </Link>
             ))
           )}
+          {/* Folders Section Header */}
+          <div className="flex w-full h-full items-center justify-between mb-4">
+            {/* <h2 className="text-lg font-medium">Folders</h2> */}
+            <Button
+              variant="ghost"
+              className="flex flex-col text-sm w-full h-full border border-gray-200"
+              onClick={() => setCreateNewModalType("folder")}
+            >
+              <Plus className="mr-1 h-4 w-4" /> New Folder
+            </Button>
+          </div>
         </div>
       </ScrollArea>
 
