@@ -101,6 +101,7 @@ export async function callClaudeAPIWithTools(
       {
         model: model,
         max_tokens: 8000,
+        temperature: 1,
         system: systemPrompt,
         messages: [
           {
