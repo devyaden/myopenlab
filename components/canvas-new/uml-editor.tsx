@@ -276,11 +276,18 @@ export function UMLEditor({
 
   const handleConnect = useCallback(
     (params: Connection) => {
+      // Assign default handles if they're not already defined
+      if (!params.sourceHandle) params.sourceHandle = "g"; // right
+      if (!params.targetHandle) params.targetHandle = "d"; // left
+
       const newEdge = {
         ...params,
         type: "floating",
         data: { type: "default", label: "", onLabelChange: onChangeEdgeLabel },
         markerEnd: { type: MarkerType.Arrow },
+        // Ensure handles are explicitly set
+        sourceHandle: params.sourceHandle,
+        targetHandle: params.targetHandle,
       };
       const updatedEdges = addEdge(newEdge, edges);
       onEdgesChange?.(updatedEdges);
@@ -647,40 +654,47 @@ export function UMLEditor({
 
   const memoizedNodes = useMemo(
     () =>
-      nodes.map((node) => ({
-        ...node,
-        data: {
-          ...node.data,
-          style: {
-            ...nodeStyles[node.id],
-            width:
-              node?.type === "imageNode"
-                ? node.style?.width
-                : node.style?.width || (node?.type === "textNode" ? 150 : 100),
-            height:
-              node?.type === "imageNode"
-                ? node.style?.height
-                : node.style?.height || (node?.type === "textNode" ? 50 : 100),
+      nodes.map((node) => {
+        // Ensure dimensions are properly set for the node
+        const nodeWidth =
+          node.width ||
+          node.data.width ||
+          (node.type === "textNode" ? 150 : 100);
+        const nodeHeight =
+          node.height ||
+          node.data.height ||
+          (node.type === "textNode" ? 50 : 100);
+
+        return {
+          ...node,
+          width: nodeWidth,
+          height: nodeHeight,
+          data: {
+            ...node.data,
+            // Ensure width and height are passed to node data
+            width: nodeWidth,
+            height: nodeHeight,
+            style: {
+              ...nodeStyles[node.id],
+              width: nodeWidth,
+              height: nodeHeight,
+            },
+            onLabelChange:
+              node?.type === "swimlaneNode"
+                ? handleSwimlaneUpdate
+                : onLabelChange,
+            onAddLane: node?.type === "swimlaneNode" ? onAddLane : undefined,
           },
-          onLabelChange:
-            node?.type === "swimlaneNode"
-              ? handleSwimlaneUpdate
-              : onLabelChange,
-          onAddLane: node?.type === "swimlaneNode" ? onAddLane : undefined,
-        },
-        style: {
-          width:
-            node?.type === "imageNode"
-              ? node.style?.width
-              : node.style?.width || (node?.type === "textNode" ? 150 : 100),
-          height:
-            node?.type === "imageNode"
-              ? node.style?.height
-              : node.style?.height || (node?.type === "textNode" ? 50 : 100),
-        },
-        connectable: node?.type !== "textNode",
-        selected: selectedNodes.includes(node.id),
-      })),
+          // Also set dimensions at the node level for proper rendering
+          style: {
+            ...node.style,
+            width: nodeWidth,
+            height: nodeHeight,
+          },
+          connectable: node.type !== "textNode",
+          selected: selectedNodes.includes(node.id),
+        };
+      }),
     [
       nodes,
       nodeStyles,
@@ -693,11 +707,28 @@ export function UMLEditor({
 
   const memoizedEdges = useMemo(
     () =>
-      edges.map((edge) => ({
-        ...edge,
-        type: "custom",
-        data: { ...edge.data, onLabelChange: onChangeEdgeLabel },
-      })),
+      edges.map((edge) => {
+        // Ensure edges have defined handles
+        const sourceHandle = edge.sourceHandle || "g"; // default to right
+        const targetHandle = edge.targetHandle || "d"; // default to left
+
+        // Enhanced edge style for visibility
+        const enhancedStyle = {
+          ...(edge.style || {}),
+          opacity: edge.style?.opacity !== undefined ? edge.style.opacity : 1.0,
+          strokeWidth:
+            edge.style?.strokeWidth !== undefined ? edge.style.strokeWidth : 2,
+        };
+
+        return {
+          ...edge,
+          type: "custom",
+          sourceHandle,
+          targetHandle,
+          style: enhancedStyle,
+          data: { ...edge.data, onLabelChange: onChangeEdgeLabel },
+        };
+      }),
     [edges, onChangeEdgeLabel]
   );
 
@@ -712,6 +743,28 @@ export function UMLEditor({
       onMiniMapToggleRef(() => toggleMiniMap);
     }
   }, [onMiniMapToggleRef, toggleMiniMap]);
+
+  useEffect(() => {
+    // Special handling for EVENT_VISITOR_EXPERIENCE diagrams to ensure connections are visible
+    if (canvasType === CANVAS_TYPE.HYBRID && edges.length > 0) {
+      // Check if any edges are missing handles and fix them
+      const fixedEdges = edges.map((edge) => {
+        if (!edge.sourceHandle || !edge.targetHandle) {
+          return {
+            ...edge,
+            sourceHandle: edge.sourceHandle || "g", // default right
+            targetHandle: edge.targetHandle || "d", // default left
+          };
+        }
+        return edge;
+      });
+
+      // Only update if there were any changes
+      if (JSON.stringify(fixedEdges) !== JSON.stringify(edges)) {
+        onEdgesChange?.(fixedEdges);
+      }
+    }
+  }, [canvasType, edges, onEdgesChange]);
 
   return (
     <div className="w-full h-[calc(100vh-132px)]" ref={reactFlowWrapper}>

@@ -570,9 +570,32 @@ export function generateFallbackData(
   let edges: any[] = [];
   let nodeStyles: Record<string, any> = {};
 
+  // Generate nodes based on diagram type
   switch (diagramType) {
     case DiagramType.WORKFLOW:
       nodes = generateWorkflowNodes(title, timestamp);
+
+      // For RTL languages like Arabic, mirror the workflow layout
+      if (language === LanguageType.ARABIC) {
+        // Find the maximum x position to calculate mirroring
+        const maxX = nodes.reduce(
+          (max, node) => Math.max(max, node.position.x + (node.width || 150)),
+          0
+        );
+
+        // Reverse the horizontal position for RTL
+        nodes = nodes.map((node) => ({
+          ...node,
+          position: {
+            ...node.position,
+            x: maxX - node.position.x - (node.width || 150),
+          },
+          data: {
+            ...node.data,
+            label: getTranslatedLabel(node.data.label.toLowerCase(), language),
+          },
+        }));
+      }
       break;
     case DiagramType.WEBSITE_WIREFRAME:
       nodes = generateWireframeNodes(title, timestamp);
@@ -591,7 +614,7 @@ export function generateFallbackData(
   }
 
   // Generate edges between nodes
-  edges = generateEdgesForNodes(nodes, diagramType);
+  edges = generateEdgesForNodes(nodes, diagramType, language);
 
   // Generate node styles
   nodeStyles = generateNodeStyles(nodes, industry);
@@ -609,8 +632,13 @@ export function generateFallbackData(
 /**
  * Generates edges between nodes based on diagram type and relative node positions
  */
-export function generateEdgesForNodes(nodes: any[], diagramType: DiagramType) {
+export function generateEdgesForNodes(
+  nodes: any[],
+  diagramType: DiagramType,
+  language: LanguageType = LanguageType.ENGLISH
+) {
   const edges: any[] = [];
+  const isRTL = language === LanguageType.ARABIC;
 
   // Skip edge generation for wireframes
   if (diagramType === DiagramType.WEBSITE_WIREFRAME) {
@@ -630,13 +658,16 @@ export function generateEdgesForNodes(nodes: any[], diagramType: DiagramType) {
       const targetNode = nodes[i];
 
       // Determine appropriate handles based on relative positions
-      let sourceHandle = "g"; // Default right side
-      let targetHandle = "d"; // Default left side
+      let sourceHandle = isRTL ? "h" : "g"; // Default to right side in LTR, left side in RTL
+      let targetHandle = isRTL ? "c" : "d"; // Default to left side in LTR, right side in RTL
 
       // Check if target is to the left of center
-      if (targetNode.position.x < centerNode.position.x) {
-        sourceHandle = "h"; // Left side of source
-        targetHandle = "c"; // Right side of target
+      if (
+        (targetNode.position.x < centerNode.position.x && !isRTL) ||
+        (targetNode.position.x > centerNode.position.x && isRTL)
+      ) {
+        sourceHandle = isRTL ? "g" : "h"; // Left side of source
+        targetHandle = isRTL ? "d" : "c"; // Right side of target
       }
 
       edges.push({
@@ -655,11 +686,147 @@ export function generateEdgesForNodes(nodes: any[], diagramType: DiagramType) {
     return edges;
   }
 
-  // For hierarchies, connect top to bottom with correct handle positions
+  // For workflows, connect subsequent nodes
+  if (diagramType === DiagramType.WORKFLOW && nodes.length > 1) {
+    // Sort nodes by x and y position to determine flow
+    // For RTL languages, we sort in reverse for x position
+    const sortedNodes = [...nodes].sort((a, b) => {
+      // For RTL direction, we want right to left (higher x to lower x)
+      const xComparison = isRTL
+        ? b.position.x - a.position.x
+        : a.position.x - b.position.x;
+
+      // If nodes are roughly in the same column, sort by y position
+      if (Math.abs(a.position.x - b.position.x) < 50) {
+        return a.position.y - b.position.y;
+      }
+      return xComparison;
+    });
+
+    // Create edges between nodes in logical flow order
+    for (let i = 0; i < sortedNodes.length - 1; i++) {
+      const sourceNode = sortedNodes[i];
+      const targetNode = sortedNodes[i + 1];
+
+      // Skip connections to or from decision diamonds that will be handled separately
+      if (
+        sourceNode.data.shape === "diamond" ||
+        targetNode.data.shape === "diamond"
+      ) {
+        continue;
+      }
+
+      // Determine appropriate handles based on relative positions
+      let sourceHandle = isRTL ? "h" : "g"; // Default left in RTL, right in LTR
+      let targetHandle = isRTL ? "c" : "d"; // Default right in RTL, left in LTR
+
+      // For horizontal connections in the same row
+      if (Math.abs(sourceNode.position.y - targetNode.position.y) < 50) {
+        sourceHandle = isRTL ? "h" : "g"; // Left side in RTL, right side in LTR
+        targetHandle = isRTL ? "c" : "d"; // Right side in RTL, left side in LTR
+      }
+      // For downward connections
+      else if (sourceNode.position.y < targetNode.position.y) {
+        sourceHandle = "f"; // Bottom
+        targetHandle = "a"; // Top
+      }
+      // For upward connections
+      else if (sourceNode.position.y > targetNode.position.y) {
+        sourceHandle = "e"; // Top
+        targetHandle = "b"; // Bottom
+      }
+
+      edges.push({
+        id: `edge-${sourceNode.id}-${targetNode.id}`,
+        source: sourceNode.id,
+        target: targetNode.id,
+        sourceHandle,
+        targetHandle,
+        type: "smoothstep",
+        style: {
+          strokeWidth: 2,
+          opacity: 1.0,
+        },
+        animated: true,
+        markerEnd: {
+          type: "arrowclosed",
+        },
+      });
+    }
+
+    // Decision node connections for workflow diagrams
+    if (diagramType === DiagramType.WORKFLOW) {
+      // Find all diamond nodes (decision points)
+      const decisionNodes = nodes.filter(
+        (node) => node.data.shape === "diamond"
+      );
+
+      for (const decisionNode of decisionNodes) {
+        // Find nodes to connect as alternative paths
+        const currentIndex = sortedNodes.findIndex(
+          (node) => node.id === decisionNode.id
+        );
+
+        if (currentIndex >= 0 && currentIndex + 2 < sortedNodes.length) {
+          const targetIndex = Math.min(
+            currentIndex + 2,
+            sortedNodes.length - 1
+          );
+          const targetNode = sortedNodes[targetIndex];
+
+          // Choose appropriate handles based on relative positions
+          let sourceHandle, targetHandle;
+
+          // If target is below decision node
+          if (
+            targetNode.position.y >
+            decisionNode.position.y + decisionNode.height / 2
+          ) {
+            sourceHandle = "f"; // bottom of decision
+            targetHandle = "a"; // top of target
+          }
+          // For horizontal connections, respect RTL direction
+          else if (
+            (targetNode.position.x > decisionNode.position.x && !isRTL) ||
+            (targetNode.position.x < decisionNode.position.x && isRTL)
+          ) {
+            sourceHandle = isRTL ? "h" : "g"; // right in LTR, left in RTL
+            targetHandle = isRTL ? "c" : "d"; // left in LTR, right in RTL
+          }
+          // Opposite horizontal direction
+          else {
+            sourceHandle = isRTL ? "g" : "h"; // left in LTR, right in RTL
+            targetHandle = isRTL ? "d" : "c"; // right in LTR, left in RTL
+          }
+
+          // Add the alternative path
+          edges.push({
+            id: `edge-decision-${decisionNode.id}-${targetNode.id}`,
+            source: decisionNode.id,
+            target: targetNode.id,
+            sourceHandle,
+            targetHandle,
+            type: "smoothstep",
+            style: {
+              strokeWidth: 2,
+              strokeDasharray: "5,5", // Dashed line for alternative path
+              opacity: 1.0,
+            },
+            markerEnd: {
+              type: "arrowclosed",
+            },
+          });
+        }
+      }
+    }
+
+    return edges;
+  }
+
+  // For hierarchies, connect with proper handle positions respecting RTL if needed
   if (diagramType === DiagramType.HIERARCHY) {
     for (let i = 0; i < nodes.length - 1; i++) {
-      // For hierarchical diagrams, we need to find parent-child relationships
-      // based on vertical positioning
+      // For hierarchical diagrams, find parent-child relationships based on vertical positioning
       const sourceNode = nodes[i];
 
       // Find all children (nodes that are below this node)
@@ -670,15 +837,37 @@ export function generateEdgesForNodes(nodes: any[], diagramType: DiagramType) {
       );
 
       for (const childNode of childNodes) {
+        // For hierarchy diagrams, we primarily use vertical connections
+        // but may adjust horizontal handles based on RTL setting
+        let sourceHandle = "f"; // Bottom of source
+        let targetHandle = "a"; // Top of target
+
+        // For nodes significantly offset horizontally, add RTL awareness
+        if (Math.abs(childNode.position.x - sourceNode.position.x) > 100) {
+          if (
+            (childNode.position.x > sourceNode.position.x && !isRTL) ||
+            (childNode.position.x < sourceNode.position.x && isRTL)
+          ) {
+            // Child is to the right in LTR or to the left in RTL
+            sourceHandle = isRTL ? "h" : "g";
+            targetHandle = isRTL ? "c" : "d";
+          } else {
+            // Child is to the left in LTR or to the right in RTL
+            sourceHandle = isRTL ? "g" : "h";
+            targetHandle = isRTL ? "d" : "c";
+          }
+        }
+
         edges.push({
           id: `edge-${sourceNode.id}-${childNode.id}`,
           source: sourceNode.id,
           target: childNode.id,
-          sourceHandle: "f", // Bottom of source
-          targetHandle: "a", // Top of target
+          sourceHandle,
+          targetHandle,
           type: "smoothstep",
           style: {
             strokeWidth: 2,
+            opacity: 1.0,
           },
           markerEnd: {
             type: "arrowclosed",
@@ -702,6 +891,7 @@ export function generateEdgesForNodes(nodes: any[], diagramType: DiagramType) {
           type: "smoothstep",
           style: {
             strokeWidth: 2,
+            opacity: 1.0,
           },
           markerEnd: {
             type: "arrowclosed",
@@ -711,114 +901,6 @@ export function generateEdgesForNodes(nodes: any[], diagramType: DiagramType) {
     }
 
     return edges;
-  }
-
-  // For workflows and other diagram types, connect based on relative positions
-  for (let i = 0; i < nodes.length - 1; i++) {
-    const sourceNode = nodes[i];
-    const targetNode = nodes[i + 1];
-
-    // Determine the appropriate source and target handles based on relative positions
-    let sourceHandle, targetHandle;
-
-    // Horizontal flow (left to right)
-    if (targetNode.position.x > sourceNode.position.x + sourceNode.width / 2) {
-      sourceHandle = "g"; // right side of source
-      targetHandle = "d"; // left side of target
-    }
-    // Horizontal flow (right to left)
-    else if (
-      targetNode.position.x + targetNode.width / 2 <
-      sourceNode.position.x
-    ) {
-      sourceHandle = "h"; // left side of source
-      targetHandle = "c"; // right side of target
-    }
-    // Vertical flow (top to bottom)
-    else if (targetNode.position.y > sourceNode.position.y) {
-      sourceHandle = "f"; // bottom of source
-      targetHandle = "a"; // top of target
-    }
-    // Vertical flow (bottom to top)
-    else {
-      sourceHandle = "e"; // top of source
-      targetHandle = "b"; // bottom of target
-    }
-
-    edges.push({
-      id: `edge-${sourceNode.id}-${targetNode.id}`,
-      source: sourceNode.id,
-      target: targetNode.id,
-      sourceHandle,
-      targetHandle,
-      type: "smoothstep",
-      style: {
-        strokeWidth: 2,
-        edgeType: diagramType === DiagramType.WORKFLOW ? "animated" : "default",
-        className: diagramType === DiagramType.WORKFLOW ? "animated-edge" : "",
-      },
-      markerEnd: {
-        type: "arrowclosed",
-      },
-    });
-  }
-
-  // For workflow diagrams, add additional connections for decision points
-  if (diagramType === DiagramType.WORKFLOW && nodes.length > 4) {
-    // Find all diamond nodes (decision points)
-    const decisionNodes = nodes.filter((node) => node.data.shape === "diamond");
-
-    for (const decisionNode of decisionNodes) {
-      // Find a node to connect as alternative path (usually 2-3 nodes ahead)
-      const currentIndex = nodes.findIndex(
-        (node) => node.id === decisionNode.id
-      );
-      if (currentIndex >= 0 && currentIndex + 2 < nodes.length) {
-        const targetIndex = Math.min(currentIndex + 2, nodes.length - 1);
-        const targetNode = nodes[targetIndex];
-
-        // Choose appropriate handles based on relative positions
-        let sourceHandle, targetHandle;
-
-        // If target is below decision node
-        if (
-          targetNode.position.y >
-          decisionNode.position.y + decisionNode.height / 2
-        ) {
-          sourceHandle = "f"; // bottom of decision
-          targetHandle = "a"; // top of target
-        }
-        // If target is to the right
-        else if (targetNode.position.x > decisionNode.position.x) {
-          sourceHandle = "g"; // right of decision
-          targetHandle = "d"; // left of target
-        }
-        // If target is to the left
-        else {
-          sourceHandle = "h"; // left of decision
-          targetHandle = "c"; // right of target
-        }
-
-        // Add the alternative path
-        edges.push({
-          id: `edge-decision-${decisionNode.id}-${targetNode.id}`,
-          source: decisionNode.id,
-          target: targetNode.id,
-          sourceHandle,
-          targetHandle,
-          type: "smoothstep",
-          style: {
-            strokeWidth: 2,
-            strokeDasharray: "5,5", // Dashed line for alternative path
-            edgeType: "default",
-            className: "",
-          },
-          markerEnd: {
-            type: "arrowclosed",
-          },
-        });
-      }
-    }
   }
 
   return edges;

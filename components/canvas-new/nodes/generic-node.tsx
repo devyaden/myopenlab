@@ -112,26 +112,33 @@ export const GenericNode = memo(
 
     const { canvasSettings } = useCanvasStore();
 
-    // Initialize nodeSize from data if available, otherwise use default
-    const [nodeSize, setNodeSize] = useState({
-      width: data.width || 100,
-      height: data.height || 100,
+    // Initialize nodeSize from node dimensions first, data.width/height second, or defaults last
+    // We need to handle dimensions at both the node level and data level
+    const [nodeSize, setNodeSize] = useState(() => {
+      // Get the node from ReactFlow to access its width/height properties
+      const node = reactFlowInstance.getNode(id);
+
+      return {
+        width: node?.width || data.width || 100,
+        height: node?.height || data.height || 100,
+      };
     });
 
-    // Get the node dimensions from the store
-    // const nodeWithPosition = useStore(
-    //   useCallback((store) => store.nodeInternals.get(id), [id])
-    // );
-
-    // Sync node dimensions from the actual node in the flow
-    // useEffect(() => {
-    //   if (nodeWithPosition) {
-    //     const { width, height } = nodeWithPosition;
-    //     if (width && height) {
-    //       setNodeSize({ width, height });
-    //     }
-    //   }
-    // }, [nodeWithPosition]);
+    // Update nodeSize if node dimensions change
+    useEffect(() => {
+      const node = reactFlowInstance.getNode(id);
+      if (node?.width && node?.height) {
+        setNodeSize({
+          width: node.width,
+          height: node.height,
+        });
+      } else if (data.width && data.height) {
+        setNodeSize({
+          width: data.width,
+          height: data.height,
+        });
+      }
+    }, [reactFlowInstance, id, data.width, data.height]);
 
     // Check if current shape is a human figure
     const currentShapeIsHumanFigure = isHumanFigure(data.shape);
@@ -198,8 +205,15 @@ export const GenericNode = memo(
               if (node.id === id) {
                 return {
                   ...node,
+                  width: newWidth,
+                  height: newHeight,
                   data: {
                     ...node.data,
+                    width: newWidth,
+                    height: newHeight,
+                  },
+                  style: {
+                    ...node.style,
                     width: newWidth,
                     height: newHeight,
                   },
@@ -1194,6 +1208,8 @@ export const GenericNode = memo(
           style={{
             ...nodeStyle,
             ...shapeStyle,
+            width: nodeSize.width,
+            height: nodeSize.height,
             boxShadow: selected ? "0 0 0 1px rgba(26, 25, 43, 0.3)" : "none",
           }}
           className={`${data.style?.locked ? "cursor-not-allowed" : "cursor-pointer"}`}

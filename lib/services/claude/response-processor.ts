@@ -150,6 +150,43 @@ export function isCanvasDataMinimallyValid(canvasData: any): boolean {
       // Ensure node has dimensions
       if (!node.width) node.width = 150;
       if (!node.height) node.height = 80;
+
+      // Also ensure dimensions are in node.data for consistent access
+      if (!node.data.width) node.data.width = node.width;
+      if (!node.data.height) node.data.height = node.height;
+
+      // For website wireframes, ensure we use larger default dimensions for containers
+      if (canvasData.diagramType === DiagramType.WEBSITE_WIREFRAME) {
+        // Set larger default dimensions for main containers (header, footer, content areas)
+        if (
+          node.data.label &&
+          (node.data.label.toLowerCase().includes("header") ||
+            node.data.label.toLowerCase().includes("footer") ||
+            node.data.label.toLowerCase().includes("content") ||
+            node.data.label.toLowerCase().includes("container") ||
+            node.data.label.toLowerCase().includes("page") ||
+            node.data.label.toLowerCase().includes("section"))
+        ) {
+          if (!node.width || node.width < 500) node.width = 800;
+          if (!node.height || node.height < 80) {
+            if (node.data.label.toLowerCase().includes("header")) {
+              node.height = 80;
+            } else if (node.data.label.toLowerCase().includes("footer")) {
+              node.height = 150;
+            } else if (
+              node.data.label.toLowerCase().includes("content") ||
+              node.data.label.toLowerCase().includes("section")
+            ) {
+              node.height = 400;
+            } else {
+              node.height = 200;
+            }
+          }
+          // Sync with node.data
+          node.data.width = node.width;
+          node.data.height = node.height;
+        }
+      }
     }
 
     // For wireframes, we don't need to validate edges
@@ -174,8 +211,21 @@ export function isCanvasDataMinimallyValid(canvasData: any): boolean {
         (node: any) =>
           node.data.shape === "actor" ||
           (node.data.label &&
-            node.data.label.toLowerCase().includes("attendee")) ||
-          (node.data.label && node.data.label.toLowerCase().includes("visitor"))
+            (node.data.label.toLowerCase().includes("attendee") ||
+              node.data.label.toLowerCase().includes("visitor") ||
+              node.data.label.toLowerCase().includes("زائر"))) // Add Arabic word for visitor
+      );
+
+      const nonActorNodes = canvasData.nodes.filter(
+        (node: any) =>
+          node.id !== "actor" &&
+          node.data.shape !== "actor" &&
+          !(
+            node.data.label &&
+            (node.data.label.toLowerCase().includes("visitor") ||
+              node.data.label.toLowerCase().includes("attendee") ||
+              node.data.label.toLowerCase().includes("زائر"))
+          )
       );
 
       // If we have actor nodes, ensure they have connections
@@ -186,61 +236,60 @@ export function isCanvasDataMinimallyValid(canvasData: any): boolean {
             (edge: any) => edge.source === actor.id || edge.target === actor.id
           );
 
-          if (!hasConnection) {
+          if (!hasConnection && nonActorNodes.length > 0) {
             // Create at least one connection from this actor to some area
-            const possibleTargets = canvasData.nodes.filter(
-              (node: any) =>
-                node.id !== actor.id &&
-                node.data.shape !== "actor" &&
-                !node.data.label.toLowerCase().includes("visitor") &&
-                !node.data.label.toLowerCase().includes("attendee")
-            );
+            const possibleTargets = nonActorNodes;
 
-            if (possibleTargets.length > 0) {
-              // Find closest area node
-              let closestNode = possibleTargets[0];
-              let closestDistance = Number.MAX_VALUE;
+            // Find closest area node
+            let closestNode = possibleTargets[0];
+            let closestDistance = Number.MAX_VALUE;
 
-              for (const target of possibleTargets) {
-                const distance = Math.sqrt(
-                  Math.pow(target.position.x - actor.position.x, 2) +
-                    Math.pow(target.position.y - actor.position.y, 2)
-                );
+            for (const target of possibleTargets) {
+              const distance = Math.sqrt(
+                Math.pow(target.position.x - actor.position.x, 2) +
+                  Math.pow(target.position.y - actor.position.y, 2)
+              );
 
-                if (distance < closestDistance) {
-                  closestDistance = distance;
-                  closestNode = target;
-                }
+              if (distance < closestDistance) {
+                closestDistance = distance;
+                closestNode = target;
               }
-
-              // Generate a unique edge ID to avoid duplicates
-              let edgeId = `edge-auto-${actor.id}-${closestNode.id}`;
-              let suffix = 0;
-
-              // Check if this edge ID already exists and make it unique if needed
-              while (canvasData.edges.some((edge: any) => edge.id === edgeId)) {
-                suffix++;
-                edgeId = `edge-auto-${actor.id}-${closestNode.id}-${suffix}`;
-              }
-
-              // Add edge from actor to the closest area
-              canvasData.edges.push({
-                id: edgeId,
-                source: actor.id,
-                target: closestNode.id,
-                animated: true,
-                type: "smoothstep",
-                style: {
-                  strokeWidth: 2,
-                  stroke: "#3B82F6",
-                  opacity: 0.8,
-                },
-                markerEnd: { type: "arrowclosed" },
-                sourceHandle: "g", // Default to right handle for actors
-                targetHandle: "d", // Default to left handle for targets
-              });
             }
+
+            // Generate a unique edge ID to avoid duplicates
+            let edgeId = `edge-auto-${actor.id}-${closestNode.id}`;
+            let suffix = 0;
+
+            // Check if this edge ID already exists and make it unique if needed
+            while (canvasData.edges.some((edge: any) => edge.id === edgeId)) {
+              suffix++;
+              edgeId = `edge-auto-${actor.id}-${closestNode.id}-${suffix}`;
+            }
+
+            // Add edge from actor to the closest area
+            canvasData.edges.push({
+              id: edgeId,
+              source: actor.id,
+              target: closestNode.id,
+              animated: true,
+              type: "smoothstep",
+              style: {
+                strokeWidth: 2,
+                stroke: "#3B82F6",
+                opacity: 0.8,
+              },
+              markerEnd: { type: "arrowclosed" },
+              sourceHandle: "g", // Default to right handle for actors
+              targetHandle: "d", // Default to left handle for targets
+            });
           }
+        });
+
+        // Ensure all edges have explicit handles
+        canvasData.edges = canvasData.edges.map((edge: any) => {
+          if (!edge.sourceHandle) edge.sourceHandle = "g"; // Default right
+          if (!edge.targetHandle) edge.targetHandle = "d"; // Default left
+          return edge;
         });
       }
     }
@@ -275,6 +324,29 @@ export function improveEdgeHandles(canvasData: any): any {
   // Get language type for direction-specific handling (default to English/LTR)
   const isRTL = canvasData.language === LanguageType.ARABIC;
 
+  // For RTL languages like Arabic, adjust the node positions for workflow diagrams
+  if (isRTL && canvasData.diagramType === DiagramType.WORKFLOW) {
+    // Find the maximum x-coordinate to help with repositioning
+    let maxX = 0;
+    canvasData.nodes.forEach((node: any) => {
+      const nodeRight = node.position.x + (node.width || 150);
+      if (nodeRight > maxX) maxX = nodeRight;
+    });
+
+    // Reposition nodes to mirror the x-coordinates in RTL layout
+    canvasData.nodes = canvasData.nodes.map((node: any) => {
+      const nodeWidth = node.width || 150;
+      // Mirror the node position horizontally
+      return {
+        ...node,
+        position: {
+          ...node.position,
+          x: maxX - node.position.x - nodeWidth,
+        },
+      };
+    });
+  }
+
   // Build a node lookup map for faster access
   const nodeMap = new Map();
   canvasData.nodes.forEach((node: any) => {
@@ -283,7 +355,11 @@ export function improveEdgeHandles(canvasData: any): any {
 
   // Process each edge
   canvasData.edges = canvasData.edges.map((edge: any) => {
-    // If edge already has valid handles defined, keep them
+    // Define default handles if not already set
+    if (!edge.sourceHandle) edge.sourceHandle = "";
+    if (!edge.targetHandle) edge.targetHandle = "";
+
+    // If edge already has valid handles defined and they're different, keep them
     if (
       edge.sourceHandle &&
       edge.targetHandle &&
@@ -298,17 +374,32 @@ export function improveEdgeHandles(canvasData: any): any {
 
     // Skip if we can't find the nodes
     if (!sourceNode || !targetNode) {
-      return edge;
+      // Set default handles even if nodes aren't found to avoid invisible edges
+      if (isRTL) {
+        return {
+          ...edge,
+          sourceHandle: "h", // left for RTL
+          targetHandle: "c", // right for RTL
+          type: "smoothstep",
+        };
+      } else {
+        return {
+          ...edge,
+          sourceHandle: "g", // right for LTR
+          targetHandle: "d", // left for LTR
+          type: "smoothstep",
+        };
+      }
     }
 
     // Calculate node centers
     const sourceCenter = {
-      x: sourceNode.position.x + sourceNode.width / 2,
-      y: sourceNode.position.y + sourceNode.height / 2,
+      x: sourceNode.position.x + (sourceNode.width || 150) / 2,
+      y: sourceNode.position.y + (sourceNode.height || 80) / 2,
     };
     const targetCenter = {
-      x: targetNode.position.x + targetNode.width / 2,
-      y: targetNode.position.y + targetNode.height / 2,
+      x: targetNode.position.x + (targetNode.width || 150) / 2,
+      y: targetNode.position.y + (targetNode.height || 80) / 2,
     };
 
     // Set default edge properties based on diagram type
@@ -327,11 +418,22 @@ export function improveEdgeHandles(canvasData: any): any {
         edgeProps.animated = true;
         edgeProps.markerEnd = { type: "arrowclosed" };
 
+        // Ensure higher opacity for better visibility
+        edgeProps.style.opacity = 1.0;
+
         // For LTR (English) connect right→left
         // For RTL (Arabic) connect left→right
         if (isRTL) {
+          // In RTL workflow, edges should go from left to right (opposite of LTR)
           edgeProps.sourceHandle = "h"; // left
           edgeProps.targetHandle = "c"; // right
+
+          // For Arabic workflows, ensure connections are properly visible
+          edgeProps.style = {
+            ...edgeProps.style,
+            strokeWidth: 2.5, // Slightly thicker
+            opacity: 1.0, // Full opacity
+          };
         } else {
           edgeProps.sourceHandle = "g"; // right
           edgeProps.targetHandle = "d"; // left
@@ -342,13 +444,23 @@ export function improveEdgeHandles(canvasData: any): any {
         // Event experience uses animated arrows for visitor journeys
         edgeProps.animated = true;
         edgeProps.markerEnd = { type: "arrowclosed" };
+        // Increase default opacity to ensure visibility
+        if (!edge.style || !edge.style.opacity) {
+          edgeProps.style.opacity = 1.0;
+        }
 
         // Check if this is a visitor -> location edge (visitor paths)
         const isVisitorEdge =
           sourceNode.data?.shape === "actor" ||
-          sourceNode.id.includes("visitor") ||
+          (sourceNode.data?.label &&
+            (sourceNode.data.label.toLowerCase().includes("visitor") ||
+              sourceNode.data.label.toLowerCase().includes("attendee") ||
+              sourceNode.data.label.toLowerCase().includes("زائر"))) ||
           targetNode.data?.shape === "actor" ||
-          targetNode.id.includes("visitor");
+          (targetNode.data?.label &&
+            (targetNode.data.label.toLowerCase().includes("visitor") ||
+              targetNode.data.label.toLowerCase().includes("attendee") ||
+              targetNode.data.label.toLowerCase().includes("زائر")));
 
         // Make visitor edges more visually distinct
         if (isVisitorEdge) {
@@ -356,15 +468,27 @@ export function improveEdgeHandles(canvasData: any): any {
           edgeProps.style = {
             stroke: "#3B82F6",
             strokeWidth: 2.5,
-            opacity: 0.8,
+            opacity: 1.0, // Increase opacity for better visibility
           };
         }
 
-        // Connection based on movement direction
+        // Connection based on movement direction and language direction
         const dx = targetCenter.x - sourceCenter.x;
         const dy = targetCenter.y - sourceCenter.y;
 
-        if (Math.abs(dy) > Math.abs(dx)) {
+        // For RTL languages like Arabic, reverse the horizontal connection direction
+        if (isRTL && Math.abs(dx) > Math.abs(dy)) {
+          // Horizontal movement is predominant in RTL language
+          if (dx > 0) {
+            // Moving right in RTL
+            edgeProps.sourceHandle = "h"; // left
+            edgeProps.targetHandle = "c"; // right
+          } else {
+            // Moving left in RTL
+            edgeProps.sourceHandle = "g"; // right
+            edgeProps.targetHandle = "d"; // left
+          }
+        } else if (Math.abs(dy) > Math.abs(dx)) {
           // Vertical movement is predominant
           if (dy > 0) {
             // Moving down
@@ -376,7 +500,7 @@ export function improveEdgeHandles(canvasData: any): any {
             edgeProps.targetHandle = "b"; // bottom
           }
         } else {
-          // Horizontal movement is predominant
+          // Horizontal movement is predominant in LTR languages
           if (dx > 0) {
             // Moving right
             edgeProps.sourceHandle = "g"; // right
@@ -460,6 +584,16 @@ export function improveEdgeHandles(canvasData: any): any {
           }
         }
         edgeProps.markerEnd = { type: "arrowclosed" };
+    }
+
+    // Ensure we have distinct handle values (avoid undefined or same handles)
+    if (
+      !edgeProps.sourceHandle ||
+      !edgeProps.targetHandle ||
+      edgeProps.sourceHandle === edgeProps.targetHandle
+    ) {
+      edgeProps.sourceHandle = "g"; // default to right
+      edgeProps.targetHandle = "d"; // default to left
     }
 
     // Return enhanced edge with appropriate properties

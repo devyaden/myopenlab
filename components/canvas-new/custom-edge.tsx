@@ -96,6 +96,13 @@ const CustomEdge = (params: any) => {
   // Create a custom marker end with the same color as the edge
   const customMarkerEnd = `url(#${markerId})`;
 
+  // Ensure edge visibility with appropriate style
+  const enhancedStyle = {
+    ...style,
+    opacity: style.opacity !== undefined ? style.opacity : 1.0,
+    strokeWidth: style.strokeWidth || 2,
+  };
+
   const edgeType = style.edgeType || "default";
 
   const getEdgePath = (edgeType: string): any => {
@@ -211,9 +218,9 @@ const CustomEdge = (params: any) => {
             id={`${id}-1`}
             d={edgePathData.path1}
             className="react-flow__edge-path"
-            strokeWidth={style.strokeWidth || 1}
+            strokeWidth={enhancedStyle.strokeWidth || 1}
             stroke={strokeColor}
-            style={{ ...style }}
+            style={enhancedStyle}
             markerEnd={customMarkerEnd}
             onDoubleClick={handleDoubleClick}
           />
@@ -221,9 +228,9 @@ const CustomEdge = (params: any) => {
             id={`${id}-2`}
             d={edgePathData.path2}
             className="react-flow__edge-path"
-            strokeWidth={style.strokeWidth || 1}
+            strokeWidth={enhancedStyle.strokeWidth || 1}
             stroke={strokeColor}
-            style={{ ...style, markerEnd: undefined }}
+            style={{ ...enhancedStyle, markerEnd: undefined }}
             onDoubleClick={handleDoubleClick}
           />
         </>
@@ -232,10 +239,10 @@ const CustomEdge = (params: any) => {
           id={id}
           d={edgePathData as string}
           className="react-flow__edge-path animated-edge-path"
-          strokeWidth={style.strokeWidth || 2}
+          strokeWidth={enhancedStyle.strokeWidth || 2}
           stroke={strokeColor}
           style={{
-            ...style,
+            ...enhancedStyle,
             markerEnd: undefined,
             strokeDasharray: "5, 5",
           }}
@@ -247,9 +254,9 @@ const CustomEdge = (params: any) => {
           id={id}
           d={edgePathData as string}
           className="react-flow__edge-path"
-          strokeWidth={style.strokeWidth || 2}
+          strokeWidth={enhancedStyle.strokeWidth || 2}
           stroke={strokeColor}
-          style={{ ...style, markerEnd: undefined }}
+          style={{ ...enhancedStyle, markerEnd: undefined }}
           markerEnd={customMarkerEnd}
           onDoubleClick={handleDoubleClick}
         />
