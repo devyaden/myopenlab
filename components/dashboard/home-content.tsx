@@ -18,6 +18,7 @@ import {
   MoreVertical,
   Edit,
   Trash,
+  X,
 } from "lucide-react";
 import Link from "next/link";
 import { useState, useEffect } from "react";
@@ -188,17 +189,32 @@ export function HomeContent() {
     <div className="flex flex-col h-full">
       <div className="p-6 flex-shrink-0 bg-white">
         <div className="flex flex-col md:flex-row justify-between md:items-center mb-6">
-          <h1 className="text-2xl font-semibold">Home</h1>
-          <div className="flex justify-end items-center w-full">
-            <div className="relative max-w-3xl w-full mr-2 mt-1 md:mt-auto md:mx-2">
+          <h1 className="text-2xl font-semibold md:w-1/4">Home</h1>
+          <div className="flex justify-center items-center w-full md:w-2/4">
+            <div className="relative w-full max-w-xl">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
               <Input
                 placeholder="Search folders and files..."
-                className="pl-10 h-12 rounded-lg border-gray-200"
+                className="pl-10 pr-10 h-12 rounded-lg border-gray-200"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
+              {searchQuery && (
+                <button
+                  onClick={() => setSearchQuery("")}
+                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              )}
             </div>
+            Encountered two children with the same key,
+            `edge-node-1746515978717-1-to-node-1746515978717-2`. Keys should be
+            unique so that components maintain their identity across updates.
+            Non-unique keys may cause children to be duplicated and/or omitted —
+            the behavior is unsupported and could change in a future version.
+          </div>
+          <div className="md:w-1/4 flex justify-end mt-4 md:mt-0">
             <Button
               onClick={() => setCreateNewModalType("canvas")}
               className="bg-yadn-accent-green hover:bg-yadn-accent-green/80 text-white"
@@ -211,23 +227,19 @@ export function HomeContent() {
 
       {/* Scrollable Folders Grid */}
       <ScrollArea className="flex-grow p-6 pt-0">
-        <div className="grid grid-cols-1 xs:grid-cols-3 md:grid-cols-8 lg:grid-cols-12 gap-4">
-          {/* Root Folder - Only show if it matches search or search is empty */}
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 gap-6">
+          {/* Root Folder - Only show if it matches search or thesearch is empty */}
           {showRootFolder && (
             <Link href={`/protected/folder/root`}>
-              <Card className="p-4 hover:shadow-md transition-shadow cursor-pointer group border-2 border-dashed border-yadn-accent-blue/30">
-                <div className="flex items-start justify-center">
-                  <div className="flex flex-col items-center justify-center">
-                    <Folder className="h-14 w-14 text-yadn-accent-blue mr-3" />
-                    <div>
-                      <h3 className="font-medium text-gray-900 truncate max-w-[150px]">
-                        Root
-                      </h3>
-                      <p className="text-xs text-gray-500">
-                        {rootCanvases.length || 0} items
-                      </p>
-                    </div>
-                  </div>
+              <Card className="p-3 hover:shadow-md transition-shadow cursor-pointer group border-2 border-dashed border-yadn-accent-blue/30 h-28 w-28 flex items-center justify-center">
+                <div className="flex flex-col items-center justify-center">
+                  <Folder className="h-10 w-10 text-yadn-accent-blue mb-1" />
+                  <h3 className="font-medium text-gray-900 truncate max-w-[90px] text-center text-sm">
+                    Root
+                  </h3>
+                  <p className="text-xs text-gray-500">
+                    {rootCanvases.length || 0} items
+                  </p>
                 </div>
               </Card>
             </Link>
@@ -242,28 +254,17 @@ export function HomeContent() {
           ) : (
             filteredFolders.map((folder) => (
               <Link href={`/protected/folder/${folder.id}`} key={folder.id}>
-                <Card className="p-4 hover:shadow-md transition-shadow cursor-pointer group">
-                  <div className="flex items-start justify-center">
-                    <div className="flex flex-col items-center justify-center">
-                      <Folder className="h-14 w-14 text-yadn-accent-dark-orange mr-3" />
-                      <div>
-                        <h3 className="font-medium text-gray-900 truncate max-w-[150px]">
-                          {folder.name}
-                        </h3>
-                        <p className="text-xs text-gray-500">
-                          {folder.canvases?.length || 0} items
-                        </p>
-                      </div>
-                    </div>
+                <Card className="p-3 hover:shadow-md transition-shadow cursor-pointer group h-28 w-28 relative">
+                  <div className="absolute top-1 right-1">
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
                         <Button
                           variant="ghost"
                           size="sm"
-                          className="h-8 w-8 p-0 opacity-0 group-hover:opacity-100"
+                          className="h-6 w-6 p-0 opacity-0 group-hover:opacity-100"
                           onClick={(e) => e.preventDefault()}
                         >
-                          <MoreVertical className="h-4 w-4" />
+                          <MoreVertical className="h-3 w-3" />
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
@@ -288,19 +289,28 @@ export function HomeContent() {
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </div>
+                  <div className="flex flex-col items-center justify-center h-full">
+                    <Folder className="h-10 w-10 text-yadn-accent-dark-orange mb-1" />
+                    <h3 className="font-medium text-gray-900 truncate max-w-[90px] text-center text-sm">
+                      {folder.name}
+                    </h3>
+                    <p className="text-xs text-gray-500">
+                      {folder.canvases?.length || 0} items
+                    </p>
+                  </div>
                 </Card>
               </Link>
             ))
           )}
-          {/* Folders Section Header */}
-          <div className="flex w-full h-full items-center justify-between mb-4">
-            {/* <h2 className="text-lg font-medium">Folders</h2> */}
+          {/* New Folder Button */}
+          <div className="h-28 w-28">
             <Button
               variant="ghost"
-              className="flex flex-col text-sm w-full h-full border border-gray-200"
+              className="flex flex-col text-sm w-full h-full border border-gray-200 rounded-lg"
               onClick={() => setCreateNewModalType("folder")}
             >
-              <Plus className="mr-1 h-4 w-4" /> New Folder
+              <Plus className="mb-1 h-5 w-5" />
+              <span className="text-sm">New Folder</span>
             </Button>
           </div>
         </div>

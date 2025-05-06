@@ -20,6 +20,7 @@ import {
   Trash,
   File,
   ArrowLeft,
+  X,
 } from "lucide-react";
 import Link from "next/link";
 import { useState, useEffect } from "react";
@@ -271,17 +272,35 @@ export function FolderContent({ folderId }: FolderContentProps) {
         <div className="flex justify-between items-center mb-6">
           <div className="flex items-center">
             <Button
-              variant="ghost"
+              variant="outline"
               size="sm"
-              className="mr-2"
+              className="mr-4"
               onClick={() => router.push("/protected")}
             >
-              <ArrowLeft className="h-4 w-4 mr-1" />
-              Back
+              <ArrowLeft className="h-4 w-4" />
+              {/* Back */}
             </Button>
-            <h1 className="text-2xl font-semibold">
+            <h1 className="text-xl font-semibold">
               {currentFolder?.name || "Loading..."}
             </h1>
+          </div>
+
+          <div className="relative w-full max-w-xl mx-auto px-4">
+            <Search className="absolute left-7 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+            <Input
+              placeholder="Search files in this folder..."
+              className="pl-10 pr-10 h-12 rounded-lg border-gray-200"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+            {searchQuery && (
+              <button
+                onClick={() => setSearchQuery("")}
+                className="absolute right-7 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            )}
           </div>
 
           <DropdownMenu>
@@ -352,16 +371,6 @@ export function FolderContent({ folderId }: FolderContentProps) {
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
-        </div>
-
-        <div className="relative max-w-3xl mx-auto mb-6">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
-          <Input
-            placeholder="Search files in this folder..."
-            className="pl-10 h-12 rounded-lg border-gray-200"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-          />
         </div>
 
         {/* Files Section Header */}
