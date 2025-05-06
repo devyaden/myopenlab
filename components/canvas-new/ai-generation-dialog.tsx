@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Dialog,
   DialogContent,
@@ -36,7 +36,8 @@ import {
   DiagramType,
   IndustryType,
 } from "@/lib/types/diagram-types";
-import { InfoIcon } from "lucide-react";
+import { InfoIcon, Sparkles } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 // Define the form schema
 const formSchema = z.object({
@@ -71,6 +72,24 @@ const examplePrompts = {
     "Create a mind map for project planning phases including initiation, planning, execution, monitoring, and closure with key activities for each.",
 };
 
+// Loading state messages for better UX
+const loadingMessages = [
+  "Crafting your visual story...",
+  "Turning ideas into visual elements...",
+  "Designing your diagram structure...",
+  "Creating meaningful connections...",
+  "Building your diagram framework...",
+  "Aligning visual components...",
+  "Perfecting the visual flow...",
+  "Balancing your diagram elements...",
+];
+
+const delayedMessages = [
+  "Creating a detailed canvas requires careful thought...",
+  "Perfecting complex diagrams takes a bit more time...",
+  "Almost there! Finalizing your custom diagram...",
+];
+
 export function AIGenerationDialog({
   isOpen,
   onClose,
@@ -78,6 +97,9 @@ export function AIGenerationDialog({
 }: AIGenerationDialogProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [selectedDiagramType, setSelectedDiagramType] = useState<string>("");
+  const [loadingMessage, setLoadingMessage] = useState<string>("");
+  const [loadingStartTime, setLoadingStartTime] = useState<number>(0);
+  const [isLongLoading, setIsLongLoading] = useState<boolean>(false);
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -89,6 +111,74 @@ export function AIGenerationDialog({
     },
   });
 
+  // Animation effect for loading messages
+  useEffect(() => {
+    let messageInterval: NodeJS.Timeout;
+    let delayCheckInterval: NodeJS.Timeout;
+
+    if (isLoading) {
+      // Track when loading started
+      const startTime = Date.now();
+      setLoadingStartTime(startTime);
+      setIsLongLoading(false);
+
+      // Rotate through regular loading messages
+      let messageIndex = 0;
+      setLoadingMessage(loadingMessages[0]);
+
+      messageInterval = setInterval(() => {
+        messageIndex = (messageIndex + 1) % loadingMessages.length;
+        setLoadingMessage(loadingMessages[messageIndex]);
+      }, 3000);
+
+      // Check if loading is taking longer than expected
+      delayCheckInterval = setInterval(() => {
+        const loadingTime = Date.now() - startTime;
+        if (loadingTime > 15000 && !isLongLoading) {
+          // Show delayed message after 15 seconds
+          setIsLongLoading(true);
+          setLoadingMessage(delayedMessages[0]);
+        } else if (loadingTime > 30000 && isLongLoading) {
+          // Update delayed message after 30 seconds
+          setLoadingMessage(delayedMessages[1]);
+        } else if (loadingTime > 45000 && isLongLoading) {
+          // Update delayed message after 45 seconds
+          setLoadingMessage(delayedMessages[2]);
+        }
+      }, 5000);
+    }
+
+    return () => {
+      clearInterval(messageInterval);
+      clearInterval(delayCheckInterval);
+    };
+  }, [isLoading]); // Only depend on isLoading
+
+  // Get loading progress steps based on loading time
+  const getProgressSteps = () => {
+    const loadingTime = Date.now() - loadingStartTime;
+
+    if (loadingTime < 5000) {
+      return {
+        analyzing: "active",
+        creating: "waiting",
+        finalizing: "waiting",
+      };
+    } else if (loadingTime < 20000) {
+      return {
+        analyzing: "complete",
+        creating: "active",
+        finalizing: "waiting",
+      };
+    } else {
+      return {
+        analyzing: "complete",
+        creating: "complete",
+        finalizing: "active",
+      };
+    }
+  };
+
   const handleDiagramTypeChange = (value: string) => {
     setSelectedDiagramType(value);
     // Don't overwrite existing prompt if user has already started typing
@@ -98,6 +188,8 @@ export function AIGenerationDialog({
   };
 
   const handleSubmit = async (data: FormValues) => {
+    if (isLoading) return; // Prevent multiple submissions
+
     setIsLoading(true);
 
     try {
@@ -150,8 +242,15 @@ export function AIGenerationDialog({
     }
   };
 
+  // Prevent modal closure during loading
+  const handleCloseAttempt = () => {
+    if (!isLoading) {
+      onClose();
+    }
+  };
+
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
+    <Dialog open={isOpen} onOpenChange={handleCloseAttempt}>
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle>Generate Canvas with AI</DialogTitle>
@@ -174,6 +273,7 @@ export function AIGenerationDialog({
                   <Select
                     onValueChange={field.onChange}
                     defaultValue={field.value}
+                    disabled={isLoading}
                   >
                     <FormControl>
                       <SelectTrigger>
@@ -224,6 +324,7 @@ export function AIGenerationDialog({
                       handleDiagramTypeChange(value);
                     }}
                     defaultValue={field.value}
+                    disabled={isLoading}
                   >
                     <FormControl>
                       <SelectTrigger>
@@ -262,6 +363,7 @@ export function AIGenerationDialog({
                   <Select
                     onValueChange={field.onChange}
                     defaultValue={field.value}
+                    disabled={isLoading}
                   >
                     <FormControl>
                       <SelectTrigger>
@@ -318,6 +420,7 @@ export function AIGenerationDialog({
                     <Textarea
                       placeholder="Describe what you want to create in detail..."
                       className="min-h-32 text-sm"
+                      disabled={isLoading}
                       {...field}
                     />
                   </FormControl>
@@ -339,12 +442,97 @@ export function AIGenerationDialog({
               >
                 Cancel
               </Button>
-              <Button type="submit" disabled={isLoading}>
-                {isLoading ? <LoadingSpinner /> : "Generate"}
+              <Button
+                type="submit"
+                disabled={isLoading}
+                className="relative overflow-hidden"
+              >
+                {!isLoading && (
+                  <div className="flex items-center gap-2">
+                    <Sparkles className="h-4 w-4" />
+                    <span>Generate</span>
+                  </div>
+                )}
+                {!isLoading && (
+                  <div className="absolute inset-0 bg-gradient-to-r from-transparent via-primary-foreground/10 to-transparent -translate-x-full hover:animate-shine"></div>
+                )}
+                {isLoading && (
+                  <div className="flex items-center gap-2">
+                    <div className="w-4 h-4 border-2 border-primary-foreground border-t-transparent rounded-full animate-spin"></div>
+                    <span>Generating</span>
+                  </div>
+                )}
               </Button>
             </DialogFooter>
           </form>
         </Form>
+
+        {/* Overlay for loading state */}
+        {isLoading && (
+          <div className="absolute inset-0 bg-background/90 backdrop-blur-sm flex items-center justify-center z-50 rounded-lg">
+            <div className="w-[85%] max-w-sm text-center animate-in fade-in zoom-in duration-300">
+              <div className="relative mb-8">
+                <div className="w-20 h-20 rounded-full bg-background border border-border/30 mx-auto relative flex items-center justify-center">
+                  <Sparkles className="h-8 w-8 text-primary opacity-70" />
+
+                  {/* Animated circles */}
+                  <div className="absolute inset-0 rounded-full border border-primary/10 animate-ping opacity-60"></div>
+                  <div className="absolute -inset-3 rounded-full border border-primary/5 animate-pulse"></div>
+                </div>
+              </div>
+
+              <h3 className="text-xl font-medium text-foreground mb-3">
+                {loadingMessage}
+              </h3>
+
+              {/* Progress steps as simple dots */}
+              {/* <div className="flex justify-center gap-2 my-6">
+                {(() => {
+                  const steps = getProgressSteps();
+                  return (
+                    <>
+                      <div
+                        className={`w-3 h-3 rounded-full transition-all duration-300 ${
+                          steps.analyzing === "complete"
+                            ? "bg-primary"
+                            : steps.analyzing === "active"
+                              ? "bg-primary/60 animate-pulse"
+                              : "bg-primary/20"
+                        }`}
+                      ></div>
+                      <div
+                        className={`w-3 h-3 rounded-full transition-all duration-300 ${
+                          steps.creating === "complete"
+                            ? "bg-primary"
+                            : steps.creating === "active"
+                              ? "bg-primary/60 animate-pulse"
+                              : "bg-primary/20"
+                        }`}
+                      ></div>
+                      <div
+                        className={`w-3 h-3 rounded-full transition-all duration-300 ${
+                          steps.finalizing === "complete"
+                            ? "bg-primary"
+                            : steps.finalizing === "active"
+                              ? "bg-primary/60 animate-pulse"
+                              : "bg-primary/20"
+                        }`}
+                      ></div>
+                    </>
+                  );
+                })()}
+              </div> */}
+
+              {/* Simplified progress bar */}
+              <div className="h-1 bg-muted rounded-full overflow-hidden relative max-w-xs mx-auto">
+                <div
+                  className="h-full bg-primary/70 rounded-full absolute"
+                  style={{ animation: "indeterminate 2s ease-in-out infinite" }}
+                ></div>
+              </div>
+            </div>
+          </div>
+        )}
       </DialogContent>
     </Dialog>
   );

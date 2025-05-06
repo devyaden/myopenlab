@@ -28,7 +28,7 @@ const config = {
       fontFamily: {
         quicksand: ["var(--font-quicksand)"],
         rubik: ["var(--font-rubik)"],
-        lato: ['Lato', 'sans-serif'],
+        lato: ["Lato", "sans-serif"],
       },
       colors: {
         border: "hsl(var(--border))",
@@ -127,11 +127,29 @@ const config = {
           "0%": { transform: "translateX(100%)", opacity: "0" },
           "100%": { transform: "translateX(0)", opacity: "1" },
         },
+        progress: {
+          "0%": { width: "0%" },
+          "40%": { width: "40%" },
+          "60%": { width: "60%" },
+          "80%": { width: "80%" },
+          "100%": { width: "0%" },
+        },
+        pulse: {
+          "0%": { opacity: "0.4", transform: "translateX(-100%)" },
+          "50%": { opacity: "0.6", transform: "translateX(0)" },
+          "100%": { opacity: "0.4", transform: "translateX(100%)" },
+        },
+        shine: {
+          "100%": { left: "125%", transform: "translateX(100%)" },
+        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
         "slide-in-right": "slideInRight 0.3s ease-out",
+        progress: "progress 2s ease-in-out infinite",
+        pulse: "pulse 4s ease-in-out infinite",
+        shine: "shine 1.5s ease-in-out",
       },
     },
   },

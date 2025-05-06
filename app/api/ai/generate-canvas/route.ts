@@ -1,4 +1,4 @@
-import { ClaudeService } from "@/lib/services/claude-service";
+import { ClaudeService } from "@/lib/services/claude";
 import {
   DiagramType,
   IndustryType,
