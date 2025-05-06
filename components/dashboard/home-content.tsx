@@ -208,11 +208,6 @@ export function HomeContent() {
                 </button>
               )}
             </div>
-            Encountered two children with the same key,
-            `edge-node-1746515978717-1-to-node-1746515978717-2`. Keys should be
-            unique so that components maintain their identity across updates.
-            Non-unique keys may cause children to be duplicated and/or omitted —
-            the behavior is unsupported and could change in a future version.
           </div>
           <div className="md:w-1/4 flex justify-end mt-4 md:mt-0">
             <Button
