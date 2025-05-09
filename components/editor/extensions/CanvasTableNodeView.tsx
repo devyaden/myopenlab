@@ -258,45 +258,52 @@ export default function CanvasTableNodeView({
     >
       {hasValidData ? (
         <div
-          className={`overflow-auto rounded-md shadow-sm ${
+          className={`relative rounded-md shadow-sm ${
             isSelected ? "border-blue-500 border-2" : "border border-gray-300"
           }`}
           ref={tableRef}
         >
-          <table className="w-full border-collapse table-fixed">
-            <thead>
-              <tr className="bg-gray-50 border-b border-gray-300">
-                {tableData[0]?.map((header, colIndex) => (
-                  <th
-                    key={`header-${colIndex}`}
-                    className="border-r border-gray-300 px-4 py-2 text-left text-sm font-semibold text-gray-700"
-                  >
-                    {header || `Column ${colIndex + 1}`}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {tableData.slice(1).map((row, rowIndex) => (
-                <tr
-                  key={`row-${rowIndex + 1}`}
-                  className="border-b border-gray-300 hover:bg-gray-50 transition-colors"
-                >
-                  {row.map((cell, colIndex) => (
-                    <td
-                      key={`cell-${rowIndex + 1}-${colIndex}`}
-                      className="border-r border-gray-300 px-4 py-2 text-sm text-gray-700 overflow-hidden"
-                      style={{ maxWidth: "200px" }}
+          <div className="overflow-x-auto w-full">
+            <div className="inline-block min-w-full">
+              <table className="min-w-full border-collapse">
+                <thead>
+                  <tr className="bg-gray-50 border-b border-gray-300">
+                    {tableData[0]?.map((header, colIndex) => (
+                      <th
+                        key={`header-${colIndex}`}
+                        className="border-r border-gray-300 px-4 py-2 text-left text-sm font-semibold text-gray-700 whitespace-nowrap"
+                        style={{ minWidth: "180px", width: "180px" }}
+                      >
+                        <div className="truncate" title={header}>
+                          {header || `Column ${colIndex + 1}`}
+                        </div>
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {tableData.slice(1).map((row, rowIndex) => (
+                    <tr
+                      key={`row-${rowIndex + 1}`}
+                      className="border-b border-gray-300 hover:bg-gray-50 transition-colors"
                     >
-                      <div className="truncate" title={cell}>
-                        {cell}
-                      </div>
-                    </td>
+                      {row.map((cell, colIndex) => (
+                        <td
+                          key={`cell-${rowIndex + 1}-${colIndex}`}
+                          className="border-r border-gray-300 px-4 py-2 text-sm text-gray-700 whitespace-nowrap"
+                          style={{ minWidth: "180px", width: "180px" }}
+                        >
+                          <div className="truncate" title={cell}>
+                            {cell}
+                          </div>
+                        </td>
+                      ))}
+                    </tr>
                   ))}
-                </tr>
-              ))}
-            </tbody>
-          </table>
+                </tbody>
+              </table>
+            </div>
+          </div>
         </div>
       ) : (
         <div className="p-4 border border-gray-300 rounded-md text-center text-gray-500">

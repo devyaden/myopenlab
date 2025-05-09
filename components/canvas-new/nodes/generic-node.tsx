@@ -273,9 +273,10 @@ export const GenericNode = memo(
           color: data.style?.textColor || "#000000",
           lineHeight: `${data.style?.lineHeight || 1.2}`,
           textAlign: data.style?.textAlign || "center",
-          overflow: "hidden",
+          overflow: "visible",
           textOverflow: "ellipsis",
-          whiteSpace: "nowrap",
+          whiteSpace: "normal",
+          wordBreak: "break-all" as any,
           width: "100%",
         };
       },
@@ -497,10 +498,9 @@ export const GenericNode = memo(
               <div
                 style={{
                   ...getTextStyle(),
-                  textAlign: data.style?.textAlign || "center",
                   width: "100%",
                   whiteSpace: "normal",
-                  wordBreak: "break-word",
+                  wordBreak: "break-all",
                   marginBottom: "4px",
                 }}
               >
@@ -521,10 +521,10 @@ export const GenericNode = memo(
                       key={prop.key}
                       style={{
                         ...getTextStyle(true),
-                        textAlign: data.style?.textAlign || "center",
+
                         width: "100%",
                         whiteSpace: "normal",
-                        wordBreak: "break-word",
+                        wordBreak: "break-all",
                         marginBottom: "2px",
                         lineHeight: "1.1",
                       }}
@@ -588,10 +588,10 @@ export const GenericNode = memo(
               <div
                 style={{
                   ...getTextStyle(),
-                  textAlign: data.style?.textAlign || "center",
+
                   width: "100%",
                   whiteSpace: "normal",
-                  wordBreak: "break-word",
+                  wordBreak: "break-all",
                   marginBottom: "4px",
                 }}
               >
@@ -611,10 +611,10 @@ export const GenericNode = memo(
                       key={prop.key}
                       style={{
                         ...getTextStyle(true),
-                        textAlign: data.style?.textAlign || "center",
+
                         width: "100%",
                         whiteSpace: "normal",
-                        wordBreak: "break-word",
+                        wordBreak: "break-all",
                         marginBottom: "2px",
                         lineHeight: "1.1",
                       }}
@@ -676,10 +676,10 @@ export const GenericNode = memo(
               <div
                 style={{
                   ...getTextStyle(),
-                  textAlign: data.style?.textAlign || "center",
+
                   width: "100%",
                   whiteSpace: "normal",
-                  wordBreak: "break-word",
+                  wordBreak: "break-all",
                   marginBottom: "4px",
                 }}
               >
@@ -700,10 +700,10 @@ export const GenericNode = memo(
                       key={prop.key}
                       style={{
                         ...getTextStyle(true),
-                        textAlign: data.style?.textAlign || "center",
+
                         width: "100%",
                         whiteSpace: "normal",
-                        wordBreak: "break-word",
+                        wordBreak: "break-all",
                         marginBottom: "2px",
                         lineHeight: "1.1",
                       }}
@@ -771,17 +771,16 @@ export const GenericNode = memo(
               <div
                 style={{
                   width: widthPercentage,
-                  maxHeight: "80%",
                   display: "flex",
                   flexDirection: "column",
-                  overflow: "hidden",
-                  textAlign: data.style?.textAlign || "left",
+                  overflow: "visible",
+                  textAlign: data.style?.textAlign || "center",
                 }}
               >
                 <div
                   style={{
                     ...getTextStyle(),
-                    overflow: "hidden",
+                    overflow: "visible",
                     textOverflow: "ellipsis",
                   }}
                 >
@@ -793,7 +792,7 @@ export const GenericNode = memo(
                     style={{
                       width: "100%",
                       marginTop: "2px",
-                      overflow: "hidden",
+                      overflow: "visible",
                     }}
                   >
                     {visibleProperties.map((prop) => (
@@ -801,7 +800,7 @@ export const GenericNode = memo(
                         key={prop.key}
                         style={{
                           ...getTextStyle(true),
-                          overflow: "hidden",
+                          overflow: "visible",
                           textOverflow: "ellipsis",
                         }}
                       >
@@ -850,17 +849,16 @@ export const GenericNode = memo(
               <div
                 style={{
                   width: "70%", // Use percentage of container width to maintain spacing
-                  maxHeight: "70%", // Restrict height to prevent overflow
                   display: "flex",
                   flexDirection: "column",
-                  overflow: "hidden",
-                  textAlign: data.style?.textAlign || "left",
+                  overflow: "visible",
+                  textAlign: data.style?.textAlign || "center",
                 }}
               >
                 <div
                   style={{
                     ...getTextStyle(),
-                    overflow: "hidden",
+                    overflow: "visible",
                     textOverflow: "ellipsis",
                   }}
                 >
@@ -872,7 +870,7 @@ export const GenericNode = memo(
                     style={{
                       width: "100%",
                       marginTop: "2px",
-                      overflow: "hidden",
+                      overflow: "visible",
                     }}
                   >
                     {visibleProperties.map((prop) => (
@@ -880,7 +878,7 @@ export const GenericNode = memo(
                         key={prop.key}
                         style={{
                           ...getTextStyle(true),
-                          overflow: "hidden",
+                          overflow: "visible",
                           textOverflow: "ellipsis",
                         }}
                       >
@@ -951,7 +949,7 @@ export const GenericNode = memo(
                     textAlign: data.style?.textAlign || "center",
                     width: "100%",
                     whiteSpace: "normal",
-                    wordBreak: "break-word",
+                    wordBreak: "break-all",
                     marginBottom: "8px",
                   }}
                 >
@@ -975,7 +973,7 @@ export const GenericNode = memo(
                           textAlign: data.style?.textAlign || "center",
                           width: "100%",
                           whiteSpace: "normal",
-                          wordBreak: "break-word",
+                          wordBreak: "break-all",
                           marginBottom: "4px",
                           lineHeight: "1.2",
                         }}
@@ -1027,17 +1025,16 @@ export const GenericNode = memo(
               <div
                 style={{
                   width: widthPercentage,
-                  maxHeight: "80%",
                   display: "flex",
                   flexDirection: "column",
-                  overflow: "hidden",
-                  textAlign: data.style?.textAlign || "left",
+                  overflow: "visible",
+                  textAlign: data.style?.textAlign || "center",
                 }}
               >
                 <div
                   style={{
                     ...getTextStyle(),
-                    overflow: "hidden",
+                    overflow: "visible",
                     textOverflow: "ellipsis",
                   }}
                 >
@@ -1049,7 +1046,7 @@ export const GenericNode = memo(
                     style={{
                       width: "100%",
                       marginTop: "2px",
-                      overflow: "hidden",
+                      overflow: "visible",
                     }}
                   >
                     {visibleProperties.map((prop) => (
@@ -1057,7 +1054,7 @@ export const GenericNode = memo(
                         key={prop.key}
                         style={{
                           ...getTextStyle(true),
-                          overflow: "hidden",
+                          overflow: "visible",
                           textOverflow: "ellipsis",
                         }}
                       >
@@ -1090,7 +1087,6 @@ export const GenericNode = memo(
                 className="border-b-2 p-2 font-bold"
                 style={{
                   borderColor: data.style?.borderColor || "#000000",
-                  // textAlign: data.style?.textAlign || "center",
                   ...getTextStyle(true),
                 }}
               >

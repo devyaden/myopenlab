@@ -272,7 +272,7 @@ export function UserSidebar() {
             </CollapsibleContent>
           </Collapsible>
         </div> */}
-
+        
         <div>
           <div className="flex items-center justify-between px-3 py-2">
             <h2 className="text-sm font-medium text-gray-900">Folders</h2>

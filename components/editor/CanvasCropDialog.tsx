@@ -2,30 +2,36 @@
 
 import type React from "react";
 
-import { useState, useRef, useCallback, useEffect } from "react";
+import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogFooter,
 } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import html2canvas from "html2canvas";
+import { Info, Maximize2, Move } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import ReactFlow, {
   Background,
   Panel,
   ReactFlowProvider,
-  useNodesState,
-  useEdgesState,
   useReactFlow,
 } from "reactflow";
 import "reactflow/dist/style.css";
-import html2canvas from "html2canvas";
+import CustomEdge from "../canvas-new/custom-edge";
 import { GenericNode } from "../canvas-new/nodes/generic-node";
+import { ImageNode } from "../canvas-new/nodes/image-node";
 import { SwimlaneNode } from "../canvas-new/nodes/swimlane-node";
 import { TextNode } from "../canvas-new/nodes/text-node";
-import { ImageNode } from "../canvas-new/nodes/image-node";
-import CustomEdge from "../canvas-new/custom-edge";
 
 interface CanvasCropDialogProps {
   isOpen: boolean;
@@ -58,12 +64,10 @@ function FlowWithCropping({
   viewportRef: React.RefObject<HTMLDivElement>;
   onCrop: (cropData: any, reactFlowInstance: any) => void;
 }) {
-  // Initialize with empty arrays if canvasData is null or nodes/edges are missing
-  const initialNodes = canvasData?.nodes || [];
-  const initialEdges = canvasData?.edges || [];
+  console.log("🚀 ~ canvasData:", canvasData);
 
-  const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
-  const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
+  const { nodes = [], edges = [], styles = {} } = canvasData || {};
+
   const reactFlowInstance = useReactFlow();
   const { fitView, getViewport } = reactFlowInstance;
   const isDraggingRef = useRef(false);
@@ -72,6 +76,7 @@ function FlowWithCropping({
   const flowWrapperRef = useRef<HTMLDivElement>(null);
   const [instructionsVisible, setInstructionsVisible] = useState(true);
   const [isLoaded, setIsLoaded] = useState(false);
+  const [isResizing, setIsResizing] = useState(false);
 
   // Initialize crop area to fit all nodes
   useEffect(() => {
@@ -115,29 +120,43 @@ function FlowWithCropping({
     if (cropBoxRef.current && cropBoxRef.current.contains(e.target as Node)) {
       isDraggingRef.current = true;
       startPosRef.current = { x: e.clientX, y: e.clientY };
+      e.preventDefault();
     }
   }, []);
 
   const handleMouseMove = useCallback(
     (e: React.MouseEvent) => {
-      if (isDraggingRef.current) {
+      if (isDraggingRef.current && !isResizing) {
         const dx = e.clientX - startPosRef.current.x;
         const dy = e.clientY - startPosRef.current.y;
 
         setCropArea((prev: any) => ({
           ...prev,
-          x: prev.x + dx,
-          y: prev.y + dy,
+          x: Math.max(
+            0,
+            Math.min(
+              prev.x + dx,
+              viewportRef.current?.clientWidth || 500 - prev.width
+            )
+          ),
+          y: Math.max(
+            0,
+            Math.min(
+              prev.y + dy,
+              viewportRef.current?.clientHeight || 300 - prev.height
+            )
+          ),
         }));
 
         startPosRef.current = { x: e.clientX, y: e.clientY };
       }
     },
-    [setCropArea]
+    [setCropArea, isResizing, viewportRef]
   );
 
   const handleMouseUp = useCallback(() => {
     isDraggingRef.current = false;
+    setIsResizing(false);
   }, []);
 
   // Make the crop function available to the parent
@@ -246,9 +265,62 @@ function FlowWithCropping({
     setInstructionsVisible,
   ]);
 
+  const optimizedNodes = useMemo(
+    () =>
+      nodes?.map((node: any) => {
+        const nodeWidth =
+          node.width ||
+          node.data.width ||
+          (node.type === "textNode" ? 150 : 100);
+        const nodeHeight =
+          node.height ||
+          node.data.height ||
+          (node.type === "textNode" ? 50 : 100);
+
+        return {
+          ...node,
+          width: nodeWidth,
+          height: nodeHeight,
+          data: {
+            ...node.data,
+            width: nodeWidth,
+            height: nodeHeight,
+            style: {
+              ...styles[node.id],
+              width: nodeWidth,
+              height: nodeHeight,
+            },
+          },
+          style: {
+            ...node.style,
+            width: nodeWidth,
+            height: nodeHeight,
+          },
+        };
+      }),
+    [nodes, styles]
+  );
+
+  const optimizedEdges = useMemo(
+    () =>
+      edges.map((edge: any) => ({
+        ...edge,
+        type: "custom",
+        sourceHandle: edge.sourceHandle || "g",
+        targetHandle: edge.targetHandle || "d",
+        style: {
+          ...(edge.style || {}),
+          opacity: edge.style?.opacity ?? 1.0,
+          strokeWidth: edge.style?.strokeWidth ?? 2,
+        },
+        data: edge.data,
+      })),
+    [edges]
+  );
+
   return (
     <div
-      className="relative h-[500px] border border-gray-200 rounded-md overflow-hidden"
+      className="relative h-[500px] border border-gray-200 rounded-md overflow-hidden bg-gray-50"
       ref={viewportRef}
       onMouseDown={handleMouseDown}
       onMouseMove={handleMouseMove}
@@ -257,51 +329,11 @@ function FlowWithCropping({
     >
       <div ref={flowWrapperRef} style={{ width: "100%", height: "100%" }}>
         <ReactFlow
-          nodes={nodes.map((node) => ({
-            ...node,
-            data: {
-              ...node.data,
-              style: {
-                ...canvasData.flowData?.styles[node.id],
-                width:
-                  node?.type === "imageNode"
-                    ? node.style?.width
-                    : node.style?.width ||
-                      (node?.type === "textNode" ? 150 : 100),
-                height:
-                  node?.type === "imageNode"
-                    ? node.style?.height
-                    : node.style?.height ||
-                      (node?.type === "textNode" ? 50 : 100),
-              },
-            },
-            style: {
-              width:
-                node?.type === "imageNode"
-                  ? node.style?.width
-                  : node.style?.width ||
-                    (node?.type === "textNode" ? 150 : 100),
-              height:
-                node?.type === "imageNode"
-                  ? node.style?.height
-                  : node.style?.height ||
-                    (node?.type === "textNode" ? 50 : 100),
-            },
-            connectable: node?.type !== "textNode",
-            // selected: selectedNodes.includes(node.id),
-          }))}
-          edges={edges.map((edge) => ({
-            ...edge,
-            type: "custom",
-            data: { ...edge.data },
-          }))}
+          nodes={optimizedNodes}
+          edges={optimizedEdges}
           nodeTypes={nodeTypes}
           edgeTypes={edgeTypes}
-          // onNodesChange={onNodesChange}
-          // onEdgesChange={onEdgesChange}
           fitView
-          // minZoom={0.1}
-          // maxZoom={2}
           proOptions={{ hideAttribution: true }}
           nodesDraggable={false}
           nodesConnectable={false}
@@ -310,8 +342,9 @@ function FlowWithCropping({
           <Background gap={12} size={1} />
           {instructionsVisible && (
             <Panel position="top-center" className="crop-instructions">
-              <div className="bg-white p-2 rounded shadow-sm text-xs">
-                Drag the blue box to position the crop area
+              <div className="bg-white/90 backdrop-blur-sm p-3 rounded-lg shadow-sm text-sm flex items-center gap-2">
+                <Info className="h-4 w-4 text-blue-500" />
+                <span>Drag the blue box to position the crop area</span>
               </div>
             </Panel>
           )}
@@ -321,7 +354,7 @@ function FlowWithCropping({
       {/* Crop selection box */}
       <div
         ref={cropBoxRef}
-        className="absolute border-2 border-blue-500 bg-blue-100 bg-opacity-20 cursor-move z-10"
+        className="absolute border-2 border-blue-500 bg-blue-100/20 cursor-move z-10 transition-shadow hover:shadow-lg"
         style={{
           left: `${cropArea.x}px`,
           top: `${cropArea.y}px`,
@@ -329,35 +362,73 @@ function FlowWithCropping({
           height: `${cropArea.height}px`,
         }}
       >
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-blue-500 text-white px-2 py-1 rounded text-xs whitespace-nowrap">
+                {Math.round(cropArea.width)} × {Math.round(cropArea.height)}
+              </div>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>Crop dimensions</p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+
         {/* Resize handle */}
-        <div
-          className="absolute bottom-0 right-0 w-4 h-4 bg-blue-500 cursor-se-resize"
-          onMouseDown={(e) => {
-            e.stopPropagation();
-            const startWidth = cropArea.width;
-            const startHeight = cropArea.height;
-            const startX = e.clientX;
-            const startY = e.clientY;
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <div
+                className="absolute bottom-0 right-0 w-6 h-6 bg-blue-500 cursor-se-resize flex items-center justify-center text-white rounded-tl"
+                onMouseDown={(e) => {
+                  e.stopPropagation();
+                  setIsResizing(true);
+                  const startWidth = cropArea.width;
+                  const startHeight = cropArea.height;
+                  const startX = e.clientX;
+                  const startY = e.clientY;
 
-            const handleResize = (moveEvent: MouseEvent) => {
-              const dx = moveEvent.clientX - startX;
-              const dy = moveEvent.clientY - startY;
-              setCropArea((prev: any) => ({
-                ...prev,
-                width: Math.max(100, startWidth + dx),
-                height: Math.max(100, startHeight + dy),
-              }));
-            };
+                  const handleResize = (moveEvent: MouseEvent) => {
+                    const dx = moveEvent.clientX - startX;
+                    const dy = moveEvent.clientY - startY;
+                    setCropArea((prev: any) => ({
+                      ...prev,
+                      width: Math.max(
+                        100,
+                        Math.min(
+                          startWidth + dx,
+                          viewportRef.current?.clientWidth || 500 - prev.x
+                        )
+                      ),
+                      height: Math.max(
+                        100,
+                        Math.min(
+                          startHeight + dy,
+                          viewportRef.current?.clientHeight || 300 - prev.y
+                        )
+                      ),
+                    }));
+                  };
 
-            const handleMouseUp = () => {
-              document.removeEventListener("mousemove", handleResize);
-              document.removeEventListener("mouseup", handleMouseUp);
-            };
+                  const handleMouseUp = () => {
+                    document.removeEventListener("mousemove", handleResize);
+                    document.removeEventListener("mouseup", handleMouseUp);
+                    setIsResizing(false);
+                  };
 
-            document.addEventListener("mousemove", handleResize);
-            document.addEventListener("mouseup", handleMouseUp);
-          }}
-        />
+                  document.addEventListener("mousemove", handleResize);
+                  document.addEventListener("mouseup", handleMouseUp);
+                }}
+              >
+                <Maximize2 className="h-4 w-4" />
+              </div>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>Resize crop area</p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
       </div>
     </div>
   );
@@ -434,10 +505,12 @@ export default function CanvasCropDialog({
       <DialogContent className="sm:max-w-4xl">
         <DialogHeader>
           <DialogTitle>Crop Canvas</DialogTitle>
+          <DialogDescription>
+            Select the area you want to display in your document. You can drag
+            the blue box to position it and use the handle in the bottom-right
+            corner to resize.
+          </DialogDescription>
         </DialogHeader>
-        <div className="text-sm text-muted-foreground mb-4">
-          Select the area you want to display in your document
-        </div>
 
         <ReactFlowProvider>
           <FlowWithCropping
@@ -449,11 +522,14 @@ export default function CanvasCropDialog({
           />
         </ReactFlowProvider>
 
-        <DialogFooter className="mt-6">
+        <DialogFooter className="mt-6 gap-2">
           <Button variant="outline" onClick={onClose}>
             Cancel
           </Button>
-          <Button onClick={handleInsert}>Insert Cropped Canvas</Button>
+          <Button onClick={handleInsert} className="gap-2">
+            <Move className="h-4 w-4" />
+            Insert Cropped Canvas
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

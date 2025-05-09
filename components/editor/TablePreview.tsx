@@ -28,70 +28,107 @@ export default function TablePreview({
   const tableData = React.useMemo(() => {
     if (!nodes || !nodes.length) return [];
 
-    return nodes.slice(0, displayRows).map((node) => {
+    // Process nodes with rollup and relation data
+    const processedNodes = nodes.map((node) => {
+      const newNode = { ...node };
+      columns?.forEach((column) => {
+        // Handle rollup columns
+        if (column.type === "Rollup") {
+          // Initialize with empty array if no rollup data exists
+          newNode.data[column.title] = newNode.data[column.title] || [];
+        }
+        // Handle relation columns
+        else if (column.type === "Relation") {
+          const relationData = newNode.data[column.title];
+          // Ensure relation data is always an array
+          if (relationData) {
+            newNode.data[column.title] = Array.isArray(relationData)
+              ? relationData
+              : [relationData];
+          } else {
+            newNode.data[column.title] = [];
+          }
+        }
+      });
+      return newNode;
+    });
+
+    return processedNodes.slice(0, displayRows).map((node) => {
       return filteredColumns.map((column) => {
         let cellValue;
+
         // Handle special case for 'task' column which is stored as 'label' in node data
         if (column.title === "task") {
           cellValue = node?.data?.label || "";
         } else if (column.title === "type") {
           cellValue = node?.data?.shape || "";
         } else {
-          cellValue = node?.data?.[column.title] || "";
+          cellValue = node?.data?.[column.title];
         }
 
-        // Handle relation data
-        if (
-          cellValue &&
-          typeof cellValue === "object" &&
-          (Array.isArray(cellValue) || cellValue.id) &&
-          (column.title.toLowerCase().includes("relation") ||
-            column.type === "relation")
-        ) {
-          // If it's an array of relations
-          if (Array.isArray(cellValue)) {
-            // Extract labels from relation objects
-            const relationLabels = cellValue
-              .map((rel: any) => {
-                if (rel && rel.data && rel.data.label) return rel.data.label;
-                if (rel && rel.label) return rel.label;
-                if (rel && typeof rel === "object") {
-                  // Try to find the first string property to use as label
-                  for (const key in rel) {
-                    if (typeof rel[key] === "string" && key !== "id") {
-                      return rel[key];
+        // Handle different column types
+        switch (column.type) {
+          case "Number":
+            return typeof cellValue === "number"
+              ? cellValue.toString()
+              : typeof cellValue === "string"
+                ? parseFloat(cellValue).toString() || "0"
+                : "0";
+
+          case "Date":
+          case "Created Time":
+          case "Last edited time":
+            return cellValue ? new Date(cellValue).toLocaleString() : "";
+
+          case "Checkbox":
+            return cellValue ? "Yes" : "No";
+
+          case "Relation":
+            if (cellValue && Array.isArray(cellValue)) {
+              return (
+                cellValue
+                  .map((rel: any) => {
+                    if (rel?.data?.label) return rel.data.label;
+                    if (rel?.label) return rel.label;
+                    if (rel && typeof rel === "object") {
+                      // Try to find the first string property to use as label
+                      for (const key in rel) {
+                        if (typeof rel[key] === "string" && key !== "id") {
+                          return rel[key];
+                        }
+                      }
                     }
-                  }
-                }
-                return null;
-              })
-              .filter(Boolean)
-              .join(", ");
-
-            return relationLabels || "No relations";
-          }
-          // If it's a single relation object
-          else if (cellValue.id) {
-            if (cellValue.data && cellValue.data.label)
-              return cellValue.data.label;
-            if (cellValue.label) return cellValue.label;
-            // Try to find a non-id string property
-            for (const key in cellValue) {
-              if (typeof cellValue[key] === "string" && key !== "id") {
-                return cellValue[key];
-              }
+                    return null;
+                  })
+                  .filter(Boolean)
+                  .join(", ") || "No relations"
+              );
             }
-          }
-        }
+            return "No relations";
 
-        // Convert other objects to strings to prevent React rendering errors
-        if (typeof cellValue === "object" && cellValue !== null) {
-          return JSON.stringify(cellValue);
+          case "Rollup":
+            if (cellValue && Array.isArray(cellValue)) {
+              return cellValue.join(", ") || "No data";
+            }
+            return "No data";
+
+          case "Select":
+          case "Multiselect":
+            if (Array.isArray(cellValue)) {
+              return cellValue.join(", ");
+            }
+            return cellValue || "";
+
+          default:
+            // For text and other types
+            if (typeof cellValue === "object" && cellValue !== null) {
+              return JSON.stringify(cellValue);
+            }
+            return String(cellValue || "");
         }
-        return String(cellValue);
       });
     });
-  }, [nodes, filteredColumns, displayRows]);
+  }, [nodes, filteredColumns, displayRows, columns]);
 
   if (!nodes || !nodes.length || !columns || !columns.length) {
     return (
@@ -103,13 +140,14 @@ export default function TablePreview({
 
   return (
     <div className="overflow-auto max-h-[200px] border border-gray-200 rounded">
-      <table className="w-full border-collapse table-fixed">
+      <table className="w-full border-collapse">
         <thead>
           <tr className="bg-gray-50 border-b border-gray-300">
             {filteredColumns.map((column, index) => (
               <th
                 key={`header-${index}`}
-                className="border-r border-gray-300 px-3 py-2 text-left text-xs font-semibold text-gray-700"
+                className="border-r border-gray-300 px-3 py-2 text-left text-xs font-semibold text-gray-700 whitespace-nowrap"
+                style={{ minWidth: "150px" }}
               >
                 {column.title}
               </th>
@@ -125,9 +163,12 @@ export default function TablePreview({
               {row.map((cell, cellIndex) => (
                 <td
                   key={`cell-${rowIndex}-${cellIndex}`}
-                  className="border-r border-gray-300 px-3 py-2 text-xs text-gray-700 truncate"
+                  className="border-r border-gray-300 px-3 py-2 text-xs text-gray-700"
+                  style={{ minWidth: "150px" }}
                 >
-                  {cell}
+                  <div className="truncate" title={cell}>
+                    {cell}
+                  </div>
                 </td>
               ))}
             </tr>

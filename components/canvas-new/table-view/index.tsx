@@ -154,6 +154,8 @@ const TableView = forwardRef<
       useState(false);
 
     const [resizingColumn, setResizingColumn] = useState<string | null>(null);
+    const [startX, setStartX] = useState<number>(0);
+    const [startWidth, setStartWidth] = useState<number>(0);
 
     // Add column refs for resizing
     const columnRefs = useRef<{ [key: string]: HTMLTableCellElement | null }>(
@@ -234,10 +236,6 @@ const TableView = forwardRef<
             // Get the related canvas data from the relation column
             const relatedCanvas = relationColumn.related_canvas;
 
-            // if (!relatedCanvas?.canvas_data?.nodes) {
-            //   return;
-            // }
-
             const relatedCanvasNodes =
               relatedCanvas?.canvas_data?.[0].nodes ??
               relatedCanvas?.canvas_data?.nodes ??
@@ -291,6 +289,12 @@ const TableView = forwardRef<
       setRelationCache(newRelationCache);
     }, [nodes, columns]);
 
+    let {
+      columnWidths = {},
+      hiddenNodeIds = new Set(),
+      hiddenColumns = [],
+    } = canvasSettings?.table_settings ?? {};
+
     // Function to update table settings
     const updateTableSettings = (settings: any) => {
       updateCanvasSettings({
@@ -299,9 +303,53 @@ const TableView = forwardRef<
       });
     };
 
-    // Column resizing functionality
+    // Add resize event handlers
+    useEffect(() => {
+      if (!resizingColumn) return;
+
+      const handleMouseMove = (e: MouseEvent) => {
+        if (!resizingColumn || !columnRefs.current[resizingColumn]) return;
+
+        const currentX = e.clientX;
+        const difference = currentX - startX;
+        const newWidth = Math.max(100, startWidth + difference); // Minimum width of 100px
+
+        // Update the column width in the state
+        const newColumnWidths = { ...columnWidths };
+        newColumnWidths[resizingColumn] = newWidth;
+        updateTableSettings({
+          ...canvasSettings?.table_settings,
+          columnWidths: newColumnWidths,
+        });
+      };
+
+      const handleMouseUp = () => {
+        setResizingColumn(null);
+      };
+
+      document.addEventListener("mousemove", handleMouseMove);
+      document.addEventListener("mouseup", handleMouseUp);
+
+      return () => {
+        document.removeEventListener("mousemove", handleMouseMove);
+        document.removeEventListener("mouseup", handleMouseUp);
+      };
+    }, [
+      resizingColumn,
+      startX,
+      startWidth,
+      columnWidths,
+      canvasSettings?.table_settings,
+    ]);
+
     const startResizing = (columnTitle: string) => {
+      const column = columnRefs.current[columnTitle];
+      if (!column) return;
+
+      const event = window.event as MouseEvent;
       setResizingColumn(columnTitle);
+      setStartX(event?.clientX || 0);
+      setStartWidth(column.offsetWidth);
     };
 
     // Handle duplicate selected rows
@@ -374,12 +422,6 @@ const TableView = forwardRef<
         };
       });
     };
-
-    let {
-      columnWidths = {},
-      hiddenNodeIds = new Set(),
-      hiddenColumns = [],
-    } = canvasSettings?.table_settings ?? {};
 
     // Filter state
     const [filterGroups, setFilterGroups] = useState<FilterGroup[]>([]);
@@ -2744,8 +2786,6 @@ const TableView = forwardRef<
                           {col.title}
                         </SelectItem>
                       ))}
-                    <SelectItem value="task">task</SelectItem>
-                    <SelectItem value="type">type</SelectItem>
                   </SelectContent>
                 </Select>
               </div>

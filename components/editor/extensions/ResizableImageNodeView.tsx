@@ -110,6 +110,7 @@ const ResizableImageNodeView: React.FC<NodeViewProps> = ({
         }}
       >
         <img
+          key={`img-${width}-${height}`}
           ref={imageRef}
           src={node.attrs.src}
           alt={node.attrs.alt || ""}

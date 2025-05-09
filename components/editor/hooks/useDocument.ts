@@ -5,6 +5,7 @@ import { persist } from "zustand/middleware";
 import { supabase } from "@/lib/supabase/client";
 import toast from "react-hot-toast";
 import { debounce } from "lodash";
+import { Folder } from "@/types/sidebar";
 
 interface DocumentState {
   id: string;
@@ -20,6 +21,7 @@ interface DocumentState {
   isDirty: boolean;
   lastSaved: Date | null;
   folderCanvases: any[];
+  folder?: any;
   setName: (name: string) => void;
   setDescription: (description: string) => void;
   updateEditorState: (editorState: any) => void;
@@ -52,6 +54,7 @@ const initialState: DocumentState = {
   resetState: () => {},
   loadFolderCanvases: async () => {},
   folderCanvases: [],
+  folder: null,
 };
 
 export const useDocumentStore = create<DocumentState>()(
@@ -101,7 +104,7 @@ export const useDocumentStore = create<DocumentState>()(
             const { data: canvas, error: canvasError } = await supabase
               .from("canvas")
               .select(
-                "id, name, description, folder_id, document_data(*), user_id"
+                "id, name, description, folder_id, document_data(*), user_id, folder:folder!canvas_folder_id_fkey(*)"
               )
               .eq("id", canvasId)
               .single();
@@ -126,6 +129,7 @@ export const useDocumentStore = create<DocumentState>()(
                 ? new Date(documentData.updated_at)
                 : null,
               user_id: canvas.user_id,
+              folder: canvas.folder,
             });
 
             get().loadFolderCanvases(canvas.folder_id);
@@ -220,10 +224,10 @@ export const useDocumentStore = create<DocumentState>()(
         loadFolderCanvases: async (folderId: string | null) => {
           set({ isLoading: true, error: null });
 
-          if (!folderId) {
-            set({ folderCanvases: [] });
-            return;
-          }
+          // if (!folderId) {
+          //   set({ folderCanvases: [] });
+          //   return;
+          // }
 
           try {
             // Get current user

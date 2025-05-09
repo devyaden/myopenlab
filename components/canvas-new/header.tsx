@@ -27,6 +27,8 @@ import {
   Menu,
   Save,
   Send,
+  ChevronRight,
+  Home,
 } from "lucide-react";
 import type React from "react";
 import { useEffect, useState } from "react";
@@ -37,6 +39,9 @@ import { ShareModal } from "./share-modal";
 import { VIEW_MODE, ViewMode } from "./table-view/table.types";
 import Image from "next/image";
 import { CANVAS_TYPE } from "@/types/store";
+import Link from "next/link";
+import { useSidebarStore } from "@/lib/store/useSidebar";
+import { Folder } from "@/types/sidebar";
 
 const MAX_TITLE_LENGTH = 50;
 
@@ -60,6 +65,7 @@ interface HeaderProps {
   exportAsPDF?: () => void;
   canvasType: CANVAS_TYPE;
   toggleMiniMap?: (show: boolean) => void;
+  currentFolder?: Folder | null;
 }
 
 export function Header({
@@ -81,6 +87,7 @@ export function Header({
   exportAsPDF: propExportAsPDF,
   canvasType,
   toggleMiniMap,
+  currentFolder,
 }: HeaderProps) {
   const [documentStatus, setDocumentStatus] = useState("Draft");
   const [isEditing, setIsEditing] = useState(false);
@@ -88,6 +95,7 @@ export function Header({
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
+  const { folders } = useSidebarStore();
 
   const handleTitleDoubleClick = () => {
     if (!isOwner) return;
@@ -267,11 +275,11 @@ export function Header({
     setIsExportModalOpen(true);
   };
 
-  useEffect(() => {
-    return () => {
-      onSave();
-    };
-  }, []);
+  // useEffect(() => {
+  //   return () => {
+  //     onSave();
+  //   };
+  // }, []);
 
   return (
     <div className="border-b border-gray-200 py-2 ">
@@ -284,15 +292,27 @@ export function Header({
           >
             <Menu className="h-4 w-4" />
           </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            className="hidden md:flex items-center justify-center"
-            onClick={onBackToDashboard}
-          >
-            <ChevronLeft className="h-4 w-4" />
-            Back
-          </Button>
+
+          {/* Breadcrumbs navigation */}
+          <nav className="hidden md:flex items-center">
+            <Link
+              href="/protected"
+              className="flex items-center text-sm text-gray-600 hover:text-gray-900"
+            >
+              <Home className="h-4 w-4 mr-1" />
+            </Link>
+            <ChevronRight className="h-4 w-4 mx-2 text-gray-400" />
+            <Link
+              href={`/protected/folder/${currentFolder?.id || "root"}`}
+              className="text-sm text-gray-600 hover:text-gray-900"
+            >
+              {currentFolder?.name || "Root"}
+            </Link>
+            <ChevronRight className="h-4 w-4 mx-2 text-gray-400" />
+            <span className="text-sm font-medium text-gray-900">
+              {projectName}
+            </span>
+          </nav>
 
           {/* Cionay Logo */}
           <div className="flex items-center">

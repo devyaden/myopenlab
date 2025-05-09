@@ -1,5 +1,15 @@
 "use client";
 
+import { Button } from "@/components/ui/button";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { useUser } from "@/lib/contexts/userContext";
+import type { PaperOrientation, PaperSize } from "@/types/paper";
+import { CANVAS_TYPE } from "@/types/store";
+import { DEFAULT_MARGINS, PAPER_DIMENSIONS } from "@/utils/paper-sizes";
 import CharacterCount from "@tiptap/extension-character-count";
 import Color from "@tiptap/extension-color";
 import FontFamily from "@tiptap/extension-font-family";
@@ -21,7 +31,9 @@ import Underline from "@tiptap/extension-underline";
 import { EditorContent, useEditor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import debounce from "lodash/debounce";
-import { useCallback, useEffect, useRef, useState, useMemo } from "react";
+import { Loader2, Minus, Plus, RefreshCw } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { useCallback, useEffect, useRef, useState } from "react";
 import toast from "react-hot-toast";
 import FontSize from "tiptap-extension-font-size";
 import PaginationExtension, {
@@ -29,16 +41,8 @@ import PaginationExtension, {
   HeaderFooterNode,
   PageNode,
 } from "tiptap-extension-pagination";
-import { Button } from "@/components/ui/button";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
-import { Minus, Plus, RefreshCw } from "lucide-react";
-
-import type { PaperOrientation, PaperSize } from "@/types/paper";
-import { DEFAULT_MARGINS, PAPER_DIMENSIONS } from "@/utils/paper-sizes";
+import { Header } from "../canvas-new/header";
+import { Unauthorized } from "../unauthorized";
 import CanvasCropDialog from "./CanvasCropDialog";
 import CanvasDialog from "./CanvasDialog";
 import "./editor.css";
@@ -46,7 +50,6 @@ import EditorToolbar from "./EditorToolbar";
 import CanvasTableNode from "./extensions/CanvasTableNode";
 import { ReactFlowNode } from "./extensions/ReactFlowNode";
 import ResizableImageNode from "./extensions/ResizableImageNode";
-
 import HeaderFooterDialog, {
   type HeaderFooterConfig,
 } from "./HeaderFooterDialog";
@@ -55,11 +58,6 @@ import ImageDialog from "./ImageDialog";
 import LinkDialog from "./LinkDialog";
 import TableDialog from "./TableDialog";
 import TableSelectorDialog from "./TableSelectorDialog";
-import { useRouter } from "next/navigation";
-import { CANVAS_TYPE } from "@/types/store";
-import { Header } from "../canvas-new/header";
-import { useUser } from "@/lib/contexts/userContext";
-import { Unauthorized } from "../unauthorized";
 
 // Add the function to generate the HTML content for header/footer
 const generateHeaderFooterContent = (config: HeaderFooterConfig) => {
@@ -229,6 +227,11 @@ export default function Editor({
     wordCount: 0,
   });
 
+  // Add new state variable for tracking editor key change time
+  const [editorKeyChangeTime, setEditorKeyChangeTime] = useState<number>(
+    Date.now()
+  );
+
   // Get dimensions based on current paper size and orientation
   const getDimensions = useCallback(() => {
     const dimensions = PAPER_DIMENSIONS[pageSize];
@@ -264,6 +267,7 @@ export default function Editor({
     saveLoading,
     folderCanvases,
     user_id,
+    folder,
   } = useDocumentStore();
 
   // Initialize editor
@@ -363,9 +367,8 @@ export default function Editor({
     editable: !readOnly,
     content: "",
     onUpdate: ({ editor }) => {
+      console.log("🚀 ~ onUpdate ~ editor:", editor.getHTML());
       if (editor) {
-        const content = editor.getHTML();
-        setCurrentDocument((prev) => (prev ? { ...prev, content } : null));
         updateEditorState(editor);
         debouncedSave();
       }
@@ -451,40 +454,92 @@ export default function Editor({
     }
   }, [canvasId, name]);
 
+  // Update the useEffect that handles editor initialization and content loading
+  useEffect(() => {
+    if (!editor) return;
+
+    // Apply page dimensions and margins immediately when editor is created
+    setTimeout(() => {
+      if (editor && !editor.isDestroyed) {
+        // First apply page settings
+        editor.commands.setDocumentPaperSize(pageSize);
+        editor.commands.setDocumentPaperOrientation(orientation);
+
+        // Then apply margins
+        editor.commands.setDocumentPageMargin(
+          "left",
+          paginationSettings.marginLeft / 3.78
+        );
+        editor.commands.setDocumentPageMargin(
+          "right",
+          paginationSettings.marginRight / 3.78
+        );
+        editor.commands.setDocumentPageMargin(
+          "top",
+          paginationSettings.marginTop / 3.78
+        );
+        editor.commands.setDocumentPageMargin(
+          "bottom",
+          paginationSettings.marginBottom / 3.78
+        );
+
+        // Then load content if available
+        if (editor_state) {
+          try {
+            const parsedState = JSON.parse(editor_state);
+            const { state, controls, json } = parsedState;
+
+            // If we have the full JSON structure, use it for better data preservation
+            if (json) {
+              editor.commands.setContent(json);
+            } else {
+              // Fallback to HTML content
+              editor.commands.setContent(state);
+            }
+
+            if (controls) {
+              setEditorState(controls);
+            }
+          } catch (error) {
+            console.error("Error parsing editor state:", error);
+            toast.error("Failed to load document content");
+          }
+        }
+      }
+    }, 50);
+  }, [editor, editorKey]); // Only depend on editor and editorKey, not editor_state to avoid loops
+
+  // Keep the existing useEffect for editor_state changes, but modify to prevent duplicate state updates
   useEffect(() => {
     if (editor && editor_state) {
-      try {
-        const parsedState = JSON.parse(editor_state);
-        const { state, controls, json } = parsedState;
+      // Only update content if the editor wasn't just created (to avoid double loading)
+      const lastKeyChange = Date.now() - editorKeyChangeTime;
+      if (lastKeyChange > 500) {
+        // If it's been more than 500ms since editor recreation
+        try {
+          const parsedState = JSON.parse(editor_state);
+          const { state, controls, json } = parsedState;
 
-        // If we have the full JSON structure, use it for better data preservation
-        if (json) {
-          editor.commands.setContent(json);
-        } else {
-          // Fallback to HTML content
-          editor.commands.setContent(state);
+          // If we have the full JSON structure, use it for better data preservation
+          setTimeout(() => {
+            if (json) {
+              editor.commands.setContent(json);
+            } else {
+              // Fallback to HTML content
+              editor.commands.setContent(state);
+            }
+
+            if (controls) {
+              setEditorState(controls);
+            }
+          });
+        } catch (error) {
+          console.error("Error parsing editor state:", error);
+          toast.error("Failed to load document content");
         }
-
-        setEditorState(controls);
-      } catch (error) {
-        console.error("Error parsing editor state:", error);
-        toast.error("Failed to load document content");
       }
     }
-  }, [editor_state, editor]);
-
-  // Update editor content when document changes
-  useEffect(() => {
-    if (editor && currentDocument?.content) {
-      try {
-        editor.commands.setContent(currentDocument.content);
-        updateEditorState(editor);
-      } catch (error) {
-        console.error("Error loading document content:", error);
-        toast.error("Failed to load document content");
-      }
-    }
-  }, [editor, currentDocument?.content]);
+  }, [editor_state, editor, editorKeyChangeTime]);
 
   // Update editor state based on current selection
   const updateEditorState = useCallback(
@@ -530,8 +585,6 @@ export default function Editor({
       if (JSON.stringify(newState) !== JSON.stringify(editorState)) {
         setEditorState(newState);
       }
-
-      handleSave();
     },
     [editorState]
   );
@@ -552,6 +605,33 @@ export default function Editor({
     }
   };
 
+  // Update the refreshEditor function to use a safer approach with microtasks
+  const refreshEditor = useCallback(() => {
+    if (!editor) return;
+
+    // Store the current editor JSON
+    const editorJSON = editor.getJSON();
+
+    // Use a microtask (Promise) to avoid React rendering conflicts
+    Promise.resolve().then(() => {
+      // First update the editor key in a microtask
+      setEditorKey((prevKey) => {
+        setEditorKeyChangeTime(Date.now());
+        return prevKey + 1;
+      });
+
+      // Then in another microtask, restore content after the editor has been recreated
+      Promise.resolve().then(() => {
+        setTimeout(() => {
+          if (editor && !editor.isDestroyed) {
+            editor.commands.setContent(editorJSON);
+          }
+        }, 50);
+      });
+    });
+  }, [editor]);
+
+  // Update the useEffect that watches for page dimensions changes
   useEffect(() => {
     if (!editor) return; // Skip if editor isn't initialized yet
 
@@ -561,36 +641,53 @@ export default function Editor({
       dimensions.width !== paginationSettings.pageWidth ||
       dimensions.height !== paginationSettings.pageHeight
     ) {
+      // Store current editor content
+      const editorJSON = editor.getJSON();
+
+      // Update pagination settings
       setPaginationSettings((prev) => ({
         ...prev,
         pageWidth: dimensions.width,
         pageHeight: dimensions.height,
       }));
 
-      // Apply the new page size to the editor
-      editor.commands.setDocumentPaperSize(pageSize);
-      editor.commands.setDocumentPaperOrientation(orientation);
+      // Force recreation of the editor
+      setEditorKey((prevKey) => {
+        setEditorKeyChangeTime(Date.now());
+        return prevKey + 1;
+      });
 
-      // Apply the margins to the editor (convert from px to mm for the pagination extension)
-      editor.commands.setDocumentPageMargin(
-        "left",
-        paginationSettings.marginLeft / 3.78
-      );
-      editor.commands.setDocumentPageMargin(
-        "right",
-        paginationSettings.marginRight / 3.78
-      );
-      editor.commands.setDocumentPageMargin(
-        "top",
-        paginationSettings.marginTop / 3.78
-      );
-      editor.commands.setDocumentPageMargin(
-        "bottom",
-        paginationSettings.marginBottom / 3.78
-      );
+      // After editor is recreated, restore content and apply settings
+      requestAnimationFrame(() => {
+        setTimeout(() => {
+          if (editor && !editor.isDestroyed) {
+            // Set content first
+            editor.commands.setContent(editorJSON);
 
-      // Force a re-render of the editor to apply the new dimensions
-      setEditorKey((prevKey) => prevKey + 1);
+            // Then apply the new page size to the editor
+            editor.commands.setDocumentPaperSize(pageSize);
+            editor.commands.setDocumentPaperOrientation(orientation);
+
+            // Apply the margins to the editor (convert from px to mm for the pagination extension)
+            editor.commands.setDocumentPageMargin(
+              "left",
+              paginationSettings.marginLeft / 3.78
+            );
+            editor.commands.setDocumentPageMargin(
+              "right",
+              paginationSettings.marginRight / 3.78
+            );
+            editor.commands.setDocumentPageMargin(
+              "top",
+              paginationSettings.marginTop / 3.78
+            );
+            editor.commands.setDocumentPageMargin(
+              "bottom",
+              paginationSettings.marginBottom / 3.78
+            );
+          }
+        }, 100);
+      });
     }
   }, [
     pageSize,
@@ -601,6 +698,8 @@ export default function Editor({
     paginationSettings.marginLeft,
     paginationSettings.marginRight,
     paginationSettings.marginTop,
+    paginationSettings.pageWidth,
+    paginationSettings.pageHeight,
   ]);
 
   // Apply margin visualization after editor is initialized
@@ -643,13 +742,129 @@ export default function Editor({
     }
   }, [editor, headerConfig, footerConfig]);
 
-  // Handle page size and orientation change
+  // A complete approach to handle page size changes that forces a full editor recreation
   const handlePageSizeChange = (newSize: PaperSize) => {
+    if (!editor) return;
+
+    // Store the current content state before changing dimensions
+    const editorJSON = editor.getJSON();
+
+    // Update the page size state
     setPageSize(newSize);
+
+    // Update the pagination settings with new dimensions
+    const newDimensions = PAPER_DIMENSIONS[newSize];
+    const dimensions =
+      orientation === "landscape"
+        ? { width: newDimensions.height, height: newDimensions.width }
+        : newDimensions;
+
+    setPaginationSettings((prev) => ({
+      ...prev,
+      pageWidth: dimensions.width,
+      pageHeight: dimensions.height,
+    }));
+
+    // Force a complete editor recreation by changing the key
+    setEditorKey((prevKey) => {
+      setEditorKeyChangeTime(Date.now());
+      return prevKey + 1;
+    });
+
+    // After editor is recreated, restore its content in the next animation frame
+    requestAnimationFrame(() => {
+      // Use setTimeout to ensure the editor is fully initialized
+      setTimeout(() => {
+        if (editor && !editor.isDestroyed) {
+          // Set content first to ensure all nodes are present
+          editor.commands.setContent(editorJSON);
+
+          // Then apply the page settings
+          editor.commands.setDocumentPaperSize(newSize);
+          editor.commands.setDocumentPaperOrientation(orientation);
+
+          // Apply margins after content is set
+          editor.commands.setDocumentPageMargin(
+            "left",
+            paginationSettings.marginLeft / 3.78
+          );
+          editor.commands.setDocumentPageMargin(
+            "right",
+            paginationSettings.marginRight / 3.78
+          );
+          editor.commands.setDocumentPageMargin(
+            "top",
+            paginationSettings.marginTop / 3.78
+          );
+          editor.commands.setDocumentPageMargin(
+            "bottom",
+            paginationSettings.marginBottom / 3.78
+          );
+        }
+      }, 100);
+    });
   };
 
+  // Similarly update the orientation change handler
   const handleOrientationChange = (newOrientation: PaperOrientation) => {
+    if (!editor) return;
+
+    // Store the current content state before changing dimensions
+    const editorJSON = editor.getJSON();
+
+    // Update the orientation state
     setOrientation(newOrientation);
+
+    // Update pagination settings with new dimensions based on orientation
+    const newDimensions = PAPER_DIMENSIONS[pageSize];
+    const dimensions =
+      newOrientation === "landscape"
+        ? { width: newDimensions.height, height: newDimensions.width }
+        : newDimensions;
+
+    setPaginationSettings((prev) => ({
+      ...prev,
+      pageWidth: dimensions.width,
+      pageHeight: dimensions.height,
+    }));
+
+    // Force a complete editor recreation
+    setEditorKey((prevKey) => {
+      setEditorKeyChangeTime(Date.now());
+      return prevKey + 1;
+    });
+
+    // After editor is recreated, restore its content
+    requestAnimationFrame(() => {
+      setTimeout(() => {
+        if (editor && !editor.isDestroyed) {
+          // Set content first
+          editor.commands.setContent(editorJSON);
+
+          // Then apply page settings
+          editor.commands.setDocumentPaperSize(pageSize);
+          editor.commands.setDocumentPaperOrientation(newOrientation);
+
+          // Apply margins after content is set
+          editor.commands.setDocumentPageMargin(
+            "left",
+            paginationSettings.marginLeft / 3.78
+          );
+          editor.commands.setDocumentPageMargin(
+            "right",
+            paginationSettings.marginRight / 3.78
+          );
+          editor.commands.setDocumentPageMargin(
+            "top",
+            paginationSettings.marginTop / 3.78
+          );
+          editor.commands.setDocumentPageMargin(
+            "bottom",
+            paginationSettings.marginBottom / 3.78
+          );
+        }
+      }, 100);
+    });
   };
 
   // Apply formatting from toolbar
@@ -926,8 +1141,9 @@ export default function Editor({
     const formattedCanvasData = {
       id: canvasData.id || `canvas-${Date.now()}`,
       name: canvasData.name || "Untitled Canvas",
-      nodes: canvasData.flowData?.nodes || [],
-      edges: canvasData.flowData?.edges || [],
+      nodes: canvasData.flowData?.[0]?.nodes || [],
+      edges: canvasData.flowData?.[0]?.edges || [],
+      styles: canvasData.flowData?.[0]?.styles || {},
     };
 
     // Fix pointer events before closing the dialog
@@ -1009,14 +1225,17 @@ export default function Editor({
         setCanvasDialogOpen(true);
         break;
       case "canvas-table":
-        // Fix pointer events before opening the dialog
+        // Fix pointer events before opening the dialogF
         document.body.style.pointerEvents = "";
 
         // Find tables from folder canvases
         const tableCanvases = folderCanvases.filter(
           (canvas) =>
-            canvas.canvas_type === "table" && canvas.columns?.length > 0
+            (canvas.canvas_type === "table" ||
+              canvas.canvas_type === "hybrid") &&
+            canvas.columns?.length > 0
         );
+        console.log("🚀 ~ insertContent ~ folderCanvases:", folderCanvases);
 
         if (tableCanvases.length > 0) {
           // Select the first table by default
@@ -1099,6 +1318,8 @@ export default function Editor({
         })
       );
 
+      saveDocument();
+
       // toast.success("Document saved successfully");
     } catch (error) {
       console.error("Error saving document:", error);
@@ -1175,7 +1396,7 @@ export default function Editor({
     }
   };
 
-  // Improved zoom handling - only zoom the content, not the container
+  // Update the handleZoomChange function
   const handleZoomChange = (newZoom: string) => {
     const zoomValue = Number.parseInt(newZoom) / 100;
     setZoom(newZoom);
@@ -1202,6 +1423,48 @@ export default function Editor({
         }
       }
     }
+
+    // If resetting to 100%, refresh the editor to ensure all elements are rendered correctly
+    if (newZoom === "100%" && editor) {
+      // Store current content
+      const editorJSON = editor.getJSON();
+
+      // Force editor recreation
+      setEditorKey((prevKey) => {
+        setEditorKeyChangeTime(Date.now());
+        return prevKey + 1;
+      });
+
+      // Restore content after editor recreation
+      requestAnimationFrame(() => {
+        setTimeout(() => {
+          if (editor && !editor.isDestroyed) {
+            editor.commands.setContent(editorJSON);
+
+            // Apply page settings
+            editor.commands.setDocumentPaperSize(pageSize);
+            editor.commands.setDocumentPaperOrientation(orientation);
+            editor.commands.setDocumentPageMargin(
+              "left",
+              paginationSettings.marginLeft / 3.78
+            );
+            editor.commands.setDocumentPageMargin(
+              "right",
+              paginationSettings.marginRight / 3.78
+            );
+            editor.commands.setDocumentPageMargin(
+              "top",
+              paginationSettings.marginTop / 3.78
+            );
+            editor.commands.setDocumentPageMargin(
+              "bottom",
+              paginationSettings.marginBottom / 3.78
+            );
+          }
+        }, 100);
+      });
+    }
+
     handleSave();
   };
 
@@ -1345,6 +1608,14 @@ export default function Editor({
     checkAuthorization();
   }, [canvasId, user, isLoaded, router]);
 
+  // if (isLoading) {
+  //   return (
+  //     <div className="w-full h-full flex items-center justify-center">
+  //       <Loader2 className="h-10 w-10 animate-spin" />
+  //     </div>
+  //   );
+  // }
+
   // If unauthorized, show the Unauthorized component
   if (unauthorized) {
     return <Unauthorized />;
@@ -1368,6 +1639,7 @@ export default function Editor({
           exportAsJSON={handleExportJSON}
           exportAsPDF={handleExportPDF}
           canvasType={CANVAS_TYPE.DOCUMENT}
+          currentFolder={folder}
         />
       )}
       <EditorToolbar

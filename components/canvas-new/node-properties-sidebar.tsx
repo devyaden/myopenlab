@@ -842,6 +842,7 @@ export function NodePropertiesSidebar({
 
   const handleToggleVisibility = (index: number) => {
     if (!selectedNode) return;
+    debugger;
 
     const property = properties[index];
     const isHidden = !property.hidden;
@@ -858,8 +859,8 @@ export function NodePropertiesSidebar({
     const canvasStore = useCanvasStore.getState();
     const canvasSettings = canvasStore.canvasSettings;
 
-    if (canvasSettings && canvasSettings.table_settings) {
-      let hiddenColumns = canvasSettings.table_settings.hiddenColumns || [];
+    if (canvasSettings) {
+      let hiddenColumns = canvasSettings.table_settings?.hiddenColumns || [];
 
       // Update hidden columns based on property visibility
       if (isHidden && !hiddenColumns.includes(property.name)) {

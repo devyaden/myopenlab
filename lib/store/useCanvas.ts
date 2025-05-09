@@ -44,6 +44,7 @@ const initialState: Omit<CanvasStore, keyof CanvasActions> = {
   lastSaved: null,
   folderCanvases: [],
   canvas_type: null,
+  currentFolder: null,
   canvasSettings: {
     theme: "light",
     grid_size: 15,
@@ -417,7 +418,7 @@ export const useCanvasStore = create<CanvasStore>()(
             // Get canvas details
             const { data: canvas, error: canvasError } = await supabase
               .from("canvas")
-              .select("*")
+              .select("*, folder:folder!canvas_folder_id_fkey(*)")
               .eq("id", canvasId)
               .single();
 
@@ -514,6 +515,7 @@ export const useCanvasStore = create<CanvasStore>()(
                 isDirty: false,
                 lastSaved: new Date(),
                 canvas_type: canvas.canvas_type,
+                currentFolder: canvas.folder,
                 canvasSettings: canvasSettings
                   ? {
                       ...canvasSettings,

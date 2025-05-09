@@ -60,10 +60,10 @@ export const PAPER_DIMENSIONS: Record<any, any> = {
   C10: { width: 114, height: 81 },
 
   // US sizes
-  //   Letter: { width: 816, height: 1056 },
-  //   Legal: { width: 816, height: 1344 },
-  //   Tabloid: { width: 1056, height: 1632 },
-  //   Ledger: { width: 1632, height: 1056 },
+  Letter: { width: 816, height: 1056 },
+  Legal: { width: 816, height: 1344 },
+  Tabloid: { width: 1056, height: 1632 },
+  Ledger: { width: 1632, height: 1056 },
   "Junior Legal": { width: 576, height: 912 },
   "Half Letter": { width: 528, height: 816 },
   "Government Letter": { width: 792, height: 1224 },

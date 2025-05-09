@@ -123,7 +123,9 @@ export default function CanvasNew({ canvasId }: FigmaInterfaceProps) {
     updateCanvasSettings,
     canvasSettings,
     user_id,
+    currentFolder,
   } = useCanvasStore();
+  console.log("🚀 ~ CanvasNew ~ currentFolder:", currentFolder);
 
   const currentState: {
     nodes: Node[];
@@ -1429,6 +1431,7 @@ export default function CanvasNew({ canvasId }: FigmaInterfaceProps) {
             }
             canvasType={canvas_type!}
             toggleMiniMap={miniMapRef}
+            currentFolder={currentFolder}
           />
 
           {/* Add view mode switcher for read-only mode */}

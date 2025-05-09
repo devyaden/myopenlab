@@ -1,5 +1,6 @@
 import { SHAPES } from "@/lib/types/flow-table.types";
 import type { Edge, Node } from "reactflow";
+import { Folder } from "./sidebar";
 
 export enum CANVAS_TYPE {
   HYBRID = "hybrid",
@@ -71,6 +72,7 @@ export interface CanvasState extends CanvasData {
   user_id: string;
   description?: string;
   folder_id?: string;
+  currentFolder?: Folder | null;
   columns: ColumnDefinition[];
   folderCanvases: FolderCanvas[];
   canvasSettings: CanvasSettings;

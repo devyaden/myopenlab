@@ -32,7 +32,7 @@ export default function TableSelectorDialog({
 }: TableSelectorDialogProps) {
   const [selectedTable, setSelectedTable] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [displayRows, setDisplayRows] = useState<number | null>(null);
+  const [displayRows, setDisplayRows] = useState<number>(5);
   const [selectedColumns, setSelectedColumns] = useState<string[]>([]);
   const [activeTab, setActiveTab] = useState<string>("table-selection");
 
@@ -54,7 +54,7 @@ export default function TableSelectorDialog({
   useEffect(() => {
     if (tableData) {
       setSelectedTable(tableData.id);
-      setDisplayRows(tableData.flowData?.nodes?.length || 0);
+      setDisplayRows(Math.min(tableData.flowData?.[0]?.nodes?.length || 5, 5));
       // Get columns excluding 'id'
       const columnTitles = tableData.columns
         ?.filter((col: any) => col.title !== "id")
@@ -119,8 +119,9 @@ export default function TableSelectorDialog({
     );
 
     if (newSelectedTable) {
-      // Update display rows
-      setDisplayRows(newSelectedTable.flowData?.nodes?.length || 0);
+      // Update display rows - initialize to minimum of total rows or 5
+      const totalRows = newSelectedTable.flowData?.[0]?.nodes?.length || 0;
+      setDisplayRows(Math.min(totalRows, 5));
 
       // Update selected columns
       const columnTitles = newSelectedTable.columns
@@ -153,8 +154,8 @@ export default function TableSelectorDialog({
     // Generate table data from nodes, only including selected columns
     let data: any = [];
 
-    if (selectedTableData.flowData?.nodes?.length) {
-      data = selectedTableData.flowData.nodes
+    if (selectedTableData.flowData?.[0]?.nodes?.length) {
+      data = selectedTableData.flowData?.[0]?.nodes
         .slice(0, displayRows)
         .map((node: any) => {
           // For each node, only include data from selected columns
@@ -176,10 +177,6 @@ export default function TableSelectorDialog({
               (Array.isArray(cellValue) || cellValue.id) &&
               columnTitle.toLowerCase().includes("relation")
             ) {
-              // We need to preserve the original relation data structure
-              // but also ensure it can be stringified properly
-
-              // For relation arrays, make sure each object can be safely stringified
               if (Array.isArray(cellValue)) {
                 return cellValue.map((rel: any) => {
                   if (rel && typeof rel === "object") {
@@ -338,8 +335,8 @@ export default function TableSelectorDialog({
                         </div>
                         <div className="h-[150px] overflow-hidden border rounded-md bg-gray-50">
                           <TablePreview
-                            nodes={table.flowData?.nodes}
-                            edges={table.flowData?.edges}
+                            nodes={table.flowData?.[0]?.nodes}
+                            edges={table.flowData?.[0]?.edges}
                             columns={table.columns}
                             displayRows={5}
                             visibleColumns={table.columns
@@ -348,7 +345,7 @@ export default function TableSelectorDialog({
                           />
                         </div>
                         <div className="mt-2 text-xs text-gray-500">
-                          {table.flowData?.nodes?.length || 0} rows,{" "}
+                          {table.flowData?.[0]?.nodes?.length || 0} rows,{" "}
                           {table.columns?.filter(
                             (col: any) => col.title !== "id"
                           ).length || 0}{" "}
@@ -398,7 +395,8 @@ export default function TableSelectorDialog({
                           min={1}
                           max={Math.max(1, maxRowsInSelectedTable)}
                           step={1}
-                          value={[displayRows || maxRowsInSelectedTable]}
+                          defaultValue={[displayRows]}
+                          value={[displayRows]}
                           onValueChange={(value) => setDisplayRows(value[0])}
                         />
                       </div>
@@ -435,14 +433,16 @@ export default function TableSelectorDialog({
 
                   <div className="rounded border border-gray-200 p-4 mt-2">
                     <div className="text-sm font-medium mb-2">Preview:</div>
-                    <div className="overflow-auto max-h-[250px]">
-                      <TablePreview
-                        nodes={selectedTableData.flowData?.nodes}
-                        edges={selectedTableData.flowData?.edges}
-                        columns={selectedTableData.columns}
-                        displayRows={displayRows || maxRowsInSelectedTable}
-                        visibleColumns={visibleColumns}
-                      />
+                    <div className="relative h-[150px]">
+                      <div className="absolute inset-0 overflow-auto border rounded-md bg-gray-50">
+                        <TablePreview
+                          nodes={selectedTableData.flowData?.[0]?.nodes}
+                          edges={selectedTableData.flowData?.[0]?.edges}
+                          columns={selectedTableData.columns}
+                          displayRows={displayRows || maxRowsInSelectedTable}
+                          visibleColumns={visibleColumns}
+                        />
+                      </div>
                     </div>
                   </div>
 

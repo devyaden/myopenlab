@@ -41,6 +41,7 @@ import {
   CornerUpLeft,
   CornerUpRight,
   Table2,
+  Layers2,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -130,8 +131,6 @@ export default function EditorToolbar({
   paginationSettings,
   setPaginationSettings,
   editor,
-  isPartOfCanvas,
-  onBackToBoard,
   viewMode,
   onViewModeChange,
   canvasType,
@@ -142,8 +141,6 @@ export default function EditorToolbar({
   const [showTextCaseMenu, setShowTextCaseMenu] = useState(false);
   const [showPageSettingsMenu, setShowPageSettingsMenu] = useState(false);
   const [activeTab, setActiveTab] = useState("common");
-
-  console.log("canvasType", canvasType);
 
   const insertMenuRef = useRef<HTMLDivElement | null>(null);
   const insertButtonRef = useRef<HTMLButtonElement | null>(null);
@@ -678,10 +675,7 @@ export default function EditorToolbar({
                   <ChevronRight className="mr-2 h-4 w-4" />
                   <span>Collapsible Container</span>
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => onInsert("canvas")}>
-                  <Layers className="mr-2 h-4 w-4" />
-                  <span>Canvas</span>
-                </DropdownMenuItem>
+
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={() => onInsert("header")}>
                   <svg
@@ -761,21 +755,27 @@ export default function EditorToolbar({
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" size="sm" className="h-8 gap-1 px-2">
-                  <Table2 className="h-4 w-4" />
-                  <span className="hidden sm:inline">Canvas Table</span>
+                  <span className="hidden sm:inline">Insert Views</span>
                   <ChevronDown className="h-4 w-4" />
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="start" className="w-56">
                 <DropdownMenuItem onClick={() => onInsert("canvas-table")}>
                   <Table className="mr-2 h-4 w-4" />
-                  <span>Insert Canvas Table</span>
+                  <span>Insert Table</span>
+                </DropdownMenuItem>
+
+                <DropdownMenuItem onClick={() => onInsert("canvas")}>
+                  <Layers2 className="mr-2 h-4 w-4" />
+                  <span>Insert Canvas</span>
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
 
+            <Separator orientation="vertical" className="h-8" />
+
             {/* Page settings dropdown */}
-            <DropdownMenu>
+            {/* <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button
                   variant="ghost"
@@ -906,107 +906,8 @@ export default function EditorToolbar({
                     </Button>
                   ))}
                 </div>
-
-                <DropdownMenuSeparator />
-                <DropdownMenuLabel>Page Options</DropdownMenuLabel>
-                <DropdownMenuItem
-                  onClick={onTogglePageMargins}
-                  className="flex items-center justify-between"
-                >
-                  <span>Show Margins</span>
-                  {showPageMargins ? (
-                    <CheckSquare className="h-4 w-4" />
-                  ) : (
-                    <Square className="h-4 w-4" />
-                  )}
-                </DropdownMenuItem>
-
-                <DropdownMenuSeparator />
-                <DropdownMenuLabel>Page Margins</DropdownMenuLabel>
-                <div className="grid grid-cols-2 gap-2 p-2">
-                  <div className="space-y-1">
-                    <label className="text-xs">Top (px)</label>
-                    <input
-                      type="number"
-                      min="0"
-                      max="200"
-                      value={Math.round(paginationSettings.marginTop)}
-                      onChange={(e) => {
-                        const value = Number(e.target.value);
-                        if (
-                          !isNaN(value) &&
-                          value >= 0 &&
-                          value !== paginationSettings.marginTop
-                        ) {
-                          updateMargin("top", value);
-                        }
-                      }}
-                      className="w-full h-8 px-2 border rounded text-sm"
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-xs">Right (px)</label>
-                    <input
-                      type="number"
-                      min="0"
-                      max="200"
-                      value={Math.round(paginationSettings.marginRight)}
-                      onChange={(e) => {
-                        const value = Number(e.target.value);
-                        if (
-                          !isNaN(value) &&
-                          value >= 0 &&
-                          value !== paginationSettings.marginRight
-                        ) {
-                          updateMargin("right", value);
-                        }
-                      }}
-                      className="w-full h-8 px-2 border rounded text-sm"
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-xs">Bottom (px)</label>
-                    <input
-                      type="number"
-                      min="0"
-                      max="200"
-                      value={Math.round(paginationSettings.marginBottom)}
-                      onChange={(e) => {
-                        const value = Number(e.target.value);
-                        if (
-                          !isNaN(value) &&
-                          value >= 0 &&
-                          value !== paginationSettings.marginBottom
-                        ) {
-                          updateMargin("bottom", value);
-                        }
-                      }}
-                      className="w-full h-8 px-2 border rounded text-sm"
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-xs">Left (px)</label>
-                    <input
-                      type="number"
-                      min="0"
-                      max="200"
-                      value={Math.round(paginationSettings.marginLeft)}
-                      onChange={(e) => {
-                        const value = Number(e.target.value);
-                        if (
-                          !isNaN(value) &&
-                          value >= 0 &&
-                          value !== paginationSettings.marginLeft
-                        ) {
-                          updateMargin("left", value);
-                        }
-                      }}
-                      className="w-full h-8 px-2 border rounded text-sm"
-                    />
-                  </div>
-                </div>
               </DropdownMenuContent>
-            </DropdownMenu>
+            </DropdownMenu> */}
           </>
         )}
 

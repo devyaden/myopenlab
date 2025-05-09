@@ -90,10 +90,9 @@ export default function Dashboard() {
         <div className="flex flex-1 overflow-hidden">
           <main
             ref={mainRef}
-            className="h-full overflow-hidden transition-all duration-300 ease-in-out"
+            className="h-full overflow-hidden transition-all duration-300 ease-in-out will-change-transform"
             style={{
-              width:
-                showSidebar && !isAnimating ? "calc(100% - 20rem)" : "100%",
+              width: showSidebar && !isAnimating ? "calc(100% - 20rem)" : "100%",
             }}
           >
             <HomeContent />

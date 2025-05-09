@@ -38,6 +38,7 @@ const getDoubleLinePath = ({
     targetX,
     targetY,
     targetPosition,
+    borderRadius: 0,
   });
 
   // Offset calculation for double-line effect
@@ -52,6 +53,7 @@ const getDoubleLinePath = ({
     targetX: targetX + offsetX,
     targetY: targetY + offsetY,
     targetPosition,
+    borderRadius: 0,
   });
 
   return { path1, path2, labelX, labelY };
@@ -101,6 +103,10 @@ const CustomEdge = (params: any) => {
     ...style,
     opacity: style.opacity !== undefined ? style.opacity : 1.0,
     strokeWidth: style.strokeWidth || 2,
+    filter: "none",
+    mixBlendMode: "normal",
+    shapeRendering: "crispEdges",
+    vectorEffect: "non-scaling-stroke",
   };
 
   const edgeType = style.edgeType || "default";
@@ -202,25 +208,39 @@ const CustomEdge = (params: any) => {
         <marker
           id={markerId}
           viewBox="0 0 10 10"
-          refX="5"
           refY="5"
           markerWidth="6"
           markerHeight="6"
           orient="auto-start-reverse"
         >
-          <path d="M 0 0 L 10 5 L 0 10 z" fill={strokeColor} />
+          <path
+            d="M 0 0 L 10 5 L 0 10 z"
+            fill={strokeColor}
+            style={{
+              filter: "none",
+              shapeRendering: "crispEdges",
+              vectorEffect: "non-scaling-stroke",
+            }}
+          />
         </marker>
       </defs>
 
       {edgeType === "double" ? (
-        <>
+        <g style={{ isolation: "isolate" }}>
           <path
             id={`${id}-1`}
             d={edgePathData.path1}
             className="react-flow__edge-path"
             strokeWidth={enhancedStyle.strokeWidth || 1}
             stroke={strokeColor}
-            style={enhancedStyle}
+            fill="none"
+            style={{
+              ...enhancedStyle,
+              filter: "none",
+              mixBlendMode: "normal",
+              shapeRendering: "crispEdges",
+              vectorEffect: "non-scaling-stroke",
+            }}
             markerEnd={customMarkerEnd}
             onDoubleClick={handleDoubleClick}
           />
@@ -230,10 +250,18 @@ const CustomEdge = (params: any) => {
             className="react-flow__edge-path"
             strokeWidth={enhancedStyle.strokeWidth || 1}
             stroke={strokeColor}
-            style={{ ...enhancedStyle, markerEnd: undefined }}
+            fill="none"
+            style={{
+              ...enhancedStyle,
+              filter: "none",
+              mixBlendMode: "normal",
+              shapeRendering: "crispEdges",
+              vectorEffect: "non-scaling-stroke",
+              markerEnd: undefined,
+            }}
             onDoubleClick={handleDoubleClick}
           />
-        </>
+        </g>
       ) : edgeType === "animated" ? (
         <path
           id={id}
@@ -241,10 +269,15 @@ const CustomEdge = (params: any) => {
           className="react-flow__edge-path animated-edge-path"
           strokeWidth={enhancedStyle.strokeWidth || 2}
           stroke={strokeColor}
+          fill="none"
           style={{
             ...enhancedStyle,
             markerEnd: undefined,
             strokeDasharray: "5, 5",
+            filter: "none",
+            mixBlendMode: "normal",
+            shapeRendering: "crispEdges",
+            vectorEffect: "non-scaling-stroke",
           }}
           markerEnd={customMarkerEnd}
           onDoubleClick={handleDoubleClick}
@@ -256,7 +289,15 @@ const CustomEdge = (params: any) => {
           className="react-flow__edge-path"
           strokeWidth={enhancedStyle.strokeWidth || 2}
           stroke={strokeColor}
-          style={{ ...enhancedStyle, markerEnd: undefined }}
+          fill="none"
+          style={{
+            ...enhancedStyle,
+            markerEnd: undefined,
+            filter: "none",
+            mixBlendMode: "normal",
+            shapeRendering: "crispEdges",
+            vectorEffect: "non-scaling-stroke",
+          }}
           markerEnd={customMarkerEnd}
           onDoubleClick={handleDoubleClick}
         />

@@ -59,11 +59,11 @@ export const HeaderSidebar = ({ onToggleSidebar }: HeaderSidebarProps) => {
   // Generate breadcrumbs based on the current path
   const generateBreadcrumbs = () => {
     if (pathname === "/protected") {
-      return [{ label: "Home", href: "/protected" }];
+      return [{ label: "", href: "/protected" }];
     }
 
     const paths = pathname.split("/").filter(Boolean);
-    const breadcrumbs = [{ label: "Home", href: "/protected" }];
+    const breadcrumbs = [{ label: "", href: "/protected" }];
 
     // Check if we're in a folder route
     if (paths.includes("folder")) {
@@ -95,7 +95,7 @@ export const HeaderSidebar = ({ onToggleSidebar }: HeaderSidebarProps) => {
 
   return (
     <header className="flex items-center justify-between gap-4 bg-yadn-dark-background px-6 z-50 py-4 min-w-full h-16">
-      <div className="flex items-center gap-4 flex-1">
+      <div className="flex items-center gap-5 flex-1">
         <Link
           href="/"
           className="flex items-center gap-2 justify-center !h-full"
@@ -105,7 +105,7 @@ export const HeaderSidebar = ({ onToggleSidebar }: HeaderSidebarProps) => {
             alt="Logo"
             width={32}
             height={16}
-            className="h-6 w-full"
+            className="h-5 w-full"
           />
         </Link>
 
@@ -118,13 +118,13 @@ export const HeaderSidebar = ({ onToggleSidebar }: HeaderSidebarProps) => {
               )}
               <Link
                 href={crumb.href}
-                className={`text-sm ${
+                className={`flex justify-center items-center text-sm ${
                   index === breadcrumbs.length - 1
                     ? "text-white font-medium"
                     : "text-white/70 hover:text-white"
                 }`}
               >
-                {index === 0 && <Home className="h-4 w-4 mr-1 inline-block" />}
+                {index === 0 && <Home className="h-4 w-4 inline-block" />}
                 {crumb.label}
               </Link>
             </div>

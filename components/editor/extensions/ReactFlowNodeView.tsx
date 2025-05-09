@@ -67,16 +67,23 @@ export default function ReactFlowNodeView({
         });
       }
 
-      setNodes(Array.isArray(nodeNodes) ? nodeNodes : []);
-      setEdges(Array.isArray(nodeEdges) ? nodeEdges : []);
-      setLoaded(true);
+      // Force a proper reset of nodes and edges
+      setNodes([]);
+      setEdges([]);
+
+      // Use setTimeout to ensure the reset is processed before setting new values
+      setTimeout(() => {
+        setNodes(Array.isArray(nodeNodes) ? nodeNodes : []);
+        setEdges(Array.isArray(nodeEdges) ? nodeEdges : []);
+        setLoaded(true);
+      }, 10);
     } catch (error) {
       console.error("Error parsing canvas data:", error);
       setNodes([]);
       setEdges([]);
       setLoaded(true);
     }
-  }, [node.attrs.nodes, node.attrs.edges]);
+  }, [node.attrs.nodes, node.attrs.edges, node.attrs.width, node.attrs.height]);
 
   // Handle click to select
   const handleClick = (e: React.MouseEvent) => {
@@ -215,6 +222,7 @@ export default function ReactFlowNodeView({
       ) : (
         <div style={{ height: "100%", width: "100%" }}>
           <ReactFlow
+            key={`${width}-${height}-${nodes.length}`}
             nodes={nodes}
             edges={edges}
             onNodesChange={onNodesChange}
