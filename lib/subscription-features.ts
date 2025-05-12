@@ -1,4 +1,4 @@
-import { supabase } from "@/lib/supabase";
+import { supabase } from "@/lib/supabase/client";
 
 // Feature flags enum for consistency across codebase
 export enum SubscriptionFeatureFlag {
@@ -156,7 +156,8 @@ export async function hasFeatureAccess(
     typeof requiredValue === "number" &&
     typeof limits[feature] === "number"
   ) {
-    return limits[feature] >= requiredValue;
+    const featureValue = limits[feature] as number;
+    return featureValue >= requiredValue;
   }
 
   return false;

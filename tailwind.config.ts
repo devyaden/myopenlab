@@ -99,6 +99,9 @@ const config = {
           "accent-pink": "#F7B2AD",
           "accent-yellow": "#FFF0EA",
           "accent-dark-orange": "#FF4A1C",
+
+          background: "rgb( 0, 10, 31)",
+          foreground: "rgb(243, 243, 243)",
         },
       },
       borderRadius: {
@@ -142,6 +145,26 @@ const config = {
         shine: {
           "100%": { left: "125%", transform: "translateX(100%)" },
         },
+        fadeIn: {
+          "0%": { opacity: "0" },
+          "100%": { opacity: "1" },
+        },
+        slideUp: {
+          "0%": { transform: "translateY(20px)", opacity: "0" },
+          "100%": { transform: "translateY(0)", opacity: "1" },
+        },
+        slideDown: {
+          "0%": { transform: "translateY(-20px)", opacity: "0" },
+          "100%": { transform: "translateY(0)", opacity: "1" },
+        },
+        slideLeft: {
+          "0%": { transform: "translateX(20px)", opacity: "0" },
+          "100%": { transform: "translateX(0)", opacity: "1" },
+        },
+        slideRight: {
+          "0%": { transform: "translateX(-20px)", opacity: "0" },
+          "100%": { transform: "translateX(0)", opacity: "1" },
+        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
@@ -150,6 +173,11 @@ const config = {
         progress: "progress 2s ease-in-out infinite",
         pulse: "pulse 4s ease-in-out infinite",
         shine: "shine 1.5s ease-in-out",
+        "fade-in": "fadeIn 0.5s ease-in-out",
+        "slide-up": "slideUp 0.5s ease-in-out",
+        "slide-down": "slideDown 0.5s ease-in-out",
+        "slide-left": "slideLeft 0.5s ease-in-out",
+        "slide-right": "slideRight 0.5s ease-in-out",
       },
     },
   },

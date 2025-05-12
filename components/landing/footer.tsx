@@ -1,91 +1,136 @@
 import Link from "next/link";
-import { Linkedin, Youtube, Twitter, Globe } from "lucide-react";
+import Image from "next/image";
 
 export default function Footer() {
-  const footerLinkClass =
-    "text-sm hover:text-gray-300 transition-colors text-white/70 font-medium";
-
   return (
-    <footer className="bg-[#003329] text-white py-16 rounded-tl-[48px] rounded-tr-[48px]">
-      <div className="container mx-auto px-4">
-        <div className="flex flex-wrap justify-evenly gap-10">
-          {/* Logo and tagline */}
-          <div>
-            <div className="mb-6">
-              <img
-                className="w-[69px]"
-                src="./assets/global/white-logo.png"
-                alt="Logo"
+    <footer className="bg-yadn-background/50 border-t border-yadn-foreground/10 py-12">
+      <div className="container mx-auto px-4 md:px-6">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
+          <div className="space-y-4">
+            <Link href="/" className="flex items-center space-x-2">
+              <Image
+                src="/assets/global/app-logo-white.svg"
+                alt="Olab Logo"
+                width={120}
+                height={100}
               />
-            </div>
-            <p className="text-sm font-bold mb-6 leading-relaxed">
-              Fun, engaging
-              <br />
-              and authentic webinars
+            </Link>
+            <p className="text-yadn-foreground/70 text-sm">
+              Visual collaboration made simple. Create, connect, and collaborate
+              with our powerful diagramming tool.
             </p>
-            <div className="flex space-x-4">
-              <Link href="#" className="hover:text-gray-300 transition-colors">
-                <img src='./assets/icons/in-white.png' alt=''  className="w-[20px]" />
-                <span className="sr-only">LinkedIn</span>
-              </Link>
-              <Link href="#" className="hover:text-gray-300 transition-colors">
-                <img src='./assets/icons/youtube-white.png' alt=''  className="w-[20px]" />
-                <span className="sr-only">YouTube</span>
-              </Link>
-              <Link href="#" className="hover:text-gray-300 transition-colors">
-              <img src='./assets/icons/twitter-white.png' alt=''  className="w-[20px]" />
-                <span className="sr-only">Twitter</span>
-              </Link>
-              <Link href="#" className="hover:text-gray-300 transition-colors">
-              <img src='./assets/icons/globe-white.png' alt=''  className="w-[20px]" />
-                <span className="sr-only">Website</span>
-              </Link>
-            </div>
           </div>
 
-          {/* Columns */}
           <div>
-            <h3 className="font-bold text-lg mb-4">Product</h3>
-            <ul className="space-y-3">
-              {["Features", "HubSpot Integration", "What's new", "Pricing", "Log in"].map((item) => (
-                <li key={item}>
-                  <Link href="#" className={footerLinkClass}>
-                    {item}
-                  </Link>
-                </li>
-              ))}
+            <h3 className="text-yadn-foreground font-semibold mb-4">Product</h3>
+            <ul className="space-y-2">
+              <li>
+                <Link
+                  href="/features"
+                  className="text-yadn-foreground/70 hover:text-yadn-accent-green text-sm transition-colors"
+                >
+                  Features
+                </Link>
+              </li>
+              <li>
+                <Link
+                  href="/roadmap"
+                  className="text-yadn-foreground/70 hover:text-yadn-accent-green text-sm transition-colors"
+                >
+                  Roadmap
+                </Link>
+              </li>
             </ul>
           </div>
 
           <div>
-            <h3 className="font-bold text-lg mb-4">Resources</h3>
-            <ul className="space-y-3">
-              {["Learn", "Videos", "Help Center", "Webinar Glossary"].map((item) => (
-                <li key={item}>
-                  <Link href="#" className={footerLinkClass}>
-                    {item}
-                  </Link>
-                </li>
-              ))}
+            <h3 className="text-yadn-foreground font-semibold mb-4">
+              Resources
+            </h3>
+            <ul className="space-y-2">
+              <li>
+                <Link
+                  href="/blog"
+                  className="text-yadn-foreground/70 hover:text-yadn-accent-green text-sm transition-colors"
+                >
+                  Blog
+                </Link>
+              </li>
+              <li>
+                <Link
+                  href="/tutorials"
+                  className="text-yadn-foreground/70 hover:text-yadn-accent-green text-sm transition-colors"
+                >
+                  Tutorials
+                </Link>
+              </li>
+              <li>
+                <Link
+                  href="/support"
+                  className="text-yadn-foreground/70 hover:text-yadn-accent-green text-sm transition-colors"
+                >
+                  Support
+                </Link>
+              </li>
             </ul>
           </div>
 
           <div>
-            <h3 className="font-bold text-lg mb-4">More</h3>
-            <ul className="space-y-3">
-              {[
-                "Our story",
-                "We're hiring",
-                "Contrast vs. Livestorm",
-                "Contrast vs. Zoom",
-              ].map((item) => (
-                <li key={item}>
-                  <Link href="#" className={footerLinkClass}>
-                    {item}
-                  </Link>
-                </li>
-              ))}
+            <h3 className="text-yadn-foreground font-semibold mb-4">Company</h3>
+            <ul className="space-y-2">
+              <li>
+                <Link
+                  href="/about"
+                  className="text-yadn-foreground/70 hover:text-yadn-accent-green text-sm transition-colors"
+                >
+                  About
+                </Link>
+              </li>
+              <li>
+                <Link
+                  href="/contact"
+                  className="text-yadn-foreground/70 hover:text-yadn-accent-green text-sm transition-colors"
+                >
+                  Contact
+                </Link>
+              </li>
+              <li>
+                <Link
+                  href="/terms"
+                  className="text-yadn-foreground/70 hover:text-yadn-accent-green text-sm transition-colors"
+                >
+                  Terms of Service
+                </Link>
+              </li>
+              <li>
+                <Link
+                  href="/privacy"
+                  className="text-yadn-foreground/70 hover:text-yadn-accent-green text-sm transition-colors"
+                >
+                  Privacy Policy
+                </Link>
+              </li>
             </ul>
+          </div>
+        </div>
+
+        <div className="border-t border-yadn-foreground/10 mt-8 pt-8 flex flex-col md:flex-row justify-between items-center">
+          <p className="text-yadn-foreground/60 text-sm">
+            &copy; {new Date().getFullYear()} Olab. All rights reserved.
+          </p>
+          <div className="flex space-x-4 mt-4 md:mt-0">
+            <a
+              href="#"
+              className="text-yadn-foreground/60 hover:text-yadn-accent-green transition-colors"
+            >
+              Twitter
+            </a>
+            <a
+              href="#"
+              className="text-yadn-foreground/60 hover:text-yadn-accent-green transition-colors"
+            >
+              LinkedIn
+            </a>
           </div>
         </div>
       </div>

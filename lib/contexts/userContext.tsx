@@ -11,7 +11,7 @@ type UserContextType = {
   signUp: (
     data: SignupFormData,
     password: string
-  ) => Promise<{ error?: string; user: any }>;
+  ) => Promise<{ error?: any; user: any }>;
   signIn: (email: string, password: string) => Promise<any>;
   checkIfEmailExists: (email: string) => Promise<boolean>;
   signInWithGoogle: () => Promise<void>;
