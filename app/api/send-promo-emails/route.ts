@@ -5,7 +5,7 @@ export async function POST(request: Request) {
   try {
     const body = await request.json();
     const { emails, subject, promo_code, listId, templateId } = body;
-    debugger;
+
     if (!promo_code) {
       return NextResponse.json(
         { error: "Missing promo code parameter" },
@@ -23,7 +23,6 @@ export async function POST(request: Request) {
 
     // Initialize the Brevo client
     const brevoClient = await getBrevoClient();
-
     const transactionalEmailsApi = brevoClient.transactionalEmailsApi;
 
     // If we have a listId, we'll send to the entire list
@@ -55,14 +54,20 @@ export async function POST(request: Request) {
         }
       }
 
+      // Create message versions for each contact
+      const messageVersions = allContacts.map((contact: any) => ({
+        to: [{ email: contact.email }],
+        params: {
+          first_name: contact.attributes.FIRSTNAME,
+          promo_code,
+        },
+      }));
+
       const emailData = {
         sender: { email: "noreply@the-open-lab.com", name: "OLAB" },
         templateId: parseInt(templateId),
-        params: {
-          promo_code,
-        },
         subject: subject || `Your Promo Code: ${promo_code}`,
-        to: allContacts.map((contact: any) => ({ email: contact.email })),
+        messageVersions,
       };
 
       try {
@@ -81,42 +86,35 @@ export async function POST(request: Request) {
     }
     // Otherwise, send to individual emails
     else {
-      // Send emails to all recipients
-      const sendResults = await Promise.all(
-        emails.map(async (email: string) => {
-          const emailData = {
-            to: [{ email }],
-            sender: { email: "noreply@the-open-lab.com", name: "OLAB" },
-            templateId: parseInt(templateId),
-            params: {
-              first_name: email.split("@")[0],
-              promo_code,
-            },
-            subject: subject || `Your Promo Code: ${promo_code}`,
-          };
+      // Create message versions for each email
+      const messageVersions = emails.map((email: string) => ({
+        to: [{ email }],
+        params: {
+          first_name: email.split("@")[0],
+          promo_code,
+        },
+      }));
 
-          try {
-            return await transactionalEmailsApi.sendTransacEmail(emailData);
-          } catch (emailError) {
-            console.error(`Error sending email to ${email}:`, emailError);
-            return { email, error: true };
-          }
-        })
-      );
+      const emailData = {
+        sender: { email: "noreply@the-open-lab.com", name: "OLAB" },
+        templateId: parseInt(templateId),
+        subject: subject || `Your Promo Code: ${promo_code}`,
+        messageVersions,
+      };
 
-      const errors = sendResults.filter((result) => result && result.error);
-
-      if (errors.length) {
+      try {
+        const result = await transactionalEmailsApi.sendTransacEmail(emailData);
+        return NextResponse.json({
+          message: "Emails sent successfully",
+          result,
+        });
+      } catch (error) {
+        console.error("Error sending emails:", error);
         return NextResponse.json(
-          {
-            message: `Emails sent with some errors. ${errors.length} of ${emails.length} failed.`,
-            errors,
-          },
-          { status: 207 }
+          { error: "Failed to send emails" },
+          { status: 500 }
         );
       }
-
-      return NextResponse.json({ message: "Emails sent successfully" });
     }
   } catch (error) {
     console.error("Error in send-promo-emails API:", error);
