@@ -5,7 +5,17 @@ import {
   SidebarContent,
   SidebarHeader,
 } from "@/components/ui/sidebar";
-import { ChevronLeft, Users, Mail, Clock, Home, BarChart2 } from "lucide-react";
+import {
+  ChevronLeft,
+  Users,
+  Mail,
+  Clock,
+  Home,
+  BarChart2,
+  CreditCard,
+  Tag,
+  Award,
+} from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
@@ -29,6 +39,25 @@ export function AdminSidebar() {
     //   icon: Clock,
     //   path: "/admin/audit",
     // },
+  ];
+
+  // Subscription management items
+  const subscriptionItems = [
+    {
+      title: "Subscriptions",
+      icon: Award,
+      path: "/admin/subscriptions",
+    },
+    {
+      title: "Promo Codes",
+      icon: Tag,
+      path: "/admin/promo-codes",
+    },
+    {
+      title: "User Subscriptions",
+      icon: CreditCard,
+      path: "/admin/user-subscriptions",
+    },
   ];
 
   // Global settings items
@@ -93,6 +122,38 @@ export function AdminSidebar() {
               </span>
             </Link>
           ))}
+        </div>
+
+        {/* Subscription management section */}
+        <div className="mt-6">
+          <h3 className="px-3 text-xs font-medium uppercase tracking-wider text-gray-500">
+            SUBSCRIPTION MANAGEMENT
+          </h3>
+
+          <div className="mt-2 space-y-1">
+            {subscriptionItems.map((item, index) => (
+              <Link
+                key={index}
+                href={item.path}
+                className={`flex items-center px-3 py-2 rounded-md ${
+                  isActive(item.path)
+                    ? "text-gray-700 font-medium"
+                    : "text-gray-500 hover:bg-gray-100"
+                }`}
+              >
+                <item.icon
+                  className={`h-5 w-5 mr-3 ${
+                    isActive(item.path) ? "text-gray-500" : "text-gray-400"
+                  }`}
+                />
+                <span
+                  className={`text-sm ${isActive(item.path) ? "font-medium" : ""}`}
+                >
+                  {item.title}
+                </span>
+              </Link>
+            ))}
+          </div>
         </div>
 
         {/* <div className="mt-6">

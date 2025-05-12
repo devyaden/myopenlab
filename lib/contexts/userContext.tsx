@@ -11,7 +11,7 @@ type UserContextType = {
   signUp: (
     data: SignupFormData,
     password: string
-  ) => Promise<{ error?: string }>;
+  ) => Promise<{ error?: string; user: any }>;
   signIn: (email: string, password: string) => Promise<any>;
   checkIfEmailExists: (email: string) => Promise<boolean>;
   signInWithGoogle: () => Promise<void>;
@@ -90,7 +90,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
     };
 
     const origin = window.location.origin;
-    const { error } = await supabase.auth.signUp({
+    const { data: signupUser, error } = await supabase.auth.signUp({
       email: data?.personalInfo?.email as string,
       password,
 
@@ -102,11 +102,14 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
 
     if (error) {
       toast.error(error.message ?? "Sign up failed. Please try again later.");
-      return { error: error.message };
+      return { error: error.message, user: null };
     }
 
     toast.success("Success. Please check your email for a verification link.");
-    return {};
+    return {
+      error: null,
+      user: signupUser?.user,
+    };
   };
 
   const checkIfEmailExists = async (email: string) => {

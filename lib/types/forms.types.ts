@@ -4,6 +4,7 @@ export interface SignupPersonalInfo {
   email?: string;
   username?: string;
   role?: string;
+  promoCode?: string;
 }
 
 export interface SignupCompanyInfo {
