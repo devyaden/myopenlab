@@ -66,9 +66,13 @@ export async function POST(request: Request) {
       const emailData = {
         sender: { email: "noreply@the-open-lab.com", name: "OLAB" },
         templateId: parseInt(templateId),
-        subject: subject || `Your Promo Code: ${promo_code}`,
+        // subject: subject || `Your Promo Code: ${promo_code}`,
         messageVersions,
       };
+      if (subject) {
+        // @ts-ignore
+        emailData.subject = subject;
+      }
 
       try {
         const result = await transactionalEmailsApi.sendTransacEmail(emailData);
@@ -98,9 +102,13 @@ export async function POST(request: Request) {
       const emailData = {
         sender: { email: "noreply@the-open-lab.com", name: "OLAB" },
         templateId: parseInt(templateId),
-        subject: subject || `Your Promo Code: ${promo_code}`,
+        // subject: subject || `Your Promo Code: ${promo_code}`,
         messageVersions,
       };
+      if (subject) {
+        // @ts-ignore
+        emailData.subject = subject;
+      }
 
       try {
         const result = await transactionalEmailsApi.sendTransacEmail(emailData);
