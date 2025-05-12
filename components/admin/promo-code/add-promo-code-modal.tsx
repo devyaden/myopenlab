@@ -816,23 +816,6 @@ export function AddPromoCodeModal({
                         </FormItem>
                       )}
                     />
-
-                    <FormField
-                      control={form.control}
-                      name="email_subject"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Email Subject</FormLabel>
-                          <FormControl>
-                            <Input {...field} placeholder="Your Promo Code" />
-                          </FormControl>
-                          <FormDescription>
-                            Leave empty to use the default subject
-                          </FormDescription>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
                   </>
                 )}
 

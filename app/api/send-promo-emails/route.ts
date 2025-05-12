@@ -4,7 +4,7 @@ import { NextResponse } from "next/server";
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { emails, subject, promo_code, listId, templateId } = body;
+    const { emails, promo_code, listId, templateId } = body;
 
     if (!promo_code) {
       return NextResponse.json(
@@ -66,13 +66,9 @@ export async function POST(request: Request) {
       const emailData = {
         sender: { email: "noreply@the-open-lab.com", name: "OLAB" },
         templateId: parseInt(templateId),
-        // subject: subject || `Your Promo Code: ${promo_code}`,
+
         messageVersions,
       };
-      if (subject) {
-        // @ts-ignore
-        emailData.subject = subject;
-      }
 
       try {
         const result = await transactionalEmailsApi.sendTransacEmail(emailData);
@@ -102,13 +98,9 @@ export async function POST(request: Request) {
       const emailData = {
         sender: { email: "noreply@the-open-lab.com", name: "OLAB" },
         templateId: parseInt(templateId),
-        // subject: subject || `Your Promo Code: ${promo_code}`,
+
         messageVersions,
       };
-      if (subject) {
-        // @ts-ignore
-        emailData.subject = subject;
-      }
 
       try {
         const result = await transactionalEmailsApi.sendTransacEmail(emailData);
