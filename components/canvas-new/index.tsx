@@ -1533,7 +1533,7 @@ export default function CanvasNew({ canvasId }: FigmaInterfaceProps) {
             )}
 
           <div className="flex flex-1 overflow-hidden">
-            {!isReadOnly && viewMode === VIEW_MODE.canvas && (
+            {!isReadOnly && viewMode === VIEW_MODE.canvas && canvas_type !== VIEW_MODE.table  && (
               <VerticalNav
                 className="hidden md:flex"
                 onToggleSidebar={toggleSidebar}

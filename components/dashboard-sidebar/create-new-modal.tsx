@@ -9,6 +9,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import Joyride from 'react-joyride';
 import {
   Form,
   FormControl,
@@ -268,6 +269,24 @@ export function CreateNewModal({
   };
 
   const renderContent = () => {
+
+  const steps = [
+    {
+      target: '.folderInput',
+      content: 'Write folder name!',
+      disableBeacon: true
+    },
+    {
+      target: '.submit-create-folder',
+      content: 'By clicking on Create folder button it will create a folder!',
+      disableBeacon: true
+    },
+  ];
+
+  const [runTour, setRunTour] = useState(true);
+  const [stepIndex, setStepIndex] = useState(0);
+
+  
     // Step 1: Type selection (only for canvas)
     if (step === "select" && type === "canvas") {
       return (
@@ -370,6 +389,19 @@ export function CreateNewModal({
       if (type === "folder") {
         return (
           <Form {...folderForm}>
+            <Joyride
+              steps={steps}
+              run={runTour}
+              continuous
+              showProgress
+              showSkipButton
+              styles={{
+                options: {
+                  primaryColor: '#22c55e',
+                  zIndex: 10000,
+                },
+              }}
+            />
             <form
               onSubmit={folderForm.handleSubmit(handleCreateFolder)}
               className="space-y-8"
@@ -378,7 +410,7 @@ export function CreateNewModal({
                 control={folderForm.control}
                 name="name"
                 render={({ field }) => (
-                  <FormItem>
+                  <FormItem className="folderInput">
                     <FormLabel>Folder Name</FormLabel>
                     <FormControl>
                       <InputWithIcon
@@ -400,7 +432,7 @@ export function CreateNewModal({
                     Back
                   </Button>
                 )} */}
-                <Button type="submit" className="bg-yadn-accent-green">
+                <Button type="submit" className="bg-yadn-accent-green submit-create-folder">
                   Create Folder
                 </Button>
               </DialogFooter>
