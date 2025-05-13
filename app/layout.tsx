@@ -40,8 +40,9 @@ export const metadata = {
     images: ["/assets/global/app-logo.png"],
   },
   icons: {
-    icon: "/assets/global/app-logo.png",
-    apple: "/assets/global/app-logo.png",
+    icon: "/favicon.ico",
+    shortcut: "/favicon.svg",
+    apple: "/apple-touch-icon.png",
   },
 };
 
