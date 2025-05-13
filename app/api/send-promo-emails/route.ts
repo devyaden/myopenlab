@@ -7,7 +7,7 @@ export async function POST(request: Request) {
     const {
       emails,
       promo_code,
-      listId,
+      email_list_ids,
       templateId,
       maxUses,
       remainingDaysInExpiry,
@@ -20,10 +20,13 @@ export async function POST(request: Request) {
       );
     }
 
-    // Check if we have either emails or listId
-    if ((!emails || !emails.length) && !listId) {
+    // Check if we have either emails or email_list_ids
+    if (
+      (!emails || !emails.length) &&
+      (!email_list_ids || !email_list_ids.length)
+    ) {
       return NextResponse.json(
-        { error: "Missing recipients: provide either emails or a list ID" },
+        { error: "Missing recipients: provide either emails or list IDs" },
         { status: 400 }
       );
     }
@@ -32,92 +35,86 @@ export async function POST(request: Request) {
     const brevoClient = await getBrevoClient();
     const transactionalEmailsApi = brevoClient.transactionalEmailsApi;
 
-    // If we have a listId, we'll send to the entire list
-    if (listId) {
+    // Initialize arrays to collect all recipients
+    let allMessageVersions: any[] = [];
+
+    // Process list IDs if provided
+    if (email_list_ids && email_list_ids.length > 0) {
       const contactsApi = brevoClient.contactsApi;
 
-      // Collect all contacts with pagination
-      let allContacts: any[] = [];
-      let offset = 0;
-      let limit = 50;
-      let hasMoreContacts = true;
+      // Process each list
+      for (const listId of email_list_ids) {
+        // Collect all contacts with pagination
+        let allContacts: any[] = [];
+        let offset = 0;
+        let limit = 50;
+        let hasMoreContacts = true;
 
-      while (hasMoreContacts) {
-        const listResponse = await contactsApi.getContactsFromList(
-          parseInt(listId),
-          undefined,
-          limit,
-          offset
-        );
+        while (hasMoreContacts) {
+          const listResponse = await contactsApi.getContactsFromList(
+            parseInt(listId),
+            undefined,
+            limit,
+            offset
+          );
 
-        const contacts = listResponse.body.contacts || [];
-        allContacts = [...allContacts, ...contacts];
+          const contacts = listResponse.body.contacts || [];
+          allContacts = [...allContacts, ...contacts];
 
-        // Check if we've reached the end
-        if (contacts.length < limit) {
-          hasMoreContacts = false;
-        } else {
-          offset += limit;
+          // Check if we've reached the end
+          if (contacts.length < limit) {
+            hasMoreContacts = false;
+          } else {
+            offset += limit;
+          }
         }
-      }
 
-      // Create message versions for each contact
-      const messageVersions = allContacts.map((contact: any) => ({
-        to: [{ email: contact.email }],
-        params: {
-          first_name: contact.attributes.FIRSTNAME,
-          promo_code,
-          max_uses: Number(maxUses),
-          remaining_days: Number(remainingDaysInExpiry),
-          COMPANY: contact.attributes.COMPANY,
-        },
-      }));
+        // Create message versions for each contact
+        const listMessageVersions = allContacts.map((contact: any) => ({
+          to: [{ email: contact.email }],
+          params: {
+            first_name:
+              contact.attributes?.FIRSTNAME || contact.email.split("@")[0],
+            promo_code,
+            max_uses: Number(maxUses),
+            remaining_days: Number(remainingDaysInExpiry),
+            COMPANY: contact.attributes?.COMPANY || "",
+          },
+        }));
 
-      const emailData = {
-        sender: { email: "noreply@the-open-lab.com", name: "OLAB" },
-        templateId: parseInt(templateId),
-
-        messageVersions,
-      };
-
-      try {
-        const result = await transactionalEmailsApi.sendTransacEmail(emailData);
-        return NextResponse.json({
-          message: `Emails sent successfully to ${allContacts.length} contacts in list`,
-          result,
-        });
-      } catch (error) {
-        console.error("Error sending emails to list:", error);
-        return NextResponse.json(
-          { error: "Failed to send emails to list" },
-          { status: 500 }
-        );
+        allMessageVersions = [...allMessageVersions, ...listMessageVersions];
       }
     }
-    // Otherwise, send to individual emails
-    else {
-      // Create message versions for each email
-      const messageVersions = emails.map((email: string) => ({
-        to: [{ email }],
-        params: {
-          first_name: email.split("@")[0],
-          promo_code,
-          max_uses: maxUses,
-          remaining_days: remainingDaysInExpiry,
-        },
-      }));
 
+    // Process individual emails if provided
+    if (emails && emails.length > 0) {
+      const emailMessageVersions = emails
+        .filter((email: string) => email.trim() !== "")
+        .map((email: string) => ({
+          to: [{ email }],
+          params: {
+            first_name: email.split("@")[0],
+            promo_code,
+            max_uses: maxUses,
+            remaining_days: remainingDaysInExpiry,
+          },
+        }));
+
+      allMessageVersions = [...allMessageVersions, ...emailMessageVersions];
+    }
+
+    // Send emails to all recipients
+    if (allMessageVersions.length > 0) {
       const emailData = {
         sender: { email: "noreply@the-open-lab.com", name: "OLAB" },
         templateId: parseInt(templateId),
-
-        messageVersions,
+        messageVersions: allMessageVersions,
       };
 
       try {
         const result = await transactionalEmailsApi.sendTransacEmail(emailData);
         return NextResponse.json({
-          message: "Emails sent successfully",
+          message: `Emails sent successfully to ${allMessageVersions.length} recipients`,
           result,
         });
       } catch (error) {
@@ -127,6 +124,11 @@ export async function POST(request: Request) {
           { status: 500 }
         );
       }
+    } else {
+      return NextResponse.json(
+        { error: "No valid recipients found" },
+        { status: 400 }
+      );
     }
   } catch (error) {
     console.error("Error in send-promo-emails API:", error);
