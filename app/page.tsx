@@ -31,7 +31,6 @@ export default function Home() {
     setMessage("");
   };
 
-  // Hero animation
   const [isVisible, setIsVisible] = useState(false);
   useEffect(() => {
     setIsVisible(true);
@@ -41,7 +40,6 @@ export default function Home() {
     <main className="min-h-screen text-yadn-foreground bg-yadn-background">
       <Navbar />
 
-      {/* Hero Section */}
       <section className="pt-32 pb-20 md:pt-40 md:pb-32 relative overflow-hidden">
         <div className="absolute inset-0 z-0">
           <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-b from-primary/5 to-transparent"></div>

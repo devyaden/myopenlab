@@ -77,13 +77,13 @@ export default function Navbar() {
 
           <div className="hidden md:flex items-center space-x-4">
             <Link
-              href="/authentication"
+              href="/auth/login"
               className="px-4 py-2 text-yadn-foreground/90 hover:text-yadn-accent-green transition-colors"
             >
               Sign In
             </Link>
             <Link
-              href="/authentication"
+              href="/auth/signup"
               className="px-4 py-2 bg-yadn-accent-green text-yadn-background rounded-md hover:bg-yadn-accent-green/90 transition-colors"
             >
               Sign Up
@@ -141,14 +141,14 @@ export default function Navbar() {
               </Link>
               <div className="flex space-x-4 pt-2">
                 <Link
-                  href="/authentication"
+                  href="/auth/login"
                   className="px-4 py-2 text-yadn-foreground/90 hover:text-yadn-accent-green transition-colors"
                   onClick={() => setIsMenuOpen(false)}
                 >
                   Sign In
                 </Link>
                 <Link
-                  href="/authentication"
+                  href="/auth/signup"
                   className="px-4 py-2 bg-yadn-accent-green text-yadn-background rounded-md hover:bg-yadn-accent-green/90 transition-colors"
                   onClick={() => setIsMenuOpen(false)}
                 >

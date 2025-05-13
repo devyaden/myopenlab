@@ -21,7 +21,7 @@ export const InputWithIcon = React.forwardRef<
       error,
       icon,
       showPasswordToggle = false,
-      type,
+      type = "text",
       className,
       ...props
     },

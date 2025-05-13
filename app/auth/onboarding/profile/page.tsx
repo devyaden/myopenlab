@@ -170,7 +170,7 @@ export default function SignupForm() {
 
     if (!error) {
       clearFormData();
-      router.push("/authentication");
+      router.push("/auth/login");
     }
   };
 

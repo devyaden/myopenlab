@@ -168,7 +168,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
     await supabase.auth.signOut();
     setUser(null);
 
-    window.location.href = "/authentication";
+    window.location.href = "/auth/login";
   };
 
   const forgotPassword = async (email: string) => {
