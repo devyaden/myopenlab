@@ -2,6 +2,7 @@
 
 import { AddPromoCodeModal } from "@/components/admin/promo-code/add-promo-code-modal";
 import { PromoCodeDetailsModal } from "@/components/admin/promo-code/promo-code-details-modal";
+import { SendPromoEmailModal } from "@/components/admin/promo-code/send-promo-email-modal";
 import { AlertDialogModal } from "@/components/ui/alert-dialog-modal";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -22,12 +23,10 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { supabase } from "@/lib/supabase/client";
+import { format } from "date-fns";
 import { Copy, Eye, Mail, Plus, Trash } from "lucide-react";
 import { useEffect, useState } from "react";
-
-import { format } from "date-fns";
 import toast from "react-hot-toast";
-import { SendPromoEmailModal } from "@/components/admin/promo-code/send-promo-email-modal";
 
 interface PromoCode {
   id: string;
