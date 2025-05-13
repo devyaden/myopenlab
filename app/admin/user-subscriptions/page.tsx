@@ -52,10 +52,7 @@ export default function UserSubscriptionsPage() {
   const [userSubscriptions, setUserSubscriptions] = useState<
     UserSubscription[]
   >([]);
-  console.log(
-    "🚀 ~ UserSubscriptionsPage ~ userSubscriptions:",
-    userSubscriptions
-  );
+
   const [loading, setLoading] = useState(true);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [selectedSubscription, setSelectedSubscription] =
