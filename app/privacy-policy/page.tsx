@@ -4,7 +4,7 @@ import Link from "next/link";
 
 export default function PrivacyPolicy() {
   return (
-    <main className="min-h-screen">
+    <main className="min-h-screen text-yadn-foreground bg-yadn-background">
       <Navbar />
 
       <section className="pt-32 pb-20 md:pt-40 md:pb-32">

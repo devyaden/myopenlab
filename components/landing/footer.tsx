@@ -104,7 +104,7 @@ export default function Footer() {
               </li>
               <li>
                 <Link
-                  href="/privacy"
+                  href="/privacy-policy"
                   className="text-yadn-foreground/70 hover:text-yadn-accent-green text-sm transition-colors"
                 >
                   Privacy Policy
