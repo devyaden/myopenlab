@@ -4,6 +4,26 @@ import { toast } from "react-hot-toast";
 import { supabase } from "../supabase/client";
 import { SignupFormData } from "../types/forms.types";
 import { User } from "@/types/auth";
+import { z } from "zod";
+
+// Define Zod schema and type for profile completion (can be imported from the form component or a types file)
+// For now, defining it here for clarity in this step.
+const profileCompletionSchemaForContext = z.object({
+  username: z.string().min(3, "Username must be at least 3 characters long."),
+  name: z.string().min(1, "Name is required."),
+  company_name: z.string().optional(),
+  company_email: z
+    .string()
+    .email("Please enter a valid company email address.")
+    .optional()
+    .or(z.literal("")),
+  company_sector: z.string().optional(),
+  company_size: z.string().optional(),
+  user_position: z.string().optional(),
+});
+export type ProfileCompletionFormData = z.infer<
+  typeof profileCompletionSchemaForContext
+>;
 
 type UserContextType = {
   user: User | null;
@@ -22,6 +42,9 @@ type UserContextType = {
     confirmPassword: string
   ) => Promise<{ error?: string }>;
   refreshSession: () => Promise<void>;
+  updateUserProfileAndCompleteOnboarding?: (
+    data: ProfileCompletionFormData
+  ) => Promise<void>;
 };
 
 const UserContext = createContext<UserContextType | undefined>(undefined);
@@ -58,11 +81,19 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
           data: { subscription },
         } = supabase.auth.onAuthStateChange(async (_event, session) => {
           if (session?.user) {
-            // await fetchUserData(session?.user?.id);
-
             setTimeout(async () => {
-              // Call database here !
-              await fetchUserData(session?.user?.id);
+              const fetchedUser = await fetchUserData(session?.user?.id);
+              // if (
+              //   fetchedUser &&
+              //   !fetchedUser.onboarding_completed &&
+              //   !window.location.pathname.startsWith(
+              //     "/auth/complete-profile"
+              //   ) &&
+              //   !window.location.pathname.startsWith("/auth/login") &&
+              //   window.location.pathname !== "/auth/callback"
+              // ) {
+              //   window.location.href = "/auth/complete-profile";
+              // }
             });
           }
         });
@@ -127,7 +158,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
   };
 
   const signIn = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signInWithPassword({
+    const { error, data: signInData } = await supabase.auth.signInWithPassword({
       email,
       password,
     });
@@ -137,13 +168,24 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
       throw error;
     }
 
-    // redirect("/protected");
+    if (signInData?.user) {
+      await fetchUserData(signInData.user.id);
+      // if (
+      //   fetchedUser &&
+      //   !fetchedUser.onboarding_completed &&
+      //   !window.location.pathname.startsWith("/auth/complete-profile")
+      // ) {
+      //   window.location.href = "/auth/complete-profile";
+      //   return;
+      // }
+    }
+
     window.location.href = "/protected";
   };
 
   const signInWithGoogle = async () => {
-    // check user email in database first, if email exists then log in with google, otherwise error
-
+    console.log("-----------------", process.env.NEXT_PUBLIC_SERVER_URL);
+    debugger;
     const { error, data } = await supabase.auth.signInWithOAuth({
       provider: "google",
       options: {
@@ -156,6 +198,8 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
       throw error;
     }
 
+    // The actual redirection to Google will happen here.
+    // The onboarding check will occur in onAuthStateChange after Google redirects back.
     if (data.url) {
       window.location.href = data.url;
     }
@@ -216,6 +260,34 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const updateUserProfileAndCompleteOnboarding = async (
+    data: ProfileCompletionFormData
+  ) => {
+    if (!user) throw new Error("User not authenticated");
+
+    const updates = {
+      ...data,
+      username: data.username.toLowerCase(),
+      onboarding_completed: true,
+      role: user.role || "user",
+    };
+
+    const { error } = await supabase
+      .from("user")
+      .update(updates)
+      .eq("id", user.id);
+
+    if (error) {
+      console.error("Error updating user profile:", error);
+      toast.error(error.message || "Failed to update profile.");
+      throw error;
+    }
+
+    await fetchUserData(user.id);
+    toast.success("Profile updated successfully!");
+    window.location.href = "/protected";
+  };
+
   return (
     <UserContext.Provider
       value={{
@@ -229,6 +301,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
         forgotPassword,
         resetPassword,
         refreshSession,
+        updateUserProfileAndCompleteOnboarding,
       }}
     >
       {children}

@@ -66,8 +66,7 @@ export default function SignInForm() {
 
   return (
     <div className="w-full space-y-6">
-      {/* Google Sign In Button */}
-      <button
+      {/* <button
         onClick={handleGoogleSignIn}
         disabled={isGoogleLoading || isLoading}
         className="flex w-full items-center justify-center gap-3 rounded-lg border border-yadn-primary-gray/20 bg-transparent px-4 py-3 text-yadn-primary-gray hover:bg-yadn-primary-gray/5 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
@@ -85,14 +84,14 @@ export default function SignInForm() {
         {isGoogleLoading ? "Signing in..." : "Sign in with Google"}
       </button>
 
-      {/* Divider */}
+
       <div className="flex items-center justify-center">
         <div className="h-px w-1/4 bg-yadn-primary-gray/10"></div>
         <span className="px-4 text-sm text-yadn-primary-gray/60">
           Or sign in with email
         </span>
         <div className="h-px w-1/4 bg-yadn-primary-gray/10"></div>
-      </div>
+      </div> */}
 
       {/* Email/Password Form */}
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">

@@ -171,7 +171,7 @@ function AccountStep({
 }) {
   return (
     <>
-      <div className="space-y-6">
+      {/* <div className="space-y-6">
         <Button
           type="button"
           onClick={handleGoogleSignIn}
@@ -210,7 +210,7 @@ function AccountStep({
             Or sign up with email
           </span>
         </div>
-      </div>
+      </div> */}
 
       <div className="grid grid-cols-2 gap-4">
         <div>
