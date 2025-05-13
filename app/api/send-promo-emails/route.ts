@@ -4,7 +4,14 @@ import { NextResponse } from "next/server";
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { emails, promo_code, listId, templateId } = body;
+    const {
+      emails,
+      promo_code,
+      listId,
+      templateId,
+      maxUses,
+      remainingDaysInExpiry,
+    } = body;
 
     if (!promo_code) {
       return NextResponse.json(
@@ -60,6 +67,9 @@ export async function POST(request: Request) {
         params: {
           first_name: contact.attributes.FIRSTNAME,
           promo_code,
+          max_uses: Number(maxUses),
+          remaining_days: Number(remainingDaysInExpiry),
+          COMPANY: contact.attributes.COMPANY,
         },
       }));
 
@@ -92,6 +102,8 @@ export async function POST(request: Request) {
         params: {
           first_name: email.split("@")[0],
           promo_code,
+          max_uses: maxUses,
+          remaining_days: remainingDaysInExpiry,
         },
       }));
 

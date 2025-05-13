@@ -8,25 +8,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Switch } from "@/components/ui/switch";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { supabase } from "@/lib/supabase/client";
-import { ArrowRight, ArrowLeft, Plus, RefreshCw, X } from "lucide-react";
-import { useEffect, useState } from "react";
-import toast from "react-hot-toast";
-import { v4 as uuidv4 } from "uuid";
-import { z } from "zod";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
 import {
   Form,
   FormControl,
@@ -36,6 +17,24 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
+import { supabase } from "@/lib/supabase/client";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { ArrowLeft, ArrowRight, Plus, RefreshCw, X } from "lucide-react";
+import { useEffect, useState } from "react";
+import { useForm } from "react-hook-form";
+import toast from "react-hot-toast";
+import { v4 as uuidv4 } from "uuid";
+import { z } from "zod";
 
 interface Subscription {
   id: string;
@@ -63,7 +62,7 @@ interface AddPromoCodeModalProps {
 // Form schema for validation
 const formSchema = z.object({
   name: z.string().min(1, "Name is required"),
-  code: z.string().min(1, "Code is required"),
+  code: z.string().length(8, "Code must be exactly 8 characters"),
   subscription_id: z.string().min(1, "Subscription is required"),
   expiry_date: z.date({
     required_error: "Expiry date is required",
@@ -72,7 +71,7 @@ const formSchema = z.object({
   uses_per_user: z.string().min(1, "Uses per user is required"),
   active: z.boolean().default(true),
   // Access control settings
-  access_type: z.enum(["all", "domain", "email", "list"]).default("all"),
+  access_type: z.enum(["all", "domain", "email"]).default("all"),
   allowed_domains: z.array(z.string()).optional(),
   allowed_emails: z.array(z.string()).optional(),
   // Email settings
@@ -122,6 +121,27 @@ export function AddPromoCodeModal({
     fetchBrevoLists();
     fetchBrevoTemplates();
   }, []);
+
+  useEffect(() => {
+    if (isOpen) {
+      form.reset({
+        name: "",
+        code: "",
+        subscription_id: "",
+        expiry_date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+        max_uses: "",
+        uses_per_user: "1",
+        active: true,
+        access_type: "all",
+        allowed_domains: [""],
+        allowed_emails: [""],
+        send_email: false,
+        email_subject: "",
+        email_template_id: "",
+        email_list_id: "",
+      });
+    }
+  }, [isOpen]);
 
   const fetchSubscriptions = async () => {
     try {
@@ -237,16 +257,18 @@ export function AddPromoCodeModal({
         return;
       }
 
-      if (values.access_type === "list" && !values.email_list_id) {
-        toast.error("Please select a contact list");
-        setLoading(false);
-        return;
-      }
-
       // Validate email settings if sending emails
       if (values.send_email) {
         if (!values.email_template_id) {
           toast.error("Email template is required");
+          setLoading(false);
+          return;
+        }
+
+        if (values.access_type === "all" && !values.email_list_id) {
+          toast.error(
+            "Contact list is required when sending emails to everyone"
+          );
           setLoading(false);
           return;
         }
@@ -283,12 +305,19 @@ export function AddPromoCodeModal({
 
       // If send email is enabled, send the emails
       if (values.send_email) {
+        const remainingDaysInExpiry = Math.ceil(
+          (new Date(values.expiry_date).getTime() - Date.now()) /
+            (1000 * 60 * 60 * 24)
+        );
+
         try {
           const emailData = {
             promo_code: values.code,
             subject: values.email_subject || `Your Promo Code: ${values.code}`,
             templateId: values.email_template_id,
-            ...(values.access_type === "list" || values.access_type === "all"
+            maxUses: values.max_uses,
+            remainingDaysInExpiry,
+            ...(values.access_type === "all"
               ? { listId: values.email_list_id }
               : {
                   emails: values.access_type === "email" ? filteredEmails : [],
@@ -374,7 +403,11 @@ export function AddPromoCodeModal({
                       </FormLabel>
                       <div className="flex gap-2">
                         <FormControl>
-                          <Input {...field} placeholder="e.g. SUMMER23" />
+                          <Input
+                            {...field}
+                            placeholder="e.g. SUMMER23"
+                            maxLength={8}
+                          />
                         </FormControl>
                         <Button
                           type="button"
@@ -539,7 +572,7 @@ export function AddPromoCodeModal({
                       <FormControl>
                         <RadioGroup
                           onValueChange={field.onChange}
-                          defaultValue={field.value}
+                          value={field.value}
                           className="flex flex-col space-y-1 mt-2"
                         >
                           <FormItem className="flex items-center space-x-3 space-y-0">
@@ -564,14 +597,6 @@ export function AddPromoCodeModal({
                             </FormControl>
                             <FormLabel className="font-normal">
                               Restrict to specific email addresses
-                            </FormLabel>
-                          </FormItem>
-                          <FormItem className="flex items-center space-x-3 space-y-0">
-                            <FormControl>
-                              <RadioGroupItem value="list" />
-                            </FormControl>
-                            <FormLabel className="font-normal">
-                              Restrict to a Brevo contact list
                             </FormLabel>
                           </FormItem>
                         </RadioGroup>
@@ -704,71 +729,29 @@ export function AddPromoCodeModal({
                   </div>
                 )}
 
-                {form.watch("access_type") === "list" && (
-                  <FormField
-                    control={form.control}
-                    name="email_list_id"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>
-                          Contact List <span className="text-red-500">*</span>
-                        </FormLabel>
-                        <Select
-                          onValueChange={field.onChange}
-                          defaultValue={field.value}
-                        >
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select a contact list" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            {loadingLists ? (
-                              <SelectItem value="loading" disabled>
-                                Loading lists...
-                              </SelectItem>
-                            ) : brevoLists.length > 0 ? (
-                              brevoLists.map((list) => (
-                                <SelectItem
-                                  key={list.id}
-                                  value={String(list.id)}
-                                >
-                                  {list.name} ({list.totalSubscribers || 0}{" "}
-                                  contacts)
-                                </SelectItem>
-                              ))
-                            ) : (
-                              <SelectItem value="none" disabled>
-                                No lists found
-                              </SelectItem>
-                            )}
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                )}
-
                 <FormField
                   control={form.control}
                   name="send_email"
-                  render={({ field }) => (
-                    <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm">
-                      <div className="space-y-0.5">
-                        <FormLabel>Send Email</FormLabel>
-                        <FormDescription>
-                          Send promo code via email after creation
-                        </FormDescription>
-                      </div>
-                      <FormControl>
-                        <Switch
-                          checked={field.value}
-                          onCheckedChange={field.onChange}
-                        />
-                      </FormControl>
-                    </FormItem>
-                  )}
+                  render={({ field }) => {
+                    return (
+                      <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm">
+                        <div className="space-y-0.5">
+                          <FormLabel>Send Email</FormLabel>
+                          <FormDescription>
+                            Send promo code via email after creation
+                          </FormDescription>
+                        </div>
+                        <FormControl>
+                          <Switch
+                            checked={field.value === true}
+                            onCheckedChange={(checked) => {
+                              field.onChange(checked);
+                            }}
+                          />
+                        </FormControl>
+                      </FormItem>
+                    );
+                  }}
                 />
 
                 {form.watch("send_email") && (
@@ -816,6 +799,57 @@ export function AddPromoCodeModal({
                         </FormItem>
                       )}
                     />
+
+                    {form.watch("access_type") === "all" && (
+                      <FormField
+                        control={form.control}
+                        name="email_list_id"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>
+                              Contact List{" "}
+                              <span className="text-red-500">*</span>
+                            </FormLabel>
+                            <FormDescription>
+                              Select a Brevo contact list to send the promo code
+                              to
+                            </FormDescription>
+                            <Select
+                              onValueChange={field.onChange}
+                              defaultValue={field.value}
+                            >
+                              <FormControl>
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Select a contact list" />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                {loadingLists ? (
+                                  <SelectItem value="loading" disabled>
+                                    Loading lists...
+                                  </SelectItem>
+                                ) : brevoLists.length > 0 ? (
+                                  brevoLists.map((list) => (
+                                    <SelectItem
+                                      key={list.id}
+                                      value={String(list.id)}
+                                    >
+                                      {list.name} ({list.totalSubscribers || 0}{" "}
+                                      contacts)
+                                    </SelectItem>
+                                  ))
+                                ) : (
+                                  <SelectItem value="none" disabled>
+                                    No lists found
+                                  </SelectItem>
+                                )}
+                              </SelectContent>
+                            </Select>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    )}
                   </>
                 )}
 
