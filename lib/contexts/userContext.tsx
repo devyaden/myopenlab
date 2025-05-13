@@ -184,8 +184,6 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
   };
 
   const signInWithGoogle = async () => {
-    console.log("-----------------", process.env.NEXT_PUBLIC_SERVER_URL);
-    debugger;
     const { error, data } = await supabase.auth.signInWithOAuth({
       provider: "google",
       options: {

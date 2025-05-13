@@ -1165,8 +1165,6 @@ export default function SignupForm({ googleData }: SignupFormProps) {
         },
       };
 
-      debugger;
-
       try {
         const { error, user } = await signUp(signupData, formData.password);
 
@@ -1197,7 +1195,6 @@ export default function SignupForm({ googleData }: SignupFormProps) {
             });
 
           if (subscriptionError) {
-            debugger;
             console.error("Error creating subscription:", subscriptionError);
             toast.error("Error creating subscription. Please contact support.");
           } else {

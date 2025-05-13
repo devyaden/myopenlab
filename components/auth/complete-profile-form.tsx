@@ -273,7 +273,6 @@ export default function CompleteProfileForm() {
       return;
     }
 
-    debugger;
     setIsSubmitting(true);
     try {
       const userPayload = {
