@@ -44,6 +44,7 @@ import {
   AlertDialogCancel,
   AlertDialogAction,
 } from "@/components/ui/alert-dialog";
+import { useOnboardingStore } from "@/lib/store/useOnboarding";
 
 export function HomeContent() {
   const {
@@ -58,25 +59,14 @@ export function HomeContent() {
     getFolders,
     fetchRootCanvases,
   } = useSidebarStore();
+   const { setSecoundStepData, isFirstVisit, data, isFirstStepCompleted } = useOnboardingStore();
 
   const steps = [
     {
       target: '.onboarding-create-button',
       content: 'Click here to create a new folder!',
       disableBeacon: true, 
-    },
-    {
-      target: '.onboarding-create-modal',
-      content: 'This modal lets you choose between creating a folder.',
-    },
-  ];
-
-  const secondTourSteps = [
-    {
-      target: '.onboarding-create-new-button',
-      content: 'Click here to create a new canvas!',
-      disableBeacon: true,
-    },
+    }
   ];
 
   const { user } = useUser();
@@ -92,7 +82,6 @@ export function HomeContent() {
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [runTour, setRunTour] = useState(true);
-  const [stepIndex, setStepIndex] = useState(0);
   const [hasMounted, setHasMounted] = useState(false);
   const [runSecondTour, setRunSecondTour] = useState(false);
   const [itemToDelete, setItemToDelete] = useState<{
@@ -210,7 +199,7 @@ export function HomeContent() {
     }
   };
 
-  const handleJoyrideCllback = (data) => {
+  const handleJoyrideCllback = (data: any) => {
     const { action, index, status, type } = data;
 
     if (action === 'next' && index === 0) {
@@ -220,15 +209,13 @@ export function HomeContent() {
     if (status === 'finished' || status === 'skipped') {
       setRunTour(false);
     }
-
-    setStepIndex(index);
   }
 
   
   useEffect(() => {
     const timeout = setTimeout(() => {
       setHasMounted(true);
-      setRunTour(true);
+      setRunTour(isFirstVisit);
     }, 1500);
 
     return () => clearTimeout(timeout);
@@ -236,7 +223,7 @@ export function HomeContent() {
 
   return (
     <div className="flex flex-col h-full">
-      {hasMounted && (
+      {hasMounted && isFirstVisit && (
         <Joyride
           steps={steps}
           run={runTour}
@@ -277,7 +264,7 @@ export function HomeContent() {
           <div className="md:w-1/4 flex justify-end mt-4 md:mt-0">
             <Button
               onClick={() => setCreateNewModalType("canvas")}
-              className="bg-yadn-accent-green hover:bg-yadn-accent-green/80 text-white onboarding-create-new-button"
+              className="bg-yadn-accent-green hover:bg-yadn-accent-green/80 text-white"
             >
               <Plus className="mr-2 h-4 w-4" /> Create New
             </Button>

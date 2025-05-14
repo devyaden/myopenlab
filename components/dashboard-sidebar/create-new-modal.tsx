@@ -35,6 +35,7 @@ import { InputWithIcon } from "../input-with-icon";
 import { generateUntitledName } from "@/lib/utils";
 import { AIGenerationDialog } from "../canvas-new/ai-generation-dialog";
 import { Wand2 } from "lucide-react";
+import { useOnboardingStore } from "@/lib/store/useOnboarding";
 
 export enum CANVAS_TYPE {
   HYBRID = "hybrid",
@@ -270,117 +271,152 @@ export function CreateNewModal({
 
   const renderContent = () => {
 
-  const steps = [
-    {
-      target: '.folderInput',
-      content: 'Write folder name!',
-      disableBeacon: true
-    },
-    {
-      target: '.submit-create-folder',
-      content: 'By clicking on Create folder button it will create a folder!',
-      disableBeacon: true
-    },
-  ];
+    const { isFirstVisit } = useOnboardingStore();
 
-  const [runTour, setRunTour] = useState(true);
-  const [stepIndex, setStepIndex] = useState(0);
+    const steps = [
+      {
+        target: '.folderInput',
+        content: 'Write folder name!',
+        disableBeacon: true
+      },
+      {
+        target: '.submit-create-folder',
+        content: 'By clicking on Create folder button it will create a folder!',
+        disableBeacon: true
+      },
+    ];
 
-  
+    const canvasSteps = [
+      {
+        target: '.new-canvas-diagram-board',
+        content: 'Click here to start with a new canvas. This will be your drawing board to create diagrams.',
+        disableBeacon: true,
+      },
+      {
+        target: '.create-table-visual',
+        content: 'Click here to create a visual table. You can add values directly to cells for structured data.',
+        disableBeacon: true,
+      },
+      {
+        target: '.create-doc-visual',
+        content: 'Click here to create a visual document. Ideal for drafting and structuring textual content.',
+        disableBeacon: true,
+      },
+      {
+        target: '.generate-with-ai',
+        content: 'Want help from AI? Click here to generate a diagram automatically based on your input.',
+        disableBeacon: true,
+      },
+    ];
+
     // Step 1: Type selection (only for canvas)
     if (step === "select" && type === "canvas") {
       return (
-        <div className="grid grid-cols-2 gap-4 py-4">
-          <div
-            className="flex flex-col items-center justify-center p-6 bg-gray-50 rounded-lg hover:bg-gray-100 cursor-pointer transition-colors"
-            onClick={() => handleTypeSelect(CANVAS_TYPE.HYBRID)}
-          >
-            <div className="mb-4">
-              <svg
-                width="24"
-                height="24"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                className="text-gray-600"
-              >
-                <rect x="3" y="3" width="18" height="18" rx="2" />
-                <path d="M9 3v18M3 9h18" />
-              </svg>
+        <>
+          {isFirstVisit && <Joyride
+                steps={canvasSteps}
+                continuous
+                showProgress
+                showSkipButton
+                styles={{
+                  options: {
+                    primaryColor: '#22c55e',
+                    zIndex: 10000,
+                  },
+                }}
+            />}
+          <div className="grid grid-cols-2 gap-4 py-4">
+            <div
+              className="flex flex-col items-center justify-center p-6 bg-gray-50 rounded-lg hover:bg-gray-100 cursor-pointer transition-colors new-canvas-diagram-board"
+              onClick={() => handleTypeSelect(CANVAS_TYPE.HYBRID)}
+            >
+              <div className="mb-4">
+                <svg
+                  width="24"
+                  height="24"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  className="text-gray-600"
+                >
+                  <rect x="3" y="3" width="18" height="18" rx="2" />
+                  <path d="M9 3v18M3 9h18" />
+                </svg>
+              </div>
+              <span className="font-medium text-center">New Canvas</span>
+              <span className="text-xs text-center text-muted-foreground mt-1">
+                Canvas will be the drawing board to draw diagram
+              </span>
             </div>
-            <span className="font-medium text-center">New Canvas</span>
-            <span className="text-xs text-center text-muted-foreground mt-1">
-              Canvas will be the drawing board to draw diagram
-            </span>
-          </div>
 
-          <div
-            className="flex flex-col items-center justify-center p-6 bg-gray-50 rounded-lg hover:bg-gray-100 cursor-pointer transition-colors"
-            onClick={() => handleTypeSelect(CANVAS_TYPE.TABLE)}
-          >
-            <div className="mb-4">
-              <svg
-                width="24"
-                height="24"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                className="text-gray-600"
-              >
-                <rect x="3" y="3" width="18" height="18" rx="2" />
-                <line x1="3" y1="9" x2="21" y2="9" />
-                <line x1="3" y1="15" x2="21" y2="15" />
-                <line x1="9" y1="3" x2="9" y2="21" />
-                <line x1="15" y1="3" x2="15" y2="21" />
-              </svg>
+            <div
+              className="flex flex-col items-center justify-center p-6 bg-gray-50 rounded-lg hover:bg-gray-100 cursor-pointer transition-colors create-table-visual"
+              onClick={() => handleTypeSelect(CANVAS_TYPE.TABLE)}
+            >
+              <div className="mb-4">
+                <svg
+                  width="24"
+                  height="24"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  className="text-gray-600"
+                >
+                  <rect x="3" y="3" width="18" height="18" rx="2" />
+                  <line x1="3" y1="9" x2="21" y2="9" />
+                  <line x1="3" y1="15" x2="21" y2="15" />
+                  <line x1="9" y1="3" x2="9" y2="21" />
+                  <line x1="15" y1="3" x2="15" y2="21" />
+                </svg>
+              </div>
+              <span className="font-medium text-center">Create Table</span>
+              <span className="text-xs text-center text-muted-foreground mt-1">
+                Table will be the visual Table to Add Values into The Table
+              </span>
             </div>
-            <span className="font-medium text-center">Create Table</span>
-            <span className="text-xs text-center text-muted-foreground mt-1">
-              Table will be the visual Table to Add Values into The Table
-            </span>
-          </div>
 
-          <div
-            className="flex flex-col items-center justify-center p-6 bg-gray-50 rounded-lg hover:bg-gray-100 cursor-pointer transition-colors"
-            onClick={() => handleTypeSelect(CANVAS_TYPE.DOCUMENT)}
-          >
-            <div className="mb-4">
-              <svg
-                width="24"
-                height="24"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                className="text-gray-600"
-              >
-                <rect x="3" y="3" width="18" height="18" rx="2" />
-                <line x1="8" y1="10" x2="16" y2="10" />
-                <line x1="8" y1="14" x2="16" y2="14" />
-                <line x1="8" y1="18" x2="12" y2="18" />
-              </svg>
+            <div
+              className="flex flex-col items-center justify-center p-6 bg-gray-50 rounded-lg hover:bg-gray-100 cursor-pointer transition-colors create-doc-visual"
+              onClick={() => handleTypeSelect(CANVAS_TYPE.DOCUMENT)}
+            >
+              <div className="mb-4">
+                <svg
+                  width="24"
+                  height="24"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  className="text-gray-600"
+                >
+                  <rect x="3" y="3" width="18" height="18" rx="2" />
+                  <line x1="8" y1="10" x2="16" y2="10" />
+                  <line x1="8" y1="14" x2="16" y2="14" />
+                  <line x1="8" y1="18" x2="12" y2="18" />
+                </svg>
+              </div>
+              <span className="font-medium text-center">Create Document</span>
+              <span className="text-xs text-center text-muted-foreground mt-1">
+                Document will be the visual document to add content
+              </span>
             </div>
-            <span className="font-medium text-center">Create Document</span>
-            <span className="text-xs text-center text-muted-foreground mt-1">
-              Document will be the visual document to add content
-            </span>
-          </div>
 
-          <div
-            className="flex flex-col items-center justify-center p-6 bg-gray-50 rounded-lg hover:bg-gray-100 cursor-pointer transition-colors"
-            onClick={handleOpenAIDialog}
-          >
-            <div className="mb-4">
-              <Wand2 className="h-6 w-6 text-yadn-accent-green" />
+            <div
+              className="flex flex-col items-center justify-center p-6 bg-gray-50 rounded-lg hover:bg-gray-100 cursor-pointer transition-colors generate-with-ai"
+              onClick={handleOpenAIDialog}
+            >
+              <div className="mb-4">
+                <Wand2 className="h-6 w-6 text-yadn-accent-green" />
+              </div>
+              <span className="font-medium text-center">Generate with AI</span>
+              <span className="text-xs text-center text-muted-foreground mt-1">
+                Let AI generate a diagram based on your requirements
+              </span>
             </div>
-            <span className="font-medium text-center">Generate with AI</span>
-            <span className="text-xs text-center text-muted-foreground mt-1">
-              Let AI generate a diagram based on your requirements
-            </span>
           </div>
-        </div>
+        </>
       );
     }
 
@@ -389,9 +425,8 @@ export function CreateNewModal({
       if (type === "folder") {
         return (
           <Form {...folderForm}>
-            <Joyride
+            {isFirstVisit && <Joyride
               steps={steps}
-              run={runTour}
               continuous
               showProgress
               showSkipButton
@@ -401,7 +436,7 @@ export function CreateNewModal({
                   zIndex: 10000,
                 },
               }}
-            />
+            />}
             <form
               onSubmit={folderForm.handleSubmit(handleCreateFolder)}
               className="space-y-8"

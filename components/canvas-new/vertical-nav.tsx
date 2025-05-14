@@ -1,6 +1,8 @@
 import { Button } from "@/components/ui/button";
+import { useOnboardingStore } from "@/lib/store/useOnboarding";
 import { CANVAS_TYPE } from "@/types/store";
 import { Image, Printer, Shapes } from "lucide-react";
+import Joyride from 'react-joyride';
 
 interface VerticalNavProps {
   className?: string;
@@ -17,38 +19,67 @@ export function VerticalNav({
   onDragStart,
   onOpenImageManager,
 }: VerticalNavProps) {
+  const { isFirstVisit } = useOnboardingStore();
+
+  const steps = [
+    {
+      target: '.canvas-shapes',
+      content: 'You can draw multiple shapes by clicking here. Great for building diagrams and visual elements.',
+      disableBeacon: true,
+    },
+    {
+      target: '.images-library',
+      content: 'Click here to upload and manage images in your project. Useful for enhancing visuals.',
+      disableBeacon: true,
+    },
+  ];
+
   return (
-    <div
-      className={`w-[72px] border-r border-gray-200 flex flex-col items-center py-4 gap-2 ${className} z-30 bg-white`}
-    >
-      {canvasType === CANVAS_TYPE.HYBRID && (
+    <>
+      {isFirstVisit && <Joyride
+        steps={steps}
+        continuous
+        showProgress
+        showSkipButton
+        styles={{
+          options: {
+            primaryColor: '#22c55e',
+            zIndex: 10000,
+          },
+        }}
+      />}
+      <div
+        className={`w-[72px] border-r border-gray-200 flex flex-col items-center py-4 gap-2 ${className} z-30 bg-white`}
+      >
+        {canvasType === CANVAS_TYPE.HYBRID && (
+          <Button
+            variant="outline"
+            size="icon"
+            className="h-12 w-12 rounded-lg hover:bg-gray-100 border-yadn-accent-green canvas-shapes"
+            onClick={onToggleSidebar}
+          >
+            <Shapes className="!h-6 !w-6 text-yadn-accent-green" />
+          </Button>
+        )}
+        {/* <Button
+          variant="outline"
+          size="icon"
+          className="h-12 w-12 rounded-lg hover:bg-gray-100"
+        >
+          <Printer className="!h-6 !w-6" />
+        </Button> */}
+
         <Button
           variant="outline"
           size="icon"
-          className="h-12 w-12 rounded-lg hover:bg-gray-100 border-yadn-accent-green"
-          onClick={onToggleSidebar}
+          className="h-12 w-12 rounded-lg hover:bg-gray-100 cursor-move images-library"
+          draggable
+          onDragStart={(e) => onDragStart && onDragStart(e, "image")}
+          onClick={onOpenImageManager}
         >
-          <Shapes className="!h-6 !w-6 text-yadn-accent-green" />
+          <Image className="!h-6 !w-6" />
         </Button>
-      )}
-      {/* <Button
-        variant="outline"
-        size="icon"
-        className="h-12 w-12 rounded-lg hover:bg-gray-100"
-      >
-        <Printer className="!h-6 !w-6" />
-      </Button> */}
-
-      <Button
-        variant="outline"
-        size="icon"
-        className="h-12 w-12 rounded-lg hover:bg-gray-100 cursor-move"
-        draggable
-        onDragStart={(e) => onDragStart && onDragStart(e, "image")}
-        onClick={onOpenImageManager}
-      >
-        <Image className="!h-6 !w-6" />
-      </Button>
-    </div>
+      </div>
+    </>
   );
 }

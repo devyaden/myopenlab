@@ -32,6 +32,8 @@ import {
 } from "@/components/dashboard-sidebar/create-new-modal";
 import { generateUntitledName } from "@/lib/utils";
 import { useRouter } from "next/navigation";
+import Joyride from 'react-joyride';
+import { useOnboardingStore } from "@/lib/store/useOnboarding";
 
 interface FolderContentProps {
   folderId: string;
@@ -63,6 +65,28 @@ export function FolderContent({ folderId }: FolderContentProps) {
     id: string;
     type: "canvas";
   } | null>(null);
+  const { setSecoundStepData, isFirstVisit, data, isFirstStepCompleted } = useOnboardingStore();
+  const [runTour, setRunTour] = useState(true);
+
+  const steps = [
+    {
+      target: '.onboarding-create-button',
+      content: 'Click here to create a new folder!',
+      disableBeacon: true, 
+    }
+  ];
+
+  const handleJoyrideCllback = (data: any) => {
+    const { action, index, status, type } = data;
+
+    if (action === 'next' && index === 0) {
+      setCreateNewModalType("canvas")
+    }
+
+    if (status === 'finished' || status === 'skipped') {
+      setRunTour(false);
+    }
+  }
 
   useEffect(() => {
     if (user) {
@@ -97,12 +121,28 @@ export function FolderContent({ folderId }: FolderContentProps) {
   // Function to handle empty canvases array gracefully
   const getEmptyState = () => (
     <div className="text-center py-8 bg-gray-50 rounded-lg">
+      {isFirstVisit && (
+        <Joyride
+          steps={steps}
+          run={runTour}
+          callback={handleJoyrideCllback}
+          continuous
+          showProgress
+          showSkipButton
+          styles={{
+            options: {
+              primaryColor: '#22c55e',
+              zIndex: 10000,
+            },
+          }}
+        />
+      )}
       <FileText className="mx-auto h-12 w-12 text-gray-300 mb-2" />
       <p className="text-gray-500">No files found in this folder</p>
       <Button
         variant="outline"
         size="sm"
-        className="mt-4"
+        className="mt-4 onboarding-create-button"
         onClick={() => setCreateNewModalType("canvas")}
       >
         <Plus className="mr-1 h-4 w-4" /> Create New
