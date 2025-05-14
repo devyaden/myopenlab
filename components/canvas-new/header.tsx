@@ -14,34 +14,32 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { Folder } from "@/types/sidebar";
+import { CANVAS_TYPE } from "@/types/store";
 import { toJpeg, toPng, toSvg } from "html-to-image";
 import { jsPDF } from "jspdf";
 import {
-  ChevronLeft,
+  ChevronRight,
   Download,
   FileImage,
   FileJson,
   FileSpreadsheet,
   FileText,
+  Home,
   Link2,
   Menu,
   Save,
   Send,
-  ChevronRight,
-  Home,
 } from "lucide-react";
+import Image from "next/image";
+import Link from "next/link";
 import type React from "react";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { toast } from "react-hot-toast";
 import { LoadingSpinner } from "../loading-spinner";
 import { ImportModal } from "./import-modal";
 import { ShareModal } from "./share-modal";
 import { VIEW_MODE, ViewMode } from "./table-view/table.types";
-import Image from "next/image";
-import { CANVAS_TYPE } from "@/types/store";
-import Link from "next/link";
-import { useSidebarStore } from "@/lib/store/useSidebar";
-import { Folder } from "@/types/sidebar";
 
 const MAX_TITLE_LENGTH = 50;
 
@@ -62,7 +60,7 @@ interface HeaderProps {
   exportToCSV?: () => void;
   exportToExcel?: () => void;
   exportAsJSON?: () => void;
-  exportAsPDF?: () => void;
+  propExportAsPDF?: () => void;
   canvasType: CANVAS_TYPE;
   toggleMiniMap?: (show: boolean) => void;
   currentFolder?: Folder | null;
@@ -84,18 +82,16 @@ export function Header({
   exportToCSV,
   exportToExcel,
   exportAsJSON: propExportAsJSON,
-  exportAsPDF: propExportAsPDF,
+  propExportAsPDF,
   canvasType,
   toggleMiniMap,
   currentFolder,
 }: HeaderProps) {
-  const [documentStatus, setDocumentStatus] = useState("Draft");
   const [isEditing, setIsEditing] = useState(false);
   const [titleError, setTitleError] = useState(false);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
-  const { folders } = useSidebarStore();
 
   const handleTitleDoubleClick = () => {
     if (!isOwner) return;
@@ -177,6 +173,7 @@ export function Header({
   };
 
   const exportAsPDF = async () => {
+    debugger;
     if (propExportAsPDF) {
       propExportAsPDF();
       return;

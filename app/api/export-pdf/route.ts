@@ -149,11 +149,36 @@ export async function POST(request: NextRequest) {
 
     console.log("Launching Puppeteer");
 
-    // Launch puppeteer with basic settings
-    browser = await puppeteer.launch({
-      headless: true,
-      args: ["--no-sandbox", "--disable-setuid-sandbox"],
-    });
+    // Launch puppeteer with more robust settings
+    browser = await puppeteer
+      .launch({
+        headless: true,
+        args: [
+          "--no-sandbox",
+          "--disable-setuid-sandbox",
+          "--disable-dev-shm-usage",
+          "--disable-accelerated-2d-canvas",
+          "--disable-gpu",
+          "--window-size=1920x1080",
+        ],
+        executablePath: process.env.CHROME_PATH || undefined, // Allow custom Chrome path
+      })
+      .catch(async (error) => {
+        console.error("Failed to launch browser:", error);
+
+        // Try alternative launch method
+        try {
+          return await puppeteer.launch({
+            headless: true,
+            args: ["--no-sandbox", "--disable-setuid-sandbox"],
+          });
+        } catch (retryError) {
+          console.error("Failed to launch browser with retry:", retryError);
+          throw new Error(
+            "Could not launch browser. Please ensure Chrome is installed and accessible."
+          );
+        }
+      });
 
     console.log("Creating new page");
     const page = await browser.newPage();
@@ -193,7 +218,7 @@ export async function POST(request: NextRequest) {
     console.log("PDF generated successfully, returning response");
 
     // Return the PDF as a downloadable file
-    const response = new NextResponse(pdfBuffer);
+    const response = new NextResponse(pdfBuffer as unknown as BodyInit);
     response.headers.set("Content-Type", "application/pdf");
     response.headers.set(
       "Content-Disposition",

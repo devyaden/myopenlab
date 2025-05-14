@@ -1637,11 +1637,12 @@ export default function Editor({
           isOwner={isOwner}
           viewMode={"document"}
           exportAsJSON={handleExportJSON}
-          exportAsPDF={handleExportPDF}
+          propExportAsPDF={handleExportPDF}
           canvasType={CANVAS_TYPE.DOCUMENT}
           currentFolder={folder}
         />
       )}
+
       <EditorToolbar
         editorState={editorState}
         onFormatText={applyFormat}
@@ -1696,6 +1697,7 @@ export default function Editor({
 
         {/* Zoom controls in bottom right */}
         <div className="fixed bottom-4 right-4 bg-white border rounded-lg shadow-md p-1 flex items-center gap-1">
+          <Button onClick={handleExportPDF}>Export PDF</Button>
           <Button
             variant="ghost"
             size="sm"
