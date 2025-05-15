@@ -50,7 +50,6 @@ interface HeaderProps {
   onBackToDashboard: () => void;
   currentState?: any;
   onImportCanvas: (data: any) => void;
-
   saveLoading: boolean;
   canvasId: string;
   visibility: string;
@@ -67,6 +66,7 @@ interface HeaderProps {
 }
 
 export function Header({
+  propExportAsPDF,
   projectName,
   setProjectName,
   onSave,
@@ -82,7 +82,6 @@ export function Header({
   exportToCSV,
   exportToExcel,
   exportAsJSON: propExportAsJSON,
-  propExportAsPDF,
   canvasType,
   toggleMiniMap,
   currentFolder,
@@ -173,7 +172,6 @@ export function Header({
   };
 
   const exportAsPDF = async () => {
-    debugger;
     if (propExportAsPDF) {
       propExportAsPDF();
       return;

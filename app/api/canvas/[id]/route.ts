@@ -1,16 +1,11 @@
 import { createClient } from "@/lib/supabase/server";
 import { NextResponse } from "next/server";
 
-export async function GET(
-  request: Request,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export async function GET(request: Request, { params }: any) {
+  const canvasId = (await params).id;
   const supabase = await createClient();
 
   try {
-    // Get the canvas ID from the URL parameter
-    const { id: canvasId } = await params;
-
     if (!canvasId) {
       return NextResponse.json(
         { error: "Canvas ID is required" },

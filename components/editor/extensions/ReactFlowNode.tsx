@@ -18,6 +18,9 @@ export const ReactFlowNode = Node.create({
       id: {
         default: null,
       },
+      canvasId: {
+        default: null,
+      },
       name: {
         default: "Untitled Canvas",
       },
@@ -37,12 +40,6 @@ export const ReactFlowNode = Node.create({
           return edges;
         },
       },
-      imageData: {
-        default: null,
-        parseHTML: (element) => {
-          return element.getAttribute("data-image") || null;
-        },
-      },
       width: {
         default: 500,
         parseHTML: (element) => {
@@ -53,6 +50,18 @@ export const ReactFlowNode = Node.create({
         default: 300,
         parseHTML: (element) => {
           return parseInt(element.getAttribute("data-height") || "300", 10);
+        },
+      },
+      useRealTimeData: {
+        default: false,
+        parseHTML: (element) => {
+          return element.getAttribute("data-use-real-time-data") === "true";
+        },
+      },
+      lastUpdated: {
+        default: null,
+        parseHTML: (element) => {
+          return element.getAttribute("data-last-updated") || null;
         },
       },
     };
@@ -71,14 +80,16 @@ export const ReactFlowNode = Node.create({
     const sanitizedAttrs = {
       "data-type": "react-flow",
       "data-id": HTMLAttributes.id || "",
+      "data-canvas-id": HTMLAttributes.canvasId || "",
       "data-name": HTMLAttributes.name || "Untitled Canvas",
       "data-nodes":
         typeof HTMLAttributes.nodes === "string" ? HTMLAttributes.nodes : "[]",
       "data-edges":
         typeof HTMLAttributes.edges === "string" ? HTMLAttributes.edges : "[]",
-      "data-image": HTMLAttributes.imageData || "",
       "data-width": HTMLAttributes.width || 500,
       "data-height": HTMLAttributes.height || 300,
+      "data-use-real-time-data": HTMLAttributes.useRealTimeData || false,
+      "data-last-updated": HTMLAttributes.lastUpdated || "",
       class: "react-flow-node",
     };
 

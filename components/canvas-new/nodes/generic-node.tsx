@@ -125,20 +125,20 @@ export const GenericNode = memo(
     });
 
     // Update nodeSize if node dimensions change
-    useEffect(() => {
-      const node = reactFlowInstance.getNode(id);
-      if (node?.width && node?.height) {
-        setNodeSize({
-          width: node.width,
-          height: node.height,
-        });
-      } else if (data.width && data.height) {
-        setNodeSize({
-          width: data.width,
-          height: data.height,
-        });
-      }
-    }, [reactFlowInstance, id, data.width, data.height]);
+    // useEffect(() => {
+    //   const node = reactFlowInstance.getNode(id);
+    //   if (node?.width && node?.height) {
+    //     setNodeSize({
+    //       width: node.width,
+    //       height: node.height,
+    //     });
+    //   } else if (data.width && data.height) {
+    //     setNodeSize({
+    //       width: data.width,
+    //       height: data.height,
+    //     });
+    //   }
+    // }, [reactFlowInstance, id, data.width, data.height]);
 
     // Check if current shape is a human figure
     const currentShapeIsHumanFigure = isHumanFigure(data.shape);
