@@ -325,7 +325,8 @@ export const GenericNode = memo(
         height: "0.75rem",
         backgroundColor: "#09BC8A",
         border: "1px solid white",
-        transition: "opacity 0.2s ease", // Smooth transition for handles
+        zIndex: 20,
+        // transition: "opacity 0.2s ease",
       }),
       [selected]
     );
@@ -1116,7 +1117,7 @@ export const GenericNode = memo(
                 borderWidth: `${data.style?.borderWidth || 1}px`,
                 backgroundColor: data.style?.backgroundColor || "white",
                 padding: "8px",
-                overflow: "hidden", // Ensure text doesn't overflow
+                // overflow: "hidden",
                 borderRadius: BORDER_RADIUS_MAP[data.shape] || "0px", // Apply border radius based on shape type
               }}
             >
@@ -1194,9 +1195,10 @@ export const GenericNode = memo(
             borderRadius: 6,
             backgroundColor: "#09BC8A",
             border: "2px solid white",
+            zIndex: 10,
           }}
           lineStyle={{
-            borderWidth: 2,
+            borderWidth: 1,
             borderColor: "#003F91",
           }}
         />
