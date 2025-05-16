@@ -51,8 +51,7 @@ export default function FeaturesGrid() {
       whileInView="visible"
       viewport={{
         once: true,
-        margin: "-100px",
-        amount: 0.3,
+        amount: 0.1,
       }}
       className="grid grid-cols-4 md:grid-cols-8 lg:grid-cols-12 gap-4 bg-yadn-background/50"
     >
