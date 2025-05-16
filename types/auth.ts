@@ -13,4 +13,5 @@ export interface User {
   application?: string;
   lastActive?: Date;
   isActive?: boolean;
+  onboarding_completed?: boolean;
 }

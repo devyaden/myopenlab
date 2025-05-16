@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { motion } from "framer-motion";
 
 interface FeatureCardProps {
   children: ReactNode;
@@ -7,40 +8,82 @@ interface FeatureCardProps {
 
 function FeatureCard({ children, className = "" }: FeatureCardProps) {
   return (
-    <div
-      className={`bg-yadn-background/50 border border-yadn-foreground/10 rounded-2xl p-6 flex items-center justify-center ${className}`}
+    <motion.div
+      whileHover={{ scale: 1.02 }}
+      whileTap={{ scale: 0.98 }}
+      transition={{ type: "spring", stiffness: 400, damping: 17 }}
+      className={`bg-yadn-background/50 border border-yadn-foreground/10 rounded-2xl p-6 flex items-center justify-center cursor-pointer hover:bg-yadn-background/70 transition-colors duration-200 ${className}`}
     >
       {children}
-    </div>
+    </motion.div>
   );
 }
 
 export default function FeaturesGrid() {
+  const containerVariants = {
+    hidden: { opacity: 0 },
+    visible: {
+      opacity: 1,
+      transition: {
+        staggerChildren: 0.1,
+        delayChildren: 0.2,
+      },
+    },
+  };
+
+  const itemVariants = {
+    hidden: { opacity: 0, y: 20 },
+    visible: {
+      opacity: 1,
+      y: 0,
+      transition: {
+        type: "spring",
+        stiffness: 100,
+        damping: 12,
+      },
+    },
+  };
+
   return (
-    <div className="grid grid-cols-4 md:grid-cols-8 lg:grid-cols-12 gap-4 bg-yadn-background/50">
+    <motion.div
+      variants={containerVariants}
+      initial="hidden"
+      whileInView="visible"
+      viewport={{
+        once: true,
+        amount: 0.1,
+      }}
+      className="grid grid-cols-4 md:grid-cols-8 lg:grid-cols-12 gap-4 bg-yadn-background/50"
+    >
       {/* Row 1 */}
-      <div className="col-span-4 md:col-span-8 lg:col-span-4">
+      <motion.div
+        variants={itemVariants}
+        className="col-span-4 md:col-span-8 lg:col-span-4"
+      >
         <FeatureCard>
           <div className="flex items-center space-x-3">
             <span className="text-lg font-medium">Up to</span>
-            <span className="bg-yadn-accent-green text-background px-3 py-1 rounded-md text-xl font-bold">
+            <motion.span
+              whileHover={{ scale: 1.1 }}
+              className="bg-yadn-accent-green text-background px-3 py-1 rounded-md text-xl font-bold"
+            >
               Unlimited
-            </span>
+            </motion.span>
             <span className="text-lg font-medium">canvas size</span>
           </div>
         </FeatureCard>
-      </div>
+      </motion.div>
 
-      <div className="col-span-4">
+      <motion.div variants={itemVariants} className="col-span-4">
         <FeatureCard>
           <div className="text-center">
             <div className="text-5xl font-bold">3</div>
             <div className="text-yadn-foreground/70 mt-1">view types</div>
           </div>
         </FeatureCard>
-      </div>
+      </motion.div>
 
-      <div className="col-span-4">
+      <motion.div variants={itemVariants} className="col-span-4">
         <FeatureCard>
           <div className="text-center">
             <div className="text-2xl font-medium">Nested</div>
@@ -50,19 +93,19 @@ export default function FeaturesGrid() {
             </div>
           </div>
         </FeatureCard>
-      </div>
+      </motion.div>
 
       {/* Row 2 */}
-      <div className="col-span-2">
+      <motion.div variants={itemVariants} className="col-span-2">
         <FeatureCard>
           <div className="text-center">
             <div className="text-4xl font-bold">∞</div>
             <div className="text-yadn-foreground/70 text-sm">connections</div>
           </div>
         </FeatureCard>
-      </div>
+      </motion.div>
 
-      <div className="col-span-2">
+      <motion.div variants={itemVariants} className="col-span-2">
         <FeatureCard>
           <div className="text-center">
             <div className="text-4xl font-bold">5+</div>
@@ -71,49 +114,58 @@ export default function FeaturesGrid() {
             </div>
           </div>
         </FeatureCard>
-      </div>
+      </motion.div>
 
-      <div className="col-span-4 md:col-span-4 lg:col-span-4">
+      <motion.div
+        variants={itemVariants}
+        className="col-span-4 md:col-span-4 lg:col-span-4"
+      >
         <FeatureCard>
           <div className="text-center">
             <div className="text-3xl font-bold">Real-time</div>
             <div className="text-yadn-foreground/70">collaboration</div>
           </div>
         </FeatureCard>
-      </div>
+      </motion.div>
 
-      <div className="col-span-2">
+      <motion.div variants={itemVariants} className="col-span-2">
         <FeatureCard>
           <div className="text-center">
             <div className="text-4xl font-bold">100%</div>
             <div className="text-yadn-foreground/70 text-sm">responsive</div>
           </div>
         </FeatureCard>
-      </div>
+      </motion.div>
 
-      <div className="col-span-2">
+      <motion.div variants={itemVariants} className="col-span-2">
         <FeatureCard>
           <div className="text-center">
             <div className="text-4xl font-bold">24/7</div>
             <div className="text-yadn-foreground/70 text-sm">cloud access</div>
           </div>
         </FeatureCard>
-      </div>
+      </motion.div>
 
       {/* Row 3 */}
-      <div className="col-span-4">
+      <motion.div variants={itemVariants} className="col-span-4">
         <FeatureCard>
           <div className="text-center">
             <div className="gradient-text text-5xl font-bold">Smart</div>
             <div className="text-yadn-foreground/70">auto-layout</div>
           </div>
         </FeatureCard>
-      </div>
+      </motion.div>
 
-      <div className="col-span-4 md:col-span-8 lg:col-span-4">
+      <motion.div
+        variants={itemVariants}
+        className="col-span-4 md:col-span-8 lg:col-span-4"
+      >
         <FeatureCard className="h-full">
           <div className="relative w-full h-[120px] flex items-center justify-center">
-            <div className="absolute inset-0 bg-yadn-accent-green/5 rounded-xl"></div>
+            <motion.div
+              whileHover={{ scale: 1.05 }}
+              className="absolute inset-0 bg-yadn-accent-green/5 rounded-xl"
+            ></motion.div>
             <div className="relative z-10 text-center">
               <div className="text-3xl font-bold mb-1">
                 Canvas → Table → Doc
@@ -122,19 +174,19 @@ export default function FeaturesGrid() {
             </div>
           </div>
         </FeatureCard>
-      </div>
+      </motion.div>
 
-      <div className="col-span-4">
+      <motion.div variants={itemVariants} className="col-span-4">
         <FeatureCard>
           <div className="text-center">
             <div className="text-3xl font-bold">Connected</div>
             <div className="text-yadn-foreground/70">diagrams</div>
           </div>
         </FeatureCard>
-      </div>
+      </motion.div>
 
       {/* Row 4 */}
-      <div className="col-span-4">
+      <motion.div variants={itemVariants} className="col-span-4">
         <FeatureCard>
           <div className="text-center">
             <div className="text-2xl font-medium">Folder</div>
@@ -142,12 +194,17 @@ export default function FeaturesGrid() {
             <div className="text-yadn-foreground/70 mt-1">for organization</div>
           </div>
         </FeatureCard>
-      </div>
+      </motion.div>
 
-      <div className="col-span-4 md:col-span-4 lg:col-span-4">
+      <motion.div
+        variants={itemVariants}
+        className="col-span-4 md:col-span-4 lg:col-span-4"
+      >
         <FeatureCard>
           <div className="flex items-center justify-center space-x-2">
-            <svg
+            <motion.svg
+              whileHover={{ rotate: 360 }}
+              transition={{ duration: 0.5 }}
               width="24"
               height="24"
               viewBox="0 0 24 24"
@@ -156,16 +213,16 @@ export default function FeaturesGrid() {
             >
               <path d="M7 10V14L11 12L7 10Z" fill="#09BC8A" />
               <circle cx="12" cy="12" r="9" stroke="#09BC8A" strokeWidth="2" />
-            </svg>
+            </motion.svg>
             <div className="text-center">
               <div className="text-2xl font-bold">One-click</div>
               <div className="text-yadn-foreground/70">sharing</div>
             </div>
           </div>
         </FeatureCard>
-      </div>
+      </motion.div>
 
-      <div className="col-span-4">
+      <motion.div variants={itemVariants} className="col-span-4">
         <FeatureCard>
           <div className="text-center">
             <div className="text-3xl font-bold">PDF, JSON</div>
@@ -173,7 +230,7 @@ export default function FeaturesGrid() {
             <div className="text-yadn-foreground/70 mt-1">export options</div>
           </div>
         </FeatureCard>
-      </div>
-    </div>
+      </motion.div>
+    </motion.div>
   );
 }

@@ -418,7 +418,7 @@ export function ShareModal({
       `Check out my canvas: ${canvasName}`
     );
     const encodedDescription = encodeURIComponent(
-      "I created this diagram with YADN Diagrams!"
+      "I created this diagram with OLAB"
     );
 
     // Helper function to safely copy to clipboard
@@ -511,7 +511,7 @@ export function ShareModal({
         try {
           navigator.share({
             title: `Check out my canvas: ${canvasName}`,
-            text: "I created this diagram with YADN Diagrams!",
+            text: "I created this diagram with OLAB!",
             url: shareLink,
           });
           return;

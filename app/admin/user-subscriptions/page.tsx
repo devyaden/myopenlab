@@ -52,6 +52,7 @@ export default function UserSubscriptionsPage() {
   const [userSubscriptions, setUserSubscriptions] = useState<
     UserSubscription[]
   >([]);
+
   const [loading, setLoading] = useState(true);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [selectedSubscription, setSelectedSubscription] =
@@ -65,7 +66,7 @@ export default function UserSubscriptionsPage() {
       .select(
         `
         *,
-        user:user_id (email, name),
+        user:user_id (id, email, name),
         subscription:subscription_id (title),
         promo_code:promo_code_id (code, name)
       `
@@ -192,9 +193,9 @@ export default function UserSubscriptionsPage() {
                     userSubscriptions.map((subscription) => (
                       <TableRow key={subscription.id}>
                         <TableCell className="font-medium">
-                          {subscription.user.name || "N/A"}
+                          {subscription.user?.name || "N/A"}
                         </TableCell>
-                        <TableCell>{subscription.user.email}</TableCell>
+                        <TableCell>{subscription.user?.email}</TableCell>
                         <TableCell>{subscription.subscription.title}</TableCell>
                         <TableCell>
                           {subscription.promo_code ? (

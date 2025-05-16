@@ -842,7 +842,6 @@ export function NodePropertiesSidebar({
 
   const handleToggleVisibility = (index: number) => {
     if (!selectedNode) return;
-    debugger;
 
     const property = properties[index];
     const isHidden = !property.hidden;

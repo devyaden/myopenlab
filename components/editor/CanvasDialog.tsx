@@ -15,6 +15,8 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
 import { Loader2, PlusCircle } from "lucide-react";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useInView } from "react-intersection-observer";
@@ -180,6 +182,7 @@ export default function CanvasDialog({
 }: CanvasDialogProps) {
   const [selectedCanvas, setSelectedCanvas] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [useRealTimeData, setUseRealTimeData] = useState(true);
 
   useEffect(() => {
     if (isOpen) {
@@ -213,6 +216,7 @@ export default function CanvasDialog({
           id: canvas.id,
           name: canvas.name,
           flowData: canvas.flowData,
+          useRealTimeData: useRealTimeData,
         };
 
         console.log("🚀 ~ handleInsert ~ canvasData:", canvasData);
@@ -225,7 +229,7 @@ export default function CanvasDialog({
         }, 10);
       }
     }
-  }, [selectedCanvas, canvases, onClose, onInsertCanvas]);
+  }, [selectedCanvas, canvases, onClose, onInsertCanvas, useRealTimeData]);
 
   return (
     <Dialog open={isOpen} onOpenChange={handleOpenChange}>
@@ -271,6 +275,51 @@ export default function CanvasDialog({
             </div>
           )}
         </div>
+
+        <div className="flex items-center space-x-2 mt-4">
+          <Checkbox
+            id="useRealTimeData"
+            checked={useRealTimeData}
+            onCheckedChange={(checked) => setUseRealTimeData(checked === true)}
+          />
+          <Label
+            htmlFor="useRealTimeData"
+            className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+          >
+            Keep canvas in sync with original (real-time updates)
+          </Label>
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <div className="text-gray-400 cursor-help">
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    width="16"
+                    height="16"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <path d="M12 16v-4"></path>
+                    <path d="M12 8h.01"></path>
+                  </svg>
+                </div>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p className="max-w-xs text-xs">
+                  When enabled, the canvas will automatically update when the
+                  original canvas changes. When disabled, the canvas will remain
+                  as a static snapshot.
+                </p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        </div>
+
         <DialogFooter className="mt-4 space-x-2">
           <Button variant="outline" onClick={onClose}>
             Cancel

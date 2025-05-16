@@ -67,7 +67,10 @@ export const updateSession = async (request: NextRequest) => {
     const isAdminRoute = pathname.startsWith("/admin");
     const isUserRoute = pathname.startsWith("/protected");
     const isRootRoute = pathname === "/";
-    const isAuthRoute = pathname === "/authentication";
+    const isAuthRoute =
+      pathname === "/auth/signup" ||
+      pathname === "/auth/login" ||
+      pathname === "/forgot-password";
 
     // If user is not authenticated and trying to access protected routes
     if (!isAuthenticated && (isAdminRoute || isUserRoute)) {
@@ -127,7 +130,7 @@ export const updateSession = async (request: NextRequest) => {
 
 // Helper functions for redirects
 const redirectToAuth = (request: NextRequest) => {
-  return NextResponse.redirect(new URL("/authentication", request.url));
+  return NextResponse.redirect(new URL("/auth/login", request.url));
 };
 const redirectToHome = (request: NextRequest) => {
   return NextResponse.redirect(new URL("/", request.url));

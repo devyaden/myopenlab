@@ -1,35 +1,35 @@
-"use client"
+"use client";
 
 // This component needs significant improvements to properly render ReactFlow canvases
 
-import { useEffect, useState } from "react"
-import ReactFlow, { Background, Controls, MiniMap } from "reactflow"
-import "reactflow/dist/style.css"
+import { useEffect, useState } from "react";
+import ReactFlow, { Background, Controls, MiniMap } from "reactflow";
+import "reactflow/dist/style.css";
 
 interface CanvasRendererProps {
-  canvasData: string
+  canvasData: string;
 }
 
 export default function CanvasRenderer({ canvasData }: CanvasRendererProps) {
-  const [nodes, setNodes] = useState([])
-  const [edges, setEdges] = useState([])
-  const [loaded, setLoaded] = useState(false)
+  const [nodes, setNodes] = useState([]);
+  const [edges, setEdges] = useState([]);
+  const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
     try {
       if (canvasData) {
-        const parsedData = JSON.parse(canvasData)
-        setNodes(parsedData.nodes || [])
-        setEdges(parsedData.edges || [])
-        setLoaded(true)
+        const parsedData = JSON.parse(canvasData);
+        setNodes(parsedData.nodes || []);
+        setEdges(parsedData.edges || []);
+        setLoaded(true);
       }
     } catch (error) {
-      console.error("Error parsing canvas data:", error)
+      console.error("Error parsing canvas data:", error);
     }
-  }, [canvasData])
+  }, [canvasData]);
 
   if (!loaded) {
-    return <div>Loading canvas...</div>
+    return <div>Loading canvas...</div>;
   }
 
   return (
@@ -48,5 +48,5 @@ export default function CanvasRenderer({ canvasData }: CanvasRendererProps) {
         <MiniMap />
       </ReactFlow>
     </div>
-  )
+  );
 }

@@ -10,6 +10,7 @@ import { useUser } from "@/lib/contexts/userContext";
 import type { PaperOrientation, PaperSize } from "@/types/paper";
 import { CANVAS_TYPE } from "@/types/store";
 import { DEFAULT_MARGINS, PAPER_DIMENSIONS } from "@/utils/paper-sizes";
+import { browserPrintToPDF } from "@/utils/pdf-export";
 import CharacterCount from "@tiptap/extension-character-count";
 import Color from "@tiptap/extension-color";
 import FontFamily from "@tiptap/extension-font-family";
@@ -31,9 +32,16 @@ import Underline from "@tiptap/extension-underline";
 import { EditorContent, useEditor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import debounce from "lodash/debounce";
-import { Loader2, Minus, Plus, RefreshCw } from "lucide-react";
+import { Minus, Plus, RefreshCw } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  forwardRef,
+  useCallback,
+  useEffect,
+  useImperativeHandle,
+  useRef,
+  useState,
+} from "react";
 import toast from "react-hot-toast";
 import FontSize from "tiptap-extension-font-size";
 import PaginationExtension, {
@@ -152,23 +160,26 @@ interface EditorState {
   wordCount: number;
 }
 
-export default function Editor({
-  isPartOfCanvas,
-  onBackToBoard,
-  canvasId,
-  readOnly,
-  onViewModeChange,
-  viewMode,
-  canvasType,
-}: {
-  isPartOfCanvas?: boolean;
-  onBackToBoard?: () => void;
-  canvasId: string;
-  readOnly?: boolean;
-  onViewModeChange?: (viewMode: "canvas" | "table" | "document") => void;
-  canvasType?: CANVAS_TYPE;
-  viewMode?: "canvas" | "table" | "document";
-}) {
+const Editor = (
+  {
+    isPartOfCanvas,
+    onBackToBoard,
+    canvasId,
+    readOnly,
+    onViewModeChange,
+    viewMode,
+    canvasType,
+  }: {
+    isPartOfCanvas?: boolean;
+    onBackToBoard?: () => void;
+    canvasId: string;
+    readOnly?: boolean;
+    onViewModeChange?: (viewMode: "canvas" | "table" | "document") => void;
+    canvasType?: CANVAS_TYPE;
+    viewMode?: "canvas" | "table" | "document";
+  },
+  ref: any
+) => {
   const [currentDocument, setCurrentDocument] = useState<Document | null>(null);
   const [imageDialogOpen, setImageDialogOpen] = useState(false);
   const [tableDialogOpen, setTableDialogOpen] = useState(false);
@@ -185,6 +196,7 @@ export default function Editor({
   const [isLoaded, setIsLoaded] = useState<boolean>(false);
   const [isOwner, setIsOwner] = useState<boolean>(false);
   const [unauthorized, setUnauthorized] = useState<boolean>(false);
+
   const { user } = useUser();
 
   const [headerFooterDialogOpen, setHeaderFooterDialogOpen] =
@@ -367,7 +379,7 @@ export default function Editor({
     editable: !readOnly,
     content: "",
     onUpdate: ({ editor }) => {
-      console.log("🚀 ~ onUpdate ~ editor:", editor.getHTML());
+      // console.log("🚀 ~ onUpdate ~ editor:", editor.getHTML());
       if (editor) {
         updateEditorState(editor);
         debouncedSave();
@@ -1029,8 +1041,29 @@ export default function Editor({
       // Fix pointer events before inserting
       document.body.style.pointerEvents = "";
 
-      // Use the imageData directly as an image source
-      if (croppedData.imageData) {
+      // Check if we should use real-time data or static image
+      if (croppedData.useRealTimeData && croppedData.canvasId) {
+        // Insert as a ReactFlow node with real-time updates enabled
+        editor
+          .chain()
+          .focus()
+          .insertContent({
+            type: "reactFlow",
+            attrs: {
+              id: `canvas-${Date.now()}`,
+              canvasId: croppedData.canvasId,
+              name: croppedData.name || "Canvas diagram",
+              nodes: JSON.stringify(croppedData.originalNodes || []),
+              edges: JSON.stringify(croppedData.originalEdges || []),
+              width: croppedData.dimensions?.width || 600,
+              height: croppedData.dimensions?.height || 400,
+              useRealTimeData: true,
+              lastUpdated: new Date().toISOString(),
+            },
+          })
+          .run();
+      } else if (croppedData.imageData) {
+        // Use the imageData directly as a static image source
         editor
           .chain()
           .focus()
@@ -1144,6 +1177,8 @@ export default function Editor({
       nodes: canvasData.flowData?.[0]?.nodes || [],
       edges: canvasData.flowData?.[0]?.edges || [],
       styles: canvasData.flowData?.[0]?.styles || {},
+      useRealTimeData: canvasData.useRealTimeData || false,
+      canvasId: canvasData.id, // Store the original canvas ID for real-time updates
     };
 
     // Fix pointer events before closing the dialog
@@ -1327,8 +1362,14 @@ export default function Editor({
     }
   };
 
-  // Export to PDF
+  // Export to PDF - Server-side rendering
   const handleExportPDF = async () => {
+    // Simply forward to browser print method by default
+    handleBrowserPrintToPDF();
+  };
+
+  // Export to PDF using browser's print functionality - better for ReactFlow diagrams
+  const handleBrowserPrintToPDF = async () => {
     if (!editor) {
       toast.error("Editor content not available");
       return;
@@ -1337,58 +1378,24 @@ export default function Editor({
     try {
       setIsExporting(true);
 
-      // Get the editor HTML - now all content should be standard HTML
-      const editorHtml = editor.getHTML();
+      // Get the editor DOM element
+      const editorElement = document.querySelector(".ProseMirror");
 
-      // Extract any CSS styles from the document
-      const styleElement = document.querySelector("style[data-tiptap-style]");
-      const styleSheet = styleElement?.textContent || "";
-
-      // Prepare the request payload
-      const payload = {
-        html: editorHtml,
-        title: name || "document",
-        paperSize: pageSize,
-        orientation: orientation,
-        styleSheet: styleSheet,
-      };
-
-      // Call the server-side API for PDF generation
-      const response = await fetch("/api/export-pdf", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(payload),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || "Failed to generate PDF");
+      if (!editorElement) {
+        throw new Error("Editor element not found");
       }
 
-      // Get the PDF blob from response
-      const pdfBlob = await response.blob();
+      // Use the browser print to PDF function
+      await browserPrintToPDF(editorElement as HTMLElement, name || "Document");
 
-      // Create download link
-      const url = URL.createObjectURL(pdfBlob);
-      const link = document.createElement("a");
-      link.href = url;
-      link.download = `${name.replace(/\s+/g, "-").toLowerCase()}.pdf`;
-
-      // Trigger download
-      document.body.appendChild(link);
-      link.click();
-
-      // Cleanup
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
-
-      toast.success("PDF exported successfully!");
+      toast.success(
+        "Print dialog opened. Select 'Save as PDF' from your browser's print options to complete the export.",
+        { duration: 6000 }
+      );
     } catch (error) {
       console.error("PDF export error:", error);
       toast.error(
-        "Failed to export PDF: " +
+        "Failed to open print dialog: " +
           ((error as Error)?.message || "Unknown error")
       );
     } finally {
@@ -1548,7 +1555,7 @@ export default function Editor({
   const handleVisibilityChange = async (newVisibility: string) => {
     try {
       const response = await fetch("/api/canvas/visibility", {
-        method: "PATCH",
+        method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
@@ -1616,6 +1623,11 @@ export default function Editor({
   //   );
   // }
 
+  useImperativeHandle(ref, () => ({
+    exportAsPDF: handleExportPDF,
+    exportAsJSON: handleExportJSON,
+  }));
+
   // If unauthorized, show the Unauthorized component
   if (unauthorized) {
     return <Unauthorized />;
@@ -1637,11 +1649,12 @@ export default function Editor({
           isOwner={isOwner}
           viewMode={"document"}
           exportAsJSON={handleExportJSON}
-          exportAsPDF={handleExportPDF}
+          propExportAsPDF={handleBrowserPrintToPDF}
           canvasType={CANVAS_TYPE.DOCUMENT}
           currentFolder={folder}
         />
       )}
+
       <EditorToolbar
         editorState={editorState}
         onFormatText={applyFormat}
@@ -1827,4 +1840,6 @@ export default function Editor({
       />
     </div>
   );
-}
+};
+
+export default forwardRef(Editor);

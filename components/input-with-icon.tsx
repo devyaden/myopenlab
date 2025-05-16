@@ -21,7 +21,7 @@ export const InputWithIcon = React.forwardRef<
       error,
       icon,
       showPasswordToggle = false,
-      type,
+      type = "text",
       className,
       ...props
     },
@@ -40,7 +40,7 @@ export const InputWithIcon = React.forwardRef<
         {label && (
           <label
             className={cn(
-              "block text-sm font-medium rtl:text-right",
+              "block text-sm font-medium rtl:text-right mb-2",
               error ? "text-red-500" : "text-gray-700"
             )}
           >
