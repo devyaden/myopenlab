@@ -290,38 +290,30 @@ export function Header({
 
           {/* Breadcrumbs navigation */}
           <nav className="hidden md:flex items-center">
+            <div className="flex items-center mr-3">
+              <Image
+                width={30}
+                height={30}
+                src="/assets/global/app-logo.svg"
+                alt="Cionay Logo"
+                className="h-5 w-auto"
+              />
+            </div>
             <Link
               href="/protected"
               className="flex items-center text-sm text-gray-600 hover:text-gray-900"
             >
-              <Home className="h-4 w-4 mr-1" />
+              <Home className="h-5 w-5 mr-1" />
             </Link>
-            <ChevronRight className="h-4 w-4 mx-2 text-gray-400" />
+            <ChevronRight className="h-5 w-5 mx-2 text-gray-400" />
             <Link
               href={`/protected/folder/${currentFolder?.id || "root"}`}
-              className="text-sm text-gray-600 hover:text-gray-900"
+              className="text-base text-gray-600 hover:text-gray-900"
             >
               {currentFolder?.name || "Root"}
             </Link>
-            <ChevronRight className="h-4 w-4 mx-2 text-gray-400" />
-            <span className="text-sm font-medium text-gray-900">
-              {projectName}
-            </span>
-          </nav>
-
-          {/* Cionay Logo */}
-          <div className="flex items-center">
-            <Image
-              width={32}
-              height={32}
-              src="/assets/global/app-logo.svg"
-              alt="Cionay Logo"
-              className="h-6 w-auto"
-            />
-          </div>
-
-          <div>
-            <div className="flex items-center gap-2">
+            <ChevronRight className="h-5 w-5 mx-2 text-gray-400" />
+            <div className="flex items-center">
               {isEditing ? (
                 <input
                   type="text"
@@ -333,25 +325,25 @@ export function Header({
                     setTitleError(false);
                   }}
                   autoFocus
-                  className={`text-2xl font-semibold bg-transparent border-none outline-none ${
+                  className={`text-base font-medium bg-transparent border-none outline-none ${
                     titleError ? "border-red-500 border-b-2" : ""
-                  }`}
+                  } text-gray-900 focus:ring-0 focus:border-b-2 focus:border-blue-500`}
                   maxLength={MAX_TITLE_LENGTH}
                 />
               ) : isOwner ? (
-                <h1
-                  className="text-2xl font-semibold cursor-pointer"
+                <span
+                  className="text-base font-medium text-gray-900 cursor-pointer hover:underline"
                   onDoubleClick={handleTitleDoubleClick}
                 >
                   {projectName}
-                </h1>
+                </span>
               ) : (
                 <TooltipProvider>
                   <Tooltip>
                     <TooltipTrigger>
-                      <h1 className="text-2xl font-semibold cursor-default">
+                      <span className="text-sm font-medium text-gray-900 cursor-default">
                         {projectName}
-                      </h1>
+                      </span>
                     </TooltipTrigger>
                     <TooltipContent>
                       <p>View-only mode: Title cannot be edited</p>
@@ -360,167 +352,12 @@ export function Header({
                 </TooltipProvider>
               )}
               {titleError && (
-                <span className="text-red-500 text-xs">Title too long</span>
+                <span className="text-red-500 text-xs ml-1">
+                  Title too long
+                </span>
               )}
-
-              {/* Uncomment this if document status functionality is needed
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="px-2 hidden sm:flex items-center justify-center text-center"
-                    disabled={!isOwner}
-                  >
-                    <div className="h-2 w-2 bg-yadn-accent-green rounded-full" />
-                    {documentStatus}
-                    <ChevronDown className="h-3 w-3" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent>
-                  <DropdownMenuItem onSelect={() => setDocumentStatus("Draft")}>
-                    Draft
-                  </DropdownMenuItem>
-                  <DropdownMenuItem
-                    onSelect={() => setDocumentStatus("In Review")}
-                  >
-                    In Review
-                  </DropdownMenuItem>
-                  <DropdownMenuItem
-                    onSelect={() => setDocumentStatus("Approved")}
-                  >
-                    Approved
-                  </DropdownMenuItem>
-                  <DropdownMenuItem
-                    onSelect={() => setDocumentStatus("Published")}
-                  >
-                    Published
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-              */}
             </div>
-
-            {/* <nav className="flex items-center gap-4 overflow-x-auto">
-              {[
-                {
-                  name: "File",
-                  options: [
-                    "New",
-                    "Open",
-                    "Save",
-                    {
-                      label: "Save As",
-                      submenu: [
-                        { label: "Export as PNG", icon: FileImage },
-                        { label: "Export as JPEG", icon: FileImage },
-                        { label: "Export as SVG", icon: FileImage },
-                        { label: "Export as PDF", icon: FileText },
-                        { label: "Export as JSON", icon: FileJson },
-                      ],
-                    },
-                  ],
-                },
-                {
-                  name: "Edit",
-                  options: ["Undo", "Redo", "Cut", "Copy", "Paste", "Delete"],
-                },
-                {
-                  name: "Select",
-                  options: [
-                    "Select All",
-                    "Select None",
-                    "Inverse Selection",
-                    "Same Type",
-                  ],
-                },
-
-                {
-                  name: "Arrange",
-                  options: [
-                    "Bring Forward",
-                    "Send Backward",
-                    "Group",
-                    "Ungroup",
-                    "Align",
-                  ],
-                },
-                {
-                  name: "Share",
-                  options: ["Invite to Project", "Share Link"],
-                },
-                {
-                  name: "Help",
-                  options: [
-                    "Documentation",
-                    "Keyboard Shortcuts",
-                    "Contact Support",
-                  ],
-                },
-              ].map((item) => (
-                <DropdownMenu key={item.name}>
-                  <DropdownMenuTrigger asChild>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="text-gray-600 p-0 pr-2 h-7 whitespace-nowrap"
-                      disabled={!isOwner && item.name !== "Help"}
-                    >
-                      {item.name}
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent>
-                    {item.options.map((option: any) => {
-                      if (typeof option === "object" && option.submenu) {
-                        return (
-                          <DropdownMenu key={option.label}>
-                            <DropdownMenuTrigger
-                              asChild
-                              className="w-full px-2 py-1.5 text-sm hover:bg-accent hover:text-accent-foreground cursor-default flex items-center"
-                            >
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="w-full flex items-center"
-                                disabled={!isOwner}
-                              >
-                                <DownloadCloud className="mr-2 h-4 w-4" />
-                                {option.label}
-                                <ChevronDown className="ml-auto h-4 w-4" />
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent side="right" align="start">
-                              {option.submenu.map((subOption: any) => (
-                                <DropdownMenuItem
-                                  key={subOption.label}
-                                  onSelect={() =>
-                                    handleMenuAction(subOption.label)
-                                  }
-                                >
-                                  <subOption.icon className="mr-2 h-4 w-4" />
-                                  {subOption.label}
-                                </DropdownMenuItem>
-                              ))}
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                        );
-                      }
-                      return (
-                        <DropdownMenuItem
-                          key={
-                            typeof option === "string" ? option : option.label
-                          }
-                          onSelect={() => handleMenuAction(option as string)}
-                        >
-                          {option}
-                        </DropdownMenuItem>
-                      );
-                    })}
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              ))}
-            </nav> */}
-          </div>
+          </nav>
         </div>
 
         <div className="ml-auto flex items-center gap-2 h-10 ">
