@@ -19,7 +19,7 @@ export function VerticalNav({
   onDragStart,
   onOpenImageManager,
 }: VerticalNavProps) {
-  const { isFirstVisit } = useOnboardingStore();
+  const { isFirstVisit, canvasOnbording } = useOnboardingStore();
 
   const steps = [
     {
@@ -36,7 +36,7 @@ export function VerticalNav({
 
   return (
     <>
-      {isFirstVisit && <Joyride
+      {isFirstVisit && canvasOnbording && <Joyride
         steps={steps}
         continuous
         showProgress

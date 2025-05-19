@@ -271,20 +271,8 @@ export function CreateNewModal({
 
   const renderContent = () => {
 
-    const { isFirstVisit } = useOnboardingStore();
-
-    const steps = [
-      {
-        target: '.folderInput',
-        content: 'Write folder name!',
-        disableBeacon: true
-      },
-      {
-        target: '.submit-create-folder',
-        content: 'By clicking on Create folder button it will create a folder!',
-        disableBeacon: true
-      },
-    ];
+    const { isFirstVisit, data, protectedOnBording, setProtectedOnBording, createCategoryOnbording } = useOnboardingStore();
+    const [stepIndex, setStepIndex] = useState(1)
 
     const canvasSteps = [
       {
@@ -309,12 +297,33 @@ export function CreateNewModal({
       },
     ];
 
+    const handleJoyrideCallback = (data: any) => {
+      const { action, index, status, type } = data;
+
+      if (status === 'finished' || status === 'skipped') {
+        setStepIndex(0);
+        setProtectedOnBording(false)
+      } else if (type === 'step:after') {
+        setStepIndex(prev => prev + 1);
+      } else if (type === 'step:after' && action === 'prev') {
+        setStepIndex(prev => Math.max(prev - 1, 0));
+      }
+    };
+
+    const handleRedrectToAi = (data: any) => {
+      const { action, index, status, type } = data;
+      if(index === 3 && type === 'step:after') {
+        handleOpenAIDialog()
+      }
+    }
+
     // Step 1: Type selection (only for canvas)
     if (step === "select" && type === "canvas") {
       return (
         <>
-          {isFirstVisit && <Joyride
+          {isFirstVisit && createCategoryOnbording && <Joyride
                 steps={canvasSteps}
+                callback={handleRedrectToAi}
                 continuous
                 showProgress
                 showSkipButton
@@ -425,8 +434,11 @@ export function CreateNewModal({
       if (type === "folder") {
         return (
           <Form {...folderForm}>
-            {isFirstVisit && <Joyride
-              steps={steps}
+            {isFirstVisit && protectedOnBording && <Joyride
+              steps={data}
+              stepIndex={stepIndex}
+              run={isFirstVisit}
+              callback={handleJoyrideCallback}
               continuous
               showProgress
               showSkipButton

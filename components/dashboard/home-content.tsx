@@ -59,14 +59,32 @@ export function HomeContent() {
     getFolders,
     fetchRootCanvases,
   } = useSidebarStore();
-   const { setSecoundStepData, isFirstVisit, data, isFirstStepCompleted } = useOnboardingStore();
+  const { 
+    protectedOnBording, 
+    isFirstVisit, 
+    setData, 
+    setProtectedOnBording, 
+    setCreateCategoryOnbording, 
+    setCanvasOnbording,
+    setNotFirstVisit
+  } = useOnboardingStore();
 
   const steps = [
     {
       target: '.onboarding-create-button',
       content: 'Click here to create a new folder!',
       disableBeacon: true, 
-    }
+    },
+    {
+      target: '.folderInput',
+      content: 'Write folder name!',
+      disableBeacon: true
+    },
+    {
+      target: '.submit-create-folder',
+      content: 'By clicking on Create folder button it will create a folder!',
+      disableBeacon: true
+    },
   ];
 
   const { user } = useUser();
@@ -83,7 +101,6 @@ export function HomeContent() {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [runTour, setRunTour] = useState(true);
   const [hasMounted, setHasMounted] = useState(false);
-  const [runSecondTour, setRunSecondTour] = useState(false);
   const [itemToDelete, setItemToDelete] = useState<{
     id: string;
     type: "folder" | "canvas";
@@ -211,19 +228,36 @@ export function HomeContent() {
     }
   }
 
+  const handleOnboarding = (data: string) => {
+    if(data === 'home') {
+      setProtectedOnBording(true)
+    } else if (data === 'category') {
+      setCreateCategoryOnbording(true)
+    } else if (data === 'canvas') {
+      setCanvasOnbording(true)
+    }
+
+    setNotFirstVisit(true)
+
+  }
+
   
   useEffect(() => {
+    if (isFirstVisit && protectedOnBording) {
+      setData(steps);
+    }
+
     const timeout = setTimeout(() => {
       setHasMounted(true);
       setRunTour(isFirstVisit);
     }, 1500);
 
     return () => clearTimeout(timeout);
-  }, []);
+  }, [isFirstVisit]);
 
   return (
     <div className="flex flex-col h-full">
-      {hasMounted && isFirstVisit && (
+      {hasMounted && isFirstVisit && protectedOnBording && (
         <Joyride
           steps={steps}
           run={runTour}
@@ -261,7 +295,46 @@ export function HomeContent() {
               )}
             </div>
           </div>
-          <div className="md:w-1/4 flex justify-end mt-4 md:mt-0">
+          <div className="md:w-1/4 flex justify-end gap-3 mt-4 md:mt-0">
+            {!isFirstVisit &&          
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  className="bg-yadn-accent-green hover:bg-yadn-accent-green/80 text-white"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  Start Onboarding
+                </Button>
+              </DropdownMenuTrigger>
+
+              <DropdownMenuContent align="end" className="w-56">
+                <DropdownMenuItem
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleOnboarding('home');
+                  }}
+                >
+                  🏠 Start Home Onboarding
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleOnboarding('category');
+                  }}
+                >
+                  📁 Start Category Onboarding
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleOnboarding('canvas');
+                  }}
+                >
+                  🎨 Start Canvas Onboarding
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>}
+
             <Button
               onClick={() => setCreateNewModalType("canvas")}
               className="bg-yadn-accent-green hover:bg-yadn-accent-green/80 text-white"

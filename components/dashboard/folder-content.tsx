@@ -65,7 +65,7 @@ export function FolderContent({ folderId }: FolderContentProps) {
     id: string;
     type: "canvas";
   } | null>(null);
-  const { setSecoundStepData, isFirstVisit, data, isFirstStepCompleted } = useOnboardingStore();
+  const { isFirstVisit, data } = useOnboardingStore();
   const [runTour, setRunTour] = useState(true);
 
   const steps = [

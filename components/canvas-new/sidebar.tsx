@@ -230,7 +230,7 @@ export function Sidebar({
     },
   ];
 
-  const { isFirstVisit } = useOnboardingStore();
+  const { isFirstVisit, canvasOnbording, setCanvasOnbording } = useOnboardingStore();
   const [hasMounted, setHasMounted] = useState(false);
   const [filteredCategories, setFilteredCategories] =
     useState<ShapeCategory[]>(shapeCategories);
@@ -369,8 +369,18 @@ export function Sidebar({
     };
   });
 
+  const handleJoyrideCllback = (data: any) => {
+    const { action, index, status, type } = data;
+
+    if (status === 'finished' || status === 'skipped') {
+      setCanvasOnbording(false);
+    }
+  }
+
   useEffect(() => {
-    setHasMounted(true);
+    setTimeout(()=> {
+      setHasMounted(true);
+    }, 100)
   }, [])
 
   return (
@@ -380,9 +390,13 @@ export function Sidebar({
         isVisible ? "w-72 translate-x-0" : "w-0 -translate-x-full md:w-0"
       )}
     >
-      {isFirstVisit && isVisible && hasMounted &&
+      {isFirstVisit &&
+       isVisible && 
+       hasMounted && 
+       canvasOnbording &&
        <Joyride
           steps={steps}
+          callback={handleJoyrideCllback}
           continuous
           showProgress
           showSkipButton
@@ -531,8 +545,8 @@ export function Sidebar({
                         onOpenChange={() => toggleItem(category.title)}
                       >
                         <CollapsibleTrigger asChild>
-                          <div className="flex items-center justify-between px-4 hover:bg-gray-100/80 cursor-pointer py-3 border-t border-gray-100">
-                            <div className={`flex items-center gap-2 shape-category-title-${index}`}>
+                          <div className={`flex items-center justify-between px-4 hover:bg-gray-100/80 cursor-pointer py-3 border-t border-gray-100 shape-category-title-${index}`}>
+                            <div className={`flex items-center gap-2`}>
                               <span className="text-base text-gray-700">
                                 {category.title}
                               </span>

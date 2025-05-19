@@ -98,7 +98,7 @@ export const HeaderSidebar = ({ onToggleSidebar }: HeaderSidebarProps) => {
 
   const handleSignOut = () => {
     if (isFirstVisit) {
-      setNotFirstVisit();
+      setNotFirstVisit(false);
     }
     signOut()
   }
