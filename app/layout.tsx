@@ -19,8 +19,31 @@ const defaultUrl = process.env.VERCEL_URL
 
 export const metadata = {
   metadataBase: new URL(defaultUrl),
-  title: "YADN Diagrams",
-  description: "The fastest way to build apps with Next.js and Supabase",
+  title: "OLAB",
+  description: "Transform Your Ideas Into Visual Clarity",
+  openGraph: {
+    title: "OLAB",
+    description: "Transform Your Ideas Into Visual Clarity",
+    images: [
+      {
+        url: "/assets/global/app-logo.png",
+        width: 1200,
+        height: 630,
+        alt: "OLAB Logo",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "OLAB",
+    description: "Transform Your Ideas Into Visual Clarity",
+    images: ["/assets/global/app-logo.png"],
+  },
+  icons: {
+    icon: "/favicon.ico",
+    shortcut: "/favicon.svg",
+    apple: "/apple-touch-icon.png",
+  },
 };
 
 export default function RootLayout({

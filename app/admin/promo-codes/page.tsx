@@ -2,6 +2,7 @@
 
 import { AddPromoCodeModal } from "@/components/admin/promo-code/add-promo-code-modal";
 import { PromoCodeDetailsModal } from "@/components/admin/promo-code/promo-code-details-modal";
+import { SendPromoEmailModal } from "@/components/admin/promo-code/send-promo-email-modal";
 import { AlertDialogModal } from "@/components/ui/alert-dialog-modal";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -22,10 +23,9 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { supabase } from "@/lib/supabase/client";
-import { Copy, Eye, Plus, Trash } from "lucide-react";
-import { useEffect, useState } from "react";
-
 import { format } from "date-fns";
+import { Copy, Eye, Mail, Plus, Trash } from "lucide-react";
+import { useEffect, useState } from "react";
 import toast from "react-hot-toast";
 
 interface PromoCode {
@@ -56,6 +56,7 @@ export default function PromoCodesPage() {
   const [showAddModal, setShowAddModal] = useState(false);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [showEmailModal, setShowEmailModal] = useState(false);
   const [selectedPromoCode, setSelectedPromoCode] = useState<PromoCode | null>(
     null
   );
@@ -115,17 +116,22 @@ export default function PromoCodesPage() {
     } else {
       fetchPromoCodes();
       setShowDeleteModal(false);
-      toast.error("Promo code deleted successfully.");
+      toast.success("Promo code deleted successfully.");
     }
   };
 
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
-    toast.error("Promo code copied to clipboard.");
+    toast.success("Promo code copied to clipboard.");
   };
 
   const isExpired = (expiryDate: string) => {
     return new Date(expiryDate) < new Date();
+  };
+
+  const handleSendEmail = (promoCode: PromoCode) => {
+    setSelectedPromoCode(promoCode);
+    setShowEmailModal(true);
   };
 
   return (
@@ -248,6 +254,13 @@ export default function PromoCodesPage() {
                             <Button
                               variant="ghost"
                               size="icon"
+                              onClick={() => handleSendEmail(promoCode)}
+                            >
+                              <Mail className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
                               className="text-red-500"
                               onClick={() => handleDelete(promoCode)}
                             >
@@ -277,6 +290,14 @@ export default function PromoCodesPage() {
         <PromoCodeDetailsModal
           isOpen={showDetailsModal}
           onClose={() => setShowDetailsModal(false)}
+          promoCode={selectedPromoCode}
+        />
+      )}
+
+      {showEmailModal && selectedPromoCode && (
+        <SendPromoEmailModal
+          isOpen={showEmailModal}
+          onClose={() => setShowEmailModal(false)}
           promoCode={selectedPromoCode}
         />
       )}

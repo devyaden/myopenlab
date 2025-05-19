@@ -79,7 +79,7 @@
     "lucide-react": "^0.436.0",
     "moment": "^2.30.1",
     "nanoid": "^5.0.8",
-    "next": "latest",
+    "next": "15.0.3",
     "next-fonts": "^1.5.1",
     "next-share": "^0.27.0",
     "next-themes": "^0.3.0",

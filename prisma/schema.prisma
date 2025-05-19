@@ -8,24 +8,25 @@ datasource db {
 }
 
 model User {
-  email           String?            @unique
-  name            String?
-  id              String             @id @db.Uuid
-  role            String             @default("user")
-  avatar_url      String?
-  company_email   String?
-  company_name    String?
-  company_sector  String?
-  company_size    String?
-  user_position   String?
-  username        String?            @unique
-  created_at      DateTime           @default(now())
-  updated_at      DateTime           @default(now()) @updatedAt
-  canvases        Canvas[]
-  shared_canvases CanvasShare[]
-  folders         Folder[]
-  notifications   String[]
-  subscriptions   UserSubscription[]
+  email                String?            @unique
+  name                 String?
+  id                   String             @id @db.Uuid
+  role                 String             @default("user")
+  onboarding_completed Boolean            @default(false)
+  avatar_url           String?
+  company_email        String?
+  company_name         String?
+  company_sector       String?
+  company_size         String?
+  user_position        String?
+  username             String?            @unique
+  created_at           DateTime           @default(now())
+  updated_at           DateTime           @default(now()) @updatedAt
+  canvases             Canvas[]
+  shared_canvases      CanvasShare[]
+  folders              Folder[]
+  notifications        String[]
+  subscriptions        UserSubscription[]
 
   @@map("user")
 }

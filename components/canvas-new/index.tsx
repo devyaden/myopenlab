@@ -2,9 +2,10 @@
 
 import "./react-flow-fixes.css";
 
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Button } from "@/components/ui/button";
+import DocumentEditor from "@/components/editor";
 import { Input } from "@/components/ui/input";
+import { useUser } from "@/lib/contexts/userContext";
+import { deleteImage, listImages, uploadImage } from "@/lib/storage-utils";
 import { useCanvasStore } from "@/lib/store/useCanvas";
 import { CANVAS_TYPE } from "@/types/store";
 import { useRouter } from "next/navigation";
@@ -14,20 +15,15 @@ import { toast } from "react-hot-toast";
 import type { Edge, Node, ReactFlowInstance } from "reactflow";
 import { MarkerType, ReactFlowProvider } from "reactflow";
 import { LoadingSpinner } from "../loading-spinner";
+import { Unauthorized } from "../unauthorized";
 import { Header } from "./header";
+import { ImageManagerDialog } from "./image-manager-dialog";
 import { Sidebar } from "./sidebar";
+import { VIEW_MODE } from "./table-view/table.types";
 import { Toolbar } from "./toolbar";
 import { UMLEditor } from "./uml-editor";
 import { VerticalNav } from "./vertical-nav";
-import DocumentEditor from "@/components/editor";
-import { add } from "date-fns";
-import { VIEW_MODE } from "./table-view/table.types";
-import { Unauthorized } from "../unauthorized";
-import { useUser } from "@/lib/contexts/userContext";
 import { ViewModeSwitcher } from "./view-mode-switcher";
-import TableView from "./table-view";
-import { ImageManagerDialog } from "./image-manager-dialog";
-import { uploadImage, listImages, deleteImage } from "@/lib/storage-utils";
 
 interface NodeStyle {
   fontFamily: string;
@@ -99,6 +95,9 @@ export default function CanvasNew({ canvasId }: FigmaInterfaceProps) {
   const [isLoaded, setIsLoaded] = useState<boolean>(false);
   const [unauthorized, setUnauthorized] = useState<boolean>(false);
 
+  const documentRef = useRef<any>(null);
+  console.log("🚀 ~ CanvasNew ~ documentRef:", documentRef?.current);
+
   const {
     loadCanvas,
     name: projectName,
@@ -125,7 +124,6 @@ export default function CanvasNew({ canvasId }: FigmaInterfaceProps) {
     user_id,
     currentFolder,
   } = useCanvasStore();
-  console.log("🚀 ~ CanvasNew ~ currentFolder:", currentFolder);
 
   const currentState: {
     nodes: Node[];
@@ -143,9 +141,6 @@ export default function CanvasNew({ canvasId }: FigmaInterfaceProps) {
   );
   const clipboardRef = useRef<Node[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
-
-  const [showGrid, setShowGrid] = useState(true);
-  const [showRulers, setShowRulers] = useState(false);
   const [folders, setFolders] = useState<
     {
       id: string;
@@ -1108,26 +1103,6 @@ export default function CanvasNew({ canvasId }: FigmaInterfaceProps) {
     setIsSidebarOpen((prev) => !prev);
   }, [viewMode]);
 
-  const handleZoomIn = useCallback(() => {
-    // This will be handled by the UMLEditor component
-  }, []);
-
-  const handleZoomOut = useCallback(() => {
-    // This will be handled by the UMLEditor component
-  }, []);
-
-  const handleFitToScreen = useCallback(() => {
-    // This will be handled by the UMLEditor component
-  }, []);
-
-  const handleToggleGrid = useCallback(() => {
-    setShowGrid((prev) => !prev);
-  }, []);
-
-  const handleToggleRulers = useCallback(() => {
-    setShowRulers((prev) => !prev);
-  }, []);
-
   const handleEdgeWidthChange = useCallback(
     (width: number) => {
       setEdgeWidth(width);
@@ -1245,27 +1220,6 @@ export default function CanvasNew({ canvasId }: FigmaInterfaceProps) {
     setColumns(importedData.columns || []);
     toast.success("Canvas imported successfully!");
   }, []);
-
-  const getViewportCenter = useCallback(() => {
-    if (!reactFlowInstance) return { x: 100, y: 100 }; // Default position
-
-    const viewport = reactFlowInstance.getViewport();
-    const { x, y, zoom } = viewport;
-
-    // Get the wrapper element's dimensions
-    const wrapper = document.querySelector(".react-flow-wrapper");
-    if (!wrapper) return { x: x + 500, y: y + 300 };
-
-    const rect = wrapper.getBoundingClientRect();
-    const centerX = rect.width / 2;
-    const centerY = rect.height / 2;
-
-    // Convert screen coordinates to flow coordinates
-    return reactFlowInstance.project({
-      x: centerX,
-      y: centerY,
-    });
-  }, [reactFlowInstance]);
 
   // Handle shape click from sidebar
   const handleShapeClick = useCallback(
@@ -1429,6 +1383,8 @@ export default function CanvasNew({ canvasId }: FigmaInterfaceProps) {
                 ? tableViewRef.current?.exportToExcel
                 : undefined
             }
+            propExportAsPDF={documentRef.current?.exportAsPDF}
+            exportAsJSON={documentRef.current?.exportAsJSON}
             canvasType={canvas_type!}
             toggleMiniMap={miniMapRef}
             currentFolder={currentFolder}
@@ -1600,6 +1556,7 @@ export default function CanvasNew({ canvasId }: FigmaInterfaceProps) {
                   onViewModeChange={handleViewModeChange}
                   viewMode={viewMode}
                   canvasType={canvas_type!}
+                  ref={documentRef}
                 />
               )}
             </div>

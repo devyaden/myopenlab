@@ -17,6 +17,8 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
 import html2canvas from "html2canvas";
 import { Info, Maximize2, Move } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -447,6 +449,7 @@ export default function CanvasCropDialog({
     height: 300,
     zoom: 1,
   });
+  const [useRealTimeData, setUseRealTimeData] = useState(true);
   const viewportRef = useRef<HTMLDivElement>(null);
 
   // Implementation of the solution from GitHub issue
@@ -492,6 +495,8 @@ export default function CanvasCropDialog({
       dimensions: cropData.dimensions,
       originalNodes: canvasData.nodes || [],
       originalEdges: canvasData.edges || [],
+      useRealTimeData: useRealTimeData,
+      canvasId: canvasData.id,
     });
 
     onClose();
@@ -521,6 +526,34 @@ export default function CanvasCropDialog({
             onCrop={onCrop}
           />
         </ReactFlowProvider>
+
+        <div className="flex items-center space-x-2 mt-4">
+          <Checkbox
+            id="useRealTimeData"
+            checked={useRealTimeData}
+            onCheckedChange={(checked) => setUseRealTimeData(checked === true)}
+          />
+          <Label
+            htmlFor="useRealTimeData"
+            className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+          >
+            Keep canvas in sync with original (real-time updates)
+          </Label>
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Info className="h-4 w-4 text-gray-400" />
+              </TooltipTrigger>
+              <TooltipContent>
+                <p className="max-w-xs text-xs">
+                  When enabled, the canvas will automatically update when the
+                  original canvas changes. When disabled, the canvas will remain
+                  as a static snapshot.
+                </p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        </div>
 
         <DialogFooter className="mt-6 gap-2">
           <Button variant="outline" onClick={onClose}>
