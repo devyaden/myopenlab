@@ -84,65 +84,74 @@ function ReactFlowNodeView({
   }, [useRealTimeData, canvasId]);
 
   // Load initial data from node attributes
-  useEffect(() => {
-    try {
-      // If we're using real-time data, we'll fetch from the API
-      // Otherwise, use the data stored in the node attributes
-      if (!useRealTimeData) {
-        // Get the nodes and edges from the node attributes
-        let nodeNodes = node.attrs.nodes || "[]";
-        let nodeEdges = node.attrs.edges || "[]";
+  useEffect(
+    () => {
+      try {
+        // If we're using real-time data, we'll fetch from the API
+        // Otherwise, use the data stored in the node attributes
+        if (!useRealTimeData) {
+          // Get the nodes and edges from the node attributes
+          let nodeNodes = node.attrs.nodes || "[]";
+          let nodeEdges = node.attrs.edges || "[]";
 
-        // Parse if they're strings
-        if (typeof nodeNodes === "string") {
-          nodeNodes = JSON.parse(nodeNodes);
+          // Parse if they're strings
+          if (typeof nodeNodes === "string") {
+            nodeNodes = JSON.parse(nodeNodes);
+          }
+
+          if (typeof nodeEdges === "string") {
+            nodeEdges = JSON.parse(nodeEdges);
+          }
+
+          // Update node attributes to ensure data is properly stored
+          // This ensures the node data is preserved in the editor's JSON structure
+          if (
+            typeof node.attrs.nodes === "string" &&
+            Array.isArray(nodeNodes)
+          ) {
+            updateAttributes({
+              nodes: JSON.stringify(nodeNodes),
+            });
+          }
+
+          if (
+            typeof node.attrs.edges === "string" &&
+            Array.isArray(nodeEdges)
+          ) {
+            updateAttributes({
+              edges: JSON.stringify(nodeEdges),
+            });
+          }
+
+          // Force a proper reset of nodes and edges
+          setNodes([]);
+          setEdges([]);
+
+          // Use setTimeout to ensure the reset is processed before setting new values
+          setTimeout(() => {
+            setNodes(Array.isArray(nodeNodes) ? nodeNodes : []);
+            setEdges(Array.isArray(nodeEdges) ? nodeEdges : []);
+            setLoaded(true);
+          }, 10);
+        } else {
+          // For real-time data, we'll set loaded to true after the API fetch completes
+          setLoaded(true);
         }
-
-        if (typeof nodeEdges === "string") {
-          nodeEdges = JSON.parse(nodeEdges);
-        }
-
-        // Update node attributes to ensure data is properly stored
-        // This ensures the node data is preserved in the editor's JSON structure
-        if (typeof node.attrs.nodes === "string" && Array.isArray(nodeNodes)) {
-          updateAttributes({
-            nodes: JSON.stringify(nodeNodes),
-          });
-        }
-
-        if (typeof node.attrs.edges === "string" && Array.isArray(nodeEdges)) {
-          updateAttributes({
-            edges: JSON.stringify(nodeEdges),
-          });
-        }
-
-        // Force a proper reset of nodes and edges
+      } catch (error) {
+        console.error("Error parsing canvas data:", error);
         setNodes([]);
         setEdges([]);
-
-        // Use setTimeout to ensure the reset is processed before setting new values
-        setTimeout(() => {
-          setNodes(Array.isArray(nodeNodes) ? nodeNodes : []);
-          setEdges(Array.isArray(nodeEdges) ? nodeEdges : []);
-          setLoaded(true);
-        }, 10);
-      } else {
-        // For real-time data, we'll set loaded to true after the API fetch completes
         setLoaded(true);
       }
-    } catch (error) {
-      console.error("Error parsing canvas data:", error);
-      setNodes([]);
-      setEdges([]);
-      setLoaded(true);
-    }
-  }, [
-    node.attrs.nodes,
-    node.attrs.edges,
-    node.attrs.width,
-    node.attrs.height,
-    useRealTimeData,
-  ]);
+    },
+    [
+      // node.attrs.nodes,
+      // node.attrs.edges,
+      // node.attrs.width,
+      // node.attrs.height,
+      // useRealTimeData,
+    ]
+  );
 
   // Handle click to select
   const handleClick = (e: React.MouseEvent) => {
