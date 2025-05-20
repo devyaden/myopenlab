@@ -1,9 +1,8 @@
 "use client";
 
-import type React from "react";
-
 import { NodeViewWrapper } from "@tiptap/react";
-import { memo, useEffect, useMemo, useRef, useState } from "react";
+import type React from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useEdgesState, useNodesState } from "reactflow";
 import "reactflow/dist/style.css";
 import ReactFlowCanvas from "../ReactFlowCanvas";
@@ -26,20 +25,42 @@ function ReactFlowNodeView({
   const [error, setError] = useState<string | null>(null);
   const wrapperRef = useRef<HTMLDivElement>(null);
 
-  // Get attributes from node
+  // Debounce updateAttributes to avoid excessive updates
+  const debouncedUpdateAttributes = useRef(
+    debounce((newAttrs: any) => {
+      if (Object.keys(newAttrs).length > 0) {
+        updateAttributes(newAttrs);
+      }
+    }, 1000)
+  ).current;
+
   const canvasId = node.attrs.canvasId;
   const useRealTimeData = node.attrs.useRealTimeData;
   const width = node.attrs.width || 500;
+
   const height = node.attrs.height || 300;
   const lastUpdated = node.attrs.lastUpdated;
   const canvasName = node.attrs.name || "Untitled Canvas";
+  const initialViewport = node.attrs.viewport || undefined;
 
-  // Update isSelected when the selected prop changes
   useEffect(() => {
     setIsSelected(selected);
   }, [selected]);
 
-  // Function to fetch canvas data from the API
+  const handleViewportUpdate = useCallback(
+    (newViewport: any) => {
+      const currentViewportString = JSON.stringify(node.attrs.viewport || {});
+      const newViewportString = JSON.stringify(newViewport);
+
+      if (currentViewportString !== newViewportString) {
+        debouncedUpdateAttributes({ viewport: newViewport });
+      } else {
+        console.log("[ReactFlowNodeView] Viewport same, not updating.");
+      }
+    },
+    [node.attrs.viewport, debouncedUpdateAttributes]
+  );
+
   const fetchCanvasData = async () => {
     if (!canvasId || !useRealTimeData) return;
 
@@ -56,7 +77,6 @@ function ReactFlowNodeView({
 
       const data = await response.json();
 
-      // Update the node attributes with the latest data
       updateAttributes({
         nodes: JSON.stringify(data.nodes),
         edges: JSON.stringify(data.edges),
@@ -73,6 +93,7 @@ function ReactFlowNodeView({
       setError((error as Error).message);
     } finally {
       setIsLoading(false);
+      setLoaded(true);
     }
   };
 
@@ -83,83 +104,11 @@ function ReactFlowNodeView({
     }
   }, [useRealTimeData, canvasId]);
 
-  // Load initial data from node attributes
-  useEffect(
-    () => {
-      try {
-        // If we're using real-time data, we'll fetch from the API
-        // Otherwise, use the data stored in the node attributes
-        if (!useRealTimeData) {
-          // Get the nodes and edges from the node attributes
-          let nodeNodes = node.attrs.nodes || "[]";
-          let nodeEdges = node.attrs.edges || "[]";
-
-          // Parse if they're strings
-          if (typeof nodeNodes === "string") {
-            nodeNodes = JSON.parse(nodeNodes);
-          }
-
-          if (typeof nodeEdges === "string") {
-            nodeEdges = JSON.parse(nodeEdges);
-          }
-
-          // Update node attributes to ensure data is properly stored
-          // This ensures the node data is preserved in the editor's JSON structure
-          if (
-            typeof node.attrs.nodes === "string" &&
-            Array.isArray(nodeNodes)
-          ) {
-            updateAttributes({
-              nodes: JSON.stringify(nodeNodes),
-            });
-          }
-
-          if (
-            typeof node.attrs.edges === "string" &&
-            Array.isArray(nodeEdges)
-          ) {
-            updateAttributes({
-              edges: JSON.stringify(nodeEdges),
-            });
-          }
-
-          // Force a proper reset of nodes and edges
-          setNodes([]);
-          setEdges([]);
-
-          // Use setTimeout to ensure the reset is processed before setting new values
-          setTimeout(() => {
-            setNodes(Array.isArray(nodeNodes) ? nodeNodes : []);
-            setEdges(Array.isArray(nodeEdges) ? nodeEdges : []);
-            setLoaded(true);
-          }, 10);
-        } else {
-          // For real-time data, we'll set loaded to true after the API fetch completes
-          setLoaded(true);
-        }
-      } catch (error) {
-        console.error("Error parsing canvas data:", error);
-        setNodes([]);
-        setEdges([]);
-        setLoaded(true);
-      }
-    },
-    [
-      // node.attrs.nodes,
-      // node.attrs.edges,
-      // node.attrs.width,
-      // node.attrs.height,
-      // useRealTimeData,
-    ]
-  );
-
-  // Handle click to select
   const handleClick = (e: React.MouseEvent) => {
     e.stopPropagation();
     setIsSelected(true);
   };
 
-  // Handle click outside to deselect
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       if (
@@ -216,7 +165,7 @@ function ReactFlowNodeView({
     () =>
       edges.map((edge: any) => ({
         ...edge,
-        type: "custom",
+        type: edge.type || "custom",
         sourceHandle: edge.sourceHandle || "g",
         targetHandle: edge.targetHandle || "d",
         style: {
@@ -229,7 +178,6 @@ function ReactFlowNodeView({
     [edges]
   );
 
-  // Resize handlers
   const startResize = (
     e: React.MouseEvent,
     directionX: number,
@@ -241,8 +189,8 @@ function ReactFlowNodeView({
     // Get initial values
     const startX = e.clientX;
     const startY = e.clientY;
-    const startWidth = wrapperRef.current?.offsetWidth || width;
-    const startHeight = wrapperRef.current?.offsetHeight || height;
+    const startWidth = wrapperRef.current?.offsetWidth || 570;
+    const startHeight = wrapperRef.current?.offsetHeight || 300;
 
     // Create resize function
     const resize = (moveEvent: MouseEvent) => {
@@ -256,7 +204,7 @@ function ReactFlowNodeView({
 
       // Apply width changes if we're resizing horizontally
       if (directionX !== 0) {
-        newWidth = Math.max(200, startWidth + deltaX);
+        newWidth = Math.min(570, Math.max(200, startWidth + deltaX));
       }
 
       // Apply height changes if we're resizing vertically
@@ -330,17 +278,25 @@ function ReactFlowNodeView({
   if (!loaded || isLoading) {
     return (
       <NodeViewWrapper
-        className="react-flow-node-wrapper"
+        className={`react-flow-node-wrapper ${isSelected ? "is-selected" : ""}`}
         data-name={canvasName}
         data-canvas-id={canvasId}
+        style={{
+          width: `${width}px`,
+          height: `${height}px`,
+          position: "relative",
+          border: isSelected ? "2px solid #3b82f6" : "1px solid #ddd",
+          borderRadius: "6px",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+        }}
       >
-        <div className="react-flow-loading flex items-center justify-center h-full">
-          <div className="flex flex-col items-center gap-2">
-            <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500"></div>
-            <span className="text-sm text-gray-500">
-              {isLoading ? "Updating canvas..." : "Loading canvas..."}
-            </span>
-          </div>
+        <div className="flex flex-col items-center gap-2">
+          <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500"></div>
+          <span className="text-sm text-gray-500">
+            {isLoading ? "Updating canvas..." : "Loading canvas..."}
+          </span>
         </div>
       </NodeViewWrapper>
     );
@@ -355,17 +311,19 @@ function ReactFlowNodeView({
 
   return (
     <NodeViewWrapper
-      className={`react-flow-node-wrapper ${isSelected ? "is-selected" : ""}`}
+      // className={`${isSelected ? "is-selected" : ""}`}
       ref={wrapperRef}
       onClick={handleClick}
       style={{
         width: `${width}px`,
         height: `${height}px`,
         position: "relative",
-        margin: "20px 10px",
+        margin: "20px 20px",
         border: isSelected ? "2px solid #3b82f6" : "1px solid #ddd",
-        overflow: "hidden",
         borderRadius: "6px",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
       }}
       data-name={canvasName}
       data-canvas-id={canvasId}
@@ -374,16 +332,20 @@ function ReactFlowNodeView({
     >
       <div
         style={{
-          height: "100%",
+          flex: "1 1 auto" /* Make this div fill available space */,
           width: "100%",
-          overflow: "hidden",
           position: "relative",
+          overflow: "hidden",
+          display: "flex" /* Add flex display */,
         }}
       >
         <ReactFlowCanvas
           canvasData={canvasData}
-          readOnly={true}
+          readOnly={useRealTimeData}
           printFriendly={true}
+          initialViewport={initialViewport}
+          onViewportChange={handleViewportUpdate}
+          height={height}
         />
       </div>
 
@@ -429,37 +391,37 @@ function ReactFlowNodeView({
         <>
           {/* Corner resize handles */}
           <div
-            className="absolute -bottom-1.5 -right-1.5 w-3 h-3 bg-blue-500 rounded-full z-10 cursor-nwse-resize"
+            className="absolute -bottom-2 -right-2 w-3 h-3 bg-blue-500 rounded-full z-10 cursor-nwse-resize"
             onMouseDown={startResizeBottomRight}
           />
           <div
-            className="absolute -bottom-1.5 -left-1.5 w-3 h-3 bg-blue-500 rounded-full z-10 cursor-nesw-resize"
+            className="absolute -bottom-2 -left-2 w-3 h-3 bg-blue-500 rounded-full z-10 cursor-nesw-resize"
             onMouseDown={startResizeBottomLeft}
           />
           <div
-            className="absolute -top-1.5 -right-1.5 w-3 h-3 bg-blue-500 rounded-full z-10 cursor-nesw-resize"
+            className="absolute -top-2 -right-2 w-3 h-3 bg-blue-500 rounded-full z-10 cursor-nesw-resize"
             onMouseDown={startResizeTopRight}
           />
           <div
-            className="absolute -top-1.5 -left-1.5 w-3 h-3 bg-blue-500 rounded-full z-10 cursor-nwse-resize"
+            className="absolute -top-2 -left-2 w-3 h-3 bg-blue-500 rounded-full z-10 cursor-nwse-resize"
             onMouseDown={startResizeTopLeft}
           />
 
           {/* Edge resize handles */}
           <div
-            className="absolute top-1/2 -right-1.5 w-3 h-3 bg-blue-500 rounded-full z-10 cursor-ew-resize transform -translate-y-1/2"
+            className="absolute top-1/2 -right-2 w-3 h-3 bg-blue-500 rounded-full z-10 cursor-ew-resize transform -translate-y-1/2"
             onMouseDown={startResizeRight}
           />
           <div
-            className="absolute top-1/2 -left-1.5 w-3 h-3 bg-blue-500 rounded-full z-10 cursor-ew-resize transform -translate-y-1/2"
+            className="absolute top-1/2 -left-2 w-3 h-3 bg-blue-500 rounded-full z-10 cursor-ew-resize transform -translate-y-1/2"
             onMouseDown={startResizeLeft}
           />
           <div
-            className="absolute -bottom-1.5 left-1/2 w-3 h-3 bg-blue-500 rounded-full z-10 cursor-ns-resize transform -translate-x-1/2"
+            className="absolute -bottom-2 left-1/2 w-3 h-3 bg-blue-500 rounded-full z-10 cursor-ns-resize transform -translate-x-1/2"
             onMouseDown={startResizeBottom}
           />
           <div
-            className="absolute -top-1.5 left-1/2 w-3 h-3 bg-blue-500 rounded-full z-10 cursor-ns-resize transform -translate-x-1/2"
+            className="absolute -top-2 left-1/2 w-3 h-3 bg-blue-500 rounded-full z-10 cursor-ns-resize transform -translate-x-1/2"
             onMouseDown={startResizeTop}
           />
         </>
@@ -469,3 +431,17 @@ function ReactFlowNodeView({
 }
 
 export default memo(ReactFlowNodeView);
+
+function debounce<F extends (...args: any[]) => any>(func: F, waitFor: number) {
+  let timeout: ReturnType<typeof setTimeout> | null = null;
+
+  const debounced = (...args: Parameters<F>) => {
+    if (timeout !== null) {
+      clearTimeout(timeout);
+      timeout = null;
+    }
+    timeout = setTimeout(() => func(...args), waitFor);
+  };
+
+  return debounced as (...args: Parameters<F>) => ReturnType<F>;
+}

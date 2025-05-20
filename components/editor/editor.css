@@ -1497,7 +1497,8 @@
 
 .react-flow-node-wrapper {
   width: 100%;
-  margin: 20px 0;
+  height: 100%;
+  /* margin: 20px 20px; */
   border: 1px solid #ddd;
   border-radius: 8px;
   padding: 10px;
@@ -1526,7 +1527,7 @@
   padding: 10px;
   border-radius: 5px;
   border: 1px solid #ddd;
-  background: white;
+  /* background: white; */
   font-size: 12px;
 }
 
@@ -1561,12 +1562,12 @@
   background-color: #f8f8f8;
 }
 
-@media print {
+/* @media print {
   .react-flow-node-wrapper {
     break-inside: avoid;
     page-break-inside: avoid;
   }
-}
+} */
 
 /* Add these styles at the end of the file */
 
@@ -1771,12 +1772,6 @@
 }
 
 /* Add these styles at the end of the file */
-
-/* ReactFlow Node Styling */
-.react-flow-node-wrapper {
-  overflow: hidden !important;
-  contain: strict;
-}
 
 .react-flow-node-wrapper .react-flow {
   overflow: hidden !important;

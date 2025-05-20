@@ -1,11 +1,14 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import ReactFlow, {
+  applyEdgeChanges,
+  applyNodeChanges,
   Background,
   MiniMap,
   useEdgesState,
   useNodesState,
+  type Viewport,
 } from "reactflow";
 import "reactflow/dist/style.css";
 import CustomEdge from "../canvas-new/custom-edge";
@@ -18,6 +21,10 @@ interface ReactFlowCanvasProps {
   canvasData: any;
   readOnly?: boolean;
   printFriendly?: boolean;
+  onInternalChange?: (nodes: any[], edges: any[]) => void;
+  initialViewport?: Viewport;
+  onViewportChange?: (viewport: Viewport) => void;
+  height?: number;
 }
 
 const nodeTypes = {
@@ -35,22 +42,59 @@ export default function ReactFlowCanvas({
   canvasData,
   readOnly = true,
   printFriendly = false,
+  onInternalChange,
+  initialViewport,
+  onViewportChange,
+  height,
 }: ReactFlowCanvasProps) {
-  const [nodes, setNodes, onNodesChange] = useNodesState(
+  const [nodes, setNodes, onNodesChangeInternalOriginal] = useNodesState(
     canvasData.nodes || []
   );
-  const [edges, setEdges, onEdgesChange] = useEdgesState(
+  const [edges, setEdges, onEdgesChangeInternalOriginal] = useEdgesState(
     canvasData.edges || []
   );
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
 
+  // Explicit handlers for node and edge changes
+  const onNodesChange = useCallback(
+    (changes: any) => setNodes((nds) => applyNodeChanges(changes, nds)),
+    [setNodes]
+  );
+  const onEdgesChange = useCallback(
+    (changes: any) => setEdges((eds) => applyEdgeChanges(changes, eds)),
+    [setEdges]
+  );
+
+  // Handler for viewport changes
+  const handleViewportChange = useCallback(
+    (event: MouseEvent | TouchEvent | undefined, viewport: Viewport) => {
+      console.log("[ReactFlowCanvas] onMove triggered. Viewport:", viewport);
+      if (onViewportChange) {
+        onViewportChange(viewport);
+      }
+    },
+    [onViewportChange]
+  );
+
   // Initialize with canvasData
   useEffect(() => {
     if (canvasData) {
-      setNodes(canvasData.nodes || []);
-      setEdges(canvasData.edges || []);
+      setNodes([...(canvasData.nodes || [])]);
+      setEdges([...(canvasData.edges || [])]);
     }
   }, [canvasData, setNodes, setEdges]);
+
+  console.log(
+    "[ReactFlowCanvas] Received initialViewport prop:",
+    initialViewport
+  );
+
+  // Call onInternalChange when nodes or edges change
+  useEffect(() => {
+    if (onInternalChange) {
+      onInternalChange(nodes, edges);
+    }
+  }, [nodes, edges, onInternalChange]);
 
   // Enhance nodes for printing when in print-friendly mode
   useEffect(() => {
@@ -98,10 +142,11 @@ export default function ReactFlowCanvas({
       ref={reactFlowWrapper}
       className={`canvas-container ${printFriendly ? "print-friendly-flow" : ""}`}
       style={{
-        height: 300,
+        height: (height ?? 310) - 6,
         width: "100%",
         overflow: "hidden",
         borderRadius: "4px",
+        backgroundColor: "red",
       }}
     >
       <ReactFlow
@@ -156,32 +201,17 @@ export default function ReactFlowCanvas({
         }))}
         nodeTypes={nodeTypes}
         edgeTypes={edgeTypes}
-        // onNodesChange={onNodesChange}
-        // onEdgesChange={onEdgesChange}
-
-        // onChange={(changes) => {
-        //   console.log("🚀 ~ onChange ~ changes:", changes);
-        // }}
-        // onNodesChange={(changes) => {
-        //   console.log("🚀 ~ onNodesChange ~ changes:", changes);
-        // }}
-        // onEdgesChange={(changes) => {
-        //   console.log("🚀 ~ onEdgesChange ~ changes:", changes);
-        // }}
-        // fitView
-        // fitViewOptions={{
-        //   padding: 0.2,
-        //   minZoom: 0.5,
-        //   maxZoom: 1.5,
-        // }}
+        onNodesChange={onNodesChange}
+        onEdgesChange={onEdgesChange}
+        onMove={handleViewportChange}
+        defaultViewport={initialViewport}
         attributionPosition="bottom-right"
         nodesDraggable={!readOnly}
         nodesConnectable={!readOnly}
         elementsSelectable={!readOnly}
         zoomOnScroll={false}
         panOnScroll={false}
-        // minZoom={0.5}
-        // maxZoom={1.5}
+        fitView={!initialViewport}
         proOptions={{ hideAttribution: true }}
       >
         <Background size={1} color="#f8f8f8" />

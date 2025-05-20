@@ -64,6 +64,18 @@ export const ReactFlowNode = Node.create({
           return element.getAttribute("data-last-updated") || null;
         },
       },
+      viewport: {
+        default: null,
+        parseHTML: (element) => {
+          const viewportAttr = element.getAttribute("data-viewport");
+          try {
+            return viewportAttr ? JSON.parse(viewportAttr) : null;
+          } catch (e) {
+            console.error("Error parsing viewport attribute from HTML", e);
+            return null;
+          }
+        },
+      },
     };
   },
 
@@ -90,10 +102,23 @@ export const ReactFlowNode = Node.create({
       "data-height": HTMLAttributes.height || 300,
       "data-use-real-time-data": HTMLAttributes.useRealTimeData || false,
       "data-last-updated": HTMLAttributes.lastUpdated || "",
+      "data-viewport": HTMLAttributes.viewport
+        ? JSON.stringify(HTMLAttributes.viewport)
+        : null,
       class: "react-flow-node",
     };
 
-    return ["div", sanitizedAttrs];
+    // Filter out null or undefined attributes to avoid rendering them
+    const finalAttrs: { [key: string]: any } = {};
+    for (const key in sanitizedAttrs) {
+      // @ts-ignore
+      if (sanitizedAttrs[key] !== null && sanitizedAttrs[key] !== undefined) {
+        // @ts-ignore
+        finalAttrs[key] = sanitizedAttrs[key];
+      }
+    }
+
+    return ["div", finalAttrs];
   },
 
   addNodeView() {

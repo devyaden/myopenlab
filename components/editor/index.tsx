@@ -1296,11 +1296,19 @@ const Editor = (
     // Close the canvas selection dialog first
     setCanvasDialogOpen(false);
 
-    // Then open the crop dialog with the selected canvas
-    setTimeout(() => {
-      setSelectedCanvasForCrop(formattedCanvasData);
-      setCropCanvasDialogOpen(true);
-    }, 10);
+    // Directly insert the canvas without cropping
+    // Construct the necessary data for handleInsertCroppedCanvas
+    const croppedData = {
+      id: formattedCanvasData.id,
+      name: formattedCanvasData.name,
+      imageData: null, // No image data as we are inserting the live canvas
+      dimensions: { width: 570, height: 300 }, // Default dimensions
+      originalNodes: formattedCanvasData.nodes,
+      originalEdges: formattedCanvasData.edges,
+      useRealTimeData: formattedCanvasData.useRealTimeData,
+      canvasId: formattedCanvasData.canvasId,
+    };
+    handleInsertCroppedCanvas(croppedData);
   };
 
   const handleApplyHeaderFooter = (config: HeaderFooterConfig) => {
