@@ -38,7 +38,16 @@ interface HeaderSidebarProps {
 export const HeaderSidebar = ({ onToggleSidebar }: HeaderSidebarProps) => {
   const { signOut, user } = useUser();
   const { setOpenMobile } = useSidebar();
-  const { isFirstVisit, setNotFirstVisit } = useOnboardingStore();
+  const { 
+    isFirstVisit, 
+    setNotFirstVisit, 
+    setProtectedOnBording, 
+    setCreateCategoryOnbording, 
+    setCanvasOnbording,
+    protectedOnBording,
+    createCategoryOnbording,
+    canvasOnbording
+  } = useOnboardingStore();
   
   const pathname = usePathname();
   const { folders } = useSidebarStore();
@@ -101,6 +110,18 @@ export const HeaderSidebar = ({ onToggleSidebar }: HeaderSidebarProps) => {
       setNotFirstVisit(false);
     }
     signOut()
+  }
+
+  const handleOnboarding = (data: string) => {
+    if(data === 'home') {
+      setProtectedOnBording(true)
+    } else if (data === 'category') {
+      setCreateCategoryOnbording(true)
+    } else if (data === 'canvas') {
+      setCanvasOnbording(true)
+    }
+
+    setNotFirstVisit(true)
   }
 
   return (
@@ -191,13 +212,55 @@ export const HeaderSidebar = ({ onToggleSidebar }: HeaderSidebarProps) => {
                 </div>
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
-              <DropdownMenuItem>
+              <DropdownMenuItem className="mb-2 cursor-pointer">
                 <Link href={"/protected/profile"} className="flex items-center">
                   <User className="mr-2 h-4 w-4" />
                   <span>Profile</span>
                 </Link>
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => handleSignOut()}>
+                {(!isFirstVisit || 
+                  protectedOnBording || 
+                  createCategoryOnbording || 
+                  canvasOnbording) && (
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild className="mb-2">
+                      <div
+                        className="flex items-center gap-2 px-2 py-1.5 hover:bg-gray-100 cursor-pointer"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <Crown className="h-4 w-4" />
+                        <span>Start Onboarding</span>
+                      </div>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="w-56">
+                      <DropdownMenuItem
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleOnboarding('home');
+                        }}
+                      >
+                        🏠 Home Onboarding
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleOnboarding('category');
+                        }}
+                      >
+                        📁 Category Onboarding
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleOnboarding('canvas');
+                        }}
+                      >
+                        🎨 Canvas Onboarding
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                )}
+              <DropdownMenuItem onClick={() => handleSignOut()} className="cursor-pointer">
                 <LogOut className="mr-2 h-4 w-4" />
                 <span>Log out</span>
               </DropdownMenuItem>

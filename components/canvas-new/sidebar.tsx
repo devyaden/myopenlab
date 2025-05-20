@@ -21,6 +21,7 @@ import { useCallback, useEffect, useState, useMemo } from "react";
 import { renderShapePreview } from "./shape-utils";
 import { useOnboardingStore } from "@/lib/store/useOnboarding";
 import Joyride from 'react-joyride';
+import CustomJoyrideTooltip from "../CustomJoyrideTooltip";
 
 interface SidebarProps {
   onDragStart: (event: React.DragEvent, shapeType: string) => void;
@@ -230,7 +231,7 @@ export function Sidebar({
     },
   ];
 
-  const { isFirstVisit, canvasOnbording, setCanvasOnbording } = useOnboardingStore();
+  const { isFirstVisit, canvasOnbording, setCanvasOnbording, setIsChecked, isChecked } = useOnboardingStore();
   const [hasMounted, setHasMounted] = useState(false);
   const [filteredCategories, setFilteredCategories] =
     useState<ShapeCategory[]>(shapeCategories);
@@ -377,6 +378,10 @@ export function Sidebar({
     }
   }
 
+  const handleDontShowAgainChange = (e) => {
+    setIsChecked(e?.target?.value)
+  }
+
   useEffect(() => {
     setTimeout(()=> {
       setHasMounted(true);
@@ -397,6 +402,13 @@ export function Sidebar({
        <Joyride
           steps={steps}
           callback={handleJoyrideCllback}
+          tooltipComponent={(props) => (
+          <CustomJoyrideTooltip
+            {...props} 
+            onDontShowAgainChange={handleDontShowAgainChange}
+            isChecked={isChecked}
+          />
+        )}
           continuous
           showProgress
           showSkipButton

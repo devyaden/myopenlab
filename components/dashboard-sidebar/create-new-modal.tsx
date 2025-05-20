@@ -36,6 +36,7 @@ import { generateUntitledName } from "@/lib/utils";
 import { AIGenerationDialog } from "../canvas-new/ai-generation-dialog";
 import { Wand2 } from "lucide-react";
 import { useOnboardingStore } from "@/lib/store/useOnboarding";
+import CustomJoyrideTooltip from "../CustomJoyrideTooltip";
 
 export enum CANVAS_TYPE {
   HYBRID = "hybrid",
@@ -271,7 +272,15 @@ export function CreateNewModal({
 
   const renderContent = () => {
 
-    const { isFirstVisit, data, protectedOnBording, setProtectedOnBording, createCategoryOnbording } = useOnboardingStore();
+    const { 
+      isFirstVisit, 
+      data, 
+      protectedOnBording, 
+      setProtectedOnBording, 
+      createCategoryOnbording,
+      isChecked,
+      setIsChecked
+    } = useOnboardingStore();
     const [stepIndex, setStepIndex] = useState(1)
 
     const canvasSteps = [
@@ -302,6 +311,7 @@ export function CreateNewModal({
 
       if (status === 'finished' || status === 'skipped') {
         setStepIndex(0);
+        setIsChecked(false);
         setProtectedOnBording(false)
       } else if (type === 'step:after') {
         setStepIndex(prev => prev + 1);
@@ -317,6 +327,10 @@ export function CreateNewModal({
       }
     }
 
+    const onDontShowAgainChange = (e: any) => {
+      setIsChecked(e?.target?.value)
+    }
+
     // Step 1: Type selection (only for canvas)
     if (step === "select" && type === "canvas") {
       return (
@@ -324,6 +338,13 @@ export function CreateNewModal({
           {isFirstVisit && createCategoryOnbording && <Joyride
                 steps={canvasSteps}
                 callback={handleRedrectToAi}
+                tooltipComponent={(props) => (
+                    <CustomJoyrideTooltip 
+                      {...props} 
+                      onDontShowAgainChange={onDontShowAgainChange}
+                      isChecked={isChecked}
+                    />
+                )}
                 continuous
                 showProgress
                 showSkipButton
@@ -439,6 +460,13 @@ export function CreateNewModal({
               stepIndex={stepIndex}
               run={isFirstVisit}
               callback={handleJoyrideCallback}
+              tooltipComponent={(props) => (
+                <CustomJoyrideTooltip 
+                  {...props}
+                  onDontShowAgainChange={onDontShowAgainChange}
+                  isChecked={isChecked}
+                />
+              )}
               continuous
               showProgress
               showSkipButton

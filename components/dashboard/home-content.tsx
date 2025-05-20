@@ -45,6 +45,7 @@ import {
   AlertDialogAction,
 } from "@/components/ui/alert-dialog";
 import { useOnboardingStore } from "@/lib/store/useOnboarding";
+import CustomJoyrideTooltip from "../CustomJoyrideTooltip";
 
 export function HomeContent() {
   const {
@@ -66,7 +67,9 @@ export function HomeContent() {
     setProtectedOnBording, 
     setCreateCategoryOnbording, 
     setCanvasOnbording,
-    setNotFirstVisit
+    setNotFirstVisit,
+    setIsChecked,
+    isChecked
   } = useOnboardingStore();
 
   const steps = [
@@ -216,6 +219,10 @@ export function HomeContent() {
     }
   };
 
+  const handleDontShowAgainChange = (e) => {
+    setIsChecked(e?.target?.value)
+  }
+
   const handleJoyrideCllback = (data: any) => {
     const { action, index, status, type } = data;
 
@@ -228,20 +235,6 @@ export function HomeContent() {
     }
   }
 
-  const handleOnboarding = (data: string) => {
-    if(data === 'home') {
-      setProtectedOnBording(true)
-    } else if (data === 'category') {
-      setCreateCategoryOnbording(true)
-    } else if (data === 'canvas') {
-      setCanvasOnbording(true)
-    }
-
-    setNotFirstVisit(true)
-
-  }
-
-  
   useEffect(() => {
     if (isFirstVisit && protectedOnBording) {
       setData(steps);
@@ -257,21 +250,30 @@ export function HomeContent() {
 
   return (
     <div className="flex flex-col h-full">
-      {hasMounted && isFirstVisit && protectedOnBording && (
-        <Joyride
-          steps={steps}
-          run={runTour}
-          callback={handleJoyrideCllback}
-          continuous
-          showProgress
-          showSkipButton
-          styles={{
-            options: {
-              primaryColor: '#22c55e',
-              zIndex: 10000,
-            },
-          }}
-        />
+      {hasMounted 
+        && isFirstVisit 
+          && protectedOnBording && (
+            <Joyride
+              steps={steps}
+              run={runTour}
+              callback={handleJoyrideCllback}
+              tooltipComponent={(props) => (
+                <CustomJoyrideTooltip 
+                  {...props} 
+                  onDontShowAgainChange={handleDontShowAgainChange}
+                  isChecked={isChecked}
+                />
+              )}
+              continuous
+              showProgress
+              showSkipButton
+              styles={{
+                options: {
+                  primaryColor: '#22c55e',
+                  zIndex: 10000,
+                },
+              }}
+            />
       )}
       <div className="p-6 flex-shrink-0 bg-white">
         <div className="flex flex-col md:flex-row justify-between md:items-center mb-6">
@@ -296,45 +298,6 @@ export function HomeContent() {
             </div>
           </div>
           <div className="md:w-1/4 flex justify-end gap-3 mt-4 md:mt-0">
-            {!isFirstVisit &&          
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  className="bg-yadn-accent-green hover:bg-yadn-accent-green/80 text-white"
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  Start Onboarding
-                </Button>
-              </DropdownMenuTrigger>
-
-              <DropdownMenuContent align="end" className="w-56">
-                <DropdownMenuItem
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleOnboarding('home');
-                  }}
-                >
-                  🏠 Start Home Onboarding
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleOnboarding('category');
-                  }}
-                >
-                  📁 Start Category Onboarding
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleOnboarding('canvas');
-                  }}
-                >
-                  🎨 Start Canvas Onboarding
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>}
-
             <Button
               onClick={() => setCreateNewModalType("canvas")}
               className="bg-yadn-accent-green hover:bg-yadn-accent-green/80 text-white"

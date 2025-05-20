@@ -40,6 +40,7 @@ import { InfoIcon, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
 import Joyride from 'react-joyride';
 import { useOnboardingStore } from "@/lib/store/useOnboarding";
+import CustomJoyrideTooltip from "../CustomJoyrideTooltip";
 
 // Define the form schema
 const formSchema = z.object({
@@ -135,7 +136,9 @@ export function AIGenerationDialog({
   const { 
     isFirstVisit, 
     createCategoryOnbording, 
-    setCreateCategoryOnbording 
+    setCreateCategoryOnbording,
+    isChecked,
+    setIsChecked
   } = useOnboardingStore();
 
   const form = useForm<FormValues>({
@@ -286,8 +289,13 @@ export function AIGenerationDialog({
 
     if (status === 'finished' || status === 'skipped') {
       setCreateCategoryOnbording(false)
+      setIsChecked(false)
     }
   };
+
+  const handleDontShowAgainChange = (e) => {
+    setIsChecked(e?.target?.value)
+  }
 
   // Prevent modal closure during loading
   const handleCloseAttempt = () => {
@@ -309,6 +317,13 @@ export function AIGenerationDialog({
         steps={aiCanvasSteps}
         run={isFirstVisit}
         callback={handleJoyrideCallback}
+        tooltipComponent={(props) => (
+          <CustomJoyrideTooltip
+            {...props} 
+            isChecked={isChecked}
+            onDontShowAgainChange={handleDontShowAgainChange}
+          />
+        )}
         continuous
         showProgress
         showSkipButton
