@@ -2,15 +2,16 @@
 
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import { supabase } from "../supabase/client";
+import { supabase } from "@/lib/supabase/client";
 import toast from "react-hot-toast";
-import { debounce } from "lodash"; // Make sure this import exists
+import { Folder } from "@/types/sidebar";
 
 interface DocumentState {
   id: string;
   name: string;
+  user_id: string;
   description: string;
-  lexical_state: any;
+  editor_state: any;
   version: number;
   canvas_id: string;
   isLoading: boolean;
@@ -19,6 +20,7 @@ interface DocumentState {
   isDirty: boolean;
   lastSaved: Date | null;
   folderCanvases: any[];
+  folder?: any;
   setName: (name: string) => void;
   setDescription: (description: string) => void;
   updateEditorState: (editorState: any) => void;
@@ -33,7 +35,8 @@ const initialState: DocumentState = {
   id: "",
   name: "Untitled Document",
   description: "",
-  lexical_state: null,
+  user_id: "",
+  editor_state: null,
   version: 1,
   canvas_id: "",
   isLoading: true,
@@ -50,27 +53,19 @@ const initialState: DocumentState = {
   resetState: () => {},
   loadFolderCanvases: async () => {},
   folderCanvases: [],
+  folder: null,
 };
 
 export const useDocumentStore = create<DocumentState>()(
   persist(
     (set, get) => {
-      // Create a debounced version of saveDocument that we'll use for syncing
-      const debouncedSave = debounce(async () => {
-        if (get().isDirty) {
-          await get().saveDocument();
-        }
-      }, 3000); // Increase to 5 seconds to reduce save frequency
-
       return {
         ...initialState,
         setName: (name) => {
           set({ name, isDirty: true });
-          get().syncChanges();
         },
         setDescription: (description) => {
           set({ description, isDirty: true });
-          get().syncChanges();
         },
         updateEditorState: (editorState) => {
           const stateToStore =
@@ -81,46 +76,76 @@ export const useDocumentStore = create<DocumentState>()(
           // Update local state immediately but don't trigger unnecessary re-renders
           set((state) => {
             // Only update if state actually changed to prevent focus loss
-            if (state.lexical_state !== stateToStore) {
+            if (state.editor_state !== stateToStore) {
               return {
-                lexical_state: stateToStore,
+                editor_state: stateToStore,
                 isDirty: true,
               };
             }
             return state; // Return unchanged state if nothing changed
           });
-
-          // Trigger debounced save
-          get().syncChanges();
         },
         loadDocument: async (canvasId) => {
           set({ isLoading: true, error: null, canvas_id: canvasId });
           try {
+            console.log(`Loading document with ID: ${canvasId}`);
+
             const { data: canvas, error: canvasError } = await supabase
               .from("canvas")
-              .select("id, name, description, folder_id")
+              .select(
+                "id, name, description, folder_id, document_data(*), user_id, folder:folder!canvas_folder_id_fkey(*)"
+              )
               .eq("id", canvasId)
               .single();
-            if (canvasError) throw canvasError;
 
-            const { data: documentDataArray, error: documentError } =
-              await supabase
-                .from("document_data")
-                .select("*")
-                .eq("canvas_id", canvasId);
+            if (canvasError) {
+              console.error("Error fetching canvas:", canvasError);
+              throw canvasError;
+            }
 
-            if (documentError) throw documentError;
+            console.log(`Canvas loaded: ${canvas.name}`);
 
             const documentData =
-              documentDataArray && documentDataArray.length > 0
-                ? documentDataArray[0]
+              canvas?.document_data && canvas?.document_data?.length > 0
+                ? canvas?.document_data[0]
                 : null;
+
+            console.log(`Document data found: ${documentData ? "yes" : "no"}`);
+
+            if (documentData && documentData.lexical_state) {
+              // Validate that the JSON is parseable before storing
+              try {
+                JSON.parse(documentData.lexical_state);
+                console.log("Document state is valid JSON");
+              } catch (e) {
+                console.error("Invalid document state JSON:", e);
+                console.warn("Resetting document state due to invalid JSON");
+                documentData.lexical_state = JSON.stringify({
+                  state: "<p>Document content could not be loaded.</p>",
+                  controls: {},
+                  json: {
+                    type: "doc",
+                    content: [
+                      {
+                        type: "paragraph",
+                        content: [
+                          {
+                            type: "text",
+                            text: "Document content could not be loaded.",
+                          },
+                        ],
+                      },
+                    ],
+                  },
+                });
+              }
+            }
 
             set({
               id: documentData?.id || "",
               name: canvas.name,
               description: canvas.description || "",
-              lexical_state: documentData?.lexical_state || null,
+              editor_state: documentData?.lexical_state || null,
               version: documentData?.version || 1,
               canvas_id: canvasId,
               isLoading: false,
@@ -128,6 +153,8 @@ export const useDocumentStore = create<DocumentState>()(
               lastSaved: documentData
                 ? new Date(documentData.updated_at)
                 : null,
+              user_id: canvas.user_id,
+              folder: canvas.folder,
             });
 
             get().loadFolderCanvases(canvas.folder_id);
@@ -140,25 +167,75 @@ export const useDocumentStore = create<DocumentState>()(
                   : "Failed to load document",
               isLoading: false,
             });
+
+            // Set a fallback empty editor state if loading failed
+            set({
+              editor_state: JSON.stringify({
+                state: "<p>Failed to load document. Please try again.</p>",
+                controls: {},
+                json: {
+                  type: "doc",
+                  content: [
+                    {
+                      type: "paragraph",
+                      content: [
+                        {
+                          type: "text",
+                          text: "Failed to load document. Please try again.",
+                        },
+                      ],
+                    },
+                  ],
+                },
+              }),
+            });
           }
         },
         saveDocument: async () => {
           const state = get();
-          if (!state.canvas_id) return;
+          if (!state.canvas_id) return Promise.resolve();
           set({ saveLoading: true });
 
           try {
             const now = new Date().toISOString();
+
+            // Ensure editor_state is valid before saving
+            if (!state.editor_state) {
+              console.warn("Attempting to save without editor state");
+              set({ saveLoading: false });
+              return Promise.reject(new Error("No editor state to save"));
+            }
+
+            // Validate JSON format before saving
+            try {
+              JSON.parse(state.editor_state);
+            } catch (e) {
+              console.error("Invalid JSON in editor_state:", e);
+              set({ saveLoading: false });
+              return Promise.reject(new Error("Invalid editor state format"));
+            }
+
+            console.log(`Saving document for canvas ID: ${state.canvas_id}`);
+
+            // First check if document exists
             const { data: existingDocs, error: checkError } = await supabase
               .from("document_data")
               .select("canvas_id")
               .eq("canvas_id", state.canvas_id);
-            if (checkError) throw checkError;
+
+            if (checkError) {
+              console.error("Error checking document existence:", checkError);
+              throw checkError;
+            }
 
             const documentExists = existingDocs && existingDocs.length > 0;
-            const latestEditorState = state.lexical_state;
+            console.log(`Document exists: ${documentExists}`);
 
+            const latestEditorState = state.editor_state;
+
+            // Save document data
             if (documentExists) {
+              console.log("Updating existing document");
               const { error: updateError } = await supabase
                 .from("document_data")
                 .update({
@@ -167,8 +244,13 @@ export const useDocumentStore = create<DocumentState>()(
                   updated_at: now,
                 })
                 .eq("canvas_id", state.canvas_id);
-              if (updateError) throw updateError;
+
+              if (updateError) {
+                console.error("Error updating document:", updateError);
+                throw updateError;
+              }
             } else {
+              console.log("Creating new document");
               const { error: insertError } = await supabase
                 .from("document_data")
                 .insert({
@@ -177,9 +259,15 @@ export const useDocumentStore = create<DocumentState>()(
                   canvas_id: state.canvas_id,
                   updated_at: now,
                 });
-              if (insertError) throw insertError;
+
+              if (insertError) {
+                console.error("Error inserting document:", insertError);
+                throw insertError;
+              }
             }
 
+            // Update canvas metadata
+            console.log("Updating canvas metadata");
             const { error: canvasError } = await supabase
               .from("canvas")
               .update({
@@ -188,8 +276,13 @@ export const useDocumentStore = create<DocumentState>()(
                 updated_at: now,
               })
               .eq("id", state.canvas_id);
-            if (canvasError) throw canvasError;
 
+            if (canvasError) {
+              console.error("Error updating canvas:", canvasError);
+              throw canvasError;
+            }
+
+            console.log("Document saved successfully");
             set({
               isDirty: false,
               lastSaved: new Date(),
@@ -197,10 +290,9 @@ export const useDocumentStore = create<DocumentState>()(
               saveLoading: false,
             });
 
-            // toast.success("Document saved");
+            return Promise.resolve();
           } catch (error) {
             console.error("Error saving document:", error);
-            toast.error("Failed to save document");
             set({
               error:
                 error instanceof Error
@@ -208,21 +300,28 @@ export const useDocumentStore = create<DocumentState>()(
                   : "Failed to save document",
               saveLoading: false,
             });
+            return Promise.reject(error);
           }
         },
         syncChanges: () => {
-          // Just trigger the debounced save function
-          debouncedSave();
+          // This is now a no-op since auto-save is handled directly in the Editor component
         },
         resetState: () => {
-          // Cancel any pending debounced saves
-          debouncedSave.cancel();
           set(initialState);
         },
         loadFolderCanvases: async (folderId: string | null) => {
           set({ isLoading: true, error: null });
 
           try {
+            // Get current user
+            const {
+              data: { user },
+            } = await supabase.auth.getUser();
+
+            if (!user) {
+              throw new Error("User not authenticated");
+            }
+
             let query = supabase
               .from("canvas")
               .select(
@@ -236,6 +335,7 @@ export const useDocumentStore = create<DocumentState>()(
           data:canvas_data(*)
         `
               )
+              .eq("user_id", user.id)
               .order("updated_at", { ascending: false });
 
             if (folderId !== null) {

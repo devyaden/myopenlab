@@ -196,6 +196,9 @@ const Editor = (
   const [isLoaded, setIsLoaded] = useState<boolean>(false);
   const [isOwner, setIsOwner] = useState<boolean>(false);
   const [unauthorized, setUnauthorized] = useState<boolean>(false);
+  const [saveStatus, setSaveStatus] = useState<
+    "saved" | "saving" | "unsaved" | "error"
+  >("saved");
 
   const { user } = useUser();
 
@@ -217,6 +220,8 @@ const Editor = (
   const pagesContainerRef = useRef<HTMLDivElement>(null);
   const editorContentRef = useRef<HTMLDivElement>(null);
   const zoomWrapperRef = useRef<HTMLDivElement>(null);
+  const saveTimeoutRef = useRef<any>(null);
+  const pendingChangesRef = useRef<boolean>(false);
 
   // Paper settings
   const [pageSize, setPageSize] = useState<PaperSize>("A4");
@@ -382,7 +387,8 @@ const Editor = (
       // console.log("🚀 ~ onUpdate ~ editor:", editor.getHTML());
       if (editor) {
         updateEditorState(editor);
-        debouncedSave();
+        // debouncedSave();
+        triggerAutoSave();
       }
     },
     editorProps: {
@@ -392,6 +398,70 @@ const Editor = (
     },
     autofocus: true,
   });
+
+  // Enhanced auto-save mechanism with proper debouncing
+  const triggerAutoSave = useCallback(() => {
+    if (readOnly) return; // Don't save in read-only mode
+    if (!editor) return;
+
+    // Mark as unsaved immediately for UI feedback
+    setSaveStatus("unsaved");
+    pendingChangesRef.current = true;
+
+    // Clear any existing timeout
+    if (saveTimeoutRef.current) {
+      clearTimeout(saveTimeoutRef.current);
+    }
+
+    // Set up a new timeout for saving
+    saveTimeoutRef.current = setTimeout(async () => {
+      if (!pendingChangesRef.current) return;
+
+      try {
+        setSaveStatus("saving");
+
+        // Get the latest editor state
+        const latestEditorState = editor.getHTML();
+        const editorJSON = editor.getJSON();
+
+        // Save the complete state including HTML and JSON
+        const fullState = {
+          state: latestEditorState,
+          json: editorJSON,
+          controls: editorState,
+        };
+
+        // Update the state in the document store
+        updateLexicalState(JSON.stringify(fullState));
+
+        // Save the document to the database
+        await saveDocument();
+
+        // Mark as saved
+        pendingChangesRef.current = false;
+        setSaveStatus("saved");
+      } catch (error) {
+        console.error("Error in auto-save:", error);
+        setSaveStatus("error");
+
+        // Retry once after a short delay if there was an error
+        setTimeout(() => {
+          if (pendingChangesRef.current) {
+            triggerAutoSave();
+          }
+        }, 5000);
+      }
+    }, 2000); // 2-second debounce
+  }, [editor, editorState, saveDocument, updateLexicalState, readOnly]);
+
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current);
+      }
+    };
+  }, []);
 
   // Create a debounced save function
   const debouncedSave = useCallback(
@@ -465,92 +535,157 @@ const Editor = (
       localStorage.setItem("recentDocuments", JSON.stringify(recentDocuments));
     }
   }, [canvasId, name]);
-
   // Update the useEffect that handles editor initialization and content loading
   useEffect(() => {
     if (!editor) return;
 
     // Apply page dimensions and margins immediately when editor is created
-    setTimeout(() => {
+    const initializeEditor = async () => {
       if (editor && !editor.isDestroyed) {
-        // First apply page settings
-        editor.commands.setDocumentPaperSize(pageSize);
-        editor.commands.setDocumentPaperOrientation(orientation);
+        try {
+          // First apply page settings
+          editor.commands.setDocumentPaperSize(pageSize);
+          editor.commands.setDocumentPaperOrientation(orientation);
 
-        // Then apply margins
-        editor.commands.setDocumentPageMargin(
-          "left",
-          paginationSettings.marginLeft / 3.78
-        );
-        editor.commands.setDocumentPageMargin(
-          "right",
-          paginationSettings.marginRight / 3.78
-        );
-        editor.commands.setDocumentPageMargin(
-          "top",
-          paginationSettings.marginTop / 3.78
-        );
-        editor.commands.setDocumentPageMargin(
-          "bottom",
-          paginationSettings.marginBottom / 3.78
-        );
+          // Then apply margins
+          editor.commands.setDocumentPageMargin(
+            "left",
+            paginationSettings.marginLeft / 3.78
+          );
+          editor.commands.setDocumentPageMargin(
+            "right",
+            paginationSettings.marginRight / 3.78
+          );
+          editor.commands.setDocumentPageMargin(
+            "top",
+            paginationSettings.marginTop / 3.78
+          );
+          editor.commands.setDocumentPageMargin(
+            "bottom",
+            paginationSettings.marginBottom / 3.78
+          );
 
-        // Then load content if available
-        if (editor_state) {
-          try {
-            const parsedState = JSON.parse(editor_state);
-            const { state, controls, json } = parsedState;
+          // Load content if available - with improved error handling
+          if (editor_state) {
+            try {
+              console.log(
+                "Loading editor state:",
+                editor_state.substring(0, 100) + "..."
+              );
 
-            // If we have the full JSON structure, use it for better data preservation
-            if (json) {
-              editor.commands.setContent(json);
-            } else {
-              // Fallback to HTML content
-              editor.commands.setContent(state);
+              const parsedState = JSON.parse(editor_state);
+              const { state, controls, json } = parsedState;
+
+              // If we have the full JSON structure, use it for better data preservation
+              if (json) {
+                console.log("Setting editor content from JSON");
+                editor.commands.setContent(json);
+              } else if (state) {
+                // Fallback to HTML content
+                console.log("Setting editor content from HTML state");
+                editor.commands.setContent(state);
+              } else {
+                console.warn("No usable content found in editor state");
+              }
+
+              if (controls) {
+                setEditorState(controls);
+              }
+
+              // Mark as saved after initial load
+              setSaveStatus("saved");
+              pendingChangesRef.current = false;
+            } catch (error) {
+              console.error("Error parsing editor state:", error);
+              console.error("Raw editor state:", editor_state);
+              toast.error("Failed to load document content - reload may help");
+
+              // Recovery attempt - try to set empty content
+              editor.commands.setContent("");
+              setSaveStatus("error");
             }
-
-            if (controls) {
-              setEditorState(controls);
-            }
-          } catch (error) {
-            console.error("Error parsing editor state:", error);
-            toast.error("Failed to load document content");
+          } else {
+            console.log(
+              "No editor state available, starting with empty document"
+            );
+            editor.commands.setContent("");
           }
+        } catch (error) {
+          console.error("Error initializing editor:", error);
+          toast.error("Editor initialization failed");
         }
       }
-    }, 50);
-  }, [editor, editorKey]); // Only depend on editor and editorKey, not editor_state to avoid loops
+    };
 
+    // Delay initialization slightly to ensure editor is fully mounted
+    const timer = setTimeout(initializeEditor, 100);
+
+    return () => clearTimeout(timer);
+  }, [
+    editor,
+    editorKey,
+    editor_state,
+    pageSize,
+    orientation,
+    paginationSettings.marginLeft,
+    paginationSettings.marginRight,
+    paginationSettings.marginTop,
+    paginationSettings.marginBottom,
+  ]);
   // Keep the existing useEffect for editor_state changes, but modify to prevent duplicate state updates
   useEffect(() => {
-    if (editor && editor_state) {
-      // Only update content if the editor wasn't just created (to avoid double loading)
-      const lastKeyChange = Date.now() - editorKeyChangeTime;
-      if (lastKeyChange > 500) {
-        // If it's been more than 500ms since editor recreation
-        try {
-          const parsedState = JSON.parse(editor_state);
-          const { state, controls, json } = parsedState;
+    if (!editor || !editor_state) return;
+
+    // Skip this effect if the editor was just recreated (avoid double loading)
+    const lastKeyChange = Date.now() - editorKeyChangeTime;
+    if (lastKeyChange <= 500) return;
+
+    // Use a small delay to ensure the editor is ready and avoid conflicts
+    const timer = setTimeout(() => {
+      try {
+        if (editor.isDestroyed) {
+          console.warn("Editor was destroyed, cannot update content");
+          return;
+        }
+
+        console.log("Updating editor from external state change");
+
+        const parsedState = JSON.parse(editor_state);
+        const { state, controls, json } = parsedState;
+
+        // Important: get the current editor content for comparison
+        const currentContent = JSON.stringify(editor.getJSON());
+        const incomingContent = JSON.stringify(json || state);
+
+        // Only update if content is different to avoid loops and cursor jumps
+        if (currentContent !== incomingContent) {
+          console.log("Content has changed, updating editor");
 
           // If we have the full JSON structure, use it for better data preservation
-          setTimeout(() => {
-            if (json) {
-              editor.commands.setContent(json);
-            } else {
-              // Fallback to HTML content
-              editor.commands.setContent(state);
-            }
+          if (json) {
+            editor.commands.setContent(json);
+          } else if (state) {
+            // Fallback to HTML content
+            editor.commands.setContent(state);
+          }
 
-            if (controls) {
-              setEditorState(controls);
-            }
-          });
-        } catch (error) {
-          console.error("Error parsing editor state:", error);
-          toast.error("Failed to load document content");
+          if (controls) {
+            setEditorState(controls);
+          }
+
+          // Mark as saved after content update from store
+          setSaveStatus("saved");
+          pendingChangesRef.current = false;
+        } else {
+          console.log("Content unchanged, skipping update");
         }
+      } catch (error) {
+        console.error("Error updating editor from state:", error);
+        toast.error("Failed to update document content");
       }
-    }
+    }, 100);
+
+    return () => clearTimeout(timer);
   }, [editor_state, editor, editorKeyChangeTime]);
 
   // Update editor state based on current selection
@@ -616,32 +751,6 @@ const Editor = (
       });
     }
   };
-
-  // Update the refreshEditor function to use a safer approach with microtasks
-  const refreshEditor = useCallback(() => {
-    if (!editor) return;
-
-    // Store the current editor JSON
-    const editorJSON = editor.getJSON();
-
-    // Use a microtask (Promise) to avoid React rendering conflicts
-    Promise.resolve().then(() => {
-      // First update the editor key in a microtask
-      setEditorKey((prevKey) => {
-        setEditorKeyChangeTime(Date.now());
-        return prevKey + 1;
-      });
-
-      // Then in another microtask, restore content after the editor has been recreated
-      Promise.resolve().then(() => {
-        setTimeout(() => {
-          if (editor && !editor.isDestroyed) {
-            editor.commands.setContent(editorJSON);
-          }
-        }, 50);
-      });
-    });
-  }, [editor]);
 
   // Update the useEffect that watches for page dimensions changes
   useEffect(() => {
@@ -1334,33 +1443,72 @@ const Editor = (
   };
 
   // Header action handlers
-  const handleSave = () => {
-    if (!editor) return;
+  const handleSave = async () => {
+    if (!editor || readOnly) return;
 
     try {
+      setSaveStatus("saving");
+
       // Get the latest editor state
       const latestEditorState = editor.getHTML();
-
-      // Find all ReactFlow nodes in the editor and ensure their data is preserved
       const editorJSON = editor.getJSON();
 
-      // Store the complete JSON structure to preserve all custom node data
-      updateLexicalState(
-        JSON.stringify({
-          state: latestEditorState,
-          controls: editorState,
-          json: editorJSON,
-        })
-      );
+      // Save the complete state including HTML and JSON
+      const fullState = {
+        state: latestEditorState,
+        controls: editorState,
+        json: editorJSON,
+      };
 
-      saveDocument();
+      // Update the Lexical state in the document store
+      updateLexicalState(JSON.stringify(fullState));
 
-      // toast.success("Document saved successfully");
+      // Save the document to the database
+      await saveDocument();
+
+      // Update status to saved
+      setSaveStatus("saved");
+      pendingChangesRef.current = false;
     } catch (error) {
       console.error("Error saving document:", error);
-      // toast.error("Failed to save document");
+      setSaveStatus("error");
+
+      // Show error toast only on manual save
+      toast.error("Failed to save document");
     }
   };
+
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (pendingChangesRef.current && !readOnly) {
+        // Save any pending changes synchronously before unload
+        try {
+          if (editor) {
+            const latestEditorState = editor.getHTML();
+            const editorJSON = editor.getJSON();
+            const fullState = {
+              state: latestEditorState,
+              json: editorJSON,
+              controls: editorState,
+            };
+            updateLexicalState(JSON.stringify(fullState));
+          }
+        } catch (error) {
+          console.error("Error in beforeunload save:", error);
+        }
+
+        // Standard way to show confirmation dialog
+        e.preventDefault();
+        e.returnValue = "";
+        return "";
+      }
+    };
+
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => {
+      window.removeEventListener("beforeunload", handleBeforeUnload);
+    };
+  }, [editor, editorState, updateLexicalState, readOnly]);
 
   // Export to PDF - Server-side rendering
   const handleExportPDF = async () => {
@@ -1472,7 +1620,7 @@ const Editor = (
       });
     }
 
-    handleSave();
+    triggerAutoSave();
   };
 
   const handleImportCanvas = (data: any) => {
@@ -1615,18 +1763,129 @@ const Editor = (
     checkAuthorization();
   }, [canvasId, user, isLoaded, router]);
 
-  // if (isLoading) {
-  //   return (
-  //     <div className="w-full h-full flex items-center justify-center">
-  //       <Loader2 className="h-10 w-10 animate-spin" />
-  //     </div>
+  useEffect(() => {
+    if (editor && !readOnly) {
+      triggerAutoSave();
+    }
+  }, [
+    pageSize,
+    orientation,
+    paginationSettings,
+    headerConfig,
+    footerConfig,
+    triggerAutoSave,
+    readOnly,
+    editor,
+  ]);
+
+  // useEffect(() => {
+  //   const handleNameDescriptionChange = () => {
+  //     if (!readOnly) {
+  //       setSaveStatus("unsaved");
+  //       pendingChangesRef.current = true;
+
+  //       // Clear existing timeout
+  //       if (saveTimeoutRef.current) {
+  //         clearTimeout(saveTimeoutRef.current);
+  //       }
+
+  //       // Set new timeout for saving name/description changes
+  //       saveTimeoutRef.current = setTimeout(() => {
+  //         handleSave();
+  //       }, 2000);
+  //     }
+  //   };
+
+  //   // Listen for name and description changes
+  //   const unsubscribe = useDocumentStore.subscribe(
+  //     (state: any) => [state.name, state.description],
+  //     () => handleNameDescriptionChange()
   //   );
-  // }
+
+  //   return () => {
+  //     unsubscribe();
+  //     if (saveTimeoutRef.current) {
+  //       clearTimeout(saveTimeoutRef.current);
+  //     }
+  //   };
+  // }, [readOnly]);
 
   useImperativeHandle(ref, () => ({
     exportAsPDF: handleExportPDF,
     exportAsJSON: handleExportJSON,
   }));
+
+  const renderSaveStatus = () => {
+    if (readOnly) return null;
+
+    return (
+      <div className="save-status flex items-center text-sm ml-2">
+        {saveStatus === "saving" && (
+          <span className="text-yellow-600 flex items-center">
+            <RefreshCw className="h-3 w-3 mr-1 animate-spin" /> Saving...
+          </span>
+        )}
+        {saveStatus === "saved" && (
+          <span className="text-green-600 flex items-center">
+            <svg
+              className="h-3 w-3 mr-1"
+              fill="currentColor"
+              viewBox="0 0 20 20"
+            >
+              <path
+                fillRule="evenodd"
+                d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                clipRule="evenodd"
+              />
+            </svg>
+            Saved
+          </span>
+        )}
+        {saveStatus === "unsaved" && (
+          <span className="text-orange-600 flex items-center">
+            <span className="h-2 w-2 mr-1 rounded-full bg-orange-600"></span>
+            Unsaved changes
+          </span>
+        )}
+        {saveStatus === "error" && (
+          <span
+            className="text-red-600 flex items-center cursor-pointer"
+            onClick={handleSave}
+          >
+            <span className="h-2 w-2 mr-1 rounded-full bg-red-600"></span>
+            Save failed. Click to retry
+          </span>
+        )}
+      </div>
+    );
+  };
+
+  const renderHeader = () => {
+    if (canvasType !== CANVAS_TYPE.HYBRID) {
+      return (
+        <Header
+          projectName={name}
+          setProjectName={setName}
+          onBackToDashboard={() => router.push("/protected")}
+          onImportCanvas={handleImportCanvas}
+          saveLoading={saveLoading || saveStatus === "saving"}
+          onSave={handleSave}
+          canvasId={canvasId}
+          visibility={visibility}
+          onVisibilityChange={handleVisibilityChange}
+          isOwner={isOwner}
+          viewMode={"document"}
+          exportAsJSON={handleExportJSON}
+          propExportAsPDF={handleBrowserPrintToPDF}
+          canvasType={CANVAS_TYPE.DOCUMENT}
+          currentFolder={folder}
+          // saveStatus={saveStatus} // Pass save status to header
+          // renderSaveStatus={renderSaveStatus} // Pass render function
+        />
+      );
+    }
+    return null;
+  };
 
   // If unauthorized, show the Unauthorized component
   if (unauthorized) {
@@ -1635,13 +1894,14 @@ const Editor = (
 
   return (
     <div className="w-full h-full editor-container">
+      {renderSaveStatus()}
       {canvasType !== CANVAS_TYPE.HYBRID && (
         <Header
           projectName={name}
           setProjectName={setName}
           onBackToDashboard={() => router.push("/protected")}
           onImportCanvas={handleImportCanvas}
-          saveLoading={saveLoading}
+          saveLoading={saveLoading || saveStatus === "saving"}
           onSave={handleSave}
           canvasId={canvasId}
           visibility={visibility}
