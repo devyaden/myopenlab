@@ -29,6 +29,7 @@ import { useSidebar } from "@/components/ui/sidebar";
 import { usePathname } from "next/navigation";
 import { useSidebarStore } from "@/lib/store/useSidebar";
 import { useState, useEffect } from "react";
+import { useOnboardingStore } from "@/lib/store/useOnboarding";
 
 interface HeaderSidebarProps {
   onToggleSidebar?: () => void;
@@ -37,6 +38,8 @@ interface HeaderSidebarProps {
 export const HeaderSidebar = ({ onToggleSidebar }: HeaderSidebarProps) => {
   const { signOut, user } = useUser();
   const { setOpenMobile } = useSidebar();
+  const { isFirstVisit, setNotFirstVisit } = useOnboardingStore();
+  
   const pathname = usePathname();
   const { folders } = useSidebarStore();
   const [isMobile, setIsMobile] = useState(false);
@@ -92,6 +95,13 @@ export const HeaderSidebar = ({ onToggleSidebar }: HeaderSidebarProps) => {
   };
 
   const breadcrumbs = generateBreadcrumbs();
+
+  const handleSignOut = () => {
+    if (isFirstVisit) {
+      setNotFirstVisit(false);
+    }
+    signOut()
+  }
 
   return (
     <header className="flex items-center justify-between gap-4 bg-yadn-dark-background px-6 z-50 py-4 min-w-full h-16">
@@ -187,7 +197,7 @@ export const HeaderSidebar = ({ onToggleSidebar }: HeaderSidebarProps) => {
                   <span>Profile</span>
                 </Link>
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => signOut()}>
+              <DropdownMenuItem onClick={() => handleSignOut()}>
                 <LogOut className="mr-2 h-4 w-4" />
                 <span>Log out</span>
               </DropdownMenuItem>

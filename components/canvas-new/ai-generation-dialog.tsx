@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
@@ -24,20 +24,20 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { useForm } from "react-hook-form";
-import * as z from "zod";
-import toast from "react-hot-toast";
-import { LoadingSpinner } from "../loading-spinner";
+import { useOnboardingStore } from "@/lib/store/useOnboarding";
 import {
-  LanguageType,
   DiagramType,
   IndustryType,
+  LanguageType,
 } from "@/lib/types/diagram-types";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { InfoIcon, Sparkles } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { useEffect, useState } from "react";
+import { useForm } from "react-hook-form";
+import toast from "react-hot-toast";
+import Joyride from "react-joyride";
+import * as z from "zod";
 
 // Define the form schema
 const formSchema = z.object({
@@ -57,6 +57,38 @@ interface AIGenerationDialogProps {
   onClose: () => void;
   onGenerateCanvas: (data: any) => void;
 }
+
+const aiCanvasSteps = [
+  {
+    target: ".language",
+    content:
+      "Click here to start with a new canvas. This will be your drawing board to create diagrams.",
+    disableBeacon: true,
+  },
+  {
+    target: ".diagram",
+    content:
+      "Click here to create a visual table. You can add values directly to cells for structured data.",
+    disableBeacon: true,
+  },
+  {
+    target: ".industry",
+    content:
+      "Click here to create a visual document. Ideal for drafting and structuring textual content.",
+    disableBeacon: true,
+  },
+  {
+    target: ".prompt",
+    content:
+      "Want help from AI? Click here to generate a diagram automatically based on your input.",
+    disableBeacon: true,
+  },
+  {
+    target: ".generate",
+    content: "Click to generate",
+    disableBeacon: true,
+  },
+];
 
 // Example prompts for different diagram types
 const examplePrompts = {
@@ -100,6 +132,10 @@ export function AIGenerationDialog({
   const [loadingMessage, setLoadingMessage] = useState<string>("");
   const [loadingStartTime, setLoadingStartTime] = useState<number>(0);
   const [isLongLoading, setIsLongLoading] = useState<boolean>(false);
+  const [isMounted, setIsMounted] = useState<boolean>(false);
+
+  const { isFirstVisit, createCategoryOnbording, setCreateCategoryOnbording } =
+    useOnboardingStore();
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -242,6 +278,16 @@ export function AIGenerationDialog({
     }
   };
 
+  const handleJoyrideCallback = (data: any) => {
+    const { action, index, status, type } = data;
+
+    console.log(action, index, status, type, "action, index, status, type");
+
+    if (status === "finished" || status === "skipped") {
+      setCreateCategoryOnbording(false);
+    }
+  };
+
   // Prevent modal closure during loading
   const handleCloseAttempt = () => {
     if (!isLoading) {
@@ -249,9 +295,31 @@ export function AIGenerationDialog({
     }
   };
 
+  useEffect(() => {
+    setTimeout(() => {
+      setIsMounted(true);
+    }, 100);
+  }, []);
+
   return (
     <Dialog open={isOpen} onOpenChange={handleCloseAttempt}>
       <DialogContent className="max-w-md">
+        {isFirstVisit && isMounted && createCategoryOnbording && (
+          <Joyride
+            steps={aiCanvasSteps}
+            run={isFirstVisit}
+            callback={handleJoyrideCallback}
+            continuous
+            showProgress
+            showSkipButton
+            styles={{
+              options: {
+                primaryColor: "#22c55e",
+                zIndex: 10000,
+              },
+            }}
+          />
+        )}
         <DialogHeader>
           <DialogTitle>Generate Canvas with AI</DialogTitle>
           <DialogDescription>
@@ -268,7 +336,7 @@ export function AIGenerationDialog({
               control={form.control}
               name="language"
               render={({ field }) => (
-                <FormItem>
+                <FormItem className="language">
                   <FormLabel>Language</FormLabel>
                   <Select
                     onValueChange={field.onChange}
@@ -316,7 +384,7 @@ export function AIGenerationDialog({
               control={form.control}
               name="diagramType"
               render={({ field }) => (
-                <FormItem>
+                <FormItem className="diagram">
                   <FormLabel>Type of Diagram</FormLabel>
                   <Select
                     onValueChange={(value) => {
@@ -358,7 +426,7 @@ export function AIGenerationDialog({
               control={form.control}
               name="industry"
               render={({ field }) => (
-                <FormItem>
+                <FormItem className="industry">
                   <FormLabel>Industry</FormLabel>
                   <Select
                     onValueChange={field.onChange}
@@ -406,7 +474,7 @@ export function AIGenerationDialog({
               control={form.control}
               name="prompt"
               render={({ field }) => (
-                <FormItem>
+                <FormItem className="prompt">
                   <div className="flex items-center justify-between">
                     <FormLabel>Prompt</FormLabel>
                     {selectedDiagramType && (
@@ -448,7 +516,7 @@ export function AIGenerationDialog({
                 className="relative overflow-hidden"
               >
                 {!isLoading && (
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 generate">
                     <Sparkles className="h-4 w-4" />
                     <span>Generate</span>
                   </div>

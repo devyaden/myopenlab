@@ -10,6 +10,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import Joyride from 'react-joyride';
 import {
   Folder,
   FileText,
@@ -43,6 +44,7 @@ import {
   AlertDialogCancel,
   AlertDialogAction,
 } from "@/components/ui/alert-dialog";
+import { useOnboardingStore } from "@/lib/store/useOnboarding";
 
 export function HomeContent() {
   const {
@@ -57,6 +59,33 @@ export function HomeContent() {
     getFolders,
     fetchRootCanvases,
   } = useSidebarStore();
+  const { 
+    protectedOnBording, 
+    isFirstVisit, 
+    setData, 
+    setProtectedOnBording, 
+    setCreateCategoryOnbording, 
+    setCanvasOnbording,
+    setNotFirstVisit
+  } = useOnboardingStore();
+
+  const steps = [
+    {
+      target: '.onboarding-create-button',
+      content: 'Click here to create a new folder!',
+      disableBeacon: true, 
+    },
+    {
+      target: '.folderInput',
+      content: 'Write folder name!',
+      disableBeacon: true
+    },
+    {
+      target: '.submit-create-folder',
+      content: 'By clicking on Create folder button it will create a folder!',
+      disableBeacon: true
+    },
+  ];
 
   const { user } = useUser();
   const [searchQuery, setSearchQuery] = useState("");
@@ -70,6 +99,8 @@ export function HomeContent() {
   const [editingItemName, setEditingItemName] = useState("");
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [runTour, setRunTour] = useState(true);
+  const [hasMounted, setHasMounted] = useState(false);
   const [itemToDelete, setItemToDelete] = useState<{
     id: string;
     type: "folder" | "canvas";
@@ -185,8 +216,63 @@ export function HomeContent() {
     }
   };
 
+  const handleJoyrideCllback = (data: any) => {
+    const { action, index, status, type } = data;
+
+    if (action === 'next' && index === 0) {
+      setCreateNewModalType("folder")
+    }
+
+    if (status === 'finished' || status === 'skipped') {
+      setRunTour(false);
+    }
+  }
+
+  const handleOnboarding = (data: string) => {
+    if(data === 'home') {
+      setProtectedOnBording(true)
+    } else if (data === 'category') {
+      setCreateCategoryOnbording(true)
+    } else if (data === 'canvas') {
+      setCanvasOnbording(true)
+    }
+
+    setNotFirstVisit(true)
+
+  }
+
+  
+  useEffect(() => {
+    if (isFirstVisit && protectedOnBording) {
+      setData(steps);
+    }
+
+    const timeout = setTimeout(() => {
+      setHasMounted(true);
+      setRunTour(isFirstVisit);
+    }, 1500);
+
+    return () => clearTimeout(timeout);
+  }, [isFirstVisit]);
+
   return (
     <div className="flex flex-col h-full">
+      {hasMounted && isFirstVisit && protectedOnBording && (
+        <Joyride
+          steps={steps}
+          run={runTour}
+          callback={handleJoyrideCllback}
+          continuous
+          showProgress
+          showSkipButton
+          styles={{
+            options: {
+              primaryColor: '#22c55e',
+              zIndex: 10000,
+            },
+          }}
+        />
+      )}
       <div className="p-6 flex-shrink-0 bg-white">
         <div className="flex flex-col md:flex-row justify-between md:items-center mb-6">
           <h1 className="text-2xl font-semibold md:w-1/4">Home</h1>
@@ -209,7 +295,46 @@ export function HomeContent() {
               )}
             </div>
           </div>
-          <div className="md:w-1/4 flex justify-end mt-4 md:mt-0">
+          <div className="md:w-1/4 flex justify-end gap-3 mt-4 md:mt-0">
+            {!isFirstVisit &&          
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  className="bg-yadn-accent-green hover:bg-yadn-accent-green/80 text-white"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  Start Onboarding
+                </Button>
+              </DropdownMenuTrigger>
+
+              <DropdownMenuContent align="end" className="w-56">
+                <DropdownMenuItem
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleOnboarding('home');
+                  }}
+                >
+                  🏠 Start Home Onboarding
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleOnboarding('category');
+                  }}
+                >
+                  📁 Start Category Onboarding
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleOnboarding('canvas');
+                  }}
+                >
+                  🎨 Start Canvas Onboarding
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>}
+
             <Button
               onClick={() => setCreateNewModalType("canvas")}
               className="bg-yadn-accent-green hover:bg-yadn-accent-green/80 text-white"
@@ -222,7 +347,7 @@ export function HomeContent() {
 
       {/* Scrollable Folders Grid */}
       <ScrollArea className="flex-grow p-6 pt-0">
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 gap-6">
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-12 gap-6">
           {/* Root Folder - Only show if it matches search or thesearch is empty */}
           {showRootFolder && (
             <Link href={`/protected/folder/root`}>
@@ -301,7 +426,7 @@ export function HomeContent() {
           <div className="h-28 w-28">
             <Button
               variant="ghost"
-              className="flex flex-col text-sm w-full h-full border border-gray-200 rounded-lg"
+              className="flex flex-col text-sm w-full h-full border border-gray-200 rounded-lg onboarding-create-button"
               onClick={() => setCreateNewModalType("folder")}
             >
               <Plus className="mb-1 h-5 w-5" />
@@ -310,21 +435,21 @@ export function HomeContent() {
           </div>
         </div>
       </ScrollArea>
-
-      <CreateNewModal
-        isOpen={Boolean(createNewModalType)}
-        onClose={() => {
-          setCreateNewModalType(null);
-          setCurrentFolderForCreate(null);
-        }}
-        onCreateFolder={handleCreateFolder}
-        onCreateCanvas={handleCreateCanvas}
-        folders={folders}
-        type={createNewModalType}
-        currentFolderId={currentFolderForCreate}
-        rootCanvases={rootCanvases}
-      />
-
+        <div>
+          <CreateNewModal
+            isOpen={Boolean(createNewModalType)}
+            onClose={() => {
+              setCreateNewModalType(null);
+              setCurrentFolderForCreate(null);
+            }}
+            onCreateFolder={handleCreateFolder}
+            onCreateCanvas={handleCreateCanvas}
+            folders={folders}
+            type={createNewModalType}
+            currentFolderId={currentFolderForCreate}
+            rootCanvases={rootCanvases}
+          />
+        </div>
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
         <DialogContent>
           <DialogHeader>

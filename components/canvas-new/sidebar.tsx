@@ -19,6 +19,8 @@ import {
 import type React from "react";
 import { useCallback, useEffect, useState, useMemo } from "react";
 import { renderShapePreview } from "./shape-utils";
+import { useOnboardingStore } from "@/lib/store/useOnboarding";
+import Joyride from 'react-joyride';
 
 interface SidebarProps {
   onDragStart: (event: React.DragEvent, shapeType: string) => void;
@@ -228,6 +230,8 @@ export function Sidebar({
     },
   ];
 
+  const { isFirstVisit, canvasOnbording, setCanvasOnbording } = useOnboardingStore();
+  const [hasMounted, setHasMounted] = useState(false);
   const [filteredCategories, setFilteredCategories] =
     useState<ShapeCategory[]>(shapeCategories);
 
@@ -335,6 +339,50 @@ export function Sidebar({
     [onShapeClick, onOpenImageManager]
   );
 
+  const steps = sortedCategories.map((cat, index) => {
+    let content = '';
+
+    switch (cat.title.toLowerCase()) {
+      case 'shapes':
+        content = 'This is the Shapes category. Click and drag any shape into the canvas to start building.';
+        break;
+      case 'arrows & lines':
+        content = 'Use Arrows & Lines to connect your shapes and define flow or relationships.';
+        break;
+      case 'actors':
+        content = 'The Actors category includes user or system entities. Drag these to represent roles.';
+        break;
+      case 'resources':
+        content = 'Resources represent systems, data sources, or tools in your diagram. Click and drag to use them.';
+        break;
+      case 'extras':
+        content = 'Extras include additional visual elements like icons or labels to enhance your diagram.';
+        break;
+      default:
+        content = `This is the "${cat.title}" category. Click to expand and view shapes.`;
+    }
+
+    return {
+      target: `.shape-category-title-${index}`,
+      content,
+      disableBeacon: true,
+    };
+  });
+
+  const handleJoyrideCllback = (data: any) => {
+    const { action, index, status, type } = data;
+
+    if (status === 'finished' || status === 'skipped') {
+      setCanvasOnbording(false);
+    }
+  }
+
+  useEffect(() => {
+    setTimeout(()=> {
+      setHasMounted(true);
+    }, 100)
+  }, [])
+
   return (
     <aside
       className={cn(
@@ -342,6 +390,24 @@ export function Sidebar({
         isVisible ? "w-72 translate-x-0" : "w-0 -translate-x-full md:w-0"
       )}
     >
+      {isFirstVisit &&
+       isVisible && 
+       hasMounted && 
+       canvasOnbording &&
+       <Joyride
+          steps={steps}
+          callback={handleJoyrideCllback}
+          continuous
+          showProgress
+          showSkipButton
+          styles={{
+            options: {
+              primaryColor: '#22c55e',
+              zIndex: 10000,
+            },
+          }}
+        />
+      }
       {isVisible && (
         <div className="flex flex-col h-full">
           {/* Fixed Header */}
@@ -472,15 +538,15 @@ export function Sidebar({
                   </div>
                   {sortedCategories
                     .filter((cat) => !starredCategories.has(cat.title))
-                    .map((category) => (
+                    .map((category, index) => (
                       <Collapsible
                         key={category.title}
                         open={openItems[category.title]}
                         onOpenChange={() => toggleItem(category.title)}
                       >
                         <CollapsibleTrigger asChild>
-                          <div className="flex items-center justify-between px-4 hover:bg-gray-100/80 cursor-pointer py-3 border-t border-gray-100">
-                            <div className="flex items-center gap-2">
+                          <div className={`flex items-center justify-between px-4 hover:bg-gray-100/80 cursor-pointer py-3 border-t border-gray-100 shape-category-title-${index}`}>
+                            <div className={`flex items-center gap-2`}>
                               <span className="text-base text-gray-700">
                                 {category.title}
                               </span>
