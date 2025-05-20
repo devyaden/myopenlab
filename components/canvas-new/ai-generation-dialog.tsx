@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
@@ -24,23 +24,22 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { useForm } from "react-hook-form";
-import * as z from "zod";
-import toast from "react-hot-toast";
-import { LoadingSpinner } from "../loading-spinner";
+import { useOnboardingStore } from "@/lib/store/useOnboarding";
 import {
-  LanguageType,
   DiagramType,
   IndustryType,
+  LanguageType,
 } from "@/lib/types/diagram-types";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { InfoIcon, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
-import Joyride from 'react-joyride';
-import { useOnboardingStore } from "@/lib/store/useOnboarding";
 import CustomJoyrideTooltip from "../CustomJoyrideTooltip";
+import { useEffect, useState } from "react";
+import { useForm } from "react-hook-form";
+import toast from "react-hot-toast";
+import Joyride from "react-joyride";
+import * as z from "zod";
 
 // Define the form schema
 const formSchema = z.object({
@@ -63,28 +62,32 @@ interface AIGenerationDialogProps {
 
 const aiCanvasSteps = [
   {
-    target: '.language',
-    content: 'Click here to start with a new canvas. This will be your drawing board to create diagrams.',
+    target: ".language",
+    content:
+      "Click here to start with a new canvas. This will be your drawing board to create diagrams.",
     disableBeacon: true,
   },
   {
-    target: '.diagram',
-    content: 'Click here to create a visual table. You can add values directly to cells for structured data.',
+    target: ".diagram",
+    content:
+      "Click here to create a visual table. You can add values directly to cells for structured data.",
     disableBeacon: true,
   },
   {
-    target: '.industry',
-    content: 'Click here to create a visual document. Ideal for drafting and structuring textual content.',
+    target: ".industry",
+    content:
+      "Click here to create a visual document. Ideal for drafting and structuring textual content.",
     disableBeacon: true,
   },
   {
-    target: '.prompt',
-    content: 'Want help from AI? Click here to generate a diagram automatically based on your input.',
+    target: ".prompt",
+    content:
+      "Want help from AI? Click here to generate a diagram automatically based on your input.",
     disableBeacon: true,
   },
   {
-    target: '.generate',
-    content: 'Click to generate',
+    target: ".generate",
+    content: "Click to generate",
     disableBeacon: true,
   },
 ];
@@ -285,7 +288,7 @@ export function AIGenerationDialog({
   const handleJoyrideCallback = (data: any) => {
     const { action, index, status, type } = data;
 
-    console.log(action, index, status, type , 'action, index, status, type')
+    console.log(action, index, status, type, "action, index, status, type");
 
     if (status === 'finished' || status === 'skipped') {
       setCreateCategoryOnbording(false)
@@ -349,7 +352,6 @@ export function AIGenerationDialog({
             <FormField
               control={form.control}
               name="language"
-              
               render={({ field }) => (
                 <FormItem className="language">
                   <FormLabel>Language</FormLabel>
