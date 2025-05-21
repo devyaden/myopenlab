@@ -29,6 +29,7 @@ import TextAlign from "@tiptap/extension-text-align";
 import TextStyle from "@tiptap/extension-text-style";
 import Typography from "@tiptap/extension-typography";
 import Underline from "@tiptap/extension-underline";
+
 import { EditorContent, useEditor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import debounce from "lodash/debounce";
@@ -58,6 +59,7 @@ import EditorToolbar from "./EditorToolbar";
 import CanvasTableNode from "./extensions/CanvasTableNode";
 import { ReactFlowNode } from "./extensions/ReactFlowNode";
 import ResizableImageNode from "./extensions/ResizableImageNode";
+import { TextDirection } from "./extensions/TextDirection";
 import HeaderFooterDialog, {
   type HeaderFooterConfig,
 } from "./HeaderFooterDialog";
@@ -158,6 +160,7 @@ interface EditorState {
   showRulers: boolean;
   characterCount: number;
   wordCount: number;
+  textDirection: "ltr" | "rtl";
 }
 
 const Editor = (
@@ -242,6 +245,7 @@ const Editor = (
     showRulers: false,
     characterCount: 0,
     wordCount: 0,
+    textDirection: "ltr",
   });
 
   // Add new state variable for tracking editor key change time
@@ -304,6 +308,25 @@ const Editor = (
             class: "editor-code-block",
           },
         },
+        bulletList: {
+          keepMarks: true,
+          keepAttributes: true,
+          HTMLAttributes: {
+            class: "editor-bullet-list",
+          },
+        },
+        orderedList: {
+          keepMarks: true,
+          keepAttributes: true,
+          HTMLAttributes: {
+            class: "editor-ordered-list",
+          },
+        },
+        listItem: {
+          HTMLAttributes: {
+            class: "editor-list-item",
+          },
+        },
       }),
       TextStyle,
       FontFamily,
@@ -320,6 +343,10 @@ const Editor = (
       TextAlign.configure({
         types: ["heading", "paragraph"],
         alignments: ["left", "center", "right", "justify"],
+      }),
+      TextDirection.configure({
+        types: ["heading", "paragraph"],
+        defaultDirection: "ltr",
       }),
       Link.configure({
         openOnClick: false,
@@ -350,6 +377,7 @@ const Editor = (
       CharacterCount.configure({
         limit: 50000,
       }),
+
       TaskList,
       TaskItem.configure({
         nested: true,
@@ -383,11 +411,15 @@ const Editor = (
     ],
     editable: !readOnly,
     content: "",
-    onUpdate: ({ editor }) => {
-      // console.log("🚀 ~ onUpdate ~ editor:", editor.getHTML());
+    onSelectionUpdate: ({ editor }) => {
       if (editor) {
         updateEditorState(editor);
-        // debouncedSave();
+      }
+    },
+    onUpdate: ({ editor }) => {
+      if (editor) {
+        updateEditorState(editor);
+
         triggerAutoSave();
       }
     },
@@ -441,7 +473,6 @@ const Editor = (
         pendingChangesRef.current = false;
         setSaveStatus("saved");
       } catch (error) {
-        console.error("Error in auto-save:", error);
         setSaveStatus("error");
 
         // Retry once after a short delay if there was an error
@@ -568,24 +599,16 @@ const Editor = (
           // Load content if available - with improved error handling
           if (editor_state) {
             try {
-              console.log(
-                "Loading editor state:",
-                editor_state.substring(0, 100) + "..."
-              );
-
               const parsedState = JSON.parse(editor_state);
               const { state, controls, json } = parsedState;
 
               // If we have the full JSON structure, use it for better data preservation
               if (json) {
-                console.log("Setting editor content from JSON");
                 editor.commands.setContent(json);
               } else if (state) {
                 // Fallback to HTML content
-                console.log("Setting editor content from HTML state");
                 editor.commands.setContent(state);
               } else {
-                console.warn("No usable content found in editor state");
               }
 
               if (controls) {
@@ -596,8 +619,6 @@ const Editor = (
               setSaveStatus("saved");
               pendingChangesRef.current = false;
             } catch (error) {
-              console.error("Error parsing editor state:", error);
-              console.error("Raw editor state:", editor_state);
               toast.error("Failed to load document content - reload may help");
 
               // Recovery attempt - try to set empty content
@@ -605,13 +626,9 @@ const Editor = (
               setSaveStatus("error");
             }
           } else {
-            console.log(
-              "No editor state available, starting with empty document"
-            );
             editor.commands.setContent("");
           }
         } catch (error) {
-          console.error("Error initializing editor:", error);
           toast.error("Editor initialization failed");
         }
       }
@@ -644,11 +661,8 @@ const Editor = (
     const timer = setTimeout(() => {
       try {
         if (editor.isDestroyed) {
-          console.warn("Editor was destroyed, cannot update content");
           return;
         }
-
-        console.log("Updating editor from external state change");
 
         const parsedState = JSON.parse(editor_state);
         const { state, controls, json } = parsedState;
@@ -659,8 +673,6 @@ const Editor = (
 
         // Only update if content is different to avoid loops and cursor jumps
         if (currentContent !== incomingContent) {
-          console.log("Content has changed, updating editor");
-
           // If we have the full JSON structure, use it for better data preservation
           if (json) {
             editor.commands.setContent(json);
@@ -680,7 +692,6 @@ const Editor = (
           console.log("Content unchanged, skipping update");
         }
       } catch (error) {
-        console.error("Error updating editor from state:", error);
         toast.error("Failed to update document content");
       }
     }, 100);
@@ -688,49 +699,71 @@ const Editor = (
     return () => clearTimeout(timer);
   }, [editor_state, editor, editorKeyChangeTime]);
 
-  // Update editor state based on current selection
   const updateEditorState = useCallback(
-    (editor: any | null) => {
-      if (!editor) return;
+    (editor: any) => {
+      if (!editor || !editor.state) return;
 
-      const newState: EditorState = {
-        isBold: editor?.isActive("bold"),
-        isItalic: editor?.isActive("italic"),
-        isUnderline: editor?.isActive("underline"),
-        fontFamily: editor?.getAttributes("textStyle")?.fontFamily || "Arial",
-        fontSize: editor?.getAttributes("textStyle")?.fontSize || "15px",
-        alignment: editor?.isActive({ textAlign: "center" })
-          ? "center"
-          : editor?.isActive({ textAlign: "right" })
-            ? "right"
-            : editor?.isActive({ textAlign: "justify" })
-              ? "justify"
-              : "left",
-        blockType: editor?.isActive("heading", { level: 1 })
-          ? "h1"
-          : editor?.isActive("heading", { level: 2 })
-            ? "h2"
-            : editor?.isActive("heading", { level: 3 })
-              ? "h3"
-              : editor?.isActive("heading", { level: 4 })
-                ? "h4"
-                : editor?.isActive("heading", { level: 5 })
-                  ? "h5"
-                  : editor?.isActive("heading", { level: 6 })
-                    ? "h6"
-                    : editor?.isActive("blockquote")
-                      ? "blockquote"
-                      : editor?.isActive("codeBlock")
-                        ? "pre"
-                        : "p",
-        showGrid: editorState?.showGrid,
-        showRulers: editorState?.showRulers,
-        characterCount: editor?.storage.characterCount?.characters() || 0,
-        wordCount: editor?.storage.characterCount?.words() || 0,
-      };
+      try {
+        // Get the current selection from the editor
+        const { from, to, empty } = editor.state.selection;
 
-      if (JSON.stringify(newState) !== JSON.stringify(editorState)) {
-        setEditorState(newState);
+        // Get the specific mark and node attributes at the current selection
+        let marks = {};
+        let nodeAttrs = {};
+        let blockType = "p";
+
+        // Get text style attributes - directly using the editor's helper methods
+        const textStyleAttrs = editor.getAttributes("textStyle");
+        const fontFamily = textStyleAttrs.fontFamily || "Arial";
+        const fontSize = textStyleAttrs.fontSize || "15px";
+
+        // Determine block type and alignment
+        if (editor.isActive("heading", { level: 1 })) blockType = "h1";
+        else if (editor.isActive("heading", { level: 2 })) blockType = "h2";
+        else if (editor.isActive("heading", { level: 3 })) blockType = "h3";
+        else if (editor.isActive("heading", { level: 4 })) blockType = "h4";
+        else if (editor.isActive("heading", { level: 5 })) blockType = "h5";
+        else if (editor.isActive("heading", { level: 6 })) blockType = "h6";
+        else if (editor.isActive("blockquote")) blockType = "blockquote";
+        else if (editor.isActive("codeBlock")) blockType = "pre";
+
+        // Get alignment
+        let alignment = "left";
+        if (editor.isActive({ textAlign: "center" })) alignment = "center";
+        else if (editor.isActive({ textAlign: "right" })) alignment = "right";
+        else if (editor.isActive({ textAlign: "justify" }))
+          alignment = "justify";
+
+        // Get current text direction
+        let textDirection: "ltr" | "rtl" = "ltr";
+        // Get the current node
+        const node = editor.state.selection.$anchor.parent;
+        if (node && node.attrs && node.attrs.dir) {
+          textDirection = node.attrs.dir as "ltr" | "rtl";
+        }
+
+        // Build the updated state
+        const newState = {
+          isBold: editor.isActive("bold"),
+          isItalic: editor.isActive("italic"),
+          isUnderline: editor.isActive("underline"),
+          fontFamily,
+          fontSize,
+          alignment,
+          blockType,
+          showGrid: editorState?.showGrid,
+          showRulers: editorState?.showRulers,
+          characterCount: editor.storage.characterCount?.characters() || 0,
+          wordCount: editor.storage.characterCount?.words() || 0,
+          textDirection,
+        };
+
+        // Only update if state has actually changed
+        if (JSON.stringify(newState) !== JSON.stringify(editorState)) {
+          setEditorState(newState as EditorState);
+        }
+      } catch (error) {
+        console.error("Error updating editor state:", error);
       }
     },
     [editorState]
@@ -886,7 +919,6 @@ const Editor = (
       pageHeight: dimensions.height,
     }));
 
-    // Force a complete editor recreation by changing the key
     setEditorKey((prevKey) => {
       setEditorKeyChangeTime(Date.now());
       return prevKey + 1;
@@ -1020,6 +1052,12 @@ const Editor = (
       case "clear":
         editor.chain().focus().unsetAllMarks().run();
         break;
+      case "ltr":
+        editor.chain().focus().setTextDirection("ltr").run();
+        break;
+      case "rtl":
+        editor.chain().focus().setTextDirection("rtl").run();
+        break;
       default:
         break;
     }
@@ -1048,6 +1086,11 @@ const Editor = (
   const setAlignment = (alignment: "left" | "center" | "right" | "justify") => {
     if (!editor) return;
     editor.chain().focus().setTextAlign(alignment).run();
+  };
+
+  const setTextDirection = (direction: "ltr" | "rtl") => {
+    if (!editor) return;
+    editor.chain().focus().setTextDirection(direction).run();
   };
 
   const formatBlock = (blockType: string) => {
@@ -1265,9 +1308,6 @@ const Editor = (
 
       handleSave();
     } catch (error) {
-      console.error("Error inserting canvas table:", error);
-      // toast.error("Failed to insert canvas table");
-      // Ensure pointer events are restored even if there's an error
       document.body.style.pointerEvents = "";
     }
   };
@@ -1387,7 +1427,6 @@ const Editor = (
               canvas.canvas_type === "hybrid") &&
             canvas.columns?.length > 0
         );
-        console.log("🚀 ~ insertContent ~ folderCanvases:", folderCanvases);
 
         if (tableCanvases.length > 0) {
           // Select the first table by default
@@ -1478,7 +1517,6 @@ const Editor = (
       setSaveStatus("saved");
       pendingChangesRef.current = false;
     } catch (error) {
-      console.error("Error saving document:", error);
       setSaveStatus("error");
 
       // Show error toast only on manual save
@@ -1549,7 +1587,6 @@ const Editor = (
         { duration: 6000 }
       );
     } catch (error) {
-      console.error("PDF export error:", error);
       toast.error(
         "Failed to open print dialog: " +
           ((error as Error)?.message || "Unknown error")
@@ -1643,7 +1680,6 @@ const Editor = (
         toast.error("Invalid document format");
       }
     } catch (error) {
-      console.error("Import error:", error);
       toast.error("Failed to import document");
     }
   };
@@ -1683,7 +1719,6 @@ const Editor = (
 
       toast.success("Document exported as JSON");
     } catch (error) {
-      console.error("JSON export error:", error);
       toast.error("Failed to export document");
     }
   };
@@ -1728,7 +1763,6 @@ const Editor = (
       setVisibility(newVisibility);
       return Promise.resolve();
     } catch (error) {
-      console.error("Error updating visibility:", error);
       return Promise.reject(error);
     }
   };
@@ -1763,7 +1797,6 @@ const Editor = (
           editor?.setOptions({ editable: false });
         }
       } catch (error) {
-        console.error("Error checking authorization:", error);
         toast.error("Failed to check authorization");
       }
     };
@@ -1785,38 +1818,6 @@ const Editor = (
     readOnly,
     editor,
   ]);
-
-  // useEffect(() => {
-  //   const handleNameDescriptionChange = () => {
-  //     if (!readOnly) {
-  //       setSaveStatus("unsaved");
-  //       pendingChangesRef.current = true;
-
-  //       // Clear existing timeout
-  //       if (saveTimeoutRef.current) {
-  //         clearTimeout(saveTimeoutRef.current);
-  //       }
-
-  //       // Set new timeout for saving name/description changes
-  //       saveTimeoutRef.current = setTimeout(() => {
-  //         handleSave();
-  //       }, 2000);
-  //     }
-  //   };
-
-  //   // Listen for name and description changes
-  //   const unsubscribe = useDocumentStore.subscribe(
-  //     (state: any) => [state.name, state.description],
-  //     () => handleNameDescriptionChange()
-  //   );
-
-  //   return () => {
-  //     unsubscribe();
-  //     if (saveTimeoutRef.current) {
-  //       clearTimeout(saveTimeoutRef.current);
-  //     }
-  //   };
-  // }, [readOnly]);
 
   useImperativeHandle(ref, () => ({
     exportAsPDF: handleExportPDF,
@@ -1932,6 +1933,9 @@ const Editor = (
         onSetHighlightColor={setHighlightColor}
         onSetAlignment={(alignment) =>
           setAlignment(alignment as "left" | "center" | "right" | "justify")
+        }
+        onSetTextDirection={(direction) =>
+          setTextDirection(direction as "ltr" | "rtl")
         }
         onFormatBlock={formatBlock}
         onInsert={insertContent}

@@ -76,6 +76,13 @@ interface EditorToolbarProps {
     isItalic?: boolean;
     isUnderline?: boolean;
     alignment?: "left" | "center" | "right" | "justify";
+    fontSize?: string;
+    blockType?: string;
+    showGrid?: boolean;
+    showRulers?: boolean;
+    characterCount?: number;
+    wordCount?: number;
+    textDirection?: "ltr" | "rtl";
   };
   onFormatText: (format: string) => void;
   onSetFontFamily: (font: string) => void;
@@ -83,6 +90,7 @@ interface EditorToolbarProps {
   onSetTextColor: (color: string) => void;
   onSetHighlightColor: (color: string) => void;
   onSetAlignment: (alignment: string) => void;
+  onSetTextDirection: (direction: "ltr" | "rtl") => void;
   onFormatBlock: (blockType: string) => void;
   onInsert: (type: string) => void;
   pageSize: string;
@@ -120,6 +128,7 @@ export default function EditorToolbar({
   onSetTextColor,
   onSetHighlightColor,
   onSetAlignment,
+  onSetTextDirection,
   onFormatBlock,
   onInsert,
   pageSize,
@@ -136,7 +145,17 @@ export default function EditorToolbar({
   canvasType,
   isOwner,
 }: EditorToolbarProps) {
-  const [fontSize, setFontSize] = useState("15");
+  // Extract numeric value from fontSize (which might be in the format "15px")
+  const parseFontSize = (fontSizeStr: string | undefined) => {
+    if (!fontSizeStr) return "15";
+    // Extract numbers from string like "15px"
+    const match = fontSizeStr.match(/\d+/);
+    return match ? match[0] : "15";
+  };
+
+  const [fontSize, setFontSize] = useState(() =>
+    parseFontSize(editorState?.fontSize)
+  );
   const [showInsertMenu, setShowInsertMenu] = useState(false);
   const [showTextCaseMenu, setShowTextCaseMenu] = useState(false);
   const [showPageSettingsMenu, setShowPageSettingsMenu] = useState(false);
@@ -148,6 +167,14 @@ export default function EditorToolbar({
   const textCaseButtonRef = useRef<HTMLButtonElement | null>(null);
   const pageSettingsMenuRef = useRef<HTMLDivElement | null>(null);
   const pageSettingsButtonRef = useRef<HTMLButtonElement | null>(null);
+
+  // Update fontSize state when editorState.fontSize changes
+  useEffect(() => {
+    if (editorState?.fontSize) {
+      const newFontSize = parseFontSize(editorState.fontSize);
+      setFontSize(newFontSize);
+    }
+  }, [editorState?.fontSize]);
 
   // Color palettes
   const textColors = [
@@ -231,6 +258,49 @@ export default function EditorToolbar({
     { value: "Code Block", label: "Code Block" },
     { value: "Task List", label: "Task List" },
   ];
+
+  // Map block type from editorState to display label
+  const getBlockTypeLabel = () => {
+    if (!editorState?.blockType) return "Normal text";
+
+    switch (editorState.blockType) {
+      case "h1":
+        return "Heading 1";
+      case "h2":
+        return "Heading 2";
+      case "h3":
+        return "Heading 3";
+      case "h4":
+        return "Heading 4";
+      case "h5":
+        return "Heading 5";
+      case "h6":
+        return "Heading 6";
+      case "blockquote":
+        return "Quote";
+      case "pre":
+        return "Code Block";
+      case "p":
+      default:
+        return "Normal text";
+    }
+  };
+
+  // Get current formatting state for debugging
+  const debugState = JSON.stringify(
+    {
+      blockType: editorState?.blockType,
+      fontFamily: editorState?.fontFamily,
+      fontSize: editorState?.fontSize,
+      parsed: parseFontSize(editorState?.fontSize),
+      isBold: editorState?.isBold,
+      isItalic: editorState?.isItalic,
+      isUnderline: editorState?.isUnderline,
+      textDirection: editorState?.textDirection,
+    },
+    null,
+    2
+  );
 
   // Handle clicks outside menus
   useEffect(() => {
@@ -345,7 +415,9 @@ export default function EditorToolbar({
                     size="sm"
                     className="gap-1 px-3 hidden sm:flex rounded-lg"
                   >
-                    <span className="hidden sm:inline">Normal text</span>
+                    <span className="hidden sm:inline">
+                      {getBlockTypeLabel()}
+                    </span>
                     <span className="inline sm:hidden">Text</span>
                     <ChevronDown className="h-4 w-4" />
                   </Button>
@@ -438,7 +510,7 @@ export default function EditorToolbar({
 
             {/* Text formatting */}
             <Toggle
-              pressed={editorState?.isBold}
+              pressed={editorState?.isBold || false}
               onPressedChange={() => onFormatText("bold")}
               size="sm"
               aria-label="Bold"
@@ -448,7 +520,7 @@ export default function EditorToolbar({
             </Toggle>
 
             <Toggle
-              pressed={editorState?.isItalic}
+              pressed={editorState?.isItalic || false}
               onPressedChange={() => onFormatText("italic")}
               size="sm"
               aria-label="Italic"
@@ -458,7 +530,7 @@ export default function EditorToolbar({
             </Toggle>
 
             <Toggle
-              pressed={editorState?.isUnderline}
+              pressed={editorState?.isUnderline || false}
               onPressedChange={() => onFormatText("underline")}
               size="sm"
               aria-label="Underline"
@@ -468,6 +540,42 @@ export default function EditorToolbar({
             </Toggle>
 
             <Separator orientation="vertical" className="h-8" />
+
+            {/* Text Direction */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-1 px-3 hidden sm:flex rounded-lg"
+                >
+                  <span>
+                    {editorState?.textDirection === "rtl" ? "RTL" : "LTR"}
+                  </span>
+                  <ChevronDown className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start">
+                <DropdownMenuItem
+                  onClick={() => onFormatText("ltr")}
+                  className={
+                    editorState?.textDirection === "ltr" ? "bg-accent" : ""
+                  }
+                >
+                  <span className="mr-2">LTR</span>
+                  <span>Left to Right</span>
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() => onFormatText("rtl")}
+                  className={
+                    editorState?.textDirection === "rtl" ? "bg-accent" : ""
+                  }
+                >
+                  <span className="mr-2">RTL</span>
+                  <span>Right to Left</span>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
 
             {/* More text formatting options - Add ChevronDown icon to indicate dropdown */}
             <DropdownMenu>
@@ -603,7 +711,7 @@ export default function EditorToolbar({
             {/* Lists */}
             <Toggle
               onPressedChange={() =>
-                editor?.chain().focus().toggleBulletList().run()
+                editor.chain().focus().toggleBulletList().run()
               }
               size="sm"
               aria-label="Bullet List"
@@ -773,141 +881,6 @@ export default function EditorToolbar({
             </DropdownMenu>
 
             <Separator orientation="vertical" className="h-8" />
-
-            {/* Page settings dropdown */}
-            {/* <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-8 gap-1 px-2 ml-auto"
-                  ref={pageSettingsButtonRef}
-                >
-                  <FileText className="h-4 w-4" />
-                  <span className="hidden sm:inline">Page</span>
-                  <ChevronDown className="h-4 w-4" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent
-                ref={pageSettingsMenuRef}
-                align="end"
-                className="w-72"
-              >
-                <DropdownMenuLabel>Page Size</DropdownMenuLabel>
-                <Tabs defaultValue="common" onValueChange={setActiveTab}>
-                  <TabsList className="grid grid-cols-3">
-                    <TabsTrigger value="common">Common</TabsTrigger>
-                    <TabsTrigger value="a">A Series</TabsTrigger>
-                    <TabsTrigger value="other">Other</TabsTrigger>
-                  </TabsList>
-
-                  <TabsContent
-                    value="common"
-                    className="max-h-60 overflow-y-auto"
-                  >
-                    {COMMON_PAPER_SIZES.map((size) => (
-                      <DropdownMenuItem
-                        key={size}
-                        onClick={() => onPageSizeChange(size)}
-                        className="flex items-center justify-between"
-                      >
-                        <span>{size}</span>
-                        {pageSize === size && <Check className="h-4 w-4" />}
-                      </DropdownMenuItem>
-                    ))}
-                  </TabsContent>
-
-                  <TabsContent value="a" className="max-h-60 overflow-y-auto">
-                    {PAPER_SIZE_GROUPS["A Series"].map((size) => (
-                      <DropdownMenuItem
-                        key={size}
-                        onClick={() => onPageSizeChange(size)}
-                        className="flex items-center justify-between"
-                      >
-                        <span>{size}</span>
-                        {pageSize === size && <Check className="h-4 w-4" />}
-                      </DropdownMenuItem>
-                    ))}
-                  </TabsContent>
-
-                  <TabsContent
-                    value="other"
-                    className="max-h-60 overflow-y-auto"
-                  >
-                    <ScrollArea className="h-60">
-                      <DropdownMenuLabel>B Series</DropdownMenuLabel>
-                      {PAPER_SIZE_GROUPS["B Series"].map((size) => (
-                        <DropdownMenuItem
-                          key={size}
-                          onClick={() => onPageSizeChange(size)}
-                          className="flex items-center justify-between"
-                        >
-                          <span>{size}</span>
-                          {pageSize === size && <Check className="h-4 w-4" />}
-                        </DropdownMenuItem>
-                      ))}
-
-                      <DropdownMenuSeparator />
-                      <DropdownMenuLabel>C Series</DropdownMenuLabel>
-                      {PAPER_SIZE_GROUPS["C Series"].map((size) => (
-                        <DropdownMenuItem
-                          key={size}
-                          onClick={() => onPageSizeChange(size)}
-                          className="flex items-center justify-between"
-                        >
-                          <span>{size}</span>
-                          {pageSize === size && <Check className="h-4 w-4" />}
-                        </DropdownMenuItem>
-                      ))}
-
-                      <DropdownMenuSeparator />
-                      <DropdownMenuLabel>US Sizes</DropdownMenuLabel>
-                      {PAPER_SIZE_GROUPS["US Sizes"].map((size) => (
-                        <DropdownMenuItem
-                          key={size}
-                          onClick={() => onPageSizeChange(size)}
-                          className="flex items-center justify-between"
-                        >
-                          <span>{size}</span>
-                          {pageSize === size && <Check className="h-4 w-4" />}
-                        </DropdownMenuItem>
-                      ))}
-
-                      <DropdownMenuSeparator />
-                      <DropdownMenuLabel>Architectural</DropdownMenuLabel>
-                      {PAPER_SIZE_GROUPS["Architectural"].map((size) => (
-                        <DropdownMenuItem
-                          key={size}
-                          onClick={() => onPageSizeChange(size)}
-                          className="flex items-center justify-between"
-                        >
-                          <span>{size}</span>
-                          {pageSize === size && <Check className="h-4 w-4" />}
-                        </DropdownMenuItem>
-                      ))}
-                    </ScrollArea>
-                  </TabsContent>
-                </Tabs>
-
-                <DropdownMenuSeparator />
-                <DropdownMenuLabel>Orientation</DropdownMenuLabel>
-                <div className="grid grid-cols-2 gap-1 p-1">
-                  {PAPER_ORIENTATIONS.map((item) => (
-                    <Button
-                      key={item.orientation}
-                      variant={
-                        orientation === item.orientation ? "default" : "outline"
-                      }
-                      size="sm"
-                      onClick={() => onOrientationChange(item.orientation)}
-                      className="w-full"
-                    >
-                      {item.label}
-                    </Button>
-                  ))}
-                </div>
-              </DropdownMenuContent>
-            </DropdownMenu> */}
           </>
         )}
 

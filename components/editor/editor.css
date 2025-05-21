@@ -1812,3 +1812,55 @@
 .react-flow-node-wrapper .react-flow__viewport {
   transform-origin: center center !important;
 }
+
+.tiptap {
+  :first-child {
+    margin-top: 0;
+  }
+
+  /* List styles */
+  ul,
+  ol {
+    padding: 0 1rem;
+    margin: 1.25rem 1rem 1.25rem 0.4rem;
+
+    li p {
+      margin-top: 0.25em;
+      margin-bottom: 0.25em;
+    }
+  }
+}
+
+/* Add these styles to the editor.css file */
+
+/* RTL text direction styles */
+[dir="rtl"] {
+  direction: rtl;
+  text-align: right;
+}
+
+/* Ensure proper alignment and direction when nested */
+[dir="rtl"] [dir="ltr"] {
+  direction: ltr;
+  text-align: left;
+}
+
+[dir="ltr"] [dir="rtl"] {
+  direction: rtl;
+  text-align: right;
+}
+
+/* Direction-specific styles for lists */
+[dir="rtl"] ul,
+[dir="rtl"] ol {
+  padding-right: 2rem;
+  padding-left: 0;
+}
+
+/* Direction-specific styles for blockquotes */
+[dir="rtl"] blockquote {
+  border-right: 4px solid #e2e8f0;
+  border-left: none;
+  padding-right: 1rem;
+  padding-left: 0;
+}
