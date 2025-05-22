@@ -1,5 +1,3 @@
-import Joyride, { CallBackProps, TooltipRenderProps } from 'react-joyride';
-import { useState, useEffect } from 'react';
 import { Button } from './ui';
 
 const CustomJoyrideTooltip = ({
@@ -13,11 +11,10 @@ const CustomJoyrideTooltip = ({
   onDontShowAgainChange,
   isChecked
 }: any) => {
-  const [dontShowAgain, setDontShowAgain] = useState(false);
 
   return (
     <div 
-        className="p-4 bg-white rounded-sm w-full" 
+        className="p-4 bg-white rounded-sm w-full md:min-w-80" 
         {...tooltipProps}
     >
       <div className='mb-2'>{step.content}</div>

@@ -219,8 +219,8 @@ export function HomeContent() {
     }
   };
 
-  const handleDontShowAgainChange = (e) => {
-    setIsChecked(e?.target?.value)
+  const handleDontShowAgainChange = (e: any) => {
+    setIsChecked(e.target?.checked)
   }
 
   const handleJoyrideCllback = (data: any) => {
@@ -228,10 +228,6 @@ export function HomeContent() {
 
     if (action === 'next' && index === 0) {
       setCreateNewModalType("folder")
-    }
-
-    if (status === 'finished' || status === 'skipped') {
-      setRunTour(false);
     }
   }
 
@@ -257,7 +253,7 @@ export function HomeContent() {
               steps={steps}
               run={runTour}
               callback={handleJoyrideCllback}
-              tooltipComponent={(props) => (
+              tooltipComponent={(props: any) => (
                 <CustomJoyrideTooltip 
                   {...props} 
                   onDontShowAgainChange={handleDontShowAgainChange}

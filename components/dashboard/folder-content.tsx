@@ -87,8 +87,10 @@ export function FolderContent({ folderId }: FolderContentProps) {
     }
 
     if (status === 'finished' || status === 'skipped') {
-      setIsChecked(false);
-      setRunTour(false);
+      if(isChecked) {
+        setIsChecked(false);
+        setRunTour(false);
+      }
     }
   }
 
@@ -117,8 +119,8 @@ export function FolderContent({ folderId }: FolderContentProps) {
     }
   }, [folders, folderId, rootCanvases]);
 
-  const handleDontShowAgainChange = (e) => {
-    setIsChecked(e?.target?.value)
+  const handleDontShowAgainChange = (e: any) => {
+    setIsChecked(e.target?.checked)
   }
 
   const filteredCanvases =
@@ -134,7 +136,7 @@ export function FolderContent({ folderId }: FolderContentProps) {
           steps={steps}
           run={runTour}
           callback={handleJoyrideCllback}
-          tooltipComponent={(props) => (
+          tooltipComponent={(props: any) => (
             <CustomJoyrideTooltip
               {...props} 
               onDontShowAgainChange={handleDontShowAgainChange}

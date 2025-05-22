@@ -291,13 +291,15 @@ export function AIGenerationDialog({
     console.log(action, index, status, type, "action, index, status, type");
 
     if (status === 'finished' || status === 'skipped') {
-      setCreateCategoryOnbording(false)
-      setIsChecked(false)
+      if(isChecked) {
+        setCreateCategoryOnbording(false)
+        setIsChecked(false)
+      }
     }
   };
 
-  const handleDontShowAgainChange = (e) => {
-    setIsChecked(e?.target?.value)
+  const handleDontShowAgainChange = (e: any) => {
+    setIsChecked(e.target?.checked)
   }
 
   // Prevent modal closure during loading
@@ -308,9 +310,11 @@ export function AIGenerationDialog({
   };
 
   useEffect(() => {
-    setTimeout(() => {
+    const timeout = setTimeout(() => {
       setIsMounted(true);
     }, 100);
+
+    return () => clearTimeout(timeout);
   }, []);
 
   return (
@@ -320,7 +324,7 @@ export function AIGenerationDialog({
         steps={aiCanvasSteps}
         run={isFirstVisit}
         callback={handleJoyrideCallback}
-        tooltipComponent={(props) => (
+        tooltipComponent={(props: any) => (
           <CustomJoyrideTooltip
             {...props} 
             isChecked={isChecked}

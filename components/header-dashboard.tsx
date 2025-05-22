@@ -44,9 +44,8 @@ export const HeaderSidebar = ({ onToggleSidebar }: HeaderSidebarProps) => {
     setProtectedOnBording, 
     setCreateCategoryOnbording, 
     setCanvasOnbording,
-    protectedOnBording,
-    createCategoryOnbording,
-    canvasOnbording
+    setOnBoardingTour,
+    onBoardingTour
   } = useOnboardingStore();
   
   const pathname = usePathname();
@@ -108,6 +107,7 @@ export const HeaderSidebar = ({ onToggleSidebar }: HeaderSidebarProps) => {
   const handleSignOut = () => {
     if (isFirstVisit) {
       setNotFirstVisit(false);
+      setOnBoardingTour(false)
     }
     signOut()
   }
@@ -218,10 +218,7 @@ export const HeaderSidebar = ({ onToggleSidebar }: HeaderSidebarProps) => {
                   <span>Profile</span>
                 </Link>
               </DropdownMenuItem>
-                {(!isFirstVisit || 
-                  protectedOnBording || 
-                  createCategoryOnbording || 
-                  canvasOnbording) && (
+                {!onBoardingTour  && (
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild className="mb-2">
                       <div

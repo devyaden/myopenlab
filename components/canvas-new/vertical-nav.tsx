@@ -1,8 +1,11 @@
+'use client'
 import { Button } from "@/components/ui/button";
 import { useOnboardingStore } from "@/lib/store/useOnboarding";
 import { CANVAS_TYPE } from "@/types/store";
 import { Image, Printer, Shapes } from "lucide-react";
+import { useEffect, useState } from "react";
 import Joyride from 'react-joyride';
+import CustomJoyrideTooltip from "../CustomJoyrideTooltip";
 
 interface VerticalNavProps {
   className?: string;
@@ -19,7 +22,8 @@ export function VerticalNav({
   onDragStart,
   onOpenImageManager,
 }: VerticalNavProps) {
-  const { isFirstVisit, canvasOnbording } = useOnboardingStore();
+  const { isFirstVisit, canvasOnbording, setIsChecked, isChecked } = useOnboardingStore();
+  const [isWindow, setIsWindow] = useState(false)
 
   const steps = [
     {
@@ -34,10 +38,25 @@ export function VerticalNav({
     },
   ];
 
+  const handleDontShowAgainChange = (e: any) => {
+    setIsChecked(e.target?.checked)
+  }
+
+  useEffect(()=>{
+    setIsWindow(true)
+  },[])
+
   return (
     <>
-      {isFirstVisit && canvasOnbording && <Joyride
+      {isFirstVisit && canvasOnbording && isWindow && <Joyride
         steps={steps}
+        tooltipComponent={(props: any) => (
+          <CustomJoyrideTooltip
+              {...props} 
+              onDontShowAgainChange={handleDontShowAgainChange}
+              isChecked={isChecked}
+            />
+          )}
         continuous
         showProgress
         showSkipButton

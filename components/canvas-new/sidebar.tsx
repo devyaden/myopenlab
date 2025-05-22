@@ -22,6 +22,7 @@ import { renderShapePreview } from "./shape-utils";
 import { useOnboardingStore } from "@/lib/store/useOnboarding";
 import Joyride from 'react-joyride';
 import CustomJoyrideTooltip from "../CustomJoyrideTooltip";
+import { useRef } from "react";
 
 interface SidebarProps {
   onDragStart: (event: React.DragEvent, shapeType: string) => void;
@@ -61,6 +62,8 @@ export function Sidebar({
   );
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [isSearching, setIsSearching] = useState<boolean>(false);
+  const sidebarRef = useRef<HTMLDivElement>(null);
+  const [sidebarWidth, setSidebarWidth] = useState(0);
 
   // Define the shape categories
   const shapeCategories: ShapeCategory[] = [
@@ -232,7 +235,6 @@ export function Sidebar({
   ];
 
   const { isFirstVisit, canvasOnbording, setCanvasOnbording, setIsChecked, isChecked } = useOnboardingStore();
-  const [hasMounted, setHasMounted] = useState(false);
   const [filteredCategories, setFilteredCategories] =
     useState<ShapeCategory[]>(shapeCategories);
 
@@ -374,22 +376,31 @@ export function Sidebar({
     const { action, index, status, type } = data;
 
     if (status === 'finished' || status === 'skipped') {
-      setCanvasOnbording(false);
+      if(isChecked) {
+        setCanvasOnbording(false);
+        setIsChecked(false);
+      }
     }
   }
 
-  const handleDontShowAgainChange = (e) => {
-    setIsChecked(e?.target?.value)
+  const handleDontShowAgainChange = (e: any) => {
+    setIsChecked(e.target?.checked)
   }
 
   useEffect(() => {
-    setTimeout(()=> {
-      setHasMounted(true);
-    }, 100)
-  }, [])
+    const timeout = setTimeout(() => {
+      if (sidebarRef.current) {
+        const width = sidebarRef.current.getBoundingClientRect().width;
+        setSidebarWidth(width);
+      }
+    }, 350);
+
+    return () => clearTimeout(timeout);
+  }, [isVisible]);
 
   return (
     <aside
+      ref={sidebarRef}
       className={cn(
         "border-r border-gray-200 bg-white fixed md:static transition-all duration-300 ease-in-out z-10",
         isVisible ? "w-72 translate-x-0" : "w-0 -translate-x-full md:w-0"
@@ -397,18 +408,18 @@ export function Sidebar({
     >
       {isFirstVisit &&
        isVisible && 
-       hasMounted && 
        canvasOnbording &&
+       sidebarWidth >= 280 &&
        <Joyride
           steps={steps}
           callback={handleJoyrideCllback}
-          tooltipComponent={(props) => (
+          tooltipComponent={(props: any) => (
           <CustomJoyrideTooltip
-            {...props} 
-            onDontShowAgainChange={handleDontShowAgainChange}
-            isChecked={isChecked}
-          />
-        )}
+              {...props} 
+              onDontShowAgainChange={handleDontShowAgainChange}
+              isChecked={isChecked}
+            />
+          )}
           continuous
           showProgress
           showSkipButton

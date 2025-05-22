@@ -310,13 +310,15 @@ export function CreateNewModal({
       const { action, index, status, type } = data;
 
       if (status === 'finished' || status === 'skipped') {
-        setStepIndex(0);
-        setIsChecked(false);
-        setProtectedOnBording(false)
+        if(isChecked) {
+          setStepIndex(0);
+          setIsChecked(false);
+          setProtectedOnBording(false)
+        }
       } else if (type === 'step:after') {
-        setStepIndex(prev => prev + 1);
+        setStepIndex((prev: any) => prev + 1);
       } else if (type === 'step:after' && action === 'prev') {
-        setStepIndex(prev => Math.max(prev - 1, 0));
+        setStepIndex((prev: any) => Math.max(prev - 1, 0));
       }
     };
 
@@ -328,7 +330,7 @@ export function CreateNewModal({
     }
 
     const onDontShowAgainChange = (e: any) => {
-      setIsChecked(e?.target?.value)
+      setIsChecked(e.target?.checked)
     }
 
     // Step 1: Type selection (only for canvas)
@@ -338,7 +340,7 @@ export function CreateNewModal({
           {isFirstVisit && createCategoryOnbording && <Joyride
                 steps={canvasSteps}
                 callback={handleRedrectToAi}
-                tooltipComponent={(props) => (
+                tooltipComponent={(props: any) => (
                     <CustomJoyrideTooltip 
                       {...props} 
                       onDontShowAgainChange={onDontShowAgainChange}
@@ -460,7 +462,7 @@ export function CreateNewModal({
               stepIndex={stepIndex}
               run={isFirstVisit}
               callback={handleJoyrideCallback}
-              tooltipComponent={(props) => (
+              tooltipComponent={(props: any) => (
                 <CustomJoyrideTooltip 
                   {...props}
                   onDontShowAgainChange={onDontShowAgainChange}

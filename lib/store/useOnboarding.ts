@@ -7,12 +7,14 @@ interface OnboardingStore {
   createCategoryOnbording: boolean;
   canvasOnbording: boolean;
   isChecked: boolean;
+  onBoardingTour: boolean;
   data: any[],
   resetOnboarding: () => void;
   setProtectedOnBording: (val: boolean) => void;
   setCreateCategoryOnbording: (val: boolean) => void;
   setCanvasOnbording: (val: boolean) => void;
   setNotFirstVisit: (val: boolean) => void;
+  setOnBoardingTour: (val: boolean) => void;
   setIsChecked: (val: boolean) => void;
   setData: (data: any) => void;
 }
@@ -24,11 +26,13 @@ export const useOnboardingStore = create<OnboardingStore>()(
       protectedOnBording: true,
       createCategoryOnbording: true,
       canvasOnbording: true,
+      onBoardingTour: true,
       data: [],
       isChecked: false,
 
       setData: (data) => set({data: data}),
       setNotFirstVisit: (val)=> set({isFirstVisit: val}),
+      setOnBoardingTour: (val)=> set({onBoardingTour: val}),
       setProtectedOnBording: (val) => set({ protectedOnBording: val }),
       setCreateCategoryOnbording: (val) => set({ createCategoryOnbording: val }),
       setCanvasOnbording: (val) => set({ canvasOnbording: val }),
@@ -38,6 +42,7 @@ export const useOnboardingStore = create<OnboardingStore>()(
           isChecked: false,
           isFirstVisit: true,
           protectedOnBording: true,
+          onBoardingTour: true,
         }),
     }),
     {
