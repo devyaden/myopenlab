@@ -146,7 +146,6 @@ export default function ReactFlowCanvas({
         width: "100%",
         overflow: "hidden",
         borderRadius: "4px",
-        backgroundColor: "red",
       }}
     >
       <ReactFlow

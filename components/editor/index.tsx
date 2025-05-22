@@ -183,7 +183,6 @@ const Editor = (
   },
   ref: any
 ) => {
-  const [currentDocument, setCurrentDocument] = useState<Document | null>(null);
   const [imageDialogOpen, setImageDialogOpen] = useState(false);
   const [tableDialogOpen, setTableDialogOpen] = useState(false);
   const [linkDialogOpen, setLinkDialogOpen] = useState(false);
@@ -375,7 +374,7 @@ const Editor = (
         placeholder: "Start typing or use the toolbar to format...",
       }),
       CharacterCount.configure({
-        limit: 50000,
+        limit: 500000,
       }),
 
       TaskList,
