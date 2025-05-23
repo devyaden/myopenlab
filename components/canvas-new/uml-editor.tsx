@@ -40,7 +40,7 @@ import { UMLToolbar } from "./uml-toolbar";
 import { NodePropertiesSidebar } from "./node-properties-sidebar";
 import { VIEW_MODE, ViewMode } from "./table-view/table.types";
 import HelperLinesRenderer from "./HelperLines";
-import { getHelperLines } from "@/lib/canvas.utils";
+import { findBestParentNode, getHelperLines } from "@/lib/canvas.utils";
 
 const nodeTypes = {
   genericNode: GenericNode,
@@ -323,6 +323,7 @@ export function UMLEditor({
     (event: React.MouseEvent, draggedNode: Node, draggedNodes: Node[]) => {
       const children = nodes?.filter((n) => n.parentNode === draggedNode.id);
       let sortedNodes: Node[];
+
       if (children.length === 0) {
         sortedNodes = [...nodes].sort((a, b) => {
           if (a.id === draggedNode.id) return 1;
@@ -336,29 +337,28 @@ export function UMLEditor({
       const updatedNodes = sortedNodes.map((node) => {
         if (draggedNodes.some((dn) => dn.id === node.id)) {
           const absolutePosition = findAbsolutePosition(node, sortedNodes);
-          const intersectingNode = sortedNodes.find(
-            (n) =>
-              n.id !== node.id &&
-              absolutePosition.x >= n.position.x &&
-              absolutePosition.x <= n.position.x + (n.width || 0) &&
-              absolutePosition.y >= n.position.y &&
-              absolutePosition.y <= n.position.y + (n.height || 0)
+
+          // Use improved intersection detection
+          const bestParentNode = findBestParentNode(
+            node,
+            sortedNodes,
+            absolutePosition
           );
 
-          if (!intersectingNode) {
+          if (!bestParentNode) {
             return {
               ...node,
               parentNode: undefined,
               position: absolutePosition,
             };
-          } else if (node.id !== intersectingNode.id) {
+          } else {
             const targetAbsolutePosition = findAbsolutePosition(
-              intersectingNode,
+              bestParentNode,
               sortedNodes
             );
             return {
               ...node,
-              parentNode: intersectingNode.id,
+              parentNode: bestParentNode.id,
               position: {
                 x: absolutePosition.x - targetAbsolutePosition.x,
                 y: absolutePosition.y - targetAbsolutePosition.y,

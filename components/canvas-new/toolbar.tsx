@@ -27,6 +27,7 @@ import {
   Lock,
   Trash2,
   Underline,
+  Unlink,
 } from "lucide-react";
 import React from "react";
 import { ViewModeSwitcher } from "./view-mode-switcher";
@@ -80,6 +81,8 @@ interface ToolbarProps {
   setEdgeColor: (color: string) => void;
   canUndo: boolean;
   canRedo: boolean;
+  onDetachNode?: () => void;
+  selectedNodeHasParent?: boolean;
 }
 
 export const Toolbar = React.memo(function Toolbar({
@@ -130,6 +133,8 @@ export const Toolbar = React.memo(function Toolbar({
   setEdgeColor,
   canUndo,
   canRedo,
+  selectedNodeHasParent,
+  onDetachNode,
 }: ToolbarProps) {
   const fontFamilies = [
     "Arial",
@@ -795,6 +800,20 @@ export const Toolbar = React.memo(function Toolbar({
         >
           <Lock className="h-4 w-4" />
         </Button>
+
+        {selectedNodeHasParent && (
+          <Button
+            variant="outline"
+            size="sm"
+            className="rounded-lg gap-2"
+            onClick={onDetachNode}
+            disabled={isStyleDisabled}
+            title="Detach from parent"
+          >
+            <Unlink className="h-4 w-4" />
+            Detach
+          </Button>
+        )}
       </div>
 
       <div className="ml-auto flex items-center">

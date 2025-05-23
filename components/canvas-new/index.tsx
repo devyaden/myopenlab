@@ -24,6 +24,7 @@ import { Toolbar } from "./toolbar";
 import { UMLEditor } from "./uml-editor";
 import { VerticalNav } from "./vertical-nav";
 import { ViewModeSwitcher } from "./view-mode-switcher";
+import { findAbsolutePosition } from "@/lib/canvas.utils";
 
 interface NodeStyle {
   fontFamily: string;
@@ -96,7 +97,6 @@ export default function CanvasNew({ canvasId }: FigmaInterfaceProps) {
   const [unauthorized, setUnauthorized] = useState<boolean>(false);
 
   const documentRef = useRef<any>(null);
-  console.log("🚀 ~ CanvasNew ~ documentRef:", documentRef?.current);
 
   const {
     loadCanvas,
@@ -1184,36 +1184,6 @@ export default function CanvasNew({ canvasId }: FigmaInterfaceProps) {
     ? currentState.edges.find((edge) => edge.id === selectedEdge)?.data
     : null;
 
-  const bringForward = useCallback(() => {
-    if (selectedNodes.length > 0) {
-      const updatedNodes = [...currentState.nodes];
-      selectedNodes.forEach((nodeId) => {
-        const index = updatedNodes.findIndex((node) => node.id === nodeId);
-        if (index < updatedNodes.length - 1) {
-          const temp = updatedNodes[index];
-          updatedNodes[index] = updatedNodes[index + 1];
-          updatedNodes[index + 1] = temp;
-        }
-      });
-      updateState({ nodes: updatedNodes });
-    }
-  }, [selectedNodes, currentState.nodes, updateState]);
-
-  const sendBackward = useCallback(() => {
-    if (selectedNodes.length > 0) {
-      const updatedNodes = [...currentState.nodes];
-      selectedNodes.forEach((nodeId) => {
-        const index = updatedNodes.findIndex((node) => node.id === nodeId);
-        if (index > 0) {
-          const temp = updatedNodes[index];
-          updatedNodes[index] = updatedNodes[index - 1];
-          updatedNodes[index - 1] = temp;
-        }
-      });
-      updateState({ nodes: updatedNodes });
-    }
-  }, [selectedNodes, currentState.nodes, updateState]);
-
   // Add this function inside the FigmaInterface component
   const handleImportCanvas = useCallback((importedData: any) => {
     // setCurrentState(importedData);
@@ -1295,6 +1265,28 @@ export default function CanvasNew({ canvasId }: FigmaInterfaceProps) {
 
     checkAuthorization();
   }, [canvasId, user, isLoaded, router]);
+
+  const detachNodeFromParent = useCallback(() => {
+    if (!selectedNode) return;
+
+    const nodeToDetach = nodes.find((n) => n.id === selectedNode);
+    if (!nodeToDetach || !nodeToDetach.parentNode) return;
+
+    const updatedNodes = nodes.map((node) => {
+      if (node.id === selectedNode) {
+        // Calculate absolute position before detaching
+        const absolutePosition = findAbsolutePosition(node, nodes);
+        return {
+          ...node,
+          parentNode: undefined,
+          position: absolutePosition,
+        };
+      }
+      return node;
+    });
+
+    setNodes(updatedNodes);
+  }, [selectedNode, nodes, setNodes]);
 
   // Function to change canvas visibility
   const handleVisibilityChange = async (newVisibility: string) => {
@@ -1485,19 +1477,28 @@ export default function CanvasNew({ canvasId }: FigmaInterfaceProps) {
                 setEdgeWidth={handleEdgeWidthChange}
                 edgeColor={edgeColor}
                 setEdgeColor={handleEdgeColorChange}
+                onDetachNode={detachNodeFromParent}
+                selectedNodeHasParent={
+                  !!(
+                    selectedNode &&
+                    nodes.find((n) => n.id === selectedNode)?.parentNode
+                  )
+                }
               />
             )}
 
           <div className="flex flex-1 overflow-hidden">
-            {!isReadOnly && viewMode === VIEW_MODE.canvas && canvas_type !== VIEW_MODE.table  && (
-              <VerticalNav
-                className="hidden md:flex"
-                onToggleSidebar={toggleSidebar}
-                canvasType={canvas_type}
-                onDragStart={onDragStart}
-                onOpenImageManager={toggleImageManager}
-              />
-            )}
+            {!isReadOnly &&
+              viewMode === VIEW_MODE.canvas &&
+              canvas_type !== VIEW_MODE.table && (
+                <VerticalNav
+                  className="hidden md:flex"
+                  onToggleSidebar={toggleSidebar}
+                  canvasType={canvas_type}
+                  onDragStart={onDragStart}
+                  onOpenImageManager={toggleImageManager}
+                />
+              )}
             <div className="flex-1 flex flex-col md:flex-row relative ">
               {!isReadOnly && (
                 <Sidebar

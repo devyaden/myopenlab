@@ -205,3 +205,80 @@ export const findAbsolutePosition = (
     y: parentPosition.y + currentNode.position.y,
   };
 };
+
+// COMPLETE INTEGRATION GUIDE
+
+// 1. First, add these utility functions to your utils file or create a new one:
+
+/**
+ * Calculate the overlap percentage between two rectangles
+ * Returns the percentage of rect1 that overlaps with rect2
+ */
+export const calculateOverlapPercentage = (
+  rect1: { x: number; y: number; width: number; height: number },
+  rect2: { x: number; y: number; width: number; height: number }
+): number => {
+  const left = Math.max(rect1.x, rect2.x);
+  const right = Math.min(rect1.x + rect1.width, rect2.x + rect2.width);
+  const top = Math.max(rect1.y, rect2.y);
+  const bottom = Math.min(rect1.y + rect1.height, rect2.y + rect2.height);
+
+  if (left >= right || top >= bottom) {
+    return 0;
+  }
+
+  const intersectionArea = (right - left) * (bottom - top);
+  const rect1Area = rect1.width * rect1.height;
+  return (intersectionArea / rect1Area) * 100;
+};
+
+export const shouldGroupNodes = (
+  draggedNode: { x: number; y: number; width: number; height: number },
+  targetNode: { x: number; y: number; width: number; height: number },
+  overlapThreshold: number = 60
+): boolean => {
+  const overlapPercentage = calculateOverlapPercentage(draggedNode, targetNode);
+  return overlapPercentage >= overlapThreshold;
+};
+
+export const findBestParentNode = (
+  draggedNode: any,
+  allNodes: any[],
+  absolutePosition: { x: number; y: number }
+): any | null => {
+  const draggedRect = {
+    x: absolutePosition.x,
+    y: absolutePosition.y,
+    width: draggedNode.width || 100,
+    height: draggedNode.height || 100,
+  };
+
+  let bestCandidate: any | null = null;
+  let highestOverlap = 0;
+
+  for (const node of allNodes) {
+    if (node.id === draggedNode.id || node.parentNode === draggedNode.id) {
+      continue;
+    }
+
+    const nodeRect = {
+      x: node.position.x,
+      y: node.position.y,
+      width: node.width || 100,
+      height: node.height || 100,
+    };
+
+    if (shouldGroupNodes(draggedRect, nodeRect)) {
+      const overlapPercentage = calculateOverlapPercentage(
+        draggedRect,
+        nodeRect
+      );
+      if (overlapPercentage > highestOverlap) {
+        highestOverlap = overlapPercentage;
+        bestCandidate = node;
+      }
+    }
+  }
+
+  return bestCandidate;
+};
