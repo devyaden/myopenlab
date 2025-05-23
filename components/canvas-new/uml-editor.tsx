@@ -41,6 +41,7 @@ import { NodePropertiesSidebar } from "./node-properties-sidebar";
 import { VIEW_MODE, ViewMode } from "./table-view/table.types";
 import HelperLinesRenderer from "./HelperLines";
 import { findBestParentNode, getHelperLines } from "@/lib/canvas.utils";
+import { useCanvasStore } from "@/lib/store/useCanvas";
 
 const nodeTypes = {
   genericNode: GenericNode,
@@ -222,6 +223,22 @@ export function UMLEditor({
 
   const handleNodesChange = useCallback(
     (changes: NodeChange[]) => {
+      const isDraggingNow = changes.some(
+        (change) => change.type === "position" && change.dragging === true
+      );
+
+      const isDragEnd = changes.some(
+        (change) => change.type === "position" && change.dragging === false
+      );
+
+      // Update dragging state in store
+      const { setDragging } = useCanvasStore.getState();
+      if (isDraggingNow) {
+        setDragging(true);
+      } else if (isDragEnd) {
+        setDragging(false);
+      }
+
       const updatedNodes = customApplyNodeChanges(changes, nodes).map(
         (node) => {
           if (node.parentNode) {

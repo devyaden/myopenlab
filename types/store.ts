@@ -108,6 +108,7 @@ export interface CanvasActions {
   canRedo: boolean;
   updateCanvasSettings: (settings?: any) => void;
   createColumnInCanvas: (canvasId: string, columnData: any) => Promise<any>;
+  setDragging: (dragging: boolean) => void;
 }
 
 export interface UndoableState {

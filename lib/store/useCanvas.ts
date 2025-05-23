@@ -10,6 +10,7 @@ import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
 import { supabase } from "../supabase/client";
 import { ALL_SHAPES } from "../types/flow-table.types";
+import { useRef } from "react";
 
 const initialUndoableState: UndoableState = {
   nodes: [],
@@ -63,6 +64,8 @@ const initialHistoryState: HistoryState = {
 };
 
 const MAX_HISTORY_LENGTH = 50; // Limit history to prevent memory issues
+let isDragging = false;
+let dragTimeout: NodeJS.Timeout | null = null;
 
 export const useCanvasStore = create<CanvasStore>()(
   persist(
@@ -104,15 +107,36 @@ export const useCanvasStore = create<CanvasStore>()(
       return {
         ...initialState,
 
+        setDragging: (dragging: boolean) => {
+          isDragging = dragging;
+        },
+
         // Update nodes and track in history
         setNodes: (nodes) => {
-          const currentState = getUndoableState();
-          const newState = { ...currentState, nodes: [...nodes] };
+          // Clear any existing timeout
+          if (dragTimeout) {
+            clearTimeout(dragTimeout);
+            dragTimeout = null;
+          }
 
-          addToHistory(newState);
-
+          // Always update the nodes immediately
           set({ nodes: [...nodes] });
-          updateStateAndSync();
+
+          // If we're dragging, debounce the history update
+          if (isDragging) {
+            dragTimeout = setTimeout(() => {
+              const currentState = getUndoableState();
+              const newState = { ...currentState, nodes: [...nodes] };
+              addToHistory(newState);
+              updateStateAndSync();
+            }, 300);
+          } else {
+            // If not dragging, add to history immediately
+            const currentState = getUndoableState();
+            const newState = { ...currentState, nodes: [...nodes] };
+            addToHistory(newState);
+            updateStateAndSync();
+          }
         },
 
         // Update edges and track in history
