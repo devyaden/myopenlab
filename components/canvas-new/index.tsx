@@ -95,6 +95,7 @@ export default function CanvasNew({ canvasId }: FigmaInterfaceProps) {
   const [isOwner, setIsOwner] = useState<boolean>(false);
   const [isLoaded, setIsLoaded] = useState<boolean>(false);
   const [unauthorized, setUnauthorized] = useState<boolean>(false);
+  const [isDocumentReady, setIsDocumentReady] = useState(false);
 
   const documentRef = useRef<any>(null);
 
@@ -319,7 +320,6 @@ export default function CanvasNew({ canvasId }: FigmaInterfaceProps) {
       // Third pass - break any cycles we found
       const fixedNodes = firstPassNodes.map((node) => {
         if (circularNodes.has(node.id)) {
-          console.warn(`Breaking circular reference for node ${node.id}`);
           return {
             ...node,
             parentNode: undefined,
@@ -873,7 +873,6 @@ export default function CanvasNew({ canvasId }: FigmaInterfaceProps) {
           const images = await listImages(user.id);
           setUploadedImages(images);
         } catch (error) {
-          console.error("Failed to load images:", error);
           toast.error("Failed to load your images");
         }
       }
@@ -955,8 +954,6 @@ export default function CanvasNew({ canvasId }: FigmaInterfaceProps) {
 
         toast.success("Image uploaded successfully");
       } catch (error) {
-        console.error("Error uploading image:", error);
-        // Check if it's the limit error
         if (
           error instanceof Error &&
           error.message.includes("maximum limit of 10 images")
@@ -1029,7 +1026,6 @@ export default function CanvasNew({ canvasId }: FigmaInterfaceProps) {
 
         toast.success("Image deleted");
       } catch (error) {
-        console.error("Error deleting image:", error);
         toast.error("Failed to delete image");
       }
     },
@@ -1287,6 +1283,8 @@ export default function CanvasNew({ canvasId }: FigmaInterfaceProps) {
 
     setNodes(updatedNodes);
   }, [selectedNode, nodes, setNodes]);
+
+  // useEffect(() => {}, [viewMode, documentRef.current]);
 
   // Function to change canvas visibility
   const handleVisibilityChange = async (newVisibility: string) => {
@@ -1558,6 +1556,7 @@ export default function CanvasNew({ canvasId }: FigmaInterfaceProps) {
                   viewMode={viewMode}
                   canvasType={canvas_type!}
                   ref={documentRef}
+                  onReady={() => setIsDocumentReady(true)}
                 />
               )}
             </div>

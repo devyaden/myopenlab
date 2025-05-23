@@ -172,6 +172,7 @@ const Editor = (
     onViewModeChange,
     viewMode,
     canvasType,
+    onReady,
   }: {
     isPartOfCanvas?: boolean;
     onBackToBoard?: () => void;
@@ -180,6 +181,7 @@ const Editor = (
     onViewModeChange?: (viewMode: "canvas" | "table" | "document") => void;
     canvasType?: CANVAS_TYPE;
     viewMode?: "canvas" | "table" | "document";
+    onReady?: () => void;
   },
   ref: any
 ) => {
@@ -871,29 +873,29 @@ const Editor = (
   }, [editor, showPageMargins]);
 
   // Apply header and footer when editor is initialized
-  useEffect(() => {
-    if (editor && (headerConfig || footerConfig)) {
-      if (headerConfig) {
-        editor
-          .chain()
-          .focus()
-          .updateAttributes("doc", {
-            header: generateHeaderFooterContent(headerConfig),
-          })
-          .run();
-      }
+  // useEffect(() => {
+  //   if (editor && (headerConfig || footerConfig)) {
+  //     if (headerConfig) {
+  //       editor
+  //         .chain()
+  //         .focus()
+  //         .updateAttributes("doc", {
+  //           header: generateHeaderFooterContent(headerConfig),
+  //         })
+  //         .run();
+  //     }
 
-      if (footerConfig) {
-        editor
-          .chain()
-          .focus()
-          .updateAttributes("doc", {
-            footer: generateHeaderFooterContent(footerConfig),
-          })
-          .run();
-      }
-    }
-  }, [editor, headerConfig, footerConfig]);
+  //     if (footerConfig) {
+  //       editor
+  //         .chain()
+  //         .focus()
+  //         .updateAttributes("doc", {
+  //           footer: generateHeaderFooterContent(footerConfig),
+  //         })
+  //         .run();
+  //     }
+  //   }
+  // }, [editor, headerConfig, footerConfig]);
 
   // A complete approach to handle page size changes that forces a full editor recreation
   const handlePageSizeChange = (newSize: PaperSize) => {
@@ -1818,10 +1820,16 @@ const Editor = (
     editor,
   ]);
 
-  useImperativeHandle(ref, () => ({
-    exportAsPDF: handleExportPDF,
-    exportAsJSON: handleExportJSON,
-  }));
+  useImperativeHandle(ref, () => {
+    const methods = {
+      exportAsPDF: handleExportPDF,
+      exportAsJSON: handleExportJSON,
+    };
+
+    onReady?.();
+
+    return methods;
+  });
 
   const renderSaveStatus = () => {
     if (readOnly) return null;

@@ -34,7 +34,7 @@ import {
 import Image from "next/image";
 import Link from "next/link";
 import type React from "react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "react-hot-toast";
 import { LoadingSpinner } from "../loading-spinner";
 import { ImportModal } from "./import-modal";
@@ -270,11 +270,7 @@ export function Header({
     setIsExportModalOpen(true);
   };
 
-  // useEffect(() => {
-  //   return () => {
-  //     onSave();
-  //   };
-  // }, []);
+  useEffect(() => {}, [viewMode, exportAsJSON, exportAsPDF]);
 
   return (
     <div className="border-b border-gray-200 py-2 ">
