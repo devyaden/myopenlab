@@ -4,6 +4,7 @@ import "./react-flow-fixes.css";
 
 import DocumentEditor from "@/components/editor";
 import { Input } from "@/components/ui/input";
+import { findAbsolutePosition } from "@/lib/canvas.utils";
 import { useUser } from "@/lib/contexts/userContext";
 import { deleteImage, listImages, uploadImage } from "@/lib/storage-utils";
 import { useCanvasStore } from "@/lib/store/useCanvas";
@@ -24,7 +25,6 @@ import { Toolbar } from "./toolbar";
 import { UMLEditor } from "./uml-editor";
 import { VerticalNav } from "./vertical-nav";
 import { ViewModeSwitcher } from "./view-mode-switcher";
-import { findAbsolutePosition } from "@/lib/canvas.utils";
 
 interface NodeStyle {
   fontFamily: string;

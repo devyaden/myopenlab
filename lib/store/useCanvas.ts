@@ -10,7 +10,6 @@ import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
 import { supabase } from "../supabase/client";
 import { ALL_SHAPES } from "../types/flow-table.types";
-import { useRef } from "react";
 
 const initialUndoableState: UndoableState = {
   nodes: [],
