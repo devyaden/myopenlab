@@ -73,7 +73,7 @@ export default function FolderPage() {
           if (sidebarRef.current)
             sidebarRef.current.style.transform = "translateX(0)";
           if (mainRef.current)
-            mainRef.current.style.width = "calc(100% - 20rem)";
+            mainRef.current.style.width = "100%";
 
           setTimeout(() => {
             setIsAnimating(false);
@@ -90,14 +90,10 @@ export default function FolderPage() {
           onToggleSidebar={() => handleToggleSidebar(!showSidebar)}
         />
 
-        <div className="flex flex-1 overflow-hidden">
+        <div className="flex flex-1 overflow-hidden relative">
           <main
             ref={mainRef}
-            className="h-full overflow-hidden transition-all duration-300 ease-in-out"
-            style={{
-              width:
-                showSidebar && !isAnimating ? "calc(100% - 20rem)" : "100%",
-            }}
+            className="h-full w-full overflow-hidden transition-all duration-300 ease-in-out"
           >
             <FolderContent folderId={folderId} />
           </main>
@@ -116,8 +112,9 @@ export default function FolderPage() {
           {(showSidebar || isAnimating) && !isMobile && (
             <aside
               ref={sidebarRef}
-              className="w-80 border-l border-gray-100 bg-white overflow-hidden transition-transform duration-300 ease-in-out"
+               className="w-80 border-l border-gray-100 bg-white absolute right-0 overflow-hidden transition-transform duration-300 ease-in-out"
               style={{
+                height: "calc(100% - 65px)",
                 transform:
                   showSidebar && !isAnimating
                     ? "translateX(0)"
