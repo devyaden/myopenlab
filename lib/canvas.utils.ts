@@ -282,3 +282,22 @@ export const findBestParentNode = (
 
   return bestCandidate;
 };
+
+export const getDataKey = (column: any): string => {
+  // If dataKey is explicitly set, use it
+  if (column.dataKey) {
+    return column.dataKey;
+  }
+
+  // Fallback for existing columns without dataKey
+  if (column.title === "task") return "label";
+  if (column.title === "type") return "shape";
+
+  // For all other columns, use the title as the key
+  return column.title;
+};
+
+export const isSpecialColumn = (column: any): boolean => {
+  const dataKey = getDataKey(column);
+  return ["label", "shape", "id"].includes(dataKey);
+};

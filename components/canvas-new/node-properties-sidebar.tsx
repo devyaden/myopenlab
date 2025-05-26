@@ -91,7 +91,81 @@ interface Property {
   options?: string[];
   hidden?: boolean;
   isEditable?: boolean;
+  dataKey?: string; // Add dataKey to track the actual data property
 }
+
+// Helper functions for column data mapping
+const getDataKey = (column: any): string => {
+  if (column.dataKey) {
+    return column.dataKey;
+  }
+
+  if (column.title === "task") return "label";
+  if (column.title === "type") return "shape";
+  if (column.title === "id") return "id";
+
+  return column.title;
+};
+
+const getPropertyDataKey = (propertyName: string, columns: any[]): string => {
+  // Find matching column to get its dataKey
+  const matchingColumn = columns.find((col) => col.title === propertyName);
+  if (matchingColumn) {
+    return getDataKey(matchingColumn);
+  }
+
+  // Fallback for properties without matching columns
+  if (propertyName === "task") return "label";
+  if (propertyName === "type") return "shape";
+  if (propertyName === "id") return "id";
+
+  return propertyName;
+};
+
+const getNodeValue = (
+  node: Node,
+  propertyName: string,
+  columns: any[]
+): any => {
+  const dataKey = getPropertyDataKey(propertyName, columns);
+
+  switch (dataKey) {
+    case "label":
+      return node.data?.label;
+    case "shape":
+      return node.data?.shape;
+    case "id":
+      return node.id;
+    default:
+      return node.data?.[propertyName];
+  }
+};
+
+const updateNodeValue = (
+  node: Node,
+  propertyName: string,
+  value: any,
+  columns: any[]
+): any => {
+  const dataKey = getPropertyDataKey(propertyName, columns);
+  const updatedData = { ...node.data };
+
+  switch (dataKey) {
+    case "label":
+      updatedData.label = value;
+      break;
+    case "shape":
+      updatedData.shape = value;
+      break;
+    case "id":
+      // ID should not be editable, but handle just in case
+      break;
+    default:
+      updatedData[propertyName] = value;
+  }
+
+  return updatedData;
+};
 
 // List of non-editable properties
 const NON_EDITABLE_PROPERTIES = ["id", "from", "to", "parent", "children"];
@@ -319,45 +393,78 @@ export function NodePropertiesSidebar({
   useEffect(() => {
     if (selectedNode) {
       const { fromLabels, toLabels } = populateFromAndTo();
-      // Load title from node data
-      setTitle(selectedNode.data?.label || "");
+
+      // Load title from node data using dataKey mapping
+      // Find the "task" column (might be renamed)
+      const taskColumn = columns.find((col) => getDataKey(col) === "label");
+      const taskValue = getNodeValue(
+        selectedNode,
+        taskColumn?.title || "task",
+        columns
+      );
+      setTitle(taskValue || selectedNode.data?.label || "");
 
       // Get canvas settings to determine hidden columns
       const canvasStore = useCanvasStore.getState();
       const canvasSettings = canvasStore.canvasSettings;
       const hiddenColumns = canvasSettings?.table_settings?.hiddenColumns || [];
 
-      // Initialize properties from node data
+      const nodeProperties: Property[] = [];
+
+      // Add properties based on current columns (not node data keys)
+      columns.forEach((column) => {
+        // Skip excluded columns
+        if (EXCLUDED_PROPERTIES.includes(column.title)) {
+          return;
+        }
+
+        // Get the actual value using dataKey mapping
+        const actualValue = getNodeValue(selectedNode, column.title, columns);
+        const isEditable = !NON_EDITABLE_PROPERTIES.includes(column.title);
+
+        // Determine property type
+        let propertyType: PropertyType = mapColumnTypeToPropertyType(
+          column.type || "Text"
+        );
+
+        // Special handling for type column
+        if (getDataKey(column) === "shape") {
+          propertyType = "select";
+        }
+
+        // Add the property with current column title
+        nodeProperties.push({
+          name: column.title, // Use current column title
+          value: actualValue,
+          type: propertyType,
+          options:
+            column.type === "Select" && column.title === "type"
+              ? SHAPE_OPTIONS
+              : column.options,
+          hidden: hiddenColumns.includes(column.title),
+          isEditable,
+          dataKey: getDataKey(column),
+        });
+      });
+
+      // Add additional properties that might exist in node data but not in columns
+      // (like from, to, etc.)
       const nodeData = selectedNode.data
         ? { ...selectedNode.data, from: fromLabels, to: toLabels }
         : {};
-      const nodeProperties: Property[] = [];
 
-      // Add type property (using shape or node type)
-      nodeProperties.push({
-        name: "type",
-        value: nodeData.shape || selectedNode?.type || "",
-        type: "select",
-        options: SHAPE_OPTIONS,
-        hidden: hiddenColumns.includes("type"),
-        isEditable: true,
-      });
-
-      // Then add all other properties
       Object.entries(nodeData).forEach(([key, value]) => {
-        // Skip excluded properties and already added special properties
-        if (
-          !EXCLUDED_PROPERTIES.includes(key) &&
-          !["task", "type"].includes(key)
-        ) {
-          // Find matching column to determine type
-          const matchingColumn = columns.find((col) => col.title === key);
+        // Skip if this property is already added from columns
+        const alreadyAdded = nodeProperties.some((prop) => {
+          const propDataKey = prop.dataKey || prop.name;
+          return propDataKey === key || prop.name === key;
+        });
+
+        if (!alreadyAdded && !EXCLUDED_PROPERTIES.includes(key)) {
           const isEditable = !NON_EDITABLE_PROPERTIES.includes(key);
 
           let propertyType: PropertyType = "text";
-          if (matchingColumn) {
-            propertyType = mapColumnTypeToPropertyType(matchingColumn?.type);
-          } else if (typeof value === "number") {
+          if (typeof value === "number") {
             propertyType = "number";
           } else if (typeof value === "boolean") {
             propertyType = "checkbox";
@@ -367,14 +474,13 @@ export function NodePropertiesSidebar({
             propertyType = "email";
           }
 
-          // Include relation and rollup types
           nodeProperties.push({
             name: key,
             value: value,
             type: propertyType,
-            options: matchingColumn?.options,
             hidden: hiddenColumns.includes(key),
             isEditable,
+            dataKey: key, // For non-column properties, dataKey is the same as name
           });
         }
       });
@@ -501,11 +607,8 @@ export function NodePropertiesSidebar({
   const handleSaveTitle = () => {
     if (!selectedNode) return;
 
-    // Update node data with new title
-    const updatedData = {
-      ...selectedNode.data,
-      label: title,
-    };
+    // Update node data with new title using dataKey mapping
+    const updatedData = updateNodeValue(selectedNode, "task", title, columns);
 
     // Update node in store
     const updatedNodes = useCanvasStore
@@ -554,7 +657,7 @@ export function NodePropertiesSidebar({
         defaultValue = "";
     }
 
-    // Create new property
+    // Create new property with dataKey
     const newProperty: Property = {
       name: newPropertyName,
       value: defaultValue,
@@ -565,15 +668,20 @@ export function NodePropertiesSidebar({
           : undefined,
       hidden: false,
       isEditable: true,
+      dataKey: newPropertyName, // For new properties, dataKey defaults to property name
     };
 
     // Update properties state
     const updatedProperties = [...properties, newProperty];
     setProperties(updatedProperties);
 
-    // Update node data directly
-    const updatedData = { ...selectedNode.data };
-    updatedData[newProperty.name] = newProperty.value;
+    // Update node data using dataKey mapping
+    const updatedData = updateNodeValue(
+      selectedNode,
+      newProperty.name,
+      newProperty.value,
+      columns
+    );
 
     // Track hidden state
     if (!updatedData.hidden) {
@@ -590,11 +698,12 @@ export function NodePropertiesSidebar({
 
     useCanvasStore.getState().setNodes(updatedNodes);
 
-    // Add new column to table columns
+    // Add new column to table columns with dataKey
     const newColumn = {
       title: newProperty.name,
       type: mapPropertyTypeToColumnType(newPropertyType),
       options: newProperty.options,
+      dataKey: newProperty.name, // Set dataKey for new columns
     };
 
     // Check if column already exists
@@ -632,32 +741,47 @@ export function NodePropertiesSidebar({
       setValidationErrors(rest);
     }
 
-    // Update properties state
+    // Update properties state - preserve dataKey!
     const updatedProperties = [...properties];
     updatedProperties[index] = {
       ...updatedProperties[index],
       name: newName,
+      // Keep the same dataKey - this is crucial for special columns
     };
     setProperties(updatedProperties);
 
-    // Update node data directly
-    const updatedData = { ...selectedNode.data };
-    updatedData[newName] = updatedData[oldName];
-    delete updatedData[oldName];
+    // For regular properties (not special ones), update node data
+    const property = properties[index];
+    const isSpecialProperty =
+      property.dataKey && ["label", "shape", "id"].includes(property.dataKey);
 
-    // Update node in store
-    const updatedNodes = useCanvasStore
-      .getState()
-      .nodes.map((node) =>
-        node.id === selectedNode.id ? { ...node, data: updatedData } : node
-      );
+    if (!isSpecialProperty) {
+      // Only move data for regular properties
+      const updatedData = { ...selectedNode.data };
+      updatedData[newName] = updatedData[oldName];
+      delete updatedData[oldName];
 
-    useCanvasStore.getState().setNodes(updatedNodes);
+      // Update node in store
+      const updatedNodes = useCanvasStore
+        .getState()
+        .nodes.map((node) =>
+          node.id === selectedNode.id ? { ...node, data: updatedData } : node
+        );
 
-    // Update column title if it exists
+      useCanvasStore.getState().setNodes(updatedNodes);
+    }
+
+    // Update column title if it exists, but preserve dataKey
     if (columns.some((col) => col.title === oldName)) {
       const updatedColumns = columns.map((col) =>
-        col.title === oldName ? { ...col, title: newName } : col
+        col.title === oldName
+          ? {
+              ...col,
+              title: newName,
+              // Preserve existing dataKey - don't change it!
+              dataKey: col.dataKey || getDataKey(col),
+            }
+          : col
       );
       setColumns(updatedColumns);
     }
@@ -715,17 +839,13 @@ export function NodePropertiesSidebar({
     };
     setProperties(updatedProperties);
 
-    // Update node data directly
-    const updatedData = { ...selectedNode.data };
-
-    // Special handling for task and type
-    if (property.name === "task") {
-      updatedData.label = value;
-    } else if (property.name === "type") {
-      updatedData.shape = value;
-    } else {
-      updatedData[property.name] = value;
-    }
+    // Update node data using dataKey mapping
+    const updatedData = updateNodeValue(
+      selectedNode,
+      property.name,
+      value,
+      columns
+    );
 
     // Update node in store
     const updatedNodes = useCanvasStore
@@ -785,6 +905,7 @@ export function NodePropertiesSidebar({
 
     const propertyName = deleteConfirmation.propertyName;
     const index = deleteConfirmation.propertyIndex;
+    const property = properties[index];
 
     // Update properties state
     const updatedProperties = properties.filter((_, i) => i !== index);
@@ -794,13 +915,24 @@ export function NodePropertiesSidebar({
     const allNodes = useCanvasStore.getState().nodes;
     const updatedNodes = allNodes.map((node) => {
       // Skip nodes that don't have this property
-      if (!node.data || node.data[propertyName] === undefined) {
+      const hasProperty = property.dataKey
+        ? getNodeValue(node, propertyName, columns) !== undefined
+        : node.data && node.data[propertyName] !== undefined;
+
+      if (!hasProperty) {
         return node;
       }
 
       // Create a new data object without the property
       const updatedData = { ...node.data };
-      delete updatedData[propertyName];
+
+      // Remove using the correct key
+      if (property.dataKey && ["label", "shape"].includes(property.dataKey)) {
+        // Don't remove special properties like label and shape
+        // They should remain in the data
+      } else {
+        delete updatedData[propertyName];
+      }
 
       return { ...node, data: updatedData };
     });
@@ -968,10 +1100,11 @@ export function NodePropertiesSidebar({
       return;
     }
 
-    // Create new property
+    // Create new property with proper dataKey
     const newProperty: Property = {
       ...propertyToDuplicate,
       name: newName,
+      dataKey: newName, // For duplicated properties, dataKey should be the new name
     };
 
     // Update properties state
@@ -979,9 +1112,18 @@ export function NodePropertiesSidebar({
     updatedProperties.splice(index + 1, 0, newProperty);
     setProperties(updatedProperties);
 
-    // Update node data directly
-    const updatedData = { ...selectedNode.data };
-    updatedData[newProperty.name] = updatedData[propertyToDuplicate.name];
+    // Update node data using dataKey mapping
+    const originalValue = getNodeValue(
+      selectedNode,
+      propertyToDuplicate.name,
+      columns
+    );
+    const updatedData = updateNodeValue(
+      selectedNode,
+      newProperty.name,
+      originalValue,
+      columns
+    );
 
     // Update node in store
     const updatedNodes = useCanvasStore
@@ -992,11 +1134,12 @@ export function NodePropertiesSidebar({
 
     useCanvasStore.getState().setNodes(updatedNodes);
 
-    // Add new column to table columns
+    // Add new column to table columns with dataKey
     const newColumn = {
       title: newProperty.name,
       type: mapPropertyTypeToColumnType(newProperty?.type),
       options: newProperty.options,
+      dataKey: newProperty.name, // Set dataKey for duplicated columns
     };
 
     // Check if column already exists

@@ -45,6 +45,7 @@ export interface ColumnDefinition {
   rollup_target_column?: ColumnDefinition;
 
   options?: string[];
+  dataKey?: string;
 }
 
 export interface FolderCanvas {

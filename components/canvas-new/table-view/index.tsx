@@ -44,6 +44,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { useUser } from "@/lib/contexts/userContext";
+import { ALL_SHAPES, SHAPES } from "@/lib/types/flow-table.types";
 import { DndContext, closestCenter } from "@dnd-kit/core";
 import {
   SortableContext,
@@ -62,36 +63,52 @@ import {
   Trash2,
   X,
 } from "lucide-react";
-import type React from "react";
 import {
+  forwardRef,
   useCallback,
   useEffect,
+  useImperativeHandle,
   useMemo,
   useRef,
   useState,
-  forwardRef,
-  useImperativeHandle,
 } from "react";
 import type { Edge, Node } from "reactflow";
 import * as z from "zod";
 import { Checkbox } from "../../ui/checkbox";
 import { AddColumnSidebar } from "../add-column-sidebar";
+import { ViewModeSwitcher } from "../view-mode-switcher";
 import SortableTableRow from "./sortable-table-row";
 import {
-  Filter as FilterType,
   FilterGroup,
   FilterOperator,
+  Filter as FilterType,
   HierarchyNode,
   SortDirection,
   SortField,
   TableViewProps,
-  VIEW_MODE,
 } from "./table.types";
 import { validationSchemas } from "./validations";
-import { ALL_SHAPES, SHAPES } from "@/lib/types/flow-table.types";
-import { DropdownMenuSubTrigger } from "@radix-ui/react-dropdown-menu";
-import Image from "next/image";
-import { ViewModeSwitcher } from "../view-mode-switcher";
+
+// Helper functions for column data mapping
+const getDataKey = (column: any): string => {
+  // If dataKey is explicitly set, use it
+  if (column.dataKey) {
+    return column.dataKey;
+  }
+
+  // Fallback for existing columns without dataKey
+  if (column.title === "task") return "label";
+  if (column.title === "type") return "shape";
+  if (column.title === "id") return "id";
+
+  // For all other columns, use the title as the key
+  return column.title;
+};
+
+const isSpecialColumn = (column: any): boolean => {
+  const dataKey = getDataKey(column);
+  return ["label", "shape", "id"].includes(dataKey);
+};
 
 const TableView = forwardRef<
   { exportToCSV: () => void; exportToExcel: () => void },
@@ -603,14 +620,23 @@ const TableView = forwardRef<
       // Handle placeholder empty values
       const actualValue = value === "placeholder_empty" ? "" : value;
 
-      // Get the column value
+      const columnDef = columns.find((col) => col.title === column);
+      const dataKey = columnDef ? getDataKey(columnDef) : column;
+
+      // Get the column value using dataKey
       let nodeValue;
-      if (column === "task") {
-        nodeValue = node.data.label;
-      } else if (column === "type") {
-        nodeValue = node.data.shape;
-      } else {
-        nodeValue = node.data[column];
+      switch (dataKey) {
+        case "label":
+          nodeValue = node.data.label;
+          break;
+        case "shape":
+          nodeValue = node.data.shape;
+          break;
+        case "id":
+          nodeValue = node.id;
+          break;
+        default:
+          nodeValue = node.data[column];
       }
 
       // Check empty values
@@ -802,15 +828,25 @@ const TableView = forwardRef<
       };
 
       const getSortableValue = (node: HierarchyNode, field: string) => {
+        const column = columns.find((col) => col.title === field);
+        const dataKey = column ? getDataKey(column) : field;
         const columnType = getColumnType(field);
 
-        // Get the raw value
-        let value =
-          field === "task"
-            ? node.data.label
-            : field === "type"
-              ? node.data.shape || ""
-              : node.data[field];
+        // Get the raw value using dataKey
+        let value;
+        switch (dataKey) {
+          case "label":
+            value = node.data.label;
+            break;
+          case "shape":
+            value = node.data.shape || "";
+            break;
+          case "id":
+            value = node.id;
+            break;
+          default:
+            value = node.data[field];
+        }
 
         // Handle different column types
         switch (columnType) {
@@ -1172,6 +1208,8 @@ const TableView = forwardRef<
           return;
         }
 
+        const dataKey = getDataKey(columnDef);
+
         // Get current user from auth
         const currentUser = user?.name || "Unknown User";
         const currentTime = new Date().toISOString();
@@ -1184,7 +1222,14 @@ const TableView = forwardRef<
           const updatedNodes = nodes.map((node) => {
             if (node.id === nodeId) {
               // Create new data object with relation value
-              const newData = { ...node.data, [column]: relationValue };
+              const newData = { ...node.data };
+
+              // Use dataKey for storing relation data
+              if (dataKey !== column) {
+                newData[dataKey] = relationValue;
+              } else {
+                newData[column] = relationValue;
+              }
 
               // Update system fields based on column types
               columns.forEach((col) => {
@@ -1234,7 +1279,7 @@ const TableView = forwardRef<
           const updatedNodes = nodes.map((node) => {
             if (node.id === nodeId) {
               // Create new data object with the updated value
-              const newData = { ...node.data, [column]: value };
+              const newData = { ...node.data };
 
               // Update system fields based on column types
               columns.forEach((col) => {
@@ -1245,15 +1290,28 @@ const TableView = forwardRef<
                 }
               });
 
-              if (column === "task") {
-                newData.label = value;
-              } else if (column === "type") {
-                newData.shape = value;
+              // Handle special column mappings using dataKey
+              switch (dataKey) {
+                case "label":
+                  newData.label = value;
+                  break;
+                case "shape":
+                  newData.shape = value;
+                  break;
+                case "id":
+                  // ID should not be editable, but handle just in case
+                  newData.id = value;
+                  break;
+                default:
+                  // For regular columns, use the column title as the key
+                  newData[column] = value;
               }
+
               return { ...node, data: newData };
             }
             return node;
           });
+
           onNodesChange(updatedNodes);
           setEditingCell(null);
           setEditedValue(null);
@@ -1356,26 +1414,23 @@ const TableView = forwardRef<
       const [movedNode] = updatedSiblings.splice(oldIndex, 1); // Remove the dragged node
       updatedSiblings.splice(newIndex, 0, movedNode); // Insert it at the new position
 
-      // Rebuild the full nodes array with the updated sibling order
       const updatedNodes = [...nodes];
       const siblingIndices = siblings.map((sibling) =>
         nodes.findIndex((n) => n.id === sibling.id)
       );
 
-      // Replace old sibling nodes with the reordered ones
       updatedSiblings.forEach((sibling, index) => {
         updatedNodes[siblingIndices[index]] = sibling;
       });
 
-      // Update the state to trigger a re-render with the new order
       onNodesChange(updatedNodes);
     };
-    // Bulk deletion handler
+
     const handleDeleteSelected = () => {
       const updatedNodes = nodes.filter(
         (node) => !selectedNodes.includes(node.id)
       );
-      // remove the parentNode with the selectnodes ids from other nodes as they are deleted
+
       updatedNodes.forEach((node) => {
         if (node.parentNode && selectedNodes.includes(node.parentNode)) {
           node.parentNode = undefined;
@@ -1397,20 +1452,35 @@ const TableView = forwardRef<
 
     const handleColumnTitleEdit = (columnTitle: string, newTitle: string) => {
       if (newTitle.trim() && newTitle !== columnTitle) {
+        const columnBeingRenamed = columns?.find(
+          (col) => col.title === columnTitle
+        );
+
         setColumns(
           columns?.map((col) =>
-            col.title === columnTitle ? { ...col, title: newTitle } : col
+            col.title === columnTitle
+              ? {
+                  ...col,
+                  title: newTitle,
+
+                  dataKey: col.dataKey || getDataKey(col),
+                }
+              : col
           )
         );
-        const updatedNodes = nodes.map((node) => {
-          const newData = { ...node.data };
-          if (newData[columnTitle] !== undefined) {
-            newData[newTitle] = newData[columnTitle];
-            delete newData[columnTitle];
-          }
-          return { ...node, data: newData };
-        });
-        onNodesChange(updatedNodes);
+
+        // Only update node data if it's not a special column
+        if (columnBeingRenamed && !isSpecialColumn(columnBeingRenamed)) {
+          const updatedNodes = nodes.map((node) => {
+            const newData = { ...node.data };
+            if (newData[columnTitle] !== undefined) {
+              newData[newTitle] = newData[columnTitle];
+              delete newData[columnTitle];
+            }
+            return { ...node, data: newData };
+          });
+          onNodesChange(updatedNodes);
+        }
       }
       setEditingColumnTitle(null);
       setNewColumnTitle("");
@@ -1456,8 +1526,6 @@ const TableView = forwardRef<
         ? hiddenColumns.filter((col: string) => col !== columnTitle)
         : [...hiddenColumns, columnTitle];
 
-      // We no longer need to update node.data.hidden
-      // Just update the canvas settings
       updateTableSettings({
         ...canvasSettings.table_settings,
         hiddenColumns: updatedHiddenColumns,
@@ -1511,12 +1579,9 @@ const TableView = forwardRef<
       setSortDirection(sortDirection);
     };
 
-    // Add filter for a specific node value
     const addFilterForNode = (nodeId: string, columnTitle: string) => {
-      // Check if the column is filterable
       const columnType = getColumnTypeForFilter(columnTitle);
       if (!isColumnFilterable(columnType, columnTitle)) {
-        // Choose the first filterable column instead
         const firstFilterableColumn =
           columns.find((col) => isColumnFilterable(col.type, col.title))
             ?.title || "task";
@@ -1527,18 +1592,26 @@ const TableView = forwardRef<
       const node = nodes.find((n) => n.id === nodeId);
       if (!node) return;
 
-      // Get the value to filter for
-      const value =
-        columnTitle === "task"
-          ? node.data.label
-          : columnTitle === "type"
-            ? node.data.shape
-            : node.data[columnTitle];
+      const columnDef = columns.find((col) => col.title === columnTitle);
+      const dataKey = columnDef ? getDataKey(columnDef) : columnTitle;
 
-      // Don't create a filter for undefined values, but allow empty strings by using placeholder
+      let value;
+      switch (dataKey) {
+        case "label":
+          value = node.data.label;
+          break;
+        case "shape":
+          value = node.data.shape;
+          break;
+        case "id":
+          value = node.id;
+          break;
+        default:
+          value = node.data[columnTitle];
+      }
+
       if (value === undefined) return;
 
-      // Create a new filter group
       const newGroup: FilterGroup = {
         id: generateId(),
         filters: [
@@ -1552,12 +1625,10 @@ const TableView = forwardRef<
         conjunction: "AND",
       };
 
-      // Add the filter and open the filter dialog
       setFilterGroups([...filterGroups, newGroup]);
       setFilterDialogOpen(true);
     };
 
-    // Duplicate a single node
     const duplicateNode = (nodeId: string) => {
       if (readOnly) return;
 
@@ -1639,17 +1710,22 @@ const TableView = forwardRef<
       const rows = flattenHierarchy(sortedHierarchy).map(({ node }) => {
         return visibleColumns
           .map((col) => {
-            let value = node.data[col.title];
+            const dataKey = getDataKey(col);
+            let value;
 
-            // Handle special columns
-            if (col.title === "task") {
-              value = node.data.label;
-            } else if (col.title === "type") {
-              value = node.data.shape;
-            } else if (col.title === "parent") {
-              value = node.data.parent || "";
-            } else if (col.title === "children") {
-              value = node.data.children || "";
+            // Get value using dataKey
+            switch (dataKey) {
+              case "label":
+                value = node.data.label;
+                break;
+              case "shape":
+                value = node.data.shape;
+                break;
+              case "id":
+                value = node.id;
+                break;
+              default:
+                value = node.data[col.title];
             }
 
             // Handle different column types
@@ -1720,17 +1796,22 @@ const TableView = forwardRef<
       // Create Excel content
       const rows = flattenHierarchy(sortedHierarchy).map(({ node }) => {
         return visibleColumns.map((col) => {
-          let value = node.data[col.title];
+          const dataKey = getDataKey(col);
+          let value;
 
-          // Handle special columns
-          if (col.title === "task") {
-            value = node.data.label;
-          } else if (col.title === "type") {
-            value = node.data.shape;
-          } else if (col.title === "parent") {
-            value = node.data.parent || "";
-          } else if (col.title === "children") {
-            value = node.data.children || "";
+          // Get value using dataKey
+          switch (dataKey) {
+            case "label":
+              value = node.data.label;
+              break;
+            case "shape":
+              value = node.data.shape;
+              break;
+            case "id":
+              value = node.id;
+              break;
+            default:
+              value = node.data[col.title];
           }
 
           // Handle different column types

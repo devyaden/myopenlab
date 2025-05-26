@@ -34,6 +34,34 @@ import { Checkbox } from "../../ui/checkbox";
 import AddTableCellTrigger from "../add-table-cell-relation-trigger";
 import { HierarchyNode } from "./table.types";
 
+// Helper functions for column data mapping
+const getDataKey = (column: any): string => {
+  if (column.dataKey) {
+    return column.dataKey;
+  }
+
+  if (column.title === "task") return "label";
+  if (column.title === "type") return "shape";
+  if (column.title === "id") return "id";
+
+  return column.title;
+};
+
+const getCellValue = (node: any, column: any) => {
+  const dataKey = getDataKey(column);
+
+  switch (dataKey) {
+    case "label":
+      return node.data.label;
+    case "shape":
+      return node.data.shape;
+    case "id":
+      return node.id;
+    default:
+      return node.data[column.title];
+  }
+};
+
 // Component for sortable table rows (for row reordering)
 const SortableTableRow: React.FC<{
   node: HierarchyNode;
@@ -120,10 +148,33 @@ const SortableTableRow: React.FC<{
   const isExpanded = expandedRows.has(node.id);
 
   const renderCellContent = (column: any) => {
+    const dataKey = getDataKey(column);
+
     if (
       editingCell?.nodeId === node.id &&
       editingCell?.column === column.title
     ) {
+      // Get initial value for editing using dataKey
+      let initialValue;
+      switch (dataKey) {
+        case "label":
+          initialValue = node.data.label;
+          break;
+        case "shape":
+          initialValue = node.data.shape;
+          break;
+        case "id":
+          initialValue = node.id;
+          break;
+        default:
+          initialValue = node.data[column.title];
+      }
+
+      // Set editedValue to initialValue if it's not already set
+      if (editedValue === null || editedValue === undefined) {
+        setEditedValue(initialValue);
+      }
+
       switch (column.type) {
         case "Relation":
           return (
@@ -303,7 +354,7 @@ const SortableTableRow: React.FC<{
         default:
           return (
             <Input
-              value={editedValue}
+              value={editedValue || ""}
               onChange={(e) => setEditedValue(e.target.value)}
               onBlur={() => handleSave(node.id, column.title, editedValue)}
               onKeyDown={(e) => {
@@ -318,7 +369,8 @@ const SortableTableRow: React.FC<{
       }
     }
 
-    const cellValue = node.data[column.title];
+    // For display mode, use getCellValue
+    const cellValue = getCellValue(node, column);
 
     if (column?.type === "Rollup") {
       return (
@@ -363,7 +415,7 @@ const SortableTableRow: React.FC<{
 
     return (
       <div className="p-2 h-full">
-        {column.title === "task" && (
+        {dataKey === "label" && (
           <div className="flex items-center">
             {hasChildren && (
               <div
@@ -380,14 +432,14 @@ const SortableTableRow: React.FC<{
                 )}
               </div>
             )}
-            {node.data.label || <span className="text-gray-400"></span>}
+            {cellValue || <span className="text-gray-400"></span>}
           </div>
         )}
-        {column.title === "type" &&
-          (node.data.shape || node?.type || (
-            <span className="text-gray-400"></span>
-          ))}
-        {!["task", "type"].includes(column.title) && (
+        {dataKey === "shape" &&
+          (cellValue || <span className="text-gray-400"></span>)}
+        {dataKey === "id" &&
+          (cellValue || <span className="text-gray-400"></span>)}
+        {!["label", "shape", "id"].includes(dataKey) && (
           <>
             {column?.type === "Checkbox" ? (
               <div className="flex items-center justify-center h-full w-full min-h-[40px]">
@@ -456,11 +508,11 @@ const SortableTableRow: React.FC<{
               </div>
             ) : column?.type === "Rollup" ? (
               <>
-                {node.data[column.title] &&
-                Array.isArray(node.data[column.title]) &&
-                node.data[column.title].length > 0 ? (
+                {cellValue &&
+                Array.isArray(cellValue) &&
+                cellValue.length > 0 ? (
                   <div className="flex flex-wrap gap-1">
-                    {node.data[column.title].map((item: any, index: number) => (
+                    {cellValue.map((item: any, index: number) => (
                       <span
                         key={index}
                         className="text-sm text-gray-600 bg-slate-100 rounded-md px-2 py-1 m-1"
@@ -477,8 +529,8 @@ const SortableTableRow: React.FC<{
                   <span className="text-gray-400">—</span>
                 )}
               </>
-            ) : Array.isArray(node.data[column.title]) ? (
-              node.data[column.title].join(", ")
+            ) : Array.isArray(cellValue) ? (
+              cellValue.join(", ")
             ) : (
               cellValue || <span className="text-gray-400"></span>
             )}
@@ -574,17 +626,16 @@ const SortableTableRow: React.FC<{
                 if (!nonEditableItems.includes(column.title)) {
                   setEditingCell({ nodeId: node.id, column: column.title });
 
+                  const dataKey = getDataKey(column);
+
                   if (column.type === "Relation") {
-                    const relationData = node.data[column.title];
+                    const relationData = getCellValue(node, column);
                     setEditedValue(
                       Array.isArray(relationData) ? relationData : []
                     );
-                  } else if (column.title === "task") {
-                    setEditedValue(node.data.label);
-                  } else if (column.title === "type") {
-                    setEditedValue(node.data.shape || node?.type);
                   } else {
-                    setEditedValue(node.data[column.title] || "");
+                    // Use getCellValue to get the correct value based on dataKey
+                    setEditedValue(getCellValue(node, column) || "");
                   }
 
                   setValidationError(null);

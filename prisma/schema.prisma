@@ -93,12 +93,13 @@ model CanvasHistory {
 }
 
 model ColumnDefinition {
+  id                   String             @id @default(uuid()) @db.Uuid
   title                String
   type                 String
   options              Json?
   required             Boolean            @default(false)
   order                Int
-  id                   String             @id @default(uuid()) @db.Uuid
+  data_key             String?
   canvas_id            String             @db.Uuid
   created_at           DateTime           @default(now())
   updated_at           DateTime           @default(now()) @updatedAt

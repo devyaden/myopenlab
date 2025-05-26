@@ -75,8 +75,15 @@ export const AddColumnSidebar: React.FC<AddColumnSidebarProps> = ({
         return;
       }
 
+      // Prepare column data with dataKey
+      const finalColumnData = {
+        ...columnData,
+        // For new columns, dataKey defaults to the title unless it's a special type
+        dataKey: columnData.dataKey || columnData.title,
+      };
+
       // Add the column to the current canvas
-      onAddColumn(columnData);
+      onAddColumn(finalColumnData);
 
       // If this is a relation column, create a reciprocal relation in the related canvas
       if (columnData.type === "Relation" && columnData.related_canvas_id) {
@@ -93,6 +100,7 @@ export const AddColumnSidebar: React.FC<AddColumnSidebarProps> = ({
               type: "Relation",
               related_canvas_id: canvasId, // Point back to the current canvas
               required: columnData.required || false,
+              dataKey: `${canvasStore.name} - ${columnData.title}`, // Set dataKey for reciprocal column
             };
 
             // Create the reciprocal column in the related canvas
@@ -166,7 +174,12 @@ export const AddColumnSidebar: React.FC<AddColumnSidebarProps> = ({
   // Real-time validation as user types
   const handleTitleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newTitle = e.target.value;
-    setColumnData({ ...columnData, title: newTitle });
+    setColumnData({
+      ...columnData,
+      title: newTitle,
+      // Update dataKey when title changes for new columns
+      dataKey: newTitle,
+    });
 
     if (newTitle.trim()) {
       const isDuplicate = columns.some(
@@ -199,6 +212,18 @@ export const AddColumnSidebar: React.FC<AddColumnSidebarProps> = ({
       rollupRelationName: selectedCanvas.canvasName,
       rollupColumn: undefined,
     }));
+  };
+
+  const handleTypeChange = (value: string) => {
+    setColumnData({
+      ...columnData,
+      type: value,
+      options: undefined,
+      related_canvas_id: undefined,
+      rollup_target_column: undefined,
+      // Keep dataKey as is, since it's based on title
+    });
+    setError(null);
   };
 
   useEffect(() => {
@@ -235,19 +260,7 @@ export const AddColumnSidebar: React.FC<AddColumnSidebarProps> = ({
           </div>
           <div>
             <Label htmlFor="columnType">Validation Type</Label>
-            <Select
-              value={columnData?.type}
-              onValueChange={(value) => {
-                setColumnData({
-                  ...columnData,
-                  type: value,
-                  options: undefined,
-                  related_canvas_id: undefined,
-                  rollup_target_column: undefined,
-                });
-                setError(null);
-              }}
-            >
+            <Select value={columnData?.type} onValueChange={handleTypeChange}>
               <SelectTrigger>
                 <SelectValue placeholder="Select type" />
               </SelectTrigger>
