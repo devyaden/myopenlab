@@ -51,7 +51,7 @@ export const useOnboardingStore = create<OnboardingStore>()(
       updateUserOnboardingStatus: async (userId, status) => {
         await supabase
           .from("users")
-          .update({ onboarding_status: status })
+          .update({ has_seen_onboarding: status })
           .eq("id", userId);
         set({ isFirstVisit: false });
       },

@@ -97,6 +97,7 @@ export default function CanvasNew({ canvasId }: FigmaInterfaceProps) {
   const [isDocumentReady, setIsDocumentReady] = useState(false);
 
   const documentRef = useRef<any>(null);
+  const tableViewRef = useRef<any>(null);
 
   const {
     loadCanvas,
@@ -153,7 +154,6 @@ export default function CanvasNew({ canvasId }: FigmaInterfaceProps) {
   const [edgeColor, setEdgeColor] = useState("#000000");
 
   // Add a tableViewRef to access the TableView component's methods
-  const tableViewRef = useRef<any>(null);
 
   const [imageManagerOpen, setImageManagerOpen] = useState(false);
   const [uploadedImages, setUploadedImages] = useState<
