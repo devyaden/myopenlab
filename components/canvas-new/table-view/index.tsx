@@ -1186,9 +1186,16 @@ const TableView = forwardRef<
           return { isValid: false, errorMessage: "Invalid date or time" };
         }
         result = schema.safeParse(dateValue.toISOString());
+      } else if (type === "Phone Number") {
+        const isValidPhone = /^\+?[1-9]\d{1,14}$/.test(value);
+        return {
+          isValid: isValidPhone,
+          errorMessage: isValidPhone ? null : "Invalid phone number format",
+        };
       } else {
         result = schema.safeParse(value);
       }
+
       return {
         isValid: result.success,
         errorMessage: result.success ? null : result.error.errors[0].message,
@@ -1200,7 +1207,6 @@ const TableView = forwardRef<
 
       const columnDef = columns?.find((col) => col.title === column);
       if (columnDef) {
-        // Skip saving for Rollup columns as they are calculated automatically
         if (columnDef.type === "Rollup") {
           setEditingCell(null);
           setEditedValue(null);
@@ -1210,18 +1216,14 @@ const TableView = forwardRef<
 
         const dataKey = getDataKey(columnDef);
 
-        // Get current user from auth
         const currentUser = user?.name || "Unknown User";
         const currentTime = new Date().toISOString();
 
-        // For relation columns, we don't need to validate as they are arrays of objects
         if (columnDef.type === "Relation") {
-          // Ensure value is an array
           const relationValue = Array.isArray(value) ? value : [];
 
           const updatedNodes = nodes.map((node) => {
             if (node.id === nodeId) {
-              // Create new data object with relation value
               const newData = { ...node.data };
 
               // Use dataKey for storing relation data
@@ -1273,15 +1275,13 @@ const TableView = forwardRef<
           return;
         }
 
-        // For other column types, validate the data
         const { isValid, errorMessage } = validateField(columnDef?.type, value);
+
         if (isValid) {
           const updatedNodes = nodes.map((node) => {
             if (node.id === nodeId) {
-              // Create new data object with the updated value
               const newData = { ...node.data };
 
-              // Update system fields based on column types
               columns.forEach((col) => {
                 if (col.type === "Last edited time") {
                   newData[col.title] = currentTime;
@@ -1290,7 +1290,6 @@ const TableView = forwardRef<
                 }
               });
 
-              // Handle special column mappings using dataKey
               switch (dataKey) {
                 case "label":
                   newData.label = value;
@@ -1299,11 +1298,9 @@ const TableView = forwardRef<
                   newData.shape = value;
                   break;
                 case "id":
-                  // ID should not be editable, but handle just in case
                   newData.id = value;
                   break;
                 default:
-                  // For regular columns, use the column title as the key
                   newData[column] = value;
               }
 
@@ -1644,6 +1641,8 @@ const TableView = forwardRef<
 
       onNodesChange([...nodes, newNode]);
     };
+
+    console.log("----- editign cell:", editingCell);
 
     const renderHierarchy = (
       nodes: HierarchyNode[],

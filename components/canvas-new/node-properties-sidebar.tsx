@@ -89,7 +89,6 @@ interface Property {
   value: any;
   type: PropertyType;
   options?: string[];
-  hidden?: boolean;
   isEditable?: boolean;
   dataKey?: string; // Add dataKey to track the actual data property
 }
@@ -364,6 +363,9 @@ export function NodePropertiesSidebar({
   const propertyNameInputRef = useRef<HTMLInputElement>(null);
   const propertyValueInputRef = useRef<HTMLInputElement>(null);
 
+  // Get canvas store for accessing canvasSettings and updateCanvasSettings
+  const { canvasSettings, updateCanvasSettings } = useCanvasStore();
+
   const populateFromAndTo = () => {
     const from = edges
       .filter((edge) => edge.target === selectedNode?.id)
@@ -404,17 +406,16 @@ export function NodePropertiesSidebar({
       );
       setTitle(taskValue || selectedNode.data?.label || "");
 
-      // Get canvas settings to determine hidden columns
-      const canvasStore = useCanvasStore.getState();
-      const canvasSettings = canvasStore.canvasSettings;
-      const hiddenColumns = canvasSettings?.table_settings?.hiddenColumns || [];
-
       const nodeProperties: Property[] = [];
 
       // Add properties based on current columns (not node data keys)
       columns.forEach((column) => {
-        // Skip excluded columns
-        if (EXCLUDED_PROPERTIES.includes(column.title)) {
+        // Skip excluded columns and task column (since it's displayed as title)
+        if (
+          EXCLUDED_PROPERTIES.includes(column.title) ||
+          column.title === "task" ||
+          getDataKey(column) === "label"
+        ) {
           return;
         }
 
@@ -441,7 +442,6 @@ export function NodePropertiesSidebar({
             column.type === "Select" && column.title === "type"
               ? SHAPE_OPTIONS
               : column.options,
-          hidden: hiddenColumns.includes(column.title),
           isEditable,
           dataKey: getDataKey(column),
         });
@@ -478,7 +478,6 @@ export function NodePropertiesSidebar({
             name: key,
             value: value,
             type: propertyType,
-            hidden: hiddenColumns.includes(key),
             isEditable,
             dataKey: key, // For non-column properties, dataKey is the same as name
           });
@@ -666,7 +665,6 @@ export function NodePropertiesSidebar({
         newPropertyType === "select" || newPropertyType === "multiselect"
           ? [...newPropertyOptions]
           : undefined,
-      hidden: false,
       isEditable: true,
       dataKey: newPropertyName, // For new properties, dataKey defaults to property name
     };
@@ -682,12 +680,6 @@ export function NodePropertiesSidebar({
       newProperty.value,
       columns
     );
-
-    // Track hidden state
-    if (!updatedData.hidden) {
-      updatedData.hidden = {};
-    }
-    updatedData.hidden[newProperty.name] = false;
 
     // Update node in store
     const updatedNodes = useCanvasStore
@@ -787,26 +779,23 @@ export function NodePropertiesSidebar({
     }
 
     // Update canvas settings' hiddenColumns if the old property name was hidden
-    const canvasStore = useCanvasStore.getState();
-    const canvasSettings = canvasStore.canvasSettings;
+    const hiddenColumns = canvasSettings?.table_settings?.hiddenColumns || [];
 
-    if (canvasSettings && canvasSettings.table_settings) {
-      let hiddenColumns = canvasSettings.table_settings.hiddenColumns || [];
+    // If old property name was in hiddenColumns, replace it with new name
+    if (hiddenColumns.includes(oldName)) {
+      const updatedHiddenColumns = hiddenColumns.filter(
+        (col: string) => col !== oldName
+      );
+      updatedHiddenColumns.push(newName);
 
-      // If old property name was in hiddenColumns, replace it with new name
-      if (hiddenColumns.includes(oldName)) {
-        hiddenColumns = hiddenColumns.filter((col: string) => col !== oldName);
-        hiddenColumns.push(newName);
-
-        // Update canvas settings
-        canvasStore.updateCanvasSettings({
-          ...canvasSettings,
-          table_settings: {
-            ...canvasSettings.table_settings,
-            hiddenColumns,
-          },
-        });
-      }
+      // Update canvas settings
+      updateCanvasSettings({
+        ...canvasSettings,
+        table_settings: {
+          ...canvasSettings.table_settings,
+          hiddenColumns: updatedHiddenColumns,
+        },
+      });
     }
   };
 
@@ -855,32 +844,6 @@ export function NodePropertiesSidebar({
       );
 
     useCanvasStore.getState().setNodes(updatedNodes);
-
-    // Get canvas settings and update hiddenColumns
-    const canvasStore = useCanvasStore.getState();
-    const canvasSettings = canvasStore.canvasSettings;
-
-    if (canvasSettings && canvasSettings.table_settings) {
-      let hiddenColumns = canvasSettings.table_settings.hiddenColumns || [];
-
-      // Update hidden columns based on property visibility
-      if (property.hidden && !hiddenColumns.includes(property.name)) {
-        hiddenColumns = [...hiddenColumns, property.name];
-      } else if (!property.hidden && hiddenColumns.includes(property.name)) {
-        hiddenColumns = hiddenColumns.filter(
-          (col: string) => col !== property.name
-        );
-      }
-
-      // Update canvas settings
-      canvasStore.updateCanvasSettings({
-        ...canvasSettings,
-        table_settings: {
-          ...canvasSettings.table_settings,
-          hiddenColumns,
-        },
-      });
-    }
   };
 
   const handleRemoveProperty = (index: number) => {
@@ -945,27 +908,22 @@ export function NodePropertiesSidebar({
     setColumns(updatedColumns);
 
     // Remove property from hiddenColumns if it exists
-    const canvasStore = useCanvasStore.getState();
-    const canvasSettings = canvasStore.canvasSettings;
+    const hiddenColumns = canvasSettings?.table_settings?.hiddenColumns || [];
 
-    if (canvasSettings && canvasSettings.table_settings) {
-      let hiddenColumns = canvasSettings.table_settings.hiddenColumns || [];
+    // Remove property from hiddenColumns
+    if (hiddenColumns.includes(propertyName)) {
+      const updatedHiddenColumns = hiddenColumns.filter(
+        (col: string) => col !== propertyName
+      );
 
-      // Remove property from hiddenColumns
-      if (hiddenColumns.includes(propertyName)) {
-        hiddenColumns = hiddenColumns.filter(
-          (col: string) => col !== propertyName
-        );
-
-        // Update canvas settings
-        canvasStore.updateCanvasSettings({
-          ...canvasSettings,
-          table_settings: {
-            ...canvasSettings.table_settings,
-            hiddenColumns,
-          },
-        });
-      }
+      // Update canvas settings
+      updateCanvasSettings({
+        ...canvasSettings,
+        table_settings: {
+          ...canvasSettings.table_settings,
+          hiddenColumns: updatedHiddenColumns,
+        },
+      });
     }
 
     // Close the confirmation dialog
@@ -976,41 +934,29 @@ export function NodePropertiesSidebar({
     if (!selectedNode) return;
 
     const property = properties[index];
-    const isHidden = !property.hidden;
+    const hiddenColumns = canvasSettings?.table_settings?.hiddenColumns || [];
+    const isCurrentlyHidden = hiddenColumns.includes(property.name);
 
-    // Update properties state for the UI
-    const updatedProperties = [...properties];
-    updatedProperties[index] = {
-      ...updatedProperties[index],
-      hidden: isHidden,
-    };
-    setProperties(updatedProperties);
-
-    // Get canvas settings to update hiddenColumns
-    const canvasStore = useCanvasStore.getState();
-    const canvasSettings = canvasStore.canvasSettings;
-
-    if (canvasSettings) {
-      let hiddenColumns = canvasSettings.table_settings?.hiddenColumns || [];
-
-      // Update hidden columns based on property visibility
-      if (isHidden && !hiddenColumns.includes(property.name)) {
-        hiddenColumns = [...hiddenColumns, property.name];
-      } else if (!isHidden && hiddenColumns.includes(property.name)) {
-        hiddenColumns = hiddenColumns.filter(
-          (col: string) => col !== property.name
-        );
-      }
-
-      // Update canvas settings only, not node.data.hidden
-      canvasStore.updateCanvasSettings({
-        ...canvasSettings,
-        table_settings: {
-          ...canvasSettings.table_settings,
-          hiddenColumns,
-        },
-      });
+    // Update hiddenColumns array using the same pattern as table view
+    let updatedHiddenColumns;
+    if (isCurrentlyHidden) {
+      // Show the column by removing it from hiddenColumns
+      updatedHiddenColumns = hiddenColumns.filter(
+        (col: string) => col !== property.name
+      );
+    } else {
+      // Hide the column by adding it to hiddenColumns
+      updatedHiddenColumns = [...hiddenColumns, property.name];
     }
+
+    // Update canvas settings using the same pattern as table view
+    updateCanvasSettings({
+      ...canvasSettings,
+      table_settings: {
+        ...canvasSettings.table_settings,
+        hiddenColumns: updatedHiddenColumns,
+      },
+    });
   };
 
   const handleAddOption = () => {
@@ -1193,6 +1139,12 @@ export function NodePropertiesSidebar({
         break;
       // Other types are handled directly by their components
     }
+  };
+
+  // Helper function to check if a property is hidden
+  const isPropertyHidden = (propertyName: string): boolean => {
+    const hiddenColumns = canvasSettings?.table_settings?.hiddenColumns || [];
+    return hiddenColumns.includes(propertyName);
   };
 
   // Render property value with inline editing
@@ -1507,7 +1459,9 @@ export function NodePropertiesSidebar({
           {properties.map((property, index) => (
             <div
               key={`${property.name}-${index}`}
-              className="flex items-center gap-4 py-1.5 hover:bg-gray-50 rounded-md group relative"
+              className={`flex items-center gap-4 py-1.5 hover:bg-gray-50 rounded-md group relative ${
+                isPropertyHidden(property.name) ? "opacity-50" : ""
+              }`}
             >
               {/* Property name with inline editing */}
               <div className="flex items-center gap-2 text-gray-500 min-w-[120px] w-[120px] max-w-[120px] overflow-hidden">
@@ -1579,7 +1533,7 @@ export function NodePropertiesSidebar({
                     <DropdownMenuItem
                       onClick={() => handleToggleVisibility(index)}
                     >
-                      {property.hidden ? (
+                      {isPropertyHidden(property.name) ? (
                         <>
                           <Eye className="h-4 w-4 mr-2" />
                           <span>Show property</span>

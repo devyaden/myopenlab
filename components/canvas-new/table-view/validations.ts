@@ -26,4 +26,5 @@ export const validationSchemas = {
   User: z.string(),
   Relation: z.array(z.record(z.any())),
   Rollup: z.string().nullable(),
+  PhoneNumber: z.string().regex(/^\+?[\d\s-]{10,}$/, "Invalid phone number"),
 };
