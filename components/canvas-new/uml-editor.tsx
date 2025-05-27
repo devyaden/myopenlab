@@ -167,8 +167,6 @@ export function UMLEditor({
   const [showMiniMap, setShowMiniMap] = useState(true);
   const [showNodeProperties, setShowNodeProperties] = useState(false);
 
-  console.log("--------- nodes --------", edges);
-
   const [helperLineHorizontal, setHelperLineHorizontal] = useState<
     number | undefined
   >(undefined);
