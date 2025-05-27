@@ -3,10 +3,10 @@
 import {
   useCallback,
   useEffect,
+  useMemo,
   useRef,
   useState,
   type KeyboardEvent,
-  useMemo,
 } from "react";
 import ReactFlow, {
   Background,
@@ -28,20 +28,20 @@ import ReactFlow, {
 } from "reactflow";
 import "reactflow/dist/style.css";
 
+import { findBestParentNode, getHelperLines } from "@/lib/canvas.utils";
+import { useCanvasStore } from "@/lib/store/useCanvas";
 import { CANVAS_TYPE, CanvasSettings } from "@/types/store";
 import CustomEdge from "./custom-edge";
+import HelperLinesRenderer from "./HelperLines";
 import MeasureRuler from "./measure-ruler";
+import { NodePropertiesSidebar } from "./node-properties-sidebar";
 import { GenericNode } from "./nodes/generic-node";
 import { ImageNode } from "./nodes/image-node";
 import { SwimlaneNode } from "./nodes/swimlane-node";
 import { TextNode } from "./nodes/text-node";
 import TableView from "./table-view";
-import { UMLToolbar } from "./uml-toolbar";
-import { NodePropertiesSidebar } from "./node-properties-sidebar";
 import { VIEW_MODE, ViewMode } from "./table-view/table.types";
-import HelperLinesRenderer from "./HelperLines";
-import { findBestParentNode, getHelperLines } from "@/lib/canvas.utils";
-import { useCanvasStore } from "@/lib/store/useCanvas";
+import { UMLToolbar } from "./uml-toolbar";
 
 const nodeTypes = {
   genericNode: GenericNode,
@@ -175,6 +175,12 @@ export function UMLEditor({
   const [helperLineVertical, setHelperLineVertical] = useState<
     number | undefined
   >(undefined);
+  const [horizontalCenterAlignment, setHorizontalCenterAlignment] = useState<
+    number | undefined
+  >(undefined);
+  const [verticalCenterAlignment, setVerticalCenterAlignment] = useState<
+    number | undefined
+  >(undefined);
 
   const handleZoomIn = useCallback(() => {
     zoomIn();
@@ -193,6 +199,8 @@ export function UMLEditor({
       // reset the helper lines (clear existing lines, if any)
       setHelperLineHorizontal(undefined);
       setHelperLineVertical(undefined);
+      setHorizontalCenterAlignment(undefined);
+      setVerticalCenterAlignment(undefined);
 
       // this will be true if it's a single node being dragged
       // inside we calculate the helper lines and snap position for the position where the node is being moved to
@@ -214,6 +222,10 @@ export function UMLEditor({
         // if helper lines are returned, we set them so that they can be displayed
         setHelperLineHorizontal(helperLines.horizontal);
         setHelperLineVertical(helperLines.vertical);
+
+        // set the center alignment lines if they exist
+        setHorizontalCenterAlignment(helperLines.horizontalCenter);
+        setVerticalCenterAlignment(helperLines.verticalCenter);
       }
 
       return applyNodeChanges(changes, nodes);
@@ -859,6 +871,8 @@ export function UMLEditor({
             <HelperLinesRenderer
               horizontal={helperLineHorizontal}
               vertical={helperLineVertical}
+              horizontalCenter={horizontalCenterAlignment}
+              verticalCenter={verticalCenterAlignment}
             />
           </ReactFlow>
         </>

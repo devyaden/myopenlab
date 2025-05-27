@@ -18,11 +18,18 @@ const storeSelector = (state: ReactFlowState) => ({
 export type HelperLinesProps = {
   horizontal?: number;
   vertical?: number;
+  horizontalCenter?: number;
+  verticalCenter?: number;
 };
 
 // a simple component to display the helper lines
 // it puts a canvas on top of the React Flow pane and draws the lines using the canvas API
-function HelperLinesRenderer({ horizontal, vertical }: HelperLinesProps) {
+function HelperLinesRenderer({
+  horizontal,
+  vertical,
+  horizontalCenter,
+  verticalCenter,
+}: HelperLinesProps) {
   const { width, height, transform } = useStore(storeSelector);
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -41,7 +48,10 @@ function HelperLinesRenderer({ horizontal, vertical }: HelperLinesProps) {
 
     ctx.scale(dpi, dpi);
     ctx.clearRect(0, 0, width, height);
+
+    // Draw existing alignment lines (top/bottom alignment)
     ctx.strokeStyle = "#003F91";
+    ctx.lineWidth = 1;
 
     if (typeof vertical === "number") {
       ctx.moveTo(vertical * transform[2] + transform[0], 0);
@@ -54,7 +64,37 @@ function HelperLinesRenderer({ horizontal, vertical }: HelperLinesProps) {
       ctx.lineTo(width, horizontal * transform[2] + transform[1]);
       ctx.stroke();
     }
-  }, [width, height, transform, horizontal, vertical]);
+
+    // Draw center alignment lines with a different style to distinguish them
+    ctx.strokeStyle = "#FF6B35"; // Different color for center lines
+    ctx.lineWidth = 1;
+    ctx.setLineDash([5, 5]); // Dashed line to distinguish from edge alignment
+
+    if (typeof verticalCenter === "number") {
+      ctx.beginPath();
+      ctx.moveTo(verticalCenter * transform[2] + transform[0], 0);
+      ctx.lineTo(verticalCenter * transform[2] + transform[0], height);
+      ctx.stroke();
+    }
+
+    if (typeof horizontalCenter === "number") {
+      ctx.beginPath();
+      ctx.moveTo(0, horizontalCenter * transform[2] + transform[1]);
+      ctx.lineTo(width, horizontalCenter * transform[2] + transform[1]);
+      ctx.stroke();
+    }
+
+    // Reset line dash for any future drawings
+    ctx.setLineDash([]);
+  }, [
+    width,
+    height,
+    transform,
+    horizontal,
+    vertical,
+    horizontalCenter,
+    verticalCenter,
+  ]);
 
   return (
     <canvas

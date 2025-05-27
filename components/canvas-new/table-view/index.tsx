@@ -1642,8 +1642,6 @@ const TableView = forwardRef<
       onNodesChange([...nodes, newNode]);
     };
 
-    console.log("----- editign cell:", editingCell);
-
     const renderHierarchy = (
       nodes: HierarchyNode[],
       level = 0

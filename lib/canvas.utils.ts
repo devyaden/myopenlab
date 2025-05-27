@@ -4,7 +4,9 @@ import { Node as ReactflowNode } from "reactflow";
 type GetHelperLinesResult = {
   horizontal?: number;
   vertical?: number;
-  snapPosition: Partial<XYPosition>;
+  horizontalCenter?: number;
+  verticalCenter?: number;
+  snapPosition: { x?: number; y?: number };
 };
 
 // this utility function can be called with a position change (inside onNodesChange)
@@ -14,11 +16,14 @@ export function getHelperLines(
   nodes: Node[],
   distance = 5
 ): GetHelperLinesResult {
-  const defaultResult = {
+  const defaultResult: GetHelperLinesResult = {
     horizontal: undefined,
     vertical: undefined,
+    horizontalCenter: undefined,
+    verticalCenter: undefined,
     snapPosition: { x: undefined, y: undefined },
   };
+
   const nodeA = nodes.find((node) => node.id === change.id);
 
   if (!nodeA || !change.position) {
@@ -32,10 +37,14 @@ export function getHelperLines(
     bottom: change.position.y + (nodeA?.height ?? 0),
     width: nodeA?.width ?? 0,
     height: nodeA?.height ?? 0,
+    centerX: change.position.x + (nodeA?.width ?? 0) / 2,
+    centerY: change.position.y + (nodeA?.height ?? 0) / 2,
   };
 
   let horizontalDistance = distance;
   let verticalDistance = distance;
+  let horizontalCenterDistance = distance;
+  let verticalCenterDistance = distance;
 
   return nodes
     .filter((node) => node.id !== nodeA.id)
@@ -47,7 +56,11 @@ export function getHelperLines(
         bottom: nodeB.position.y + (nodeB?.height ?? 0),
         width: nodeB?.width ?? 0,
         height: nodeB?.height ?? 0,
+        centerX: nodeB.position.x + (nodeB?.width ?? 0) / 2,
+        centerY: nodeB.position.y + (nodeB?.height ?? 0) / 2,
       };
+
+      // Existing edge alignment logic...
 
       //  |‾‾‾‾‾‾‾‾‾‾‾|
       //  |     A     |
@@ -165,6 +178,40 @@ export function getHelperLines(
         result.snapPosition.y = nodeBBounds.bottom;
         result.horizontal = nodeBBounds.bottom;
         horizontalDistance = distanceTopBottom;
+      }
+
+      // NEW: Center alignment logic
+
+      // Vertical center alignment (nodes align by their horizontal centers)
+      //       |‾‾‾‾‾‾‾‾‾‾‾|
+      //       |     A     |
+      //       |_____▲_____|
+      //             |
+      //         |‾‾‾▼‾‾‾‾‾‾‾|
+      //         |     B     |
+      //         |___________|
+      const distanceCenterXCenterX = Math.abs(
+        nodeABounds.centerX - nodeBBounds.centerX
+      );
+
+      if (distanceCenterXCenterX < verticalCenterDistance) {
+        result.snapPosition.x = nodeBBounds.centerX - nodeABounds.width / 2;
+        result.verticalCenter = nodeBBounds.centerX;
+        verticalCenterDistance = distanceCenterXCenterX;
+      }
+
+      // Horizontal center alignment (nodes align by their vertical centers)
+      //  |‾‾‾‾‾‾‾‾‾‾‾|       |‾‾‾‾‾‾‾‾‾‾‾|
+      //  |     A     |◄─────►|     B     |
+      //  |___________|       |___________|
+      const distanceCenterYCenterY = Math.abs(
+        nodeABounds.centerY - nodeBBounds.centerY
+      );
+
+      if (distanceCenterYCenterY < horizontalCenterDistance) {
+        result.snapPosition.y = nodeBBounds.centerY - nodeABounds.height / 2;
+        result.horizontalCenter = nodeBBounds.centerY;
+        horizontalCenterDistance = distanceCenterYCenterY;
       }
 
       return result;
