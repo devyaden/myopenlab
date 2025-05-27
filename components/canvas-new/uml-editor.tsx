@@ -165,9 +165,9 @@ export function UMLEditor({
   );
 
   const [showMiniMap, setShowMiniMap] = useState(true);
-
-  const [selectedNode, setSelectedNode] = useState<Node | null>(null);
   const [showNodeProperties, setShowNodeProperties] = useState(false);
+
+  console.log("--------- nodes --------", edges);
 
   const [helperLineHorizontal, setHelperLineHorizontal] = useState<
     number | undefined
@@ -644,7 +644,6 @@ export function UMLEditor({
   }, [handleKeyDown]);
 
   const onPaneClick = useCallback(() => {
-    setSelectedNode(null);
     setShowNodeProperties(false);
   }, []);
 
@@ -656,11 +655,8 @@ export function UMLEditor({
     onChange: (selected) => {
       const { nodes } = selected;
       if (nodes.length === 1) {
-        const selectedNode = nodes[0];
-        setSelectedNode(selectedNode);
         setShowNodeProperties(true);
       } else {
-        setSelectedNode(null);
         setShowNodeProperties(false);
       }
     },

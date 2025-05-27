@@ -64,16 +64,8 @@ export function createDiagramToolSchema(diagramType: DiagramType) {
                 },
                 required: ["label", "shape"],
               },
-              width: {
-                type: "number",
-                description: "Width of the node in pixels",
-              },
-              height: {
-                type: "number",
-                description: "Height of the node in pixels",
-              },
             },
-            required: ["id", "type", "position", "data", "width", "height"],
+            required: ["id", "type", "position", "data"],
           },
         },
         edges: {

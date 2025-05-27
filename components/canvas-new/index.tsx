@@ -1,7 +1,6 @@
 "use client";
 
 import "./react-flow-fixes.css";
-
 import DocumentEditor from "@/components/editor";
 import { Input } from "@/components/ui/input";
 import { findAbsolutePosition } from "@/lib/canvas.utils";
@@ -810,37 +809,36 @@ export default function CanvasNew({ canvasId }: FigmaInterfaceProps) {
         updateState({
           edges: currentState.edges.map((edge) =>
             edge.id === selectedEdge
-              ? {
-                  ...edge,
-                  type:
-                    style === "default" ||
-                    style === "straight" ||
-                    style === "step" ||
-                    style === "smoothstep" ||
-                    style === "simplebezier"
-                      ? style
-                      : "smoothstep",
-                  style: {
-                    ...edge.style,
-                    edgeType: style,
-                    strokeWidth: style === "double" ? 3 : 2,
-                    strokeDasharray:
-                      style === "dashed"
-                        ? "5,5"
-                        : style === "dotted"
-                          ? "1,5"
-                          : style === "animated"
-                            ? "5,5"
+              ? style === "animated"
+                ? {
+                    ...edge,
+                    animated: true,
+                  }
+                : {
+                    ...edge,
+                    type:
+                      style === "default" ||
+                      style === "straight" ||
+                      style === "step" ||
+                      style === "smoothstep" ||
+                      style === "simplebezier"
+                        ? style
+                        : "smoothstep",
+                    style: {
+                      ...edge.style,
+                      edgeType: style,
+                      strokeWidth: style === "double" ? 3 : 2,
+                      strokeDasharray:
+                        style === "dashed"
+                          ? "5,5"
+                          : style === "dotted"
+                            ? "1,5"
                             : undefined,
-                    className:
-                      style === "double"
-                        ? "double-line"
-                        : style === "animated"
-                          ? "animated-edge"
-                          : undefined,
-                  },
-                  markerEnd: { type: MarkerType.ArrowClosed },
-                }
+                      className: style === "double" ? "double-line" : undefined,
+                    },
+                    markerEnd: { type: MarkerType.ArrowClosed },
+                    animated: false,
+                  }
               : edge
           ),
         });
