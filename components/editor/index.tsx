@@ -1891,7 +1891,7 @@ const Editor = (
 
   return (
     <div className="w-full h-full editor-container">
-      {renderSaveStatus()}
+      {/* {renderSaveStatus()} */}
       {canvasType !== CANVAS_TYPE.HYBRID && (
         <Header
           projectName={name}
