@@ -10,6 +10,7 @@
   font-weight: 400;
   font-family: "Roboto", Arial, sans-serif; */
   overflow: hidden;
+  position: relative;
 }
 
 .editor-inner {
@@ -100,13 +101,11 @@
 
 /* Google Docs style toolbar */
 .editor-toolbar {
-  background-color: #fff;
-  border-bottom: 1px solid #e0e0e0;
-  position: sticky;
-  z-index: 20;
-  padding: 4px 8px;
-  width: 100%;
-  overflow-x: auto;
+  position: sticky !important;
+  top: 0 !important;
+  z-index: 1000 !important; /* Much higher z-index */
+  flex-shrink: 0; /* Prevent toolbar from shrinking */
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1); /* Better visibility */
 }
 
 .toolbar-inner {
@@ -538,6 +537,7 @@
   position: relative;
   height: calc(100vh - 120px); /* Adjust based on your header/toolbar height */
   background-color: #f0f0f0;
+  z-index: 1;
 }
 
 /* Add these styles for better zoom handling */

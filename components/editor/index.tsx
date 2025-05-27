@@ -1884,33 +1884,6 @@ const Editor = (
     );
   };
 
-  const renderHeader = () => {
-    if (canvasType !== CANVAS_TYPE.HYBRID) {
-      return (
-        <Header
-          projectName={name}
-          setProjectName={setName}
-          onBackToDashboard={() => router.push("/protected")}
-          onImportCanvas={handleImportCanvas}
-          saveLoading={saveLoading || saveStatus === "saving"}
-          onSave={handleSave}
-          canvasId={canvasId}
-          visibility={visibility}
-          onVisibilityChange={handleVisibilityChange}
-          isOwner={isOwner}
-          viewMode={"document"}
-          exportAsJSON={handleExportJSON}
-          propExportAsPDF={handleBrowserPrintToPDF}
-          canvasType={CANVAS_TYPE.DOCUMENT}
-          currentFolder={folder}
-          // saveStatus={saveStatus} // Pass save status to header
-          // renderSaveStatus={renderSaveStatus} // Pass render function
-        />
-      );
-    }
-    return null;
-  };
-
   // If unauthorized, show the Unauthorized component
   if (unauthorized) {
     return <Unauthorized />;
@@ -1939,49 +1912,62 @@ const Editor = (
         />
       )}
 
-      <EditorToolbar
-        editorState={editorState}
-        onFormatText={applyFormat}
-        onSetFontFamily={setFontFamily}
-        onSetFontSize={setFontSize}
-        onSetTextColor={setTextColor}
-        onSetHighlightColor={setHighlightColor}
-        onSetAlignment={(alignment) =>
-          setAlignment(alignment as "left" | "center" | "right" | "justify")
-        }
-        onSetTextDirection={(direction) =>
-          setTextDirection(direction as "ltr" | "rtl")
-        }
-        onFormatBlock={formatBlock}
-        onInsert={insertContent}
-        pageSize={pageSize}
-        orientation={orientation}
-        onPageSizeChange={(size) => handlePageSizeChange(size as PaperSize)}
-        onOrientationChange={(orientation) =>
-          handleOrientationChange(orientation as PaperOrientation)
-        }
-        showPageMargins={showPageMargins}
-        onTogglePageMargins={togglePageMargins}
-        paginationSettings={{
-          marginTop: paginationSettings.marginTop,
-          marginRight: paginationSettings.marginRight,
-          marginBottom: paginationSettings.marginBottom,
-          marginLeft: paginationSettings.marginLeft,
+      <div
+        style={{
+          position: "fixed",
+          top: "58px",
+          left: 0,
+          right: 0,
+          zIndex: 9999,
+          backgroundColor: "#fff",
+          borderBottom: "1px solid #e0e0e0",
+          boxShadow: "0 2px 8px rgba(0, 0, 0, 0.15)",
         }}
-        setPaginationSettings={(settings) => {
-          setPaginationSettings((prev) => ({
-            ...prev,
-            ...settings,
-          }));
-        }}
-        editor={editor}
-        isPartOfCanvas={isPartOfCanvas}
-        onBackToBoard={onBackToBoard}
-        onViewModeChange={onViewModeChange || (() => {})}
-        viewMode={viewMode ?? "document"}
-        canvasType={canvasType ?? CANVAS_TYPE.DOCUMENT}
-        isOwner={isOwner}
-      />
+      >
+        <EditorToolbar
+          editorState={editorState}
+          onFormatText={applyFormat}
+          onSetFontFamily={setFontFamily}
+          onSetFontSize={setFontSize}
+          onSetTextColor={setTextColor}
+          onSetHighlightColor={setHighlightColor}
+          onSetAlignment={(alignment) =>
+            setAlignment(alignment as "left" | "center" | "right" | "justify")
+          }
+          onSetTextDirection={(direction) =>
+            setTextDirection(direction as "ltr" | "rtl")
+          }
+          onFormatBlock={formatBlock}
+          onInsert={insertContent}
+          pageSize={pageSize}
+          orientation={orientation}
+          onPageSizeChange={(size) => handlePageSizeChange(size as PaperSize)}
+          onOrientationChange={(orientation) =>
+            handleOrientationChange(orientation as PaperOrientation)
+          }
+          showPageMargins={showPageMargins}
+          onTogglePageMargins={togglePageMargins}
+          paginationSettings={{
+            marginTop: paginationSettings.marginTop,
+            marginRight: paginationSettings.marginRight,
+            marginBottom: paginationSettings.marginBottom,
+            marginLeft: paginationSettings.marginLeft,
+          }}
+          setPaginationSettings={(settings) => {
+            setPaginationSettings((prev) => ({
+              ...prev,
+              ...settings,
+            }));
+          }}
+          editor={editor}
+          isPartOfCanvas={isPartOfCanvas}
+          onBackToBoard={onBackToBoard}
+          onViewModeChange={onViewModeChange || (() => {})}
+          viewMode={viewMode ?? "document"}
+          canvasType={canvasType ?? CANVAS_TYPE.DOCUMENT}
+          isOwner={isOwner}
+        />
+      </div>
 
       <div className="editor-layout">
         <div className="editor-with-pages" ref={pagesContainerRef}>
