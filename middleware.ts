@@ -1,9 +1,24 @@
 import { type NextRequest } from "next/server";
+import { NextResponse } from 'next/server';
 import { updateSession } from "@/lib/supabase/middleware";
 
 export async function middleware(request: NextRequest) {
-  return await updateSession(request);
+  const response = await updateSession(request);
+
+  const protectedPaths = ['/roadmap', '/feature-request', '/contact', '/'];
+  const pathname = request.nextUrl.pathname;
+
+  const isProtected = protectedPaths.includes(pathname);
+
+  const authToken = request.cookies.get('authToken')?.value;
+
+  if (isProtected && !authToken) {
+    return NextResponse.redirect(new URL('/auth/login', request.url));
+  }
+
+  return response;
 }
+
 
 export const config = {
   matcher: [

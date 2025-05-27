@@ -34,6 +34,7 @@ import { generateUntitledName } from "@/lib/utils";
 import { useRouter } from "next/navigation";
 import Joyride from 'react-joyride';
 import { useOnboardingStore } from "@/lib/store/useOnboarding";
+import CustomJoyrideTooltip from "../CustomJoyrideTooltip";
 
 interface FolderContentProps {
   folderId: string;
@@ -48,6 +49,8 @@ export function FolderContent({ folderId }: FolderContentProps) {
     getFolders,
     fetchRootCanvases,
     rootCanvases,
+    setIsChecked,
+    isChecked
   } = useSidebarStore();
 
   const router = useRouter();
@@ -84,7 +87,10 @@ export function FolderContent({ folderId }: FolderContentProps) {
     }
 
     if (status === 'finished' || status === 'skipped') {
-      setRunTour(false);
+      if(isChecked) {
+        setIsChecked(false);
+        setRunTour(false);
+      }
     }
   }
 
@@ -113,6 +119,10 @@ export function FolderContent({ folderId }: FolderContentProps) {
     }
   }, [folders, folderId, rootCanvases]);
 
+  const handleDontShowAgainChange = (e: any) => {
+    setIsChecked(e.target?.checked)
+  }
+
   const filteredCanvases =
     currentFolder?.canvases?.filter((canvas: any) =>
       canvas.name.toLowerCase().includes(searchQuery.toLowerCase())
@@ -126,6 +136,13 @@ export function FolderContent({ folderId }: FolderContentProps) {
           steps={steps}
           run={runTour}
           callback={handleJoyrideCllback}
+          tooltipComponent={(props: any) => (
+            <CustomJoyrideTooltip
+              {...props} 
+              onDontShowAgainChange={handleDontShowAgainChange}
+              isChecked={isChecked}
+            />
+          )}
           continuous
           showProgress
           showSkipButton

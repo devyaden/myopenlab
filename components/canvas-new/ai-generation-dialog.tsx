@@ -33,6 +33,8 @@ import {
 } from "@/lib/types/diagram-types";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { InfoIcon, Sparkles } from "lucide-react";
+import { cn } from "@/lib/utils";
+import CustomJoyrideTooltip from "../CustomJoyrideTooltip";
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import toast from "react-hot-toast";
@@ -134,8 +136,13 @@ export function AIGenerationDialog({
   const [isLongLoading, setIsLongLoading] = useState<boolean>(false);
   const [isMounted, setIsMounted] = useState<boolean>(false);
 
-  const { isFirstVisit, createCategoryOnbording, setCreateCategoryOnbording } =
-    useOnboardingStore();
+  const { 
+    isFirstVisit, 
+    createCategoryOnbording, 
+    setCreateCategoryOnbording,
+    isChecked,
+    setIsChecked
+  } = useOnboardingStore();
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -283,10 +290,17 @@ export function AIGenerationDialog({
 
     console.log(action, index, status, type, "action, index, status, type");
 
-    if (status === "finished" || status === "skipped") {
-      setCreateCategoryOnbording(false);
+    if (status === 'finished' || status === 'skipped') {
+      if(isChecked) {
+        setCreateCategoryOnbording(false)
+        setIsChecked(false)
+      }
     }
   };
+
+  const handleDontShowAgainChange = (e: any) => {
+    setIsChecked(e.target?.checked)
+  }
 
   // Prevent modal closure during loading
   const handleCloseAttempt = () => {
@@ -296,30 +310,37 @@ export function AIGenerationDialog({
   };
 
   useEffect(() => {
-    setTimeout(() => {
+    const timeout = setTimeout(() => {
       setIsMounted(true);
     }, 100);
+
+    return () => clearTimeout(timeout);
   }, []);
 
   return (
     <Dialog open={isOpen} onOpenChange={handleCloseAttempt}>
       <DialogContent className="max-w-md">
-        {isFirstVisit && isMounted && createCategoryOnbording && (
-          <Joyride
-            steps={aiCanvasSteps}
-            run={isFirstVisit}
-            callback={handleJoyrideCallback}
-            continuous
-            showProgress
-            showSkipButton
-            styles={{
-              options: {
-                primaryColor: "#22c55e",
-                zIndex: 10000,
-              },
-            }}
+      {isFirstVisit && isMounted && createCategoryOnbording && <Joyride
+        steps={aiCanvasSteps}
+        run={isFirstVisit}
+        callback={handleJoyrideCallback}
+        tooltipComponent={(props: any) => (
+          <CustomJoyrideTooltip
+            {...props} 
+            isChecked={isChecked}
+            onDontShowAgainChange={handleDontShowAgainChange}
           />
         )}
+        continuous
+        showProgress
+        showSkipButton
+        styles={{
+          options: {
+            primaryColor: '#22c55e',
+            zIndex: 10000,
+          },
+        }}
+      />}
         <DialogHeader>
           <DialogTitle>Generate Canvas with AI</DialogTitle>
           <DialogDescription>
