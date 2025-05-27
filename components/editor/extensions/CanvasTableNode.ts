@@ -30,6 +30,25 @@ export const CanvasTableNode = Node.create({
       width: {
         default: null,
       },
+      // New attributes for dynamic updates
+      filterConfig: {
+        default: "[]", // JSON string of filter groups
+      },
+      sortConfig: {
+        default: null, // JSON string of sort configuration
+      },
+      selectedColumns: {
+        default: "[]", // JSON string of selected column names
+      },
+      displayRows: {
+        default: 5,
+      },
+      isDynamic: {
+        default: true, // Flag to enable/disable dynamic updates
+      },
+      lastUpdated: {
+        default: null, // Timestamp of last update
+      },
     };
   },
 

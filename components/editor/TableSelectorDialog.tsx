@@ -66,6 +66,27 @@ interface FilterGroup {
 type SortDirection = "asc" | "desc" | null;
 type SortField = string | null;
 
+// Helper function to get data key (same as in TableView and CanvasTableNodeView)
+const getDataKey = (column: any): string => {
+  // If dataKey is explicitly set, use it
+  if (column.dataKey) {
+    return column.dataKey;
+  }
+
+  // If data_key from database is set, use it
+  if (column.data_key) {
+    return column.data_key;
+  }
+
+  // Fallback for existing columns without dataKey
+  if (column.title === "task") return "label";
+  if (column.title === "type") return "shape";
+  if (column.title === "id") return "id";
+
+  // For all other columns, use the title as the key
+  return column.title;
+};
+
 export default function TableSelectorDialog({
   isOpen,
   onClose,
@@ -363,14 +384,26 @@ export default function TableSelectorDialog({
     // Handle placeholder empty values
     const actualValue = value === "placeholder_empty" ? "" : value;
 
-    // Get the column value
+    // Find the column definition to get the proper dataKey
+    const columnDef = selectedTableData?.columns?.find(
+      (col: any) => col.title === column
+    );
+    const dataKey = columnDef ? getDataKey(columnDef) : column;
+
+    // Get the column value using dataKey
     let nodeValue;
-    if (column === "task") {
-      nodeValue = node.data.label;
-    } else if (column === "type") {
-      nodeValue = node.data.shape;
-    } else {
-      nodeValue = node.data[column];
+    switch (dataKey) {
+      case "label":
+        nodeValue = node.data.label;
+        break;
+      case "shape":
+        nodeValue = node.data.shape;
+        break;
+      case "id":
+        nodeValue = node.id;
+        break;
+      default:
+        nodeValue = node.data[column];
     }
 
     // Check empty values
@@ -691,20 +724,31 @@ export default function TableSelectorDialog({
       const columnType = getColumnTypeForFilter(sortField);
 
       nodes.sort((a, b) => {
-        // Get values to compare
-        let aValue =
-          sortField === "task"
-            ? a.data.label
-            : sortField === "type"
-              ? a.data.shape
-              : a.data[sortField];
+        // Find the column definition to get the proper dataKey
+        const columnDef = selectedTableData?.columns?.find(
+          (col: any) => col.title === sortField
+        );
+        const dataKey = columnDef ? getDataKey(columnDef) : sortField;
 
-        let bValue =
-          sortField === "task"
-            ? b.data.label
-            : sortField === "type"
-              ? b.data.shape
-              : b.data[sortField];
+        // Get values to compare using dataKey
+        let aValue, bValue;
+        switch (dataKey) {
+          case "label":
+            aValue = a.data.label;
+            bValue = b.data.label;
+            break;
+          case "shape":
+            aValue = a.data.shape;
+            bValue = b.data.shape;
+            break;
+          case "id":
+            aValue = a.id;
+            bValue = b.id;
+            break;
+          default:
+            aValue = a.data[sortField];
+            bValue = b.data[sortField];
+        }
 
         // Handle different types of data
         if (columnType === "Number") {
@@ -737,7 +781,6 @@ export default function TableSelectorDialog({
     return nodes;
   }, [selectedTableData, filterGroups, sortField, sortDirection]);
 
-  // Update the handleInsert function to use the processed data
   const handleInsert = () => {
     if (!selectedTableData) {
       console.error("No table selected or tables data is missing");
@@ -761,14 +804,25 @@ export default function TableSelectorDialog({
       data = processedNodes.slice(0, displayRows).map((node: any) => {
         // For each node, only include data from selected columns
         return columnsData.map((columnTitle) => {
+          // Find the column definition to get the proper dataKey
+          const columnDef = selectedTableData?.columns?.find(
+            (col: any) => col.title === columnTitle
+          );
+          const dataKey = columnDef ? getDataKey(columnDef) : columnTitle;
+
           let cellValue;
-          // Handle special case for 'task' column which is stored as 'label' in node data
-          if (columnTitle === "task") {
-            cellValue = node?.data?.label || "";
-          } else if (columnTitle === "type") {
-            cellValue = node?.data?.shape || "";
-          } else {
-            cellValue = node?.data?.[columnTitle] || "";
+          switch (dataKey) {
+            case "label":
+              cellValue = node?.data?.label || "";
+              break;
+            case "shape":
+              cellValue = node?.data?.shape || "";
+              break;
+            case "id":
+              cellValue = node?.id || "";
+              break;
+            default:
+              cellValue = node?.data?.[columnTitle] || "";
           }
 
           // Special handling for relation data
@@ -848,6 +902,27 @@ export default function TableSelectorDialog({
     // Insert column headers at the beginning
     data.unshift([...columnsData]);
 
+    // Prepare configuration for dynamic updates
+    const tableConfig = {
+      tableId: selectedTableData.id,
+      rows: data.length,
+      columns: selectedColumns.length,
+      data: JSON.stringify(data),
+      // New dynamic configuration
+      filterConfig: JSON.stringify(filterGroups),
+      sortConfig:
+        sortField && sortDirection
+          ? JSON.stringify({
+              field: sortField,
+              direction: sortDirection,
+            })
+          : null,
+      selectedColumns: JSON.stringify(selectedColumns),
+      displayRows: displayRows,
+      isDynamic: true,
+      lastUpdated: new Date().toISOString(),
+    };
+
     // Fix pointer events before closing
     document.body.style.pointerEvents = "";
 
@@ -857,12 +932,7 @@ export default function TableSelectorDialog({
 
       // Then insert the table after a small delay to ensure dialog is fully closed
       setTimeout(() => {
-        onInsertTable({
-          id: selectedTableData.id,
-          rows: data.length,
-          columns: selectedColumns.length,
-          data: JSON.stringify(data),
-        });
+        onInsertTable(tableConfig);
       }, 50);
     }, 10);
   };

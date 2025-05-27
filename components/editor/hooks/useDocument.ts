@@ -30,6 +30,7 @@ interface DocumentState {
   syncChanges: () => void;
   resetState: () => void;
   loadFolderCanvases: (folderId: string) => Promise<void>;
+  refreshSingleCanvas: (canvasId: string) => Promise<any>;
 }
 
 const initialState: DocumentState = {
@@ -53,6 +54,7 @@ const initialState: DocumentState = {
   syncChanges: () => {},
   resetState: () => {},
   loadFolderCanvases: async () => {},
+  refreshSingleCanvas: async () => Promise.resolve(),
   folderCanvases: [],
   folder: null,
 };
@@ -282,6 +284,77 @@ export const useDocumentStore = create<DocumentState>()(
             toast.error("Failed to load folder canvases");
           } finally {
             set({ isLoading: false });
+          }
+        },
+
+        refreshSingleCanvas: async (canvasId: string) => {
+          try {
+            // Get current user
+            const {
+              data: { user },
+            } = await supabase.auth.getUser();
+
+            if (!user) {
+              throw new Error("User not authenticated");
+            }
+
+            // Fetch the specific canvas with fresh data
+            const { data, error } = await supabase
+              .from("canvas")
+              .select(
+                `
+                id, 
+                name,
+                canvas_type,
+                description, 
+                updated_at, 
+                columns:column_definition!column_definition_canvas_id_fkey(*), 
+                data:canvas_data(*)
+              `
+              )
+              .eq("id", canvasId)
+              .eq("user_id", user.id)
+              .single();
+
+            if (error) {
+              console.error("Error fetching canvas:", error);
+              throw error;
+            }
+
+            if (!data) {
+              throw new Error("Canvas not found");
+            }
+
+            // Update the specific canvas in folderCanvases
+            set((state) => ({
+              folderCanvases: state.folderCanvases.map((canvas) =>
+                canvas.id === canvasId
+                  ? {
+                      id: data.id,
+                      name: data.name,
+                      canvas_type: data.canvas_type,
+                      description: data.description || "",
+                      updated_at: new Date(data.updated_at),
+                      columns: data.columns,
+                      flowData: data.data ? data.data : null,
+                    }
+                  : canvas
+              ),
+            }));
+
+            // Return the fresh canvas data
+            return {
+              id: data.id,
+              name: data.name,
+              canvas_type: data.canvas_type,
+              description: data.description || "",
+              updated_at: new Date(data.updated_at),
+              columns: data.columns,
+              flowData: data.data ? data.data : null,
+            };
+          } catch (error) {
+            console.error("Error refreshing single canvas:", error);
+            throw error;
           }
         },
       };

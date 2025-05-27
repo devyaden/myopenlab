@@ -1286,17 +1286,24 @@ const Editor = (
         dataString = "[]";
       }
 
-      // Insert the canvas table node
+      // Insert the canvas table node with enhanced attributes
       editor
         .chain()
         .focus()
         .insertContent({
           type: "canvasTable",
           attrs: {
-            tableId: tableData.id,
+            tableId: tableData.tableId || tableData.id,
             rows: tableData.rows,
             columns: tableData.columns,
             data: dataString,
+            // New dynamic attributes
+            filterConfig: tableData.filterConfig || "[]",
+            sortConfig: tableData.sortConfig || null,
+            selectedColumns: tableData.selectedColumns || "[]",
+            displayRows: tableData.displayRows || 5,
+            isDynamic: tableData.isDynamic !== false, // Default to true
+            lastUpdated: tableData.lastUpdated || new Date().toISOString(),
           },
         })
         .run();
@@ -1310,6 +1317,7 @@ const Editor = (
       handleSave();
     } catch (error) {
       document.body.style.pointerEvents = "";
+      console.error("Error inserting canvas table:", error);
     }
   };
 
