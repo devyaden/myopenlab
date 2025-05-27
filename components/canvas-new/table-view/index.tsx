@@ -1886,7 +1886,7 @@ const TableView = forwardRef<
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
-      link.download = "table_export.xls";
+      link.download = "table_export.xlsx";
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
