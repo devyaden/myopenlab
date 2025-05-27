@@ -2,14 +2,14 @@
 
 import type React from "react";
 
-import { useState, useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   EdgeLabelRenderer,
   getBezierPath,
   getSimpleBezierPath,
   getSmoothStepPath,
   getStraightPath,
-  type Position,
+  Position,
   useReactFlow,
 } from "reactflow";
 import "reactflow/dist/style.css";
@@ -71,6 +71,8 @@ const CustomEdge = (params: any) => {
     style = {},
     data,
     markerEnd,
+    source,
+    target,
   } = params;
 
   const [isEditing, setIsEditing] = useState(false);
@@ -78,9 +80,33 @@ const CustomEdge = (params: any) => {
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const reactFlowInstance = useReactFlow();
 
-  // Calculate the midpoint for the label
-  const midX = (sourceX + targetX) / 2;
-  const midY = (sourceY + targetY) / 2;
+  // Simple approach: just shorten the edge by a fixed amount from both ends
+  const shortenBy = 12; // Reduced to 2px for minimal gap - almost touching node boundaries
+
+  const dx = targetX - sourceX;
+  const dy = targetY - sourceY;
+  const length = Math.sqrt(dx * dx + dy * dy);
+
+  if (length === 0) {
+    // Fallback for same position
+    var adjustedSourceX = sourceX;
+    var adjustedSourceY = sourceY;
+    var adjustedTargetX = targetX;
+    var adjustedTargetY = targetY;
+  } else {
+    const unitX = dx / length;
+    const unitY = dy / length;
+
+    // Shorten from both ends
+    var adjustedSourceX = sourceX + unitX * shortenBy;
+    var adjustedSourceY = sourceY + unitY * shortenBy;
+    var adjustedTargetX: any = targetX - unitX * shortenBy;
+    var adjustedTargetY: any = targetY - unitY * shortenBy;
+  }
+
+  // Calculate the midpoint for the label using adjusted coordinates
+  const midX = (adjustedSourceX + adjustedTargetX) / 2;
+  const midY = (adjustedSourceY + adjustedTargetY) / 2;
 
   useEffect(() => {
     // Focus the input when editing starts
@@ -113,11 +139,11 @@ const CustomEdge = (params: any) => {
 
   const getEdgePath = (edgeType: string): any => {
     const pathParams = {
-      sourceX,
-      sourceY,
+      sourceX: adjustedSourceX,
+      sourceY: adjustedSourceY,
       sourcePosition,
-      targetX,
-      targetY,
+      targetX: adjustedTargetX,
+      targetY: adjustedTargetY,
       targetPosition,
     };
 
