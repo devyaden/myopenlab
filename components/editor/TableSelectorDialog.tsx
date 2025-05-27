@@ -26,7 +26,7 @@ import {
   SlidersHorizontal,
   X,
 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import TablePreview from "./TablePreview";
 
 interface TableSelectorDialogProps {
@@ -377,6 +377,45 @@ export default function TableSelectorDialog({
     setEditingFilter(null);
   };
 
+  // Helper function to get cell value with proper data key mapping
+  const getCellValue = useCallback(
+    (node: any, columnTitle: string) => {
+      // Find the column definition to get the proper dataKey
+      const columnDef = selectedTableData?.columns?.find(
+        (col: any) => col.title === columnTitle
+      );
+
+      if (!columnDef) {
+        // Fallback for missing column definitions
+        if (columnTitle === "task") return node?.data?.label || "";
+        if (columnTitle === "type") return node?.data?.shape || "";
+        if (columnTitle === "id") return node?.id || "";
+        return node?.data?.[columnTitle] || "";
+      }
+
+      const dataKey = getDataKey(columnDef);
+
+      let cellValue;
+      switch (dataKey) {
+        case "label":
+          cellValue = node?.data?.label || "";
+          break;
+        case "shape":
+          cellValue = node?.data?.shape || "";
+          break;
+        case "id":
+          cellValue = node?.id || "";
+          break;
+        default:
+          // Try both the dataKey and the column title as fallbacks
+          cellValue = node?.data?.[dataKey] || node?.data?.[columnTitle] || "";
+      }
+
+      return cellValue;
+    },
+    [selectedTableData]
+  );
+
   // Helper function to check if a node matches a filter
   const matchesFilter = (node: any, filter: FilterType): boolean => {
     const { column, operator, value } = filter;
@@ -384,27 +423,8 @@ export default function TableSelectorDialog({
     // Handle placeholder empty values
     const actualValue = value === "placeholder_empty" ? "" : value;
 
-    // Find the column definition to get the proper dataKey
-    const columnDef = selectedTableData?.columns?.find(
-      (col: any) => col.title === column
-    );
-    const dataKey = columnDef ? getDataKey(columnDef) : column;
-
-    // Get the column value using dataKey
-    let nodeValue;
-    switch (dataKey) {
-      case "label":
-        nodeValue = node.data.label;
-        break;
-      case "shape":
-        nodeValue = node.data.shape;
-        break;
-      case "id":
-        nodeValue = node.id;
-        break;
-      default:
-        nodeValue = node.data[column];
-    }
+    // Use the getCellValue function for consistency
+    let nodeValue = getCellValue(node, column);
 
     // Check empty values
     if (operator === "is_empty") {
@@ -724,31 +744,9 @@ export default function TableSelectorDialog({
       const columnType = getColumnTypeForFilter(sortField);
 
       nodes.sort((a, b) => {
-        // Find the column definition to get the proper dataKey
-        const columnDef = selectedTableData?.columns?.find(
-          (col: any) => col.title === sortField
-        );
-        const dataKey = columnDef ? getDataKey(columnDef) : sortField;
-
-        // Get values to compare using dataKey
-        let aValue, bValue;
-        switch (dataKey) {
-          case "label":
-            aValue = a.data.label;
-            bValue = b.data.label;
-            break;
-          case "shape":
-            aValue = a.data.shape;
-            bValue = b.data.shape;
-            break;
-          case "id":
-            aValue = a.id;
-            bValue = b.id;
-            break;
-          default:
-            aValue = a.data[sortField];
-            bValue = b.data[sortField];
-        }
+        // Use getCellValue for consistent data retrieval
+        let aValue = getCellValue(a, sortField);
+        let bValue = getCellValue(b, sortField);
 
         // Handle different types of data
         if (columnType === "Number") {
@@ -779,7 +777,7 @@ export default function TableSelectorDialog({
     }
 
     return nodes;
-  }, [selectedTableData, filterGroups, sortField, sortDirection]);
+  }, [selectedTableData, filterGroups, sortField, sortDirection, getCellValue]);
 
   const handleInsert = () => {
     if (!selectedTableData) {
@@ -804,26 +802,8 @@ export default function TableSelectorDialog({
       data = processedNodes.slice(0, displayRows).map((node: any) => {
         // For each node, only include data from selected columns
         return columnsData.map((columnTitle) => {
-          // Find the column definition to get the proper dataKey
-          const columnDef = selectedTableData?.columns?.find(
-            (col: any) => col.title === columnTitle
-          );
-          const dataKey = columnDef ? getDataKey(columnDef) : columnTitle;
-
-          let cellValue;
-          switch (dataKey) {
-            case "label":
-              cellValue = node?.data?.label || "";
-              break;
-            case "shape":
-              cellValue = node?.data?.shape || "";
-              break;
-            case "id":
-              cellValue = node?.id || "";
-              break;
-            default:
-              cellValue = node?.data?.[columnTitle] || "";
-          }
+          // Use getCellValue for consistent data retrieval
+          let cellValue = getCellValue(node, columnTitle);
 
           // Special handling for relation data
           if (

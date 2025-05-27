@@ -219,32 +219,52 @@ export default function CanvasTableNodeView({
     [currentTableData]
   );
 
+  // Helper function to get cell value with proper data key mapping
+  const getCellValue = useCallback(
+    (node: any, columnTitle: string) => {
+      // Find the column definition to get the proper dataKey
+      const columnDef = currentTableData?.columns?.find(
+        (col: any) => col.title === columnTitle
+      );
+
+      if (!columnDef) {
+        // Fallback for missing column definitions
+        if (columnTitle === "task") return node?.data?.label || "";
+        if (columnTitle === "type") return node?.data?.shape || "";
+        if (columnTitle === "id") return node?.id || "";
+        return node?.data?.[columnTitle] || "";
+      }
+
+      const dataKey = getDataKey(columnDef);
+
+      let cellValue;
+      switch (dataKey) {
+        case "label":
+          cellValue = node?.data?.label || "";
+          break;
+        case "shape":
+          cellValue = node?.data?.shape || "";
+          break;
+        case "id":
+          cellValue = node?.id || "";
+          break;
+        default:
+          // Try both the dataKey and the column title as fallbacks
+          cellValue = node?.data?.[dataKey] || node?.data?.[columnTitle] || "";
+      }
+
+      return cellValue;
+    },
+    [currentTableData]
+  );
+
   const matchesFilter = useCallback(
     (node: any, filter: FilterType): boolean => {
       const { column, operator, value } = filter;
       const actualValue = value === "placeholder_empty" ? "" : value;
 
-      // Find the column definition to get the proper dataKey
-      const columnDef = currentTableData?.columns?.find(
-        (col: any) => col.title === column
-      );
-      const dataKey = columnDef ? getDataKey(columnDef) : column;
-
-      // Get the column value using dataKey
-      let nodeValue;
-      switch (dataKey) {
-        case "label":
-          nodeValue = node.data.label;
-          break;
-        case "shape":
-          nodeValue = node.data.shape;
-          break;
-        case "id":
-          nodeValue = node.id;
-          break;
-        default:
-          nodeValue = node.data[column];
-      }
+      // Use the same getCellValue function for consistency
+      let nodeValue = getCellValue(node, column);
 
       // Check empty values
       if (operator === "is_empty") {
@@ -346,7 +366,7 @@ export default function CanvasTableNodeView({
 
       return false;
     },
-    [currentTableData]
+    [getCellValue]
   );
 
   // Process nodes with filters and sorting
@@ -377,30 +397,9 @@ export default function CanvasTableNodeView({
       const columnType = getColumnTypeForFilter(sortField);
 
       nodes.sort((a, b) => {
-        // Find the column definition to get the proper dataKey
-        const columnDef = currentTableData?.columns?.find(
-          (col: any) => col.title === sortField
-        );
-        const dataKey = columnDef ? getDataKey(columnDef) : sortField;
-
-        let aValue, bValue;
-        switch (dataKey) {
-          case "label":
-            aValue = a.data.label;
-            bValue = b.data.label;
-            break;
-          case "shape":
-            aValue = a.data.shape;
-            bValue = b.data.shape;
-            break;
-          case "id":
-            aValue = a.id;
-            bValue = b.id;
-            break;
-          default:
-            aValue = a.data[sortField];
-            bValue = b.data[sortField];
-        }
+        // Use getCellValue for consistent data retrieval
+        let aValue = getCellValue(a, sortField);
+        let bValue = getCellValue(b, sortField);
 
         // Handle different types of data
         if (columnType === "Number") {
@@ -429,7 +428,13 @@ export default function CanvasTableNodeView({
     }
 
     return nodes;
-  }, [currentTableData, savedConfig, getColumnTypeForFilter, matchesFilter]);
+  }, [
+    currentTableData,
+    savedConfig,
+    getColumnTypeForFilter,
+    matchesFilter,
+    getCellValue,
+  ]);
 
   // Generate table data from processed nodes
   const generateTableData = useCallback(() => {
@@ -473,26 +478,7 @@ export default function CanvasTableNodeView({
         .slice(0, savedConfig.displayRows)
         .map((node: any) => {
           return savedConfig.selectedColumns.map((columnTitle: string) => {
-            // Find the column definition to get the proper dataKey
-            const columnDef = currentTableData?.columns?.find(
-              (col: any) => col.title === columnTitle
-            );
-            const dataKey = columnDef ? getDataKey(columnDef) : columnTitle;
-
-            let cellValue;
-            switch (dataKey) {
-              case "label":
-                cellValue = node?.data?.label || "";
-                break;
-              case "shape":
-                cellValue = node?.data?.shape || "";
-                break;
-              case "id":
-                cellValue = node?.id || "";
-                break;
-              default:
-                cellValue = node?.data?.[columnTitle] || "";
-            }
+            let cellValue = getCellValue(node, columnTitle);
 
             // Special handling for relation data
             if (
@@ -549,7 +535,13 @@ export default function CanvasTableNodeView({
     // Insert column headers at the beginning
     data.unshift([...savedConfig.selectedColumns]);
     return data;
-  }, [node.attrs.data, savedConfig, currentTableData, processedNodes]);
+  }, [
+    node.attrs.data,
+    savedConfig,
+    currentTableData,
+    processedNodes,
+    getCellValue,
+  ]);
 
   // Load table data
   const loadTableData = useCallback(
