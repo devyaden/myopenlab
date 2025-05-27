@@ -23,6 +23,7 @@ import { useEffect, useState } from "react";
 
 export const HeaderSidebar = () => {
   const { signOut, user } = useUser();
+  console.log("🚀 ~ HeaderSidebar ~ user:", user);
   const { setOpenMobile } = useSidebar();
   const {
     isFirstVisit,

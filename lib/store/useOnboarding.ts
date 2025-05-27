@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import { supabase } from "../supabase/client";
 
 interface OnboardingStore {
   isFirstVisit: boolean;
@@ -8,7 +9,7 @@ interface OnboardingStore {
   canvasOnbording: boolean;
   isChecked: boolean;
   onBoardingTour: boolean;
-  data: any[],
+  data: any[];
   resetOnboarding: () => void;
   setProtectedOnBording: (val: boolean) => void;
   setCreateCategoryOnbording: (val: boolean) => void;
@@ -17,6 +18,7 @@ interface OnboardingStore {
   setOnBoardingTour: (val: boolean) => void;
   setIsChecked: (val: boolean) => void;
   setData: (data: any) => void;
+  updateUserOnboardingStatus: (userId: string, status: string) => Promise<void>;
 }
 
 export const useOnboardingStore = create<OnboardingStore>()(
@@ -30,13 +32,14 @@ export const useOnboardingStore = create<OnboardingStore>()(
       data: [],
       isChecked: false,
 
-      setData: (data) => set({data: data}),
-      setNotFirstVisit: (val)=> set({isFirstVisit: val}),
-      setOnBoardingTour: (val)=> set({onBoardingTour: val}),
+      setData: (data) => set({ data: data }),
+      setNotFirstVisit: (val) => set({ isFirstVisit: val }),
+      setOnBoardingTour: (val) => set({ onBoardingTour: val }),
       setProtectedOnBording: (val) => set({ protectedOnBording: val }),
-      setCreateCategoryOnbording: (val) => set({ createCategoryOnbording: val }),
+      setCreateCategoryOnbording: (val) =>
+        set({ createCategoryOnbording: val }),
       setCanvasOnbording: (val) => set({ canvasOnbording: val }),
-      setIsChecked: (val) => set({isChecked: val}),
+      setIsChecked: (val) => set({ isChecked: val }),
       resetOnboarding: () =>
         set({
           isChecked: false,
@@ -44,6 +47,14 @@ export const useOnboardingStore = create<OnboardingStore>()(
           protectedOnBording: true,
           onBoardingTour: true,
         }),
+
+      updateUserOnboardingStatus: async (userId, status) => {
+        await supabase
+          .from("users")
+          .update({ onboarding_status: status })
+          .eq("id", userId);
+        set({ isFirstVisit: false });
+      },
     }),
     {
       name: "onboarding-store",
