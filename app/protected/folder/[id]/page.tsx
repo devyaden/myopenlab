@@ -1,13 +1,13 @@
 "use client";
 
-import { HeaderSidebar } from "@/components/header-dashboard";
-import { RecentDocuments } from "@/components/dashboard/recent-documents";
-import { SidebarProvider } from "@/components/ui/sidebar";
 import { FolderContent } from "@/components/dashboard/folder-content";
-import { useState, useEffect, useRef } from "react";
-import { ChevronLeft } from "lucide-react";
+import { RecentDocuments } from "@/components/dashboard/recent-documents";
+import { HeaderSidebar } from "@/components/header-dashboard";
 import { Button } from "@/components/ui/button";
+import { SidebarProvider } from "@/components/ui/sidebar";
+import { ChevronLeft } from "lucide-react";
 import { useParams } from "next/navigation";
+import { useEffect, useRef, useState } from "react";
 
 export default function FolderPage() {
   const params = useParams();
@@ -72,8 +72,7 @@ export default function FolderPage() {
         requestAnimationFrame(() => {
           if (sidebarRef.current)
             sidebarRef.current.style.transform = "translateX(0)";
-          if (mainRef.current)
-            mainRef.current.style.width = "100%";
+          if (mainRef.current) mainRef.current.style.width = "100%";
 
           setTimeout(() => {
             setIsAnimating(false);
@@ -112,7 +111,7 @@ export default function FolderPage() {
           {(showSidebar || isAnimating) && !isMobile && (
             <aside
               ref={sidebarRef}
-               className="w-80 border-l border-gray-100 bg-white absolute right-0 overflow-hidden transition-transform duration-300 ease-in-out"
+              className="w-80 border-l border-gray-100 bg-white absolute right-0 overflow-hidden transition-transform duration-300 ease-in-out"
               style={{
                 height: "calc(100% - 65px)",
                 transform:
@@ -121,16 +120,6 @@ export default function FolderPage() {
                     : "translateX(100%)",
               }}
             >
-              {/* <div className="relative">
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="absolute right-2 top-4"
-                  onClick={() => handleToggleSidebar(false)}
-                >
-                  <ChevronLeft className="h-4 w-4" />
-                </Button>
-              </div> */}
               <RecentDocuments handleToggleSidebar={handleToggleSidebar} />
             </aside>
           )}

@@ -1,39 +1,56 @@
 "use client";
 
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Card } from "@/components/ui/card";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-  DropdownMenuSeparator,
-} from "@/components/ui/dropdown-menu";
-import {
-  FileText,
-  Search,
-  Plus,
-  MoreVertical,
-  Edit,
-  Trash,
-  File,
-  ArrowLeft,
-  X,
-} from "lucide-react";
-import Link from "next/link";
-import { useState, useEffect } from "react";
-import { useSidebarStore } from "@/lib/store/useSidebar";
-import { useUser } from "@/lib/contexts/userContext";
 import {
   CANVAS_TYPE,
   CreateNewModal,
 } from "@/components/dashboard-sidebar/create-new-modal";
-import { generateUntitledName } from "@/lib/utils";
-import { useRouter } from "next/navigation";
-import Joyride from 'react-joyride';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Input } from "@/components/ui/input";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { useUser } from "@/lib/contexts/userContext";
 import { useOnboardingStore } from "@/lib/store/useOnboarding";
+import { useSidebarStore } from "@/lib/store/useSidebar";
+import { generateUntitledName } from "@/lib/utils";
+import {
+  ArrowLeft,
+  Edit,
+  File,
+  FileText,
+  MoreVertical,
+  Plus,
+  Search,
+  Trash,
+  X,
+} from "lucide-react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
+import Joyride from "react-joyride";
 import CustomJoyrideTooltip from "../CustomJoyrideTooltip";
 
 interface FolderContentProps {
@@ -50,7 +67,7 @@ export function FolderContent({ folderId }: FolderContentProps) {
     fetchRootCanvases,
     rootCanvases,
     setIsChecked,
-    isChecked
+    isChecked,
   } = useSidebarStore();
 
   const router = useRouter();
@@ -73,26 +90,26 @@ export function FolderContent({ folderId }: FolderContentProps) {
 
   const steps = [
     {
-      target: '.onboarding-create-button',
-      content: 'Click here to create a new folder!',
-      disableBeacon: true, 
-    }
+      target: ".onboarding-create-button",
+      content: "Click here to create a new folder!",
+      disableBeacon: true,
+    },
   ];
 
   const handleJoyrideCllback = (data: any) => {
     const { action, index, status, type } = data;
 
-    if (action === 'next' && index === 0) {
-      setCreateNewModalType("canvas")
+    if (action === "next" && index === 0) {
+      setCreateNewModalType("canvas");
     }
 
-    if (status === 'finished' || status === 'skipped') {
-      if(isChecked) {
+    if (status === "finished" || status === "skipped") {
+      if (isChecked) {
         setIsChecked(false);
         setRunTour(false);
       }
     }
-  }
+  };
 
   useEffect(() => {
     if (user) {
@@ -120,8 +137,8 @@ export function FolderContent({ folderId }: FolderContentProps) {
   }, [folders, folderId, rootCanvases]);
 
   const handleDontShowAgainChange = (e: any) => {
-    setIsChecked(e.target?.checked)
-  }
+    setIsChecked(e.target?.checked);
+  };
 
   const filteredCanvases =
     currentFolder?.canvases?.filter((canvas: any) =>
@@ -138,7 +155,7 @@ export function FolderContent({ folderId }: FolderContentProps) {
           callback={handleJoyrideCllback}
           tooltipComponent={(props: any) => (
             <CustomJoyrideTooltip
-              {...props} 
+              {...props}
               onDontShowAgainChange={handleDontShowAgainChange}
               isChecked={isChecked}
             />
@@ -148,7 +165,7 @@ export function FolderContent({ folderId }: FolderContentProps) {
           showSkipButton
           styles={{
             options: {
-              primaryColor: '#22c55e',
+              primaryColor: "#22c55e",
               zIndex: 10000,
             },
           }}
@@ -451,6 +468,48 @@ export function FolderContent({ folderId }: FolderContentProps) {
         currentFolderId={folderId === "root" ? null : folderId}
         rootCanvases={folderId === "root" ? rootCanvases : []}
       />
+
+      {/* Edit Dialog */}
+      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit File Name</DialogTitle>
+          </DialogHeader>
+          <Input
+            value={editingItemName}
+            onChange={(e) => setEditingItemName(e.target.value)}
+            placeholder="Enter new name"
+          />
+          <DialogFooter>
+            <Button onClick={() => setIsEditDialogOpen(false)}>Cancel</Button>
+            <Button onClick={confirmEdit}>Save</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog
+        open={isDeleteDialogOpen}
+        onOpenChange={setIsDeleteDialogOpen}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              Are you sure you want to delete this file?
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone. The file will be permanently
+              deleted.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDelete}>
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

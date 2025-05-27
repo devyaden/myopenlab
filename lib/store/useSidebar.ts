@@ -14,6 +14,7 @@ const initialState: Omit<SidebarStore, keyof SidebarActions> = {
   folderLoading: false,
   canvasLoading: false,
   rootCanvases: [],
+  isChecked: false,
 };
 
 export const useSidebarStore = create<SidebarStore>((set, get) => ({
@@ -358,6 +359,7 @@ export const useSidebarStore = create<SidebarStore>((set, get) => ({
 
   setSelectedFolder: (folderId) => set({ selectedFolderId: folderId }),
   setSelectedCanvas: (canvasId) => set({ selectedCanvasId: canvasId }),
+  setIsChecked: (isChecked) => set({ isChecked }),
 }));
 
 // Subscribe to store changes for debugging

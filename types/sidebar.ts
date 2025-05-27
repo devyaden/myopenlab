@@ -28,6 +28,7 @@ export interface SidebarState {
   folderLoading: boolean;
   canvasLoading: boolean;
   rootCanvases: Canvas[];
+  isChecked: boolean;
 }
 
 export interface SidebarActions {
@@ -57,6 +58,7 @@ export interface SidebarActions {
   setSelectedFolder: (folderId: string | null) => void;
   setSelectedCanvas: (canvasId: string | null) => void;
   fetchRootCanvases: (userId?: string) => Promise<void>;
+  setIsChecked: (isChecked: boolean) => void;
 }
 
 export type SidebarStore = SidebarState & SidebarActions;
