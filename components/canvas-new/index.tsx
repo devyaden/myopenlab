@@ -1206,9 +1206,9 @@ export default function CanvasNew({ canvasId }: FigmaInterfaceProps) {
   // Modify this part to handle sidebar closing when navigating to table
   const handleViewModeChange = (mode: "canvas" | "table" | "document") => {
     // Close sidebar when switching to table view
-    if (mode === "table") {
-      setIsSidebarOpen(false);
-    }
+    // if (mode === "table" || mode === "document") {
+    setIsSidebarOpen(false);
+    // }
 
     // If the canvas is hybrid, allow switching between all views
     // If it's a specific type (table or document), restrict to that view
