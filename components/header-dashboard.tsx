@@ -10,44 +10,30 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { useSidebar } from "@/components/ui/sidebar";
 import { useUser } from "@/lib/contexts/userContext";
+import { useOnboardingStore } from "@/lib/store/useOnboarding";
+import { useSidebarStore } from "@/lib/store/useSidebar";
 import { STORAGE_URL } from "@/utils/constants";
-import {
-  Bell,
-  Crown,
-  HelpCircle,
-  LogOut,
-  Menu,
-  User,
-  ChevronRight,
-  Home,
-  PanelRight,
-} from "lucide-react";
+import { ChevronRight, Crown, Home, LogOut, User } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
-import { useSidebar } from "@/components/ui/sidebar";
 import { usePathname } from "next/navigation";
-import { useSidebarStore } from "@/lib/store/useSidebar";
-import { useState, useEffect } from "react";
-import { useOnboardingStore } from "@/lib/store/useOnboarding";
+import { useEffect, useState } from "react";
 
-interface HeaderSidebarProps {
-  onToggleSidebar?: () => void;
-}
-
-export const HeaderSidebar = ({ onToggleSidebar }: HeaderSidebarProps) => {
+export const HeaderSidebar = () => {
   const { signOut, user } = useUser();
   const { setOpenMobile } = useSidebar();
-  const { 
-    isFirstVisit, 
-    setNotFirstVisit, 
-    setProtectedOnBording, 
-    setCreateCategoryOnbording, 
+  const {
+    isFirstVisit,
+    setNotFirstVisit,
+    setProtectedOnBording,
+    setCreateCategoryOnbording,
     setCanvasOnbording,
     setOnBoardingTour,
-    onBoardingTour
+    onBoardingTour,
   } = useOnboardingStore();
-  
+
   const pathname = usePathname();
   const { folders } = useSidebarStore();
   const [isMobile, setIsMobile] = useState(false);
@@ -107,22 +93,22 @@ export const HeaderSidebar = ({ onToggleSidebar }: HeaderSidebarProps) => {
   const handleSignOut = () => {
     if (isFirstVisit) {
       setNotFirstVisit(false);
-      setOnBoardingTour(false)
+      setOnBoardingTour(false);
     }
-    signOut()
-  }
+    signOut();
+  };
 
   const handleOnboarding = (data: string) => {
-    if(data === 'home') {
-      setProtectedOnBording(true)
-    } else if (data === 'category') {
-      setCreateCategoryOnbording(true)
-    } else if (data === 'canvas') {
-      setCanvasOnbording(true)
+    if (data === "home") {
+      setProtectedOnBording(true);
+    } else if (data === "category") {
+      setCreateCategoryOnbording(true);
+    } else if (data === "canvas") {
+      setCanvasOnbording(true);
     }
 
-    setNotFirstVisit(true)
-  }
+    setNotFirstVisit(true);
+  };
 
   return (
     <header className="flex items-center justify-between gap-4 bg-yadn-dark-background px-6 z-50 py-4 min-w-full h-16">
@@ -164,32 +150,6 @@ export const HeaderSidebar = ({ onToggleSidebar }: HeaderSidebarProps) => {
       </div>
 
       <div className="flex items-center gap-4">
-        {/* Mobile menu toggle - only shown on mobile */}
-        {isMobile && (
-          <Button
-            variant="ghost"
-            size="icon"
-            className="md:hidden text-white/70 hover:bg-transparent hover:text-white"
-            onClick={() => onToggleSidebar && onToggleSidebar()}
-          >
-            <Menu className="h-5 w-5" />
-            <span className="sr-only">Menu</span>
-          </Button>
-        )}
-
-        {/* Desktop sidebar toggle - only shown on desktop */}
-        {!isMobile && (
-          <Button
-            variant="ghost"
-            size="icon"
-            className="hidden md:flex text-white/70 hover:bg-transparent hover:text-white"
-            onClick={() => onToggleSidebar && onToggleSidebar()}
-          >
-            <PanelRight className="h-5 w-5" />
-            <span className="sr-only">Toggle Sidebar</span>
-          </Button>
-        )}
-
         <div className="flex items-center gap-3">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -218,46 +178,49 @@ export const HeaderSidebar = ({ onToggleSidebar }: HeaderSidebarProps) => {
                   <span>Profile</span>
                 </Link>
               </DropdownMenuItem>
-                {!onBoardingTour  && (
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild className="mb-2">
-                      <div
-                        className="flex items-center gap-2 px-2 py-1.5 hover:bg-gray-100 cursor-pointer"
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        <Crown className="h-4 w-4" />
-                        <span>Start Onboarding</span>
-                      </div>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="w-56">
-                      <DropdownMenuItem
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleOnboarding('home');
-                        }}
-                      >
-                        🏠 Home Onboarding
-                      </DropdownMenuItem>
-                      <DropdownMenuItem
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleOnboarding('category');
-                        }}
-                      >
-                        📁 Category Onboarding
-                      </DropdownMenuItem>
-                      <DropdownMenuItem
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleOnboarding('canvas');
-                        }}
-                      >
-                        🎨 Canvas Onboarding
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                )}
-              <DropdownMenuItem onClick={() => handleSignOut()} className="cursor-pointer">
+              {!onBoardingTour && (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild className="mb-2">
+                    <div
+                      className="flex items-center gap-2 px-2 py-1.5 hover:bg-gray-100 cursor-pointer"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <Crown className="h-4 w-4" />
+                      <span>Start Onboarding</span>
+                    </div>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-56">
+                    <DropdownMenuItem
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleOnboarding("home");
+                      }}
+                    >
+                      🏠 Home Onboarding
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleOnboarding("category");
+                      }}
+                    >
+                      📁 Category Onboarding
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleOnboarding("canvas");
+                      }}
+                    >
+                      🎨 Canvas Onboarding
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              )}
+              <DropdownMenuItem
+                onClick={() => handleSignOut()}
+                className="cursor-pointer"
+              >
                 <LogOut className="mr-2 h-4 w-4" />
                 <span>Log out</span>
               </DropdownMenuItem>

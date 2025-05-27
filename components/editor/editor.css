@@ -99,13 +99,11 @@
   list-style-type: decimal;
 }
 
-/* Google Docs style toolbar */
 .editor-toolbar {
   position: sticky !important;
   top: 0 !important;
-  z-index: 1000 !important; /* Much higher z-index */
-  flex-shrink: 0; /* Prevent toolbar from shrinking */
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1); /* Better visibility */
+  z-index: 1000 !important;
+  flex-shrink: 0;
 }
 
 .toolbar-inner {

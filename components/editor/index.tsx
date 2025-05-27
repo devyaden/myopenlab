@@ -1922,6 +1922,7 @@ const Editor = (
           backgroundColor: "#fff",
           borderBottom: "1px solid #e0e0e0",
           boxShadow: "0 2px 8px rgba(0, 0, 0, 0.15)",
+          padding: "8px 16px",
         }}
       >
         <EditorToolbar

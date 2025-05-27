@@ -286,22 +286,6 @@ export default function EditorToolbar({
     }
   };
 
-  // Get current formatting state for debugging
-  const debugState = JSON.stringify(
-    {
-      blockType: editorState?.blockType,
-      fontFamily: editorState?.fontFamily,
-      fontSize: editorState?.fontSize,
-      parsed: parseFontSize(editorState?.fontSize),
-      isBold: editorState?.isBold,
-      isItalic: editorState?.isItalic,
-      isUnderline: editorState?.isUnderline,
-      textDirection: editorState?.textDirection,
-    },
-    null,
-    2
-  );
-
   // Handle clicks outside menus
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
