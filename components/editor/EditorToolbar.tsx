@@ -699,13 +699,13 @@ export default function EditorToolbar({
               <ListOrdered className="h-4 w-4" />
             </Toggle>
 
-            <Toggle
+            {/* <Toggle
               onPressedChange={() => onInsert("task-list")}
               size="sm"
               aria-label="Task List"
             >
               <ListChecks className="h-4 w-4" />
-            </Toggle>
+            </Toggle> */}
 
             <Separator orientation="vertical" className="h-8" />
 
@@ -754,7 +754,7 @@ export default function EditorToolbar({
                   <span>Collapsible Container</span>
                 </DropdownMenuItem>
 
-                <DropdownMenuSeparator />
+                {/* <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={() => onInsert("header")}>
                   <svg
                     className="mr-2 h-4 w-4"
@@ -824,7 +824,7 @@ export default function EditorToolbar({
                     />
                   </svg>
                   <span>Footer</span>
-                </DropdownMenuItem>
+                </DropdownMenuItem> */}
               </DropdownMenuContent>
             </DropdownMenu>
 
