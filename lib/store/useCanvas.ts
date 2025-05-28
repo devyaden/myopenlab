@@ -874,6 +874,122 @@ export const useCanvasStore = create<CanvasStore>()(
               isDirty: true,
             };
           }),
+
+        updateRelationInCanvas: async (
+          canvasId: string,
+          nodeId: string,
+          columnTitle: string,
+          relationValue: any[]
+        ) => {
+          try {
+            console.log(
+              `🔄 Updating reciprocal relation in canvas ${canvasId} for node ${nodeId}`
+            );
+
+            // Get the target canvas data
+            const { data: targetCanvasData, error: canvasError } =
+              await supabase
+                .from("canvas_data")
+                .select("nodes, version")
+                .eq("canvas_id", canvasId)
+                .single();
+
+            if (canvasError && canvasError.code !== "PGRST116") {
+              console.error("Error fetching target canvas:", canvasError);
+              return false;
+            }
+
+            let targetNodes = targetCanvasData?.nodes || [];
+            const currentVersion = targetCanvasData?.version || 1;
+
+            // Update the specific node's relation data
+            const updatedNodes = targetNodes.map((node: any) => {
+              if (node.id === nodeId) {
+                console.log(
+                  `📝 Updating node ${nodeId} with new relations:`,
+                  relationValue
+                );
+                return {
+                  ...node,
+                  data: {
+                    ...node.data,
+                    [columnTitle]: relationValue,
+                  },
+                };
+              }
+              return node;
+            });
+
+            // Save the updated nodes back to the database
+            const { error: updateError } = await supabase
+              .from("canvas_data")
+              .update({
+                nodes: updatedNodes,
+                updated_at: new Date().toISOString(),
+                version: currentVersion + 1,
+              })
+              .eq("canvas_id", canvasId);
+
+            if (updateError) {
+              console.error("Error updating target canvas:", updateError);
+              return false;
+            }
+
+            console.log(
+              `✅ Successfully updated reciprocal relation in canvas ${canvasId}`
+            );
+            return true;
+          } catch (error) {
+            console.error("Error in updateRelationInCanvas:", error);
+            return false;
+          }
+        },
+
+        // Find reciprocal relation column in related canvas
+        findReciprocalRelationColumn: async (
+          relatedCanvasId: string,
+          currentCanvasId: string,
+          currentColumnTitle: string
+        ) => {
+          try {
+            console.log(
+              `🔍 Looking for reciprocal column in canvas ${relatedCanvasId} that points back to ${currentCanvasId}`
+            );
+
+            const { data: columns, error } = await supabase
+              .from("column_definition")
+              .select("*")
+              .eq("canvas_id", relatedCanvasId)
+              .eq("type", "Relation")
+              .eq("related_canvas_id", currentCanvasId);
+
+            if (error) {
+              console.error("Error finding reciprocal column:", error);
+              return null;
+            }
+
+            // Find the column that matches our relationship
+            // Look for columns that reference back to our canvas
+            const reciprocalColumn = columns?.find(
+              (col) => col.related_canvas_id === currentCanvasId
+            );
+
+            if (reciprocalColumn) {
+              console.log(
+                `🔗 Found reciprocal column: "${reciprocalColumn.title}" in canvas ${relatedCanvasId}`
+              );
+            } else {
+              console.log(
+                `❌ No reciprocal column found in canvas ${relatedCanvasId}`
+              );
+            }
+
+            return reciprocalColumn;
+          } catch (error) {
+            console.error("Error in findReciprocalRelationColumn:", error);
+            return null;
+          }
+        },
       };
     },
     {

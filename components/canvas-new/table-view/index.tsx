@@ -88,6 +88,8 @@ import {
   TableViewProps,
 } from "./table.types";
 import { validationSchemas } from "./validations";
+import { useCanvasStore } from "@/lib/store/useCanvas";
+import { supabase } from "@/lib/supabase/client";
 
 // Helper functions for column data mapping
 const getDataKey = (column: any): string => {
@@ -1247,6 +1249,150 @@ const TableView = forwardRef<
               newRelationCache[`${nodeId}-${column}`] = relationValue;
               setRelationCache(newRelationCache);
 
+              // HANDLE BIDIRECTIONAL RELATION UPDATES
+              if (columnDef.related_canvas_id) {
+                // Get the current node's info for creating reverse relation
+                const currentNodeInfo = {
+                  id: node.id,
+                  label: node.data.label || node.id,
+                };
+
+                // Get previous relation values to detect removals
+                const previousRelationValue =
+                  node.data[column] || node.data[dataKey] || [];
+
+                // Find added items (new relations)
+                const addedItems = relationValue.filter(
+                  (newItem: any) =>
+                    !previousRelationValue.some(
+                      (prevItem: any) => prevItem.id === newItem.id
+                    )
+                );
+
+                // Find removed items (deleted relations)
+                const removedItems = previousRelationValue.filter(
+                  (prevItem: any) =>
+                    !relationValue.some(
+                      (newItem: any) => newItem.id === prevItem.id
+                    )
+                );
+
+                // Handle adding new relations
+                addedItems.forEach(async (relatedItem: any) => {
+                  try {
+                    // Find the reciprocal column in the related canvas
+                    const reciprocalColumn = await useCanvasStore
+                      .getState()
+                      .findReciprocalRelationColumn(
+                        columnDef.related_canvas_id!,
+                        canvasId,
+                        column
+                      );
+
+                    if (reciprocalColumn) {
+                      // Get current relations for the target node
+                      const { data: targetCanvasData } = await supabase
+                        .from("canvas_data")
+                        .select("nodes")
+                        .eq("canvas_id", columnDef.related_canvas_id)
+                        .single();
+
+                      const targetNodes = targetCanvasData?.nodes || [];
+                      const targetNode = targetNodes.find(
+                        (n: any) => n.id === relatedItem.id
+                      );
+
+                      if (targetNode) {
+                        // Get existing relations for this node
+                        const existingRelations =
+                          targetNode.data[reciprocalColumn.title] || [];
+
+                        // Check if our current node is already in the relations
+                        const isAlreadyRelated = existingRelations.some(
+                          (rel: any) => rel.id === currentNodeInfo.id
+                        );
+
+                        if (!isAlreadyRelated) {
+                          // Add our current node to the target node's relations
+                          const updatedRelations = [
+                            ...existingRelations,
+                            currentNodeInfo,
+                          ];
+
+                          // Update the relation in the target canvas
+                          await useCanvasStore
+                            .getState()
+                            .updateRelationInCanvas(
+                              columnDef.related_canvas_id!,
+                              relatedItem.id,
+                              reciprocalColumn.title,
+                              updatedRelations
+                            );
+
+                          console.log(
+                            `✅ Added reciprocal relation: ${currentNodeInfo.label} → ${relatedItem.label}`
+                          );
+                        }
+                      }
+                    }
+                  } catch (error) {
+                    console.error("Error adding reciprocal relation:", error);
+                    // Don't throw - let the main relation update continue
+                  }
+                });
+
+                // Handle removing relations
+                removedItems.forEach(async (removedItem: any) => {
+                  try {
+                    const reciprocalColumn = await useCanvasStore
+                      .getState()
+                      .findReciprocalRelationColumn(
+                        columnDef.related_canvas_id!,
+                        canvasId,
+                        column
+                      );
+
+                    if (reciprocalColumn) {
+                      const { data: targetCanvasData } = await supabase
+                        .from("canvas_data")
+                        .select("nodes")
+                        .eq("canvas_id", columnDef.related_canvas_id)
+                        .single();
+
+                      const targetNodes = targetCanvasData?.nodes || [];
+                      const targetNode = targetNodes.find(
+                        (n: any) => n.id === removedItem.id
+                      );
+
+                      if (targetNode) {
+                        const existingRelations =
+                          targetNode.data[reciprocalColumn.title] || [];
+
+                        // Remove our current node from the target node's relations
+                        const updatedRelations = existingRelations.filter(
+                          (rel: any) => rel.id !== nodeId
+                        );
+
+                        await useCanvasStore
+                          .getState()
+                          .updateRelationInCanvas(
+                            columnDef.related_canvas_id!,
+                            removedItem.id,
+                            reciprocalColumn.title,
+                            updatedRelations
+                          );
+
+                        console.log(
+                          `🗑️ Removed reciprocal relation: ${currentNodeInfo.label} ← ${removedItem.label}`
+                        );
+                      }
+                    }
+                  } catch (error) {
+                    console.error("Error removing reciprocal relation:", error);
+                  }
+                });
+              }
+
               // Update rollup data that depends on this relation
               const relatedRollupColumns = columns.filter(
                 (col) =>
@@ -1275,6 +1421,7 @@ const TableView = forwardRef<
           return;
         }
 
+        // Handle non-relation columns (existing code remains the same)
         const { isValid, errorMessage } = validateField(columnDef?.type, value);
 
         if (isValid) {

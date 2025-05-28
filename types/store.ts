@@ -110,6 +110,18 @@ export interface CanvasActions {
   updateCanvasSettings: (settings?: any) => void;
   createColumnInCanvas: (canvasId: string, columnData: any) => Promise<any>;
   setDragging: (dragging: boolean) => void;
+
+  updateRelationInCanvas: (
+    canvasId: string,
+    nodeId: string,
+    columnTitle: string,
+    relationValue: any[]
+  ) => Promise<boolean>;
+  findReciprocalRelationColumn: (
+    relatedCanvasId: string,
+    currentCanvasId: string,
+    currentColumnTitle: string
+  ) => Promise<any>;
 }
 
 export interface UndoableState {
