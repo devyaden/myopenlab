@@ -23,6 +23,7 @@ import { useOnboardingStore } from "@/lib/store/useOnboarding";
 import Joyride from 'react-joyride';
 import CustomJoyrideTooltip from "../CustomJoyrideTooltip";
 import { useRef } from "react";
+import { useUser } from "@/lib/contexts/userContext";
 
 interface SidebarProps {
   onDragStart: (event: React.DragEvent, shapeType: string) => void;
@@ -64,6 +65,8 @@ export function Sidebar({
   const [isSearching, setIsSearching] = useState<boolean>(false);
   const sidebarRef = useRef<HTMLDivElement>(null);
   const [sidebarWidth, setSidebarWidth] = useState(0);
+
+  const { user } = useUser();
 
   // Define the shape categories
   const shapeCategories: ShapeCategory[] = [
@@ -375,17 +378,28 @@ export function Sidebar({
   const handleJoyrideCllback = (data: any) => {
     const { action, index, status, type } = data;
 
+    if(isChecked) {
+      setCanvasOnbording(false);
+      setIsChecked(false);
+    }
+
     if (status === 'finished' || status === 'skipped') {
-      if(isChecked) {
-        setCanvasOnbording(false);
-        setIsChecked(false);
-      }
+      setCanvasOnbording(false);
+      setIsChecked(false);
     }
   }
 
   const handleDontShowAgainChange = (e: any) => {
     setIsChecked(e.target?.checked)
   }
+
+  const isHasSeenOnborading = useMemo(() => {
+    if (!user?.has_seen_onboarding) {
+      return !user?.has_seen_onboarding && canvasOnbording
+    } else {
+      return user?.has_seen_onboarding && canvasOnbording
+    }
+  }, [user?.has_seen_onboarding, canvasOnbording])
 
   useEffect(() => {
     const timeout = setTimeout(() => {
@@ -406,9 +420,8 @@ export function Sidebar({
         isVisible ? "w-72 translate-x-0" : "w-0 -translate-x-full md:w-0"
       )}
     >
-      {isFirstVisit &&
-       isVisible && 
-       canvasOnbording &&
+      {isHasSeenOnborading &&
+       isVisible && isFirstVisit &&
        sidebarWidth >= 280 &&
        <Joyride
           steps={steps}

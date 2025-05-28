@@ -52,6 +52,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import Joyride from "react-joyride";
 import CustomJoyrideTooltip from "../CustomJoyrideTooltip";
+import { useMemo } from "react";
 
 interface FolderContentProps {
   folderId: string;
@@ -85,7 +86,7 @@ export function FolderContent({ folderId }: FolderContentProps) {
     id: string;
     type: "canvas";
   } | null>(null);
-  const { isFirstVisit, data } = useOnboardingStore();
+  const { isFirstVisit, protectedOnBording } = useOnboardingStore();
   const [runTour, setRunTour] = useState(true);
 
   const steps = [
@@ -103,13 +104,24 @@ export function FolderContent({ folderId }: FolderContentProps) {
       setCreateNewModalType("canvas");
     }
 
+    if (isChecked) {
+      setIsChecked(false);
+      setRunTour(false);
+    }
+
     if (status === "finished" || status === "skipped") {
-      if (isChecked) {
-        setIsChecked(false);
-        setRunTour(false);
-      }
+      setIsChecked(false);
+      setRunTour(false);
     }
   };
+
+  const isHasSeenProtectedOnBording = useMemo(() => {
+    if (!user?.has_seen_onboarding) {
+      return !user?.has_seen_onboarding && protectedOnBording
+    } else {
+      return user?.has_seen_onboarding && protectedOnBording
+    }
+  }, [user?.has_seen_onboarding, protectedOnBording])
 
   useEffect(() => {
     if (user) {
@@ -148,7 +160,7 @@ export function FolderContent({ folderId }: FolderContentProps) {
   // Function to handle empty canvases array gracefully
   const getEmptyState = () => (
     <div className="text-center py-8 bg-gray-50 rounded-lg">
-      {isFirstVisit && (
+      {isHasSeenProtectedOnBording && isFirstVisit && (
         <Joyride
           steps={steps}
           run={runTour}

@@ -40,6 +40,8 @@ import { useForm } from "react-hook-form";
 import toast from "react-hot-toast";
 import Joyride from "react-joyride";
 import * as z from "zod";
+import { useUser } from "@/lib/contexts/userContext";
+import { useMemo } from "react";
 
 // Define the form schema
 const formSchema = z.object({
@@ -135,6 +137,8 @@ export function AIGenerationDialog({
   const [loadingStartTime, setLoadingStartTime] = useState<number>(0);
   const [isLongLoading, setIsLongLoading] = useState<boolean>(false);
   const [isMounted, setIsMounted] = useState<boolean>(false);
+
+  const { user } = useUser();
 
   const { 
     isFirstVisit, 
@@ -288,13 +292,14 @@ export function AIGenerationDialog({
   const handleJoyrideCallback = (data: any) => {
     const { action, index, status, type } = data;
 
-    console.log(action, index, status, type, "action, index, status, type");
-
-    if (status === 'finished' || status === 'skipped') {
-      if(isChecked) {
+    if(isChecked) {
         setCreateCategoryOnbording(false)
         setIsChecked(false)
-      }
+    }
+
+    if (status === 'finished' || status === 'skipped') {
+      setCreateCategoryOnbording(false)
+      setIsChecked(false)
     }
   };
 
@@ -309,6 +314,14 @@ export function AIGenerationDialog({
     }
   };
 
+  const isHasSeenOnborading = useMemo(() => {
+    if (!user?.has_seen_onboarding) {
+      return !user?.has_seen_onboarding && createCategoryOnbording
+    } else {
+      return user?.has_seen_onboarding && createCategoryOnbording
+    }
+  }, [user?.has_seen_onboarding, createCategoryOnbording])
+
   useEffect(() => {
     const timeout = setTimeout(() => {
       setIsMounted(true);
@@ -320,7 +333,7 @@ export function AIGenerationDialog({
   return (
     <Dialog open={isOpen} onOpenChange={handleCloseAttempt}>
       <DialogContent className="max-w-md">
-      {isFirstVisit && isMounted && createCategoryOnbording && <Joyride
+      {isHasSeenOnborading && isMounted && isFirstVisit && <Joyride
         steps={aiCanvasSteps}
         run={isFirstVisit}
         callback={handleJoyrideCallback}

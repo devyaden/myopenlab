@@ -246,30 +246,28 @@ export function HomeContent() {
 
   return (
     <div className="flex flex-col h-full">
-      {hasMounted 
-        && isFirstVisit 
-          && protectedOnBording && (
-            <Joyride
-              steps={steps}
-              run={runTour}
-              callback={handleJoyrideCllback}
-              tooltipComponent={(props: any) => (
-                <CustomJoyrideTooltip 
-                  {...props} 
-                  onDontShowAgainChange={handleDontShowAgainChange}
-                  isChecked={isChecked}
-                />
-              )}
-              continuous
-              showProgress
-              showSkipButton
-              styles={{
-                options: {
-                  primaryColor: '#22c55e',
-                  zIndex: 10000,
-                },
-              }}
+      {hasMounted && isFirstVisit && (!user?.has_seen_onboarding || protectedOnBording) && (
+        <Joyride
+          steps={steps}
+          run={runTour}
+          callback={handleJoyrideCllback}
+          tooltipComponent={(props: any) => (
+            <CustomJoyrideTooltip 
+              {...props} 
+              onDontShowAgainChange={handleDontShowAgainChange}
+              isChecked={isChecked}
             />
+          )}
+          continuous
+          showProgress
+          showSkipButton
+          styles={{
+            options: {
+              primaryColor: '#22c55e',
+              zIndex: 10000,
+            },
+          }}
+        />
       )}
       <div className="p-6 flex-shrink-0 bg-white">
         <div className="flex flex-col md:flex-row justify-between md:items-center mb-6">
