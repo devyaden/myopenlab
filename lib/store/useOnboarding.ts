@@ -18,7 +18,10 @@ interface OnboardingStore {
   setOnBoardingTour: (val: boolean) => void;
   setIsChecked: (val: boolean) => void;
   setData: (data: any) => void;
-  updateUserOnboardingStatus: (userId: string, status: string) => Promise<void>;
+  updateUserOnboardingStatus: (
+    userId: string,
+    status: boolean
+  ) => Promise<void>;
 }
 
 export const useOnboardingStore = create<OnboardingStore>()(
@@ -53,7 +56,7 @@ export const useOnboardingStore = create<OnboardingStore>()(
           .from("users")
           .update({ has_seen_onboarding: status })
           .eq("id", userId);
-        set({ isFirstVisit: status });
+        set({ isFirstVisit: false });
       },
     }),
     {

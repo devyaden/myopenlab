@@ -703,48 +703,26 @@ export function generateEdgesForNodes(
       return xComparison;
     });
 
-    // Create edges between nodes in logical flow order
+    // Create main workflow edges
     for (let i = 0; i < sortedNodes.length - 1; i++) {
       const sourceNode = sortedNodes[i];
       const targetNode = sortedNodes[i + 1];
 
-      // Skip connections to or from decision diamonds that will be handled separately
-      if (
-        sourceNode.data.shape === "diamond" ||
-        targetNode.data.shape === "diamond"
-      ) {
+      // Skip if this is a decision branch (target is below source)
+      if (targetNode.position.y > sourceNode.position.y + 100) {
         continue;
       }
 
-      // Determine appropriate handles based on relative positions
-      let sourceHandle = isRTL ? "h" : "g"; // Default left in RTL, right in LTR
-      let targetHandle = isRTL ? "c" : "d"; // Default right in RTL, left in LTR
-
-      // For horizontal connections in the same row
-      if (Math.abs(sourceNode.position.y - targetNode.position.y) < 50) {
-        sourceHandle = isRTL ? "h" : "g"; // Left side in RTL, right side in LTR
-        targetHandle = isRTL ? "c" : "d"; // Right side in RTL, left side in LTR
-      }
-      // For downward connections
-      else if (sourceNode.position.y < targetNode.position.y) {
-        sourceHandle = "f"; // Bottom
-        targetHandle = "a"; // Top
-      }
-      // For upward connections
-      else if (sourceNode.position.y > targetNode.position.y) {
-        sourceHandle = "e"; // Top
-        targetHandle = "b"; // Bottom
-      }
-
       edges.push({
-        id: `edge-${sourceNode.id}-${targetNode.id}`,
+        id: `edge-main-${sourceNode.id}-${targetNode.id}`,
         source: sourceNode.id,
         target: targetNode.id,
-        sourceHandle,
-        targetHandle,
+        sourceHandle: isRTL ? "h" : "g", // Left in RTL, right in LTR
+        targetHandle: isRTL ? "c" : "d", // Right in RTL, left in LTR
         type: "smoothstep",
         style: {
           strokeWidth: 2,
+          stroke: "#1E40AF",
           opacity: 1.0,
         },
         animated: true,
@@ -754,64 +732,66 @@ export function generateEdgesForNodes(
       });
     }
 
-    // Decision node connections for workflow diagrams
-    if (diagramType === DiagramType.WORKFLOW) {
-      // Find all diamond nodes (decision points)
-      const decisionNodes = nodes.filter(
-        (node) => node.data.shape === "diamond"
+    // Create decision branches
+    const decisionNodes = nodes.filter((node) => node.data.shape === "diamond");
+
+    for (const decisionNode of decisionNodes) {
+      // Find nodes below this decision node (for "No" path)
+      const branchNodes = nodes.filter(
+        (node) =>
+          node.position.y > decisionNode.position.y + 100 &&
+          Math.abs(node.position.x - decisionNode.position.x) < 200
       );
 
-      for (const decisionNode of decisionNodes) {
-        // Find nodes to connect as alternative paths
-        const currentIndex = sortedNodes.findIndex(
-          (node) => node.id === decisionNode.id
+      if (branchNodes.length > 0) {
+        const closestBranch = branchNodes.reduce((closest, current) =>
+          Math.abs(current.position.x - decisionNode.position.x) <
+          Math.abs(closest.position.x - decisionNode.position.x)
+            ? current
+            : closest
         );
 
-        if (currentIndex >= 0 && currentIndex + 2 < sortedNodes.length) {
-          const targetIndex = Math.min(
-            currentIndex + 2,
-            sortedNodes.length - 1
-          );
-          const targetNode = sortedNodes[targetIndex];
+        edges.push({
+          id: `edge-branch-${decisionNode.id}-${closestBranch.id}`,
+          source: decisionNode.id,
+          target: closestBranch.id,
+          sourceHandle: "f", // Bottom
+          targetHandle: "a", // Top
+          type: "smoothstep",
+          style: {
+            strokeWidth: 2,
+            stroke: "#DC2626",
+            strokeDasharray: "5,5",
+            opacity: 1.0,
+          },
+          animated: true,
+          markerEnd: {
+            type: "arrowclosed",
+          },
+        });
 
-          // Choose appropriate handles based on relative positions
-          let sourceHandle, targetHandle;
+        // Connect branch back to main flow if possible
+        const mainFlowNodes = nodes.filter(
+          (node) =>
+            Math.abs(node.position.y - decisionNode.position.y) < 50 &&
+            node.position.x > decisionNode.position.x + 200
+        );
 
-          // If target is below decision node
-          if (
-            targetNode.position.y >
-            decisionNode.position.y + decisionNode.height / 2
-          ) {
-            sourceHandle = "f"; // bottom of decision
-            targetHandle = "a"; // top of target
-          }
-          // For horizontal connections, respect RTL direction
-          else if (
-            (targetNode.position.x > decisionNode.position.x && !isRTL) ||
-            (targetNode.position.x < decisionNode.position.x && isRTL)
-          ) {
-            sourceHandle = isRTL ? "h" : "g"; // right in LTR, left in RTL
-            targetHandle = isRTL ? "c" : "d"; // left in LTR, right in RTL
-          }
-          // Opposite horizontal direction
-          else {
-            sourceHandle = isRTL ? "g" : "h"; // left in LTR, right in RTL
-            targetHandle = isRTL ? "d" : "c"; // right in LTR, left in RTL
-          }
-
-          // Add the alternative path
+        if (mainFlowNodes.length > 0) {
+          const returnTarget = mainFlowNodes[0];
           edges.push({
-            id: `edge-decision-${decisionNode.id}-${targetNode.id}`,
-            source: decisionNode.id,
-            target: targetNode.id,
-            sourceHandle,
-            targetHandle,
+            id: `edge-return-${closestBranch.id}-${returnTarget.id}`,
+            source: closestBranch.id,
+            target: returnTarget.id,
+            sourceHandle: isRTL ? "h" : "g",
+            targetHandle: isRTL ? "c" : "d",
             type: "smoothstep",
             style: {
               strokeWidth: 2,
-              strokeDasharray: "5,5", // Dashed line for alternative path
+              stroke: "#059669",
               opacity: 1.0,
             },
+            animated: true,
             markerEnd: {
               type: "arrowclosed",
             },
@@ -913,167 +893,135 @@ export function generateWorkflowNodes(
   title: string,
   timestamp: number
 ): NodeData[] {
-  // Create a comprehensive workflow with nodes
+  // Create a professional workflow with better spacing and layout
   return [
     {
       id: `node-${timestamp}-1`,
       type: "genericNode",
-      position: { x: 300, y: 100 },
-      data: { label: "Start", shape: "rounded" },
-      width: 150,
-      height: 80,
+      position: { x: 50, y: 50 },
+      data: { label: "Project Initiation", shape: "rounded" },
+      width: 180,
+      height: 90,
     },
     {
       id: `node-${timestamp}-2`,
       type: "genericNode",
-      position: { x: 550, y: 100 },
-      data: { label: "Receive Request", shape: "rectangle" },
-      width: 150,
-      height: 80,
+      position: { x: 300, y: 50 },
+      data: { label: "Requirements Analysis", shape: "rectangle" },
+      width: 180,
+      height: 90,
     },
     {
       id: `node-${timestamp}-3`,
       type: "genericNode",
-      position: { x: 800, y: 100 },
-      data: { label: "Validate Input", shape: "rectangle" },
-      width: 150,
-      height: 80,
+      position: { x: 550, y: 50 },
+      data: { label: "Design Documentation", shape: "document" },
+      width: 180,
+      height: 90,
     },
     {
       id: `node-${timestamp}-4`,
       type: "genericNode",
-      position: { x: 1050, y: 100 },
-      data: { label: "Input Valid?", shape: "diamond" },
-      width: 150,
-      height: 100,
+      position: { x: 800, y: 50 },
+      data: { label: "Approval Required?", shape: "diamond" },
+      width: 180,
+      height: 120,
     },
     {
       id: `node-${timestamp}-5`,
       type: "genericNode",
-      position: { x: 1050, y: 250 },
-      data: { label: "Request Correction", shape: "rectangle" },
-      width: 150,
-      height: 80,
+      position: { x: 800, y: 220 },
+      data: { label: "Revision Management", shape: "rectangle" },
+      width: 180,
+      height: 90,
     },
     {
       id: `node-${timestamp}-6`,
       type: "genericNode",
-      position: { x: 800, y: 250 },
-      data: { label: "Send Notification", shape: "rectangle" },
-      width: 150,
-      height: 80,
+      position: { x: 1050, y: 50 },
+      data: { label: "Development Phase", shape: "rectangle" },
+      width: 180,
+      height: 90,
     },
     {
       id: `node-${timestamp}-7`,
       type: "genericNode",
-      position: { x: 550, y: 250 },
-      data: { label: "Wait for Response", shape: "rectangle" },
-      width: 150,
-      height: 80,
+      position: { x: 1300, y: 50 },
+      data: { label: "Quality Assurance", shape: "hexagon" },
+      width: 180,
+      height: 90,
     },
     {
       id: `node-${timestamp}-8`,
       type: "genericNode",
-      position: { x: 300, y: 250 },
-      data: { label: "Response Received?", shape: "diamond" },
-      width: 150,
-      height: 100,
+      position: { x: 1550, y: 50 },
+      data: { label: "Testing Complete?", shape: "diamond" },
+      width: 180,
+      height: 120,
     },
     {
       id: `node-${timestamp}-9`,
       type: "genericNode",
-      position: { x: 300, y: 400 },
-      data: { label: "Process Data", shape: "rectangle" },
-      width: 150,
-      height: 80,
+      position: { x: 1550, y: 220 },
+      data: { label: "Bug Fixes & Retesting", shape: "rectangle" },
+      width: 180,
+      height: 90,
     },
     {
       id: `node-${timestamp}-10`,
       type: "genericNode",
-      position: { x: 550, y: 400 },
-      data: { label: "Retrieve Records", shape: "rectangle" },
-      width: 150,
-      height: 80,
+      position: { x: 1800, y: 50 },
+      data: { label: "Deployment Preparation", shape: "rectangle" },
+      width: 180,
+      height: 90,
     },
     {
       id: `node-${timestamp}-11`,
       type: "genericNode",
-      position: { x: 800, y: 400 },
-      data: { label: "Customer DB", shape: "cylinder" },
-      width: 150,
-      height: 100,
+      position: { x: 2050, y: 50 },
+      data: { label: "Production Database", shape: "cylinder" },
+      width: 180,
+      height: 120,
     },
     {
       id: `node-${timestamp}-12`,
       type: "genericNode",
-      position: { x: 1050, y: 400 },
-      data: { label: "Records Found?", shape: "diamond" },
-      width: 150,
-      height: 100,
+      position: { x: 2300, y: 50 },
+      data: { label: "Go-Live Decision", shape: "diamond" },
+      width: 180,
+      height: 120,
     },
     {
       id: `node-${timestamp}-13`,
       type: "genericNode",
-      position: { x: 1050, y: 550 },
-      data: { label: "Create New Record", shape: "rectangle" },
-      width: 150,
-      height: 80,
+      position: { x: 2300, y: 220 },
+      data: { label: "Rollback Procedure", shape: "rectangle" },
+      width: 180,
+      height: 90,
     },
     {
       id: `node-${timestamp}-14`,
       type: "genericNode",
-      position: { x: 800, y: 550 },
-      data: { label: "Update Record", shape: "rectangle" },
-      width: 150,
-      height: 80,
+      position: { x: 2550, y: 50 },
+      data: { label: "Production Deployment", shape: "rectangle" },
+      width: 180,
+      height: 90,
     },
     {
       id: `node-${timestamp}-15`,
       type: "genericNode",
-      position: { x: 550, y: 550 },
-      data: { label: "Submit for Approval", shape: "rectangle" },
-      width: 150,
-      height: 80,
+      position: { x: 2800, y: 50 },
+      data: { label: "Monitoring & Support", shape: "hexagon" },
+      width: 180,
+      height: 90,
     },
     {
       id: `node-${timestamp}-16`,
       type: "genericNode",
-      position: { x: 300, y: 550 },
-      data: { label: "Approved?", shape: "diamond" },
-      width: 150,
-      height: 100,
-    },
-    {
-      id: `node-${timestamp}-17`,
-      type: "genericNode",
-      position: { x: 300, y: 700 },
-      data: { label: "Generate Report", shape: "document" },
-      width: 150,
-      height: 100,
-    },
-    {
-      id: `node-${timestamp}-18`,
-      type: "genericNode",
-      position: { x: 550, y: 700 },
-      data: { label: "Send Confirmation", shape: "rectangle" },
-      width: 150,
-      height: 80,
-    },
-    {
-      id: `node-${timestamp}-19`,
-      type: "genericNode",
-      position: { x: 800, y: 700 },
-      data: { label: "Log Activity", shape: "rectangle" },
-      width: 150,
-      height: 80,
-    },
-    {
-      id: `node-${timestamp}-20`,
-      type: "genericNode",
-      position: { x: 1050, y: 700 },
-      data: { label: "End", shape: "rounded" },
-      width: 150,
-      height: 80,
+      position: { x: 3050, y: 50 },
+      data: { label: "Project Completion", shape: "rounded" },
+      width: 180,
+      height: 90,
     },
   ];
 }
@@ -1655,73 +1603,6 @@ export function generateMindMapNodes(
       " " +
       getTranslatedLabel("idea", language);
 
-  // Add common mind map terms to translations if not already present
-  if (!commonTranslations[LanguageType.ENGLISH]["topic"]) {
-    // Add English versions if not present
-    commonTranslations[LanguageType.ENGLISH]["topic"] = "Topic";
-    commonTranslations[LanguageType.ENGLISH]["subtopic"] = "Subtopic";
-    commonTranslations[LanguageType.ENGLISH]["central"] = "Central";
-    commonTranslations[LanguageType.ENGLISH]["idea"] = "Idea";
-
-    // Add these to other languages if present in the translations
-    Object.keys(commonTranslations).forEach((lang) => {
-      if (lang !== LanguageType.ENGLISH) {
-        if (!commonTranslations[lang as LanguageType]["topic"]) {
-          // These are fallbacks in case translations weren't provided
-          switch (lang) {
-            case LanguageType.SPANISH:
-              commonTranslations[lang as LanguageType]["topic"] = "Tema";
-              commonTranslations[lang as LanguageType]["subtopic"] = "Subtema";
-              commonTranslations[lang as LanguageType]["central"] = "Central";
-              commonTranslations[lang as LanguageType]["idea"] = "Idea";
-              break;
-            case LanguageType.FRENCH:
-              commonTranslations[lang as LanguageType]["topic"] = "Sujet";
-              commonTranslations[lang as LanguageType]["subtopic"] =
-                "Sous-sujet";
-              commonTranslations[lang as LanguageType]["central"] = "Central";
-              commonTranslations[lang as LanguageType]["idea"] = "Idée";
-              break;
-            case LanguageType.GERMAN:
-              commonTranslations[lang as LanguageType]["topic"] = "Thema";
-              commonTranslations[lang as LanguageType]["subtopic"] =
-                "Unterthema";
-              commonTranslations[lang as LanguageType]["central"] = "Zentral";
-              commonTranslations[lang as LanguageType]["idea"] = "Idee";
-              break;
-            case LanguageType.PORTUGUESE:
-              commonTranslations[lang as LanguageType]["topic"] = "Tópico";
-              commonTranslations[lang as LanguageType]["subtopic"] =
-                "Subtópico";
-              commonTranslations[lang as LanguageType]["central"] = "Central";
-              commonTranslations[lang as LanguageType]["idea"] = "Ideia";
-              break;
-            case LanguageType.JAPANESE:
-              commonTranslations[lang as LanguageType]["topic"] = "トピック";
-              commonTranslations[lang as LanguageType]["subtopic"] =
-                "サブトピック";
-              commonTranslations[lang as LanguageType]["central"] = "中心";
-              commonTranslations[lang as LanguageType]["idea"] = "アイデア";
-              break;
-            case LanguageType.CHINESE:
-              commonTranslations[lang as LanguageType]["topic"] = "主题";
-              commonTranslations[lang as LanguageType]["subtopic"] = "子主题";
-              commonTranslations[lang as LanguageType]["central"] = "中心";
-              commonTranslations[lang as LanguageType]["idea"] = "想法";
-              break;
-            case LanguageType.ARABIC:
-              commonTranslations[lang as LanguageType]["topic"] = "موضوع";
-              commonTranslations[lang as LanguageType]["subtopic"] =
-                "موضوع فرعي";
-              commonTranslations[lang as LanguageType]["central"] = "مركزي";
-              commonTranslations[lang as LanguageType]["idea"] = "فكرة";
-              break;
-          }
-        }
-      }
-    });
-  }
-
   return [
     {
       id: `node-${timestamp}-1`,
@@ -1834,10 +1715,44 @@ export function generateNodeStyles(nodes: any[], industry: IndustryType) {
   nodes.forEach((node: any, index: number) => {
     const colorIndex = index % palette.length;
 
+    // Determine special styling based on shape
+    let backgroundColor = palette[colorIndex];
+    let borderColor = palette[(colorIndex + 1) % palette.length];
+    let textColor = getTextColorForBackground(backgroundColor);
+
+    // Special styling for different shapes
+    if (node.data.shape === "diamond") {
+      // Decision points - use warning/attention colors
+      backgroundColor = "#FEF3C7"; // Light yellow
+      borderColor = "#F59E0B"; // Amber
+      textColor = "#92400E"; // Dark amber
+    } else if (node.data.shape === "cylinder") {
+      // Data stores - use neutral colors
+      backgroundColor = "#F3F4F6"; // Light gray
+      borderColor = "#6B7280"; // Gray
+      textColor = "#374151"; // Dark gray
+    } else if (node.data.shape === "document") {
+      // Documents - use blue tones
+      backgroundColor = "#EFF6FF"; // Light blue
+      borderColor = "#3B82F6"; // Blue
+      textColor = "#1E40AF"; // Dark blue
+    } else if (node.data.shape === "actor") {
+      // People/actors - use green tones
+      backgroundColor = "#F0FDF4"; // Light green
+      borderColor = "#22C55E"; // Green
+      textColor = "#15803D"; // Dark green
+    } else if (node.data.shape === "hexagon") {
+      // Quality gates/processes - use purple tones
+      backgroundColor = "#FAF5FF"; // Light purple
+      borderColor = "#A855F7"; // Purple
+      textColor = "#7C3AED"; // Dark purple
+    }
+
     nodeStyles[node.id] = {
-      fontFamily: "Inter, Arial, sans-serif",
-      fontSize: node.data.label?.length > 20 ? 14 : 16,
-      isBold: index === 0, // First node is bold
+      fontFamily:
+        "Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+      fontSize: node.data.label?.length > 25 ? 12 : 14,
+      isBold: node.data.shape === "diamond" || index === 0, // Bold for decisions and first node
       isItalic: false,
       isUnderline: false,
       textAlign: "center",
@@ -1847,11 +1762,11 @@ export function generateNodeStyles(nodes: any[], industry: IndustryType) {
       isVertical: true,
       borderStyle: "solid",
       borderWidth: 2,
-      backgroundColor: palette[colorIndex],
-      borderColor: palette[(colorIndex + 1) % palette.length],
-      textColor: getTextColorForBackground(palette[colorIndex]),
-      lineHeight: 1.3,
-      boxShadow: "0 4px 6px rgba(0, 0, 0, 0.1)",
+      backgroundColor: backgroundColor,
+      borderColor: borderColor,
+      textColor: textColor,
+      lineHeight: 1.4,
+      boxShadow: "0 2px 8px rgba(0, 0, 0, 0.1)",
     };
   });
 

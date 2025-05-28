@@ -164,6 +164,8 @@ export function UMLEditor({
     canvasSettings?.backgroundColor || "#ffffff"
   );
 
+  console.log("-------- node s-------", edges);
+
   const [showMiniMap, setShowMiniMap] = useState(true);
   const [showNodeProperties, setShowNodeProperties] = useState(false);
 

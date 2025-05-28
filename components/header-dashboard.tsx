@@ -91,10 +91,10 @@ export const HeaderSidebar = () => {
   const breadcrumbs = generateBreadcrumbs();
 
   const handleSignOut = () => {
-    if (!user?.has_seen_onboarding) {
+    if (user && !user?.has_seen_onboarding) {
       setNotFirstVisit(false);
       setOnBoardingTour(false);
-      updateUserOnboardingStatus(user.id, true)
+      updateUserOnboardingStatus(user.id, true);
     }
     signOut();
   };

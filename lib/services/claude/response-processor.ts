@@ -38,9 +38,6 @@ export function processClaudeToolResponse(
 
     // Get the diagram data from the tool call
     const diagramData = toolCalls[0];
-    // const diagramData = toolCall.tool_calls.find(
-    //   (call: any) => call.name === "generateDiagram"
-    // );
 
     if (!diagramData || !diagramData.input) {
       console.error("No diagram data found in tool call");
@@ -55,14 +52,17 @@ export function processClaudeToolResponse(
     // The diagram data is already parsed as an object in input
     const canvasData = diagramData.input;
 
-    // Store diagram metadata in the canvas data for validation and rendering
-    canvasData.diagramType = diagramType;
-    canvasData.language = language;
-    canvasData.industry = industry;
+    // Clean up the canvas data to remove unwanted properties
+    const cleanedCanvasData = cleanCanvasData(canvasData);
 
-    if (isCanvasDataMinimallyValid(canvasData)) {
+    // Store diagram metadata in the canvas data for validation and rendering
+    cleanedCanvasData.diagramType = diagramType;
+    cleanedCanvasData.language = language;
+    cleanedCanvasData.industry = industry;
+
+    if (isCanvasDataMinimallyValid(cleanedCanvasData)) {
       // Improve edge handles if needed
-      const improvedData = improveEdgeHandles(canvasData);
+      const improvedData = improveEdgeHandles(cleanedCanvasData);
       return improvedData;
     } else {
       console.error("Generated canvas data failed validation");
@@ -85,6 +85,83 @@ export function processClaudeToolResponse(
 }
 
 /**
+ * Clean canvas data by removing unwanted properties from nodes
+ */
+function cleanCanvasData(canvasData: any): any {
+  if (!canvasData || !canvasData.nodes) {
+    return canvasData;
+  }
+
+  // Clean up nodes
+  const cleanedNodes = canvasData.nodes.map((node: any) => {
+    if (!node || !node.data) {
+      return node;
+    }
+
+    // Create a clean data object with only allowed properties
+    const cleanedData = {
+      label: node.data.label || "",
+      shape: node.data.shape || "rectangle",
+    };
+
+    // Remove any unwanted properties from the main node object
+    const cleanedNode: any = {
+      id: node.id,
+      type: node.type || "genericNode",
+      position: node.position || { x: 0, y: 0 },
+      data: cleanedData,
+      width: node.width || 150,
+      height: node.height || 80,
+    };
+
+    // Preserve any valid style properties if they exist
+    if (node.style && typeof node.style === "object") {
+      cleanedNode.style = node.style;
+    }
+
+    // Preserve any valid className if it exists
+    if (node.className && typeof node.className === "string") {
+      cleanedNode.className = node.className;
+    }
+
+    return cleanedNode;
+  });
+
+  // Clean up edges by removing unwanted properties
+  const cleanedEdges = canvasData.edges
+    ? canvasData.edges.map((edge: any) => {
+        const cleanedEdge: any = {
+          id: edge.id,
+          source: edge.source,
+          target: edge.target,
+          sourceHandle: edge.sourceHandle,
+          targetHandle: edge.targetHandle,
+          type: edge.type || "smoothstep",
+        };
+
+        // Preserve valid optional properties
+        if (edge.animated !== undefined) {
+          cleanedEdge.animated = edge.animated;
+        }
+        if (edge.style && typeof edge.style === "object") {
+          cleanedEdge.style = edge.style;
+        }
+        if (edge.markerEnd && typeof edge.markerEnd === "object") {
+          cleanedEdge.markerEnd = edge.markerEnd;
+        }
+
+        return cleanedEdge;
+      })
+    : [];
+
+  return {
+    nodes: cleanedNodes,
+    edges: cleanedEdges,
+    nodeStyles: canvasData.nodeStyles || {},
+  };
+}
+
+/**
  * Check if canvas data has minimal valid structure (just enough to render)
  */
 export function isCanvasDataMinimallyValid(canvasData: any): boolean {
@@ -103,7 +180,7 @@ export function isCanvasDataMinimallyValid(canvasData: any): boolean {
       return false;
     }
 
-    // Fix common issues with node structure
+    // Validate and fix common issues with node structure
     for (const node of canvasData.nodes) {
       if (!node) continue;
 
@@ -128,36 +205,36 @@ export function isCanvasDataMinimallyValid(canvasData: any): boolean {
 
       // Ensure node has data object with at least a label
       if (!node.data) {
-        node.data = { label: node.label || "Node" };
+        node.data = { label: node.label || "Node", shape: "rectangle" };
       }
 
-      // If no shape is defined, set a default based on node id or className
-      if (!node.data.shape) {
-        if (node.className && node.className.includes("diamond")) {
-          node.data.shape = "diamond";
-        } else if (node.className && node.className.includes("circle")) {
-          node.data.shape = "circle";
-        } else {
-          node.data.shape = "rectangle";
+      // Ensure data object only has allowed properties
+      const allowedDataProps = ["label", "shape"];
+      const cleanData: any = {};
+      allowedDataProps.forEach((prop) => {
+        if (node.data[prop] !== undefined) {
+          cleanData[prop] = node.data[prop];
         }
-      }
+      });
+
+      // Set defaults for required properties
+      if (!cleanData.label) cleanData.label = "Node";
+      if (!cleanData.shape) cleanData.shape = "rectangle";
+
+      node.data = cleanData;
 
       // Ensure node has position
       if (!node.position) {
         node.position = { x: 0, y: 0 };
       }
 
-      // Ensure node has dimensions
+      // Ensure node has dimensions at node level (not in data)
       if (!node.width) node.width = 150;
       if (!node.height) node.height = 80;
 
-      // Also ensure dimensions are in node.data for consistent access
-      if (!node.data.width) node.data.width = node.width;
-      if (!node.data.height) node.data.height = node.height;
-
       // For website wireframes, ensure we use larger default dimensions for containers
       if (canvasData.diagramType === DiagramType.WEBSITE_WIREFRAME) {
-        // Set larger default dimensions for main containers (header, footer, content areas)
+        // Set larger default dimensions for main containers
         if (
           node.data.label &&
           (node.data.label.toLowerCase().includes("header") ||
@@ -182,9 +259,6 @@ export function isCanvasDataMinimallyValid(canvasData: any): boolean {
               node.height = 200;
             }
           }
-          // Sync with node.data
-          node.data.width = node.width;
-          node.data.height = node.height;
         }
       }
     }
@@ -418,8 +492,19 @@ export function improveEdgeHandles(canvasData: any): any {
         edgeProps.animated = true;
         edgeProps.markerEnd = { type: "arrowclosed" };
 
-        // Ensure higher opacity for better visibility
-        edgeProps.style.opacity = 1.0;
+        // Enhanced styling for professional appearance
+        edgeProps.style = {
+          strokeWidth: 2,
+          stroke: "#1E40AF", // Professional blue
+          opacity: 1.0,
+          filter: "drop-shadow(0 1px 2px rgba(0, 0, 0, 0.1))",
+        };
+
+        // Special styling for decision branches
+        if (sourceNode.data?.shape === "diamond") {
+          edgeProps.style.stroke = "#DC2626"; // Red for negative/alternative paths
+          edgeProps.style.strokeDasharray = "5,5";
+        }
 
         // For LTR (English) connect right→left
         // For RTL (Arabic) connect left→right
@@ -427,13 +512,6 @@ export function improveEdgeHandles(canvasData: any): any {
           // In RTL workflow, edges should go from left to right (opposite of LTR)
           edgeProps.sourceHandle = "h"; // left
           edgeProps.targetHandle = "c"; // right
-
-          // For Arabic workflows, ensure connections are properly visible
-          edgeProps.style = {
-            ...edgeProps.style,
-            strokeWidth: 2.5, // Slightly thicker
-            opacity: 1.0, // Full opacity
-          };
         } else {
           edgeProps.sourceHandle = "g"; // right
           edgeProps.targetHandle = "d"; // left

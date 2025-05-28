@@ -14,4 +14,5 @@ export interface User {
   lastActive?: Date;
   isActive?: boolean;
   onboarding_completed?: boolean;
+  has_seen_onboarding?: boolean;
 }
