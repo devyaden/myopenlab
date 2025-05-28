@@ -23,6 +23,7 @@ function ReactFlowNodeView({
   const [isSelected, setIsSelected] = useState(selected);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [initialized, setInitialized] = useState(false);
   const wrapperRef = useRef<HTMLDivElement>(null);
 
   // Debounce updateAttributes to avoid excessive updates
@@ -37,7 +38,6 @@ function ReactFlowNodeView({
   const canvasId = node.attrs.canvasId;
   const useRealTimeData = node.attrs.useRealTimeData;
   const width = node.attrs.width || 500;
-
   const height = node.attrs.height || 300;
   const lastUpdated = node.attrs.lastUpdated;
   const canvasName = node.attrs.name || "Untitled Canvas";
@@ -54,21 +54,26 @@ function ReactFlowNodeView({
 
       if (currentViewportString !== newViewportString) {
         debouncedUpdateAttributes({ viewport: newViewport });
-      } else {
-        console.log("[ReactFlowNodeView] Viewport same, not updating.");
       }
     },
     [node.attrs.viewport, debouncedUpdateAttributes]
   );
 
   const fetchCanvasData = async () => {
-    if (!canvasId || !useRealTimeData) return;
+    if (!canvasId || !useRealTimeData || isLoading) return;
 
     try {
       setIsLoading(true);
       setError(null);
 
-      const response = await fetch(`/api/canvas/data/${canvasId}`);
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 8000);
+
+      const response = await fetch(`/api/canvas/data/${canvasId}`, {
+        signal: controller.signal,
+      });
+
+      clearTimeout(timeoutId);
 
       if (!response.ok) {
         const errorData = await response.json();
@@ -77,32 +82,131 @@ function ReactFlowNodeView({
 
       const data = await response.json();
 
+      console.log("Fetched canvas data:", {
+        nodes: data.nodes?.length || 0,
+        edges: data.edges?.length || 0,
+        styles: Object.keys(data.styles || {}).length,
+      });
+
+      // Update node attributes with fetched data
       updateAttributes({
-        nodes: JSON.stringify(data.nodes),
-        edges: JSON.stringify(data.edges),
-        styles: JSON.stringify(data.styles),
+        nodes: JSON.stringify(data.nodes || []),
+        edges: JSON.stringify(data.edges || []),
+        styles: JSON.stringify(data.styles || {}),
         lastUpdated: data.updated_at,
       });
 
-      // Update the local state
+      // Update local state
       setNodes(data.nodes || []);
       setEdges(data.edges || []);
       setStyles(data.styles || {});
-    } catch (error) {
-      console.error("Error fetching canvas data:", error);
-      setError((error as Error).message);
+    } catch (error: any) {
+      if (error.name === "AbortError") {
+        console.log("Canvas data fetch was aborted (timeout)");
+      } else {
+        console.error("Error fetching canvas data:", error);
+        setError((error as Error).message);
+      }
     } finally {
       setIsLoading(false);
       setLoaded(true);
     }
   };
 
-  // Set up polling for real-time updates
+  // Initialize data from node attributes - this runs once
   useEffect(() => {
-    if (useRealTimeData && canvasId) {
-      fetchCanvasData();
+    if (initialized) return;
+
+    try {
+      const nodeData = node.attrs.nodes ? JSON.parse(node.attrs.nodes) : [];
+      const edgeData = node.attrs.edges ? JSON.parse(node.attrs.edges) : [];
+
+      // Better parsing of styles with fallback
+      let styleData = {};
+      if (node.attrs.styles) {
+        try {
+          styleData = JSON.parse(node.attrs.styles);
+        } catch (e) {
+          console.warn("Error parsing styles, using empty object:", e);
+          styleData = {};
+        }
+      }
+
+      console.log("Initializing ReactFlow node with:", {
+        nodes: nodeData.length,
+        edges: edgeData.length,
+        styles: Object.keys(styleData).length,
+      });
+
+      setNodes(nodeData);
+      setEdges(edgeData);
+      setStyles(styleData);
+      setLoaded(true);
+      setInitialized(true);
+
+      // Fetch fresh data if we have real-time enabled AND (no data OR no styles)
+      if (
+        useRealTimeData &&
+        canvasId &&
+        (nodeData.length === 0 || Object.keys(styleData).length === 0)
+      ) {
+        console.log(
+          "Fetching fresh data because real-time enabled and missing content"
+        );
+        setTimeout(() => {
+          fetchCanvasData();
+        }, 500);
+      }
+    } catch (error) {
+      console.error("Error parsing node data:", error);
+      setNodes([]);
+      setEdges([]);
+      setStyles({});
+      setLoaded(true);
+      setInitialized(true);
     }
-  }, [useRealTimeData, canvasId]);
+  }, []); // Empty dependency array - runs only once
+
+  // Update data when node attributes change (but don't trigger loading)
+  useEffect(() => {
+    if (!initialized) return;
+
+    try {
+      const nodeData = node.attrs.nodes ? JSON.parse(node.attrs.nodes) : [];
+      const edgeData = node.attrs.edges ? JSON.parse(node.attrs.edges) : [];
+
+      // Better parsing of styles with fallback
+      let styleData = {};
+      if (node.attrs.styles) {
+        try {
+          styleData = JSON.parse(node.attrs.styles);
+        } catch (e) {
+          console.warn("Error parsing updated styles:", e);
+          styleData = {};
+        }
+      }
+
+      // Only update if data actually changed
+      if (JSON.stringify(nodeData) !== JSON.stringify(nodes)) {
+        console.log("Updating nodes data");
+        setNodes(nodeData);
+      }
+      if (JSON.stringify(edgeData) !== JSON.stringify(edges)) {
+        console.log("Updating edges data");
+        setEdges(edgeData);
+      }
+      if (JSON.stringify(styleData) !== JSON.stringify(styles)) {
+        console.log(
+          "Updating styles data:",
+          Object.keys(styleData).length,
+          "styles"
+        );
+        setStyles(styleData);
+      }
+    } catch (error) {
+      console.error("Error updating node data:", error);
+    }
+  }, [node.attrs.nodes, node.attrs.edges, node.attrs.styles, initialized]);
 
   const handleClick = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -137,6 +241,25 @@ function ReactFlowNodeView({
           node.data.height ||
           (node.type === "textNode" ? 50 : 100);
 
+        // Get the style for this specific node
+        const nodeStyle = styles[node.id] || {};
+
+        // Merge existing node style with stored styles
+        const mergedStyle = {
+          ...node.style,
+          ...nodeStyle,
+          width: nodeWidth,
+          height: nodeHeight,
+        };
+
+        // Merge existing node data style with stored styles
+        const mergedDataStyle = {
+          ...node.data?.style,
+          ...nodeStyle,
+          width: nodeWidth,
+          height: nodeHeight,
+        };
+
         return {
           ...node,
           width: nodeWidth,
@@ -145,17 +268,9 @@ function ReactFlowNodeView({
             ...node.data,
             width: nodeWidth,
             height: nodeHeight,
-            style: {
-              ...styles[node.id],
-              width: nodeWidth,
-              height: nodeHeight,
-            },
+            style: mergedDataStyle,
           },
-          style: {
-            ...node.style,
-            width: nodeWidth,
-            height: nodeHeight,
-          },
+          style: mergedStyle,
         };
       }),
     [nodes, styles]
@@ -163,19 +278,28 @@ function ReactFlowNodeView({
 
   const optimizedEdges = useMemo(
     () =>
-      edges.map((edge: any) => ({
-        ...edge,
-        type: edge.type || "custom",
-        sourceHandle: edge.sourceHandle || "g",
-        targetHandle: edge.targetHandle || "d",
-        style: {
+      edges.map((edge: any) => {
+        // Get any stored styles for this edge
+        const edgeStyle = styles[edge.id] || {};
+
+        // Merge existing edge style with stored styles
+        const mergedStyle = {
           ...(edge.style || {}),
-          opacity: edge.style?.opacity ?? 1.0,
-          strokeWidth: edge.style?.strokeWidth ?? 2,
-        },
-        data: edge.data,
-      })),
-    [edges]
+          ...edgeStyle,
+          opacity: edge.style?.opacity ?? edgeStyle.opacity ?? 1.0,
+          strokeWidth: edge.style?.strokeWidth ?? edgeStyle.strokeWidth ?? 2,
+        };
+
+        return {
+          ...edge,
+          type: edge.type || "custom",
+          sourceHandle: edge.sourceHandle || "g",
+          targetHandle: edge.targetHandle || "d",
+          style: mergedStyle,
+          data: edge.data,
+        };
+      }),
+    [edges, styles]
   );
 
   const startResize = (
@@ -186,57 +310,46 @@ function ReactFlowNodeView({
     e.preventDefault();
     e.stopPropagation();
 
-    // Get initial values
     const startX = e.clientX;
     const startY = e.clientY;
     const startWidth = wrapperRef.current?.offsetWidth || 570;
     const startHeight = wrapperRef.current?.offsetHeight || 300;
 
-    // Create resize function
     const resize = (moveEvent: MouseEvent) => {
-      // Calculate deltas
       const deltaX = (moveEvent.clientX - startX) * directionX;
       const deltaY = (moveEvent.clientY - startY) * directionY;
 
-      // Calculate new dimensions
       let newWidth = startWidth;
       let newHeight = startHeight;
 
-      // Apply width changes if we're resizing horizontally
       if (directionX !== 0) {
         newWidth = Math.min(570, Math.max(200, startWidth + deltaX));
       }
 
-      // Apply height changes if we're resizing vertically
       if (directionY !== 0) {
         newHeight = Math.max(150, startHeight + deltaY);
       }
 
-      // Update the node attributes
       updateAttributes({
         width: newWidth,
         height: newHeight,
       });
 
-      // Update the wrapper dimensions
       if (wrapperRef.current) {
         wrapperRef.current.style.width = `${newWidth}px`;
         wrapperRef.current.style.height = `${newHeight}px`;
       }
     };
 
-    // Create stop function
     const stopResize = () => {
       document.removeEventListener("mousemove", resize);
       document.removeEventListener("mouseup", stopResize);
     };
 
-    // Add event listeners
     document.addEventListener("mousemove", resize);
     document.addEventListener("mouseup", stopResize);
   };
 
-  // Simple resize functions for each corner/edge
   const startResizeBottomRight = (e: React.MouseEvent) => startResize(e, 1, 1);
   const startResizeBottomLeft = (e: React.MouseEvent) => startResize(e, -1, 1);
   const startResizeTopRight = (e: React.MouseEvent) => startResize(e, 1, -1);
@@ -246,26 +359,22 @@ function ReactFlowNodeView({
   const startResizeBottom = (e: React.MouseEvent) => startResize(e, 0, 1);
   const startResizeTop = (e: React.MouseEvent) => startResize(e, 0, -1);
 
-  // Handle manual refresh of real-time data
   const handleRefresh = () => {
-    if (useRealTimeData && canvasId) {
+    if (useRealTimeData && canvasId && !isLoading) {
       fetchCanvasData();
     }
   };
 
-  // Format relative time for better display
   const getRelativeTimeString = (dateString: string) => {
     try {
       const date = new Date(dateString);
       const now = new Date();
       const diff = Math.floor((now.getTime() - date.getTime()) / 1000);
 
-      // Format relative time
       if (diff < 60) return "just now";
       if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
       if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
 
-      // Format date for older updates
       return date.toLocaleDateString(undefined, {
         month: "short",
         day: "numeric",
@@ -275,12 +384,14 @@ function ReactFlowNodeView({
     }
   };
 
-  if (!loaded || isLoading) {
+  // Show loading only if we're actually loading AND don't have any existing data
+  if ((!loaded || isLoading) && nodes.length === 0) {
     return (
       <NodeViewWrapper
-        className={`react-flow-node-wrapper ${isSelected ? "is-selected" : ""}`}
+        className={`react-flow-node-wrapper loading-state ${isSelected ? "is-selected" : ""}`}
         data-name={canvasName}
         data-canvas-id={canvasId}
+        data-loading="true"
         style={{
           width: `${width}px`,
           height: `${height}px`,
@@ -292,26 +403,27 @@ function ReactFlowNodeView({
           justifyContent: "center",
         }}
       >
-        <div className="flex flex-col items-center gap-2">
+        <div className="flex flex-col items-center gap-2 loading-indicator">
           <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500"></div>
-          <span className="text-sm text-gray-500">
-            {isLoading ? "Updating canvas..." : "Loading canvas..."}
-          </span>
+          <span className="text-sm text-gray-500">Loading canvas...</span>
         </div>
       </NodeViewWrapper>
     );
   }
 
-  // Create a simplified canvas data object for ReactFlowCanvas
   const canvasData = {
     nodes: optimizedNodes,
     edges: optimizedEdges,
-    flowData: { styles: styles || {} },
+    flowData: {
+      styles: styles || {},
+      // Pass additional flow data if available
+      ...node.attrs.flowData,
+    },
   };
 
   return (
     <NodeViewWrapper
-      // className={`${isSelected ? "is-selected" : ""}`}
+      className={`react-flow-node-wrapper loaded-state ${isSelected ? "is-selected" : ""}`}
       ref={wrapperRef}
       onClick={handleClick}
       style={{
@@ -327,16 +439,18 @@ function ReactFlowNodeView({
       }}
       data-name={canvasName}
       data-canvas-id={canvasId}
-      data-nodes={JSON.stringify(nodes)}
-      data-edges={JSON.stringify(edges)}
+      data-loading="false"
+      data-loaded="true"
+      data-nodes={JSON.stringify(optimizedNodes)}
+      data-edges={JSON.stringify(optimizedEdges)}
     >
       <div
         style={{
-          flex: "1 1 auto" /* Make this div fill available space */,
+          flex: "1 1 auto",
           width: "100%",
           position: "relative",
           overflow: "hidden",
-          display: "flex" /* Add flex display */,
+          display: "flex",
         }}
       >
         <ReactFlowCanvas
@@ -349,7 +463,6 @@ function ReactFlowNodeView({
         />
       </div>
 
-      {/* Refresh button for real-time data */}
       {useRealTimeData && (
         <button
           className="absolute top-2 right-2 bg-white rounded-full p-1 shadow-md hover:bg-gray-100 z-10"
@@ -372,24 +485,20 @@ function ReactFlowNodeView({
         </button>
       )}
 
-      {/* Last updated info for real-time data */}
       {useRealTimeData && lastUpdated && (
         <div className="absolute bottom-1 right-2 text-xs text-gray-400">
           Updated: {getRelativeTimeString(lastUpdated)}
         </div>
       )}
 
-      {/* Error message if any */}
       {error && (
         <div className="absolute bottom-2 left-2 bg-red-100 text-xs text-red-600 px-2 py-1 rounded z-10">
           Error: {error}
         </div>
       )}
 
-      {/* Resize handles - only visible when selected */}
       {isSelected && (
         <>
-          {/* Corner resize handles */}
           <div
             className="absolute -bottom-2 -right-2 w-3 h-3 bg-blue-500 rounded-full z-10 cursor-nwse-resize"
             onMouseDown={startResizeBottomRight}
@@ -406,8 +515,6 @@ function ReactFlowNodeView({
             className="absolute -top-2 -left-2 w-3 h-3 bg-blue-500 rounded-full z-10 cursor-nwse-resize"
             onMouseDown={startResizeTopLeft}
           />
-
-          {/* Edge resize handles */}
           <div
             className="absolute top-1/2 -right-2 w-3 h-3 bg-blue-500 rounded-full z-10 cursor-ew-resize transform -translate-y-1/2"
             onMouseDown={startResizeRight}

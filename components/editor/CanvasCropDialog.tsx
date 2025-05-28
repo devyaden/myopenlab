@@ -486,7 +486,7 @@ export default function CanvasCropDialog({
   const onCrop = (cropData: any, reactFlowInstance: any) => {
     // Fix pointer events before closing
     document.body.style.pointerEvents = "";
-
+    debugger;
     // Insert the cropped canvas
     onInsertCroppedCanvas({
       id: canvasData.id || `canvas-${Date.now()}`,
@@ -495,6 +495,7 @@ export default function CanvasCropDialog({
       dimensions: cropData.dimensions,
       originalNodes: canvasData.nodes || [],
       originalEdges: canvasData.edges || [],
+      originalStyles: canvasData.styles || {},
       useRealTimeData: useRealTimeData,
       canvasId: canvasData.id,
     });

@@ -27,7 +27,6 @@ export const ReactFlowNode = Node.create({
       nodes: {
         default: "[]",
         parseHTML: (element) => {
-          // Get the data from data-nodes attribute
           const nodes = element.getAttribute("data-nodes") || "[]";
           return nodes;
         },
@@ -35,9 +34,15 @@ export const ReactFlowNode = Node.create({
       edges: {
         default: "[]",
         parseHTML: (element) => {
-          // Get the data from data-edges attribute
           const edges = element.getAttribute("data-edges") || "[]";
           return edges;
+        },
+      },
+      styles: {
+        default: "{}",
+        parseHTML: (element) => {
+          const styles = element.getAttribute("data-styles") || "{}";
+          return styles;
         },
       },
       width: {
@@ -98,6 +103,10 @@ export const ReactFlowNode = Node.create({
         typeof HTMLAttributes.nodes === "string" ? HTMLAttributes.nodes : "[]",
       "data-edges":
         typeof HTMLAttributes.edges === "string" ? HTMLAttributes.edges : "[]",
+      "data-styles":
+        typeof HTMLAttributes.styles === "string"
+          ? HTMLAttributes.styles
+          : "{}",
       "data-width": HTMLAttributes.width || 500,
       "data-height": HTMLAttributes.height || 300,
       "data-use-real-time-data": HTMLAttributes.useRealTimeData || false,

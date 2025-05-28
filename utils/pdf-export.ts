@@ -280,21 +280,35 @@ export async function browserPrintToPDF(
       .react-flow-node-wrapper {
         page-break-inside: avoid !important;
         break-inside: avoid !important;
-        max-width: 100%;
-        margin: 15px 0;
+        max-width: 100% !important;
+        width: 100% !important;
+        margin: 15px 0 !important;
+        box-sizing: border-box !important;
+        overflow: hidden !important;
       }
       
       .react-flow {
-        height: 350px !important;
+        height: 280px !important; /* Reduced height to fit better */
         width: 100% !important;
+        max-width: 100% !important;
         page-break-inside: avoid !important;
         break-inside: avoid !important;
-        overflow: visible !important;
+        overflow: hidden !important; /* Changed from visible to hidden to prevent overflow */
+        box-sizing: border-box !important;
       }
       
       .react-flow__renderer {
         height: 100% !important;
         width: 100% !important;
+        max-width: 100% !important;
+        box-sizing: border-box !important;
+      }
+      
+      .react-flow__pane {
+        width: 100% !important;
+        height: 100% !important;
+        max-width: 100% !important;
+        overflow: hidden !important;
       }
       
       .react-flow__controls, 
@@ -313,25 +327,45 @@ export async function browserPrintToPDF(
         background-color: white !important;
         border: 1px solid #ccc !important;
         border-radius: 4px !important;
-        padding: 10px !important;
+        padding: 8px !important; /* Reduced padding */
         box-shadow: 0 1px 4px rgba(0, 0, 0, 0.16) !important;
+        font-size: 11px !important; /* Smaller font for better fit */
+        max-width: 150px !important; /* Limit node width */
+        word-wrap: break-word !important;
+        overflow: hidden !important;
+        /* Preserve colors */
+        color: inherit !important;
+        /* Ensure custom background colors are maintained */
+        background: inherit !important;
+      }
+      
+      /* Preserve specific node colors and styles */
+      .react-flow__node[style*="background"] {
+        background: var(--node-bg, white) !important;
+      }
+      
+      .react-flow__node[style*="color"] {
+        color: var(--node-color, black) !important;
       }
       
       .react-flow__edge-path {
         stroke: #333 !important;
         stroke-width: 2px !important;
+        /* Preserve edge colors if specified */
+        stroke: var(--edge-color, #333) !important;
       }
 
       .react-flow-node { /* Style from original PDF export, ensuring it's print-friendly */
-        display: block;
-        margin: 15px 0;
-        border: 1px solid #ddd;
-        border-radius: 6px;
-        background-color: #f9f9f9;
-        padding: 10px;
-        max-width: 100%;
-        box-sizing: border-box;
-        overflow: visible !important; /* Ensure content isn't clipped in print */
+        display: block !important;
+        margin: 15px 0 !important;
+        border: 1px solid #ddd !important;
+        border-radius: 6px !important;
+        background-color: #f9f9f9 !important;
+        padding: 10px !important;
+        max-width: 100% !important;
+        width: 100% !important;
+        box-sizing: border-box !important;
+        overflow: hidden !important; /* Ensure content isn't clipped in print */
       }
 
       /* General page break guidance for print */
@@ -352,6 +386,12 @@ export async function browserPrintToPDF(
       .editor-export-container > *:first-child {
         margin-top: 0 !important;
         padding-top: 0 !important;
+      }
+
+      /* Loading indicator should be hidden in print */
+      .animate-spin,
+      .loading-indicator {
+        display: none !important;
       }
     }
   `;
@@ -383,30 +423,68 @@ export async function browserPrintToPDF(
         </div>
 
         <script>
-          // Helper function to make ReactFlow nodes visible
+          // Helper function to make ReactFlow nodes visible and properly sized
           function enhanceReactFlowNodes() {
-            // Process all ReactFlow nodes
-            const reactFlowNodes = document.querySelectorAll('.react-flow-node');
+            const reactFlowNodes = document.querySelectorAll('.react-flow-node-wrapper');
             console.log('Found ReactFlow nodes:', reactFlowNodes.length);
             
             reactFlowNodes.forEach((node, index) => {
-              // Try to get ReactFlow container
+              node.style.width = '100%';
+              node.style.maxWidth = '100%';
+              node.style.overflow = 'hidden';
+              node.style.boxSizing = 'border-box';
+              
               const reactFlowContainer = node.querySelector('.react-flow');
               if (reactFlowContainer) {
-                // Force dimensions and visibility
                 reactFlowContainer.style.width = '100%';
-                reactFlowContainer.style.height = '350px';
+                reactFlowContainer.style.height = '280px';
+                reactFlowContainer.style.maxWidth = '100%';
                 reactFlowContainer.style.visibility = 'visible';
-                reactFlowContainer.style.overflow = 'visible';
+                reactFlowContainer.style.overflow = 'hidden';
+                reactFlowContainer.style.boxSizing = 'border-box';
                 
-                // Handle edge paths to ensure they're visible
+                const pane = reactFlowContainer.querySelector('.react-flow__pane');
+                if (pane) {
+                  pane.style.width = '100%';
+                  pane.style.height = '100%';
+                  pane.style.maxWidth = '100%';
+                  pane.style.overflow = 'hidden';
+                }
+                
+                // Preserve original edge colors and styles
                 const edgePaths = reactFlowContainer.querySelectorAll('.react-flow__edge-path');
                 edgePaths.forEach(path => {
-                  path.setAttribute('stroke', '#333');
-                  path.setAttribute('stroke-width', '2');
+                  // Only set stroke if it's not already set
+                  if (!path.getAttribute('stroke') || path.getAttribute('stroke') === 'none') {
+                    path.setAttribute('stroke', '#333');
+                  }
+                  if (!path.getAttribute('stroke-width')) {
+                    path.setAttribute('stroke-width', '2');
+                  }
                 });
                 
-                // Hide controls and attribution
+                // Preserve original node styles while ensuring they fit
+                const flowNodes = reactFlowContainer.querySelectorAll('.react-flow__node');
+                flowNodes.forEach(flowNode => {
+                  // Only override sizing, preserve colors and backgrounds
+                  flowNode.style.maxWidth = '150px';
+                  flowNode.style.fontSize = '11px';
+                  flowNode.style.padding = '8px';
+                  flowNode.style.wordWrap = 'break-word';
+                  flowNode.style.overflow = 'hidden';
+                  
+                  // Preserve any existing background color or other styling
+                  const existingBg = flowNode.style.backgroundColor || getComputedStyle(flowNode).backgroundColor;
+                  const existingColor = flowNode.style.color || getComputedStyle(flowNode).color;
+                  
+                  if (existingBg && existingBg !== 'rgba(0, 0, 0, 0)' && existingBg !== 'transparent') {
+                    flowNode.style.setProperty('--node-bg', existingBg);
+                  }
+                  if (existingColor && existingColor !== 'rgba(0, 0, 0, 0)') {
+                    flowNode.style.setProperty('--node-color', existingColor);
+                  }
+                });
+                
                 const controls = reactFlowContainer.querySelector('.react-flow__controls');
                 const minimap = reactFlowContainer.querySelector('.react-flow__minimap');
                 const attribution = reactFlowContainer.querySelector('.react-flow__attribution');
@@ -414,7 +492,6 @@ export async function browserPrintToPDF(
                 if (minimap) minimap.style.display = 'none';
                 if (attribution) attribution.style.display = 'none';
                 
-                // Add wrapper div with background
                 if (!node.classList.contains('enhanced')) {
                   node.classList.add('enhanced');
                   node.style.backgroundColor = '#f9f9f9';
@@ -422,14 +499,11 @@ export async function browserPrintToPDF(
                   node.style.borderRadius = '6px';
                   node.style.padding = '10px';
                 }
-              } else {
-                console.log('No ReactFlow container found in node', index);
               }
             });
           }
 
           function setupHeaderFooter() {
-            // Set the created-at date as a data attribute on the HTML element
             const now = new Date();
             const formattedDate = \`\${now.getFullYear()}-\${String(now.getMonth() + 1).padStart(2, '0')}-\${String(now.getDate()).padStart(2, '0')} \${String(now.getHours()).padStart(2, '0')}:\${String(now.getMinutes()).padStart(2, '0')}:\${String(now.getSeconds()).padStart(2, '0')}\`;
             if (document.documentElement) {
@@ -437,36 +511,15 @@ export async function browserPrintToPDF(
             }
           }
           
-          // Try multiple times to ensure diagrams are fully loaded
-          let attempts = 0;
-          const maxAttempts = 5;
-          
-          function attemptEnhanceAndPrint() {
-            attempts++;
-            console.log('Attempt', attempts, 'to enhance ReactFlow nodes');
-            
-            // Enhance nodes on each attempt before the final one
-            if (attempts < maxAttempts) {
-                enhanceReactFlowNodes();
-            }
-            
-            if (attempts >= maxAttempts) {
-              // Final enhancement pass
-              enhanceReactFlowNodes();
-              // Setup header/footer content
-              setupHeaderFooter();
-              // Time to print after multiple enhancement attempts
+          // Simple approach - just enhance and print
+          setTimeout(() => {
+            enhanceReactFlowNodes();
+            setupHeaderFooter();
+            setTimeout(() => {
               window.print();
-              // Close the window after printing (or if print is cancelled)
               setTimeout(() => window.close(), 1000);
-            } else {
-              // Try again after a delay
-              setTimeout(attemptEnhanceAndPrint, 300);
-            }
-          }
-          
-          // Start the enhancement process
-          setTimeout(attemptEnhanceAndPrint, 500);
+            }, 500);
+          }, 800);
         </script>
       </body>
     </html>
