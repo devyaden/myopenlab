@@ -1918,7 +1918,7 @@ const Editor = (
           top: "58px",
           left: 0,
           right: 0,
-          zIndex: 9999,
+          zIndex: 49,
           backgroundColor: "#fff",
           borderBottom: "1px solid #e0e0e0",
           boxShadow: "0 2px 8px rgba(0, 0, 0, 0.15)",

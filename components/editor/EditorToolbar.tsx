@@ -2,72 +2,58 @@
 
 import { DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 
-import { useState, useRef, useEffect } from "react";
-import {
-  Bold,
-  Italic,
-  Underline,
-  Link,
-  AlignLeft,
-  AlignCenter,
-  AlignRight,
-  AlignJustify,
-  ChevronDown,
-  Plus,
-  Minus,
-  List,
-  ListOrdered,
-  ImageIcon,
-  Type,
-  Columns3,
-  ChevronRight,
-  FileText,
-  Check,
-  CheckSquare,
-  Square,
-  Strikethrough,
-  Superscript,
-  Subscript,
-  Code,
-  Palette,
-  RotateCcw,
-  ListChecks,
-  Undo,
-  Redo,
-  RefreshCw,
-  Layers,
-  Table,
-  ChevronLeft,
-  CornerUpLeft,
-  CornerUpRight,
-  Table2,
-  Layers2,
-} from "lucide-react";
+import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuSeparator,
-  DropdownMenuGroup,
-  DropdownMenuLabel,
 } from "@/components/ui/dropdown-menu";
-import { Button } from "@/components/ui/button";
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Toggle } from "@/components/ui/toggle";
-import { Separator } from "@/components/ui/separator";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import {
-  PAPER_SIZE_GROUPS,
-  COMMON_PAPER_SIZES,
-  PAPER_ORIENTATIONS,
-} from "@/utils/paper-sizes";
-import { ViewModeSwitcher } from "../canvas-new/view-mode-switcher";
 import { CANVAS_TYPE } from "@/types/store";
+import {
+  AlignCenter,
+  AlignJustify,
+  AlignLeft,
+  AlignRight,
+  Bold,
+  ChevronDown,
+  ChevronRight,
+  Code,
+  Columns3,
+  CornerUpLeft,
+  CornerUpRight,
+  FileText,
+  ImageIcon,
+  Italic,
+  Layers2,
+  Link,
+  List,
+  ListChecks,
+  ListOrdered,
+  Minus,
+  Palette,
+  Plus,
+  RotateCcw,
+  Strikethrough,
+  Subscript,
+  Superscript,
+  Table,
+  Table2,
+  Type,
+  Underline,
+} from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { ViewModeSwitcher } from "../canvas-new/view-mode-switcher";
 
 interface EditorToolbarProps {
   editorState: {
@@ -406,7 +392,7 @@ export default function EditorToolbar({
                     <ChevronDown className="h-4 w-4" />
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="start" className="w-56">
+                <DropdownMenuContent align="start" className="w-56 z-50 ">
                   <ScrollArea className="h-80">
                     {blockTypeOptions.map((option) => (
                       <DropdownMenuItem

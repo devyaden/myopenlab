@@ -84,11 +84,6 @@ export default function ReactFlowCanvas({
     }
   }, [canvasData, setNodes, setEdges]);
 
-  console.log(
-    "[ReactFlowCanvas] Received initialViewport prop:",
-    initialViewport
-  );
-
   // Call onInternalChange when nodes or edges change
   useEffect(() => {
     if (onInternalChange) {
