@@ -6,6 +6,8 @@ import { Image, Printer, Shapes } from "lucide-react";
 import { useEffect, useState } from "react";
 import Joyride from 'react-joyride';
 import CustomJoyrideTooltip from "../CustomJoyrideTooltip";
+import { useUser } from "@/lib/contexts/userContext";
+import { useMemo } from "react";
 
 interface VerticalNavProps {
   className?: string;
@@ -25,6 +27,8 @@ export function VerticalNav({
   const { isFirstVisit, canvasOnbording, setIsChecked, isChecked } = useOnboardingStore();
   const [isWindow, setIsWindow] = useState(false)
 
+  const { user } = useUser();
+
   const steps = [
     {
       target: '.canvas-shapes',
@@ -42,13 +46,21 @@ export function VerticalNav({
     setIsChecked(e.target?.checked)
   }
 
+  const isHasSeenOnborading = useMemo(() => {
+    if (!user?.has_seen_onboarding) {
+      return !user?.has_seen_onboarding && canvasOnbording
+    } else {
+      return user?.has_seen_onboarding && canvasOnbording
+    }
+  }, [user?.has_seen_onboarding, canvasOnbording])
+
   useEffect(()=>{
     setIsWindow(true)
   },[])
 
   return (
     <>
-      {isFirstVisit && canvasOnbording && isWindow && <Joyride
+      {isHasSeenOnborading && isWindow && isFirstVisit && <Joyride
         steps={steps}
         tooltipComponent={(props: any) => (
           <CustomJoyrideTooltip

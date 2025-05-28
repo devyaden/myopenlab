@@ -26,7 +26,7 @@ export const HeaderSidebar = () => {
   console.log("🚀 ~ HeaderSidebar ~ user:", user);
   const { setOpenMobile } = useSidebar();
   const {
-    isFirstVisit,
+    updateUserOnboardingStatus,
     setNotFirstVisit,
     setProtectedOnBording,
     setCreateCategoryOnbording,
@@ -92,9 +92,10 @@ export const HeaderSidebar = () => {
   const breadcrumbs = generateBreadcrumbs();
 
   const handleSignOut = () => {
-    if (isFirstVisit) {
+    if (!user?.has_seen_onboarding) {
       setNotFirstVisit(false);
       setOnBoardingTour(false);
+      updateUserOnboardingStatus(user.id, true)
     }
     signOut();
   };
@@ -179,7 +180,7 @@ export const HeaderSidebar = () => {
                   <span>Profile</span>
                 </Link>
               </DropdownMenuItem>
-              {!onBoardingTour && (
+              {user?.has_seen_onboarding && (
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild className="mb-2">
                     <div

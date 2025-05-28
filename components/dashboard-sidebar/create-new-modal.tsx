@@ -37,6 +37,8 @@ import { AIGenerationDialog } from "../canvas-new/ai-generation-dialog";
 import { Wand2 } from "lucide-react";
 import { useOnboardingStore } from "@/lib/store/useOnboarding";
 import CustomJoyrideTooltip from "../CustomJoyrideTooltip";
+import { useUser } from "@/lib/contexts/userContext";
+import { useMemo } from "react";
 
 export enum CANVAS_TYPE {
   HYBRID = "hybrid",
@@ -104,6 +106,8 @@ export function CreateNewModal({
     CANVAS_TYPE.HYBRID
   );
   const [isAIDialogOpen, setIsAIDialogOpen] = useState(false);
+
+  const { user } = useUser();
 
   const folderForm = useForm<FolderFormValues>({
     resolver: zodResolver(folderSchema),
@@ -309,12 +313,16 @@ export function CreateNewModal({
     const handleJoyrideCallback = (data: any) => {
       const { action, index, status, type } = data;
 
+      if(isChecked) {
+        setStepIndex(0);
+        setIsChecked(false);
+        setProtectedOnBording(false)
+      }
+
       if (status === 'finished' || status === 'skipped') {
-        if(isChecked) {
-          setStepIndex(0);
-          setIsChecked(false);
-          setProtectedOnBording(false)
-        }
+        setStepIndex(0);
+        setIsChecked(false);
+        setProtectedOnBording(false)
       } else if (type === 'step:after') {
         setStepIndex((prev: any) => prev + 1);
       } else if (type === 'step:after' && action === 'prev') {
@@ -329,6 +337,22 @@ export function CreateNewModal({
       }
     }
 
+    const isHasSeenCategoryOnborading = useMemo(() => {
+      if (!user?.has_seen_onboarding) {
+        return !user?.has_seen_onboarding && createCategoryOnbording
+      } else {
+        return user?.has_seen_onboarding && createCategoryOnbording
+      }
+    }, [user?.has_seen_onboarding, createCategoryOnbording])
+
+    const isHasSeenProtectedOnBording = useMemo(() => {
+      if (!user?.has_seen_onboarding) {
+        return !user?.has_seen_onboarding && protectedOnBording
+      } else {
+        return user?.has_seen_onboarding && protectedOnBording
+      }
+    }, [user?.has_seen_onboarding, protectedOnBording])
+
     const onDontShowAgainChange = (e: any) => {
       setIsChecked(e.target?.checked)
     }
@@ -337,7 +361,7 @@ export function CreateNewModal({
     if (step === "select" && type === "canvas") {
       return (
         <>
-          {isFirstVisit && createCategoryOnbording && <Joyride
+          {isHasSeenCategoryOnborading && isFirstVisit && <Joyride
                 steps={canvasSteps}
                 callback={handleRedrectToAi}
                 tooltipComponent={(props: any) => (
@@ -457,7 +481,7 @@ export function CreateNewModal({
       if (type === "folder") {
         return (
           <Form {...folderForm}>
-            {isFirstVisit && protectedOnBording && <Joyride
+            {isHasSeenProtectedOnBording && isFirstVisit && <Joyride
               steps={data}
               stepIndex={stepIndex}
               run={isFirstVisit}
