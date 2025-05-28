@@ -820,6 +820,7 @@ export function UMLEditor({
               onChangeBackgroundColor={handleBackgroundColorChange}
               showMiniMap={showMiniMap}
               onToggleMiniMap={toggleMiniMap}
+              readOnly={readOnly}
             />
           )}
 

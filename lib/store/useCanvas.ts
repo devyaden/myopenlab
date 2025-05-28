@@ -534,7 +534,7 @@ export const useCanvasStore = create<CanvasStore>()(
           } catch (error) {
             console.error("Error loading folder canvases:", error);
             set({ error: "Failed to load folder canvases" });
-            toast.error("Failed to load folder canvases");
+            // toast.error("Failed to load folder canvases");
           } finally {
             set({ isLoading: false });
           }

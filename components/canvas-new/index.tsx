@@ -1,6 +1,5 @@
 "use client";
 
-import "./react-flow-fixes.css";
 import DocumentEditor from "@/components/editor";
 import { Input } from "@/components/ui/input";
 import { findAbsolutePosition } from "@/lib/canvas.utils";
@@ -18,6 +17,7 @@ import { LoadingSpinner } from "../loading-spinner";
 import { Unauthorized } from "../unauthorized";
 import { Header } from "./header";
 import { ImageManagerDialog } from "./image-manager-dialog";
+import "./react-flow-fixes.css";
 import { Sidebar } from "./sidebar";
 import { VIEW_MODE } from "./table-view/table.types";
 import { Toolbar } from "./toolbar";
@@ -1230,6 +1230,7 @@ export default function CanvasNew({ canvasId }: FigmaInterfaceProps) {
   // Check authorization when canvas is loaded
   useEffect(() => {
     const checkAuthorization = async () => {
+      console.log("Checking authorization for canvas:", !user || !isLoaded);
       if (!user || !isLoaded) return;
 
       try {
@@ -1246,6 +1247,7 @@ export default function CanvasNew({ canvasId }: FigmaInterfaceProps) {
         }
 
         const data = await response.json();
+
         setVisibility(data.visibility || "private");
 
         // If user is not owner and canvas is not public, show unauthorized component
@@ -1288,7 +1290,7 @@ export default function CanvasNew({ canvasId }: FigmaInterfaceProps) {
   const handleVisibilityChange = async (newVisibility: string) => {
     try {
       const response = await fetch("/api/canvas/visibility", {
-        method: "PATCH",
+        method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
@@ -1328,7 +1330,8 @@ export default function CanvasNew({ canvasId }: FigmaInterfaceProps) {
   }
 
   // Create read-only props for non-owners viewing public canvases
-  const isReadOnly = !isOwner && visibility === "public";
+  const isReadOnly = !isOwner;
+  console.log("🚀 ~ CanvasNew ~ !isOwner:", visibility);
 
   if (isLoading) {
     return (
