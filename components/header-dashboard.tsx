@@ -23,8 +23,7 @@ import { useEffect, useState } from "react";
 
 export const HeaderSidebar = () => {
   const { signOut, user } = useUser();
-  console.log("🚀 ~ HeaderSidebar ~ user:", user);
-  const { setOpenMobile } = useSidebar();
+
   const {
     updateUserOnboardingStatus,
     setNotFirstVisit,
@@ -91,11 +90,11 @@ export const HeaderSidebar = () => {
 
   const breadcrumbs = generateBreadcrumbs();
 
-  const handleSignOut = () => {
-    if (!user?.has_seen_onboarding) {
+  const handleSignOut = async() => {
+    if (user && !user?.has_seen_onboarding) {
       setNotFirstVisit(false);
       setOnBoardingTour(false);
-      updateUserOnboardingStatus(user.id, true)
+      await updateUserOnboardingStatus(user.id, true);
     }
     signOut();
   };

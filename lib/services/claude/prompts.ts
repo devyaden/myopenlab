@@ -14,38 +14,38 @@ export function constructUserMessage(
   prompt: string
 ): string {
   // Create a directive that clearly emphasizes what we want
-  const directive = `Design a professional ${language} ${diagramType} diagram for ${industry} industry: "${prompt}"`;
+  const directive = `Create a professional, enterprise-grade ${language} ${diagramType} diagram for the ${industry} industry: "${prompt}"`;
 
   // Add diagram-specific guidance based on type
   let typeSpecificGuidance = "";
   switch (diagramType) {
     case DiagramType.WORKFLOW:
       typeSpecificGuidance =
-        "The workflow must include at least 10 connected nodes with proper decision points and data stores.";
+        "Design a comprehensive business workflow with 12-16 professionally labeled nodes positioned horizontally with 250px spacing. Use strategic decision points (diamond), data repositories (cylinder), documents (document), quality gates (hexagon), and processes (rectangle). Create a clean, professional layout with proper visual hierarchy and meaningful business terminology. Include decision branches and exception handling paths.";
       break;
     case DiagramType.WEBSITE_WIREFRAME:
       typeSpecificGuidance =
-        "This should be a detailed wireframe layout showing ACTUAL UI COMPONENTS (not a sitemap). Position UI elements as they would appear on a real webpage, with proper sizing and positioning. Include typical elements like header, navigation, content sections, forms, buttons, etc. DO NOT create a site structure diagram or sitemap.";
+        "Create a sophisticated, modern website wireframe layout with professional UI/UX principles. Design realistic component hierarchies, proper information architecture, and contemporary web design patterns. Include navigation systems, content zones, interactive elements, and responsive design considerations. Focus on user experience and conversion optimization.";
       break;
     case DiagramType.EVENT_VISITOR_EXPERIENCE:
       typeSpecificGuidance =
-        "Design a detailed physical event layout with clearly defined areas, booths, and spaces. MOST IMPORTANTLY, create 2-3 complete visitor journeys that show how visitors navigate through the space. Each journey must have properly connected animated paths between entry points, attractions, and exit points. Position visitor actors in a way that clearly shows their journey through the space. Make all connections logically represent movement direction.";
+        "Design a comprehensive event venue layout with professional space planning and visitor journey optimization. Create multiple detailed visitor personas with distinct, well-planned journey paths through strategically positioned areas. Include registration flows, networking zones, presentation spaces, exhibition areas, catering facilities, and clear wayfinding. Ensure journeys reflect real-world event management best practices.";
       break;
     case DiagramType.HIERARCHY:
       typeSpecificGuidance =
-        "Create an organizational chart with 3-4 levels and proper organizational relationships.";
+        "Create a sophisticated organizational structure with 4-5 hierarchical levels reflecting modern corporate governance. Include C-suite positions, department heads, team leads, and specialized roles. Use proper business titles and organizational relationships that reflect industry standards and corporate best practices.";
       break;
     case DiagramType.MINDMAP:
       typeSpecificGuidance =
-        "Create a concept map with 3-5 main branches and 2-4 sub-branches per main branch.";
+        "Develop a strategic concept map with 4-6 primary business domains and 3-4 detailed sub-concepts per domain. Focus on strategic relationships, business dependencies, and conceptual frameworks that demonstrate deep industry knowledge and professional insight.";
       break;
     default:
       typeSpecificGuidance =
-        "Include at least 10 well-connected elements with appropriate relationships.";
+        "Create a comprehensive professional diagram with 12-15 well-connected elements showcasing industry expertise and business acumen.";
   }
 
   // Include the requirements
-  return `${directive}\n\n${typeSpecificGuidance}\n\nIMPORTANT: Generate this diagram as a complete JSON structure using the provided tool. Include all required node information, edge connections with proper handles, and detailed styling for all nodes.`;
+  return `${directive}\n\n${typeSpecificGuidance}\n\nCRITICAL REQUIREMENTS:\n- Generate enterprise-quality, professional-grade content\n- Use industry-standard terminology and best practices\n- Ensure all labels are business-appropriate and sophisticated\n- Create realistic, implementable solutions\n- Focus on practical business value and professional utility\n\nGenerate this as a complete JSON structure using the provided tool with all required properties.`;
 }
 
 /**
@@ -65,12 +65,12 @@ export function createSystemPrompt(
   const connectionHandles = getConnectionHandlesRequirements();
   const industryStyles = getIndustryStyleRequirements(industry);
 
-  // Combine into a concise and well-formatted prompt
+  // Combine into a professional and comprehensive prompt
   return [
-    "You are an AI assistant specialized in creating mature, professional, high-quality diagram data for a React Flow canvas.",
-    "Your task is to generate data for a sophisticated, visually appealing diagram that strictly adheres to professional standards.",
+    "You are a senior business analyst and professional diagram architect with expertise in creating enterprise-grade visual documentation for Fortune 500 companies.",
+    "Your task is to generate sophisticated, business-quality diagram data that meets professional standards and demonstrates deep industry knowledge.",
     "",
-    "MANDATORY REQUIREMENTS:",
+    "PROFESSIONAL STANDARDS:",
     commonRequirements,
     "",
     diagramTypeRequirements,
@@ -80,11 +80,14 @@ export function createSystemPrompt(
     "",
     industryStyles,
     "",
-    "FINAL INSTRUCTIONS:",
-    "1. Use the provided tool to return a properly structured diagram with all required properties",
-    "2. If you encounter any issues, generate a simpler valid diagram rather than returning an error",
-    "3. Always ensure each node has appropriate styling and positioning",
-    "4. All connections must use the correct handle IDs for professional appearance",
+    "CRITICAL QUALITY REQUIREMENTS:",
+    "1. Use the provided tool to return a professionally structured diagram with precise, business-appropriate content",
+    "2. All node labels must use sophisticated, industry-standard terminology",
+    "3. Demonstrate deep understanding of business processes and industry best practices",
+    "4. Create realistic, implementable solutions that add genuine business value",
+    "5. Ensure all content reflects enterprise-level thinking and strategic insight",
+    "6. Node data objects must contain ONLY 'label' and 'shape' properties - no additional properties",
+    "7. Width and height should be set at the node level, not within the data object",
   ]
     .join("\n")
     .replace(/\n\n+/g, "\n\n")
@@ -102,61 +105,64 @@ function getCommonRequirements(language: LanguageType): string {
   let languageInstructions = "";
   switch (language) {
     case LanguageType.ENGLISH:
-      languageInstructions = "English, clear and concise";
+      languageInstructions = "English with professional business terminology";
       break;
     case LanguageType.SPANISH:
       languageInstructions =
-        "Spanish (Español), use proper grammar and vocabulary";
+        "Spanish (Español) using formal business language and proper grammar";
       break;
     case LanguageType.FRENCH:
       languageInstructions =
-        "French (Français), use proper grammar and vocabulary";
+        "French (Français) with sophisticated business vocabulary and proper grammar";
       break;
     case LanguageType.GERMAN:
       languageInstructions =
-        "German (Deutsch), use proper grammar and vocabulary";
+        "German (Deutsch) using formal business language and proper grammar";
       break;
     case LanguageType.PORTUGUESE:
       languageInstructions =
-        "Portuguese (Português), use proper grammar and vocabulary";
+        "Portuguese (Português) with professional business terminology and proper grammar";
       break;
     case LanguageType.JAPANESE:
       languageInstructions =
-        "Japanese (日本語), use proper characters and grammar";
+        "Japanese (日本語) using appropriate business honorifics and formal language";
       break;
     case LanguageType.CHINESE:
       languageInstructions =
-        "Chinese (中文), use simplified characters and proper grammar";
+        "Chinese (中文) with formal business language using simplified characters";
       break;
     case LanguageType.ARABIC:
       languageInstructions =
-        "Arabic (العربية), use proper RTL formatting and vocabulary";
+        "Arabic (العربية) using formal business terminology with proper RTL formatting";
       break;
     default:
-      languageInstructions = "English, clear and concise";
+      languageInstructions = "English with professional business terminology";
   }
 
-  return `Create a professional diagram for React Flow that follows these critical requirements:
+  return `Create an enterprise-grade professional diagram with these critical requirements:
 - LANGUAGE: ${languageInstructions}
 - All nodes MUST use "genericNode" as the type
-- All nodes MUST have "data.shape" property set to one of the available shapes
+- All nodes MUST have "data" object with ONLY "label" and "shape" properties (no additional properties)
 - All edges MUST have sourceHandle and targetHandle properties set
 - Flow direction: ${isRTL ? "right-to-left (RTL)" : "left-to-right (LTR)"}
-- All node labels and text content MUST be in ${language}`;
+- All content MUST be in ${language} using professional, business-appropriate language
+- Demonstrate deep industry expertise and strategic thinking
+- Use sophisticated terminology that reflects executive-level understanding`;
 }
 
 /**
  * Get connection handles requirements
  */
 function getConnectionHandlesRequirements(): string {
-  return `CONNECTION HANDLES - CRITICAL:
+  return `CONNECTION HANDLES - MANDATORY:
 - Every edge MUST have both sourceHandle and targetHandle values from this list:
   * TARGET HANDLES: "a" (top), "b" (bottom), "c" (right), "d" (left)
   * SOURCE HANDLES: "e" (top), "f" (bottom), "g" (right), "h" (left)
 - For horizontal flow (L→R): source="g", target="d"
 - For horizontal flow (R→L): source="h", target="c"
 - For vertical flow (T→B): source="f", target="a"
-- For vertical flow (B→T): source="e", target="b"`;
+- For vertical flow (B→T): source="e", target="b"
+- Ensure logical flow direction that reflects real business processes`;
 }
 
 /**
@@ -166,16 +172,17 @@ function getIndustryStyleRequirements(industry: IndustryType): string {
   // Get color palette
   const palette = getColorPalette(industry);
 
-  return `STYLING REQUIREMENTS:
-- Use this industry-specific color palette: ${JSON.stringify(palette)}
-- Apply professional design principles for ${industry} industry
-- EVERY node MUST have styling with proper colors and formatting
-- Style decision nodes (diamond) and data stores (cylinder) distinctively
-- The "nodeStyles" object MUST be keyed by node ID (not class name)`;
+  return `PROFESSIONAL STYLING REQUIREMENTS:
+- Use this sophisticated ${industry} industry color palette: ${JSON.stringify(palette)}
+- Apply premium design principles that reflect corporate standards
+- EVERY node MUST have professional styling with strategic color usage
+- Style decision nodes (diamond) and data repositories (cylinder) with business-appropriate differentiation
+- The "nodeStyles" object MUST be keyed by node ID with executive-quality aesthetics
+- Ensure visual hierarchy reflects business importance and strategic relationships`;
 }
 
 /**
- * Gets diagram type specific requirements
+ * Gets diagram type specific requirements with professional focus
  */
 function getDiagramTypeRequirements(
   diagramType: DiagramType,
@@ -186,88 +193,95 @@ function getDiagramTypeRequirements(
 
   switch (diagramType) {
     case DiagramType.WORKFLOW:
-      return `WORKFLOW DIAGRAM REQUIREMENTS:
-- Create a comprehensive workflow with MINIMUM 10 nodes
-- The workflow should show all steps to achieve the goal of the process
-- Include DECISION POINTS with multiple outcomes/paths (diamond shape)
-- Include DATA STORES for important information (cylinder shape)
-- Include DOCUMENTS where relevant (document shape)
-- Show EXCEPTION PATHS and ALTERNATIVE FLOWS for approvals/rejections
-- ALL edges MUST have "animated": true and be ARROWS (not just lines)
+      return `ENTERPRISE WORKFLOW REQUIREMENTS:
+- Create a comprehensive business process with 12-16 strategically important nodes
+- Use horizontal layout with consistent 250px spacing between nodes for professional appearance
+- Include executive-level decision points with multiple strategic outcomes (diamond shape)
+- Incorporate data repositories and knowledge management systems (cylinder shape)
+- Add compliance checkpoints, approval workflows, and governance processes (document shape)
+- Show exception handling, escalation paths, and risk management procedures
+- ALL edges MUST have "animated": true with professional arrow styling
+- Node dimensions: width=180px, height=90px (120px for diamonds and cylinders)
 - CONNECTIONS: ${isRTL ? "For RTL languages, connect left side of source to right side of target" : "For LTR languages, connect right side of source to left side of target"}
-- Organize in logical sequence with clear flow direction
-- ALL TEXT LABELS must be in the selected language (${language})`;
+- Organize in logical business sequence with clear strategic flow
+- Position nodes in a single row with decision branches below main flow
+- ALL LABELS must use sophisticated ${language} business terminology that executives would recognize
+- Focus on measurable business outcomes and strategic value creation
+- Use professional color coding: Start/End (rounded), Processes (rectangle), Decisions (diamond), Data (cylinder), Documents (document), Quality Gates (hexagon)`;
 
     case DiagramType.WEBSITE_WIREFRAME:
-      return `WEBSITE WIREFRAME REQUIREMENTS:
-- Create a PROPER wireframe layout showing the UI elements, NOT a sitemap
-- Create large rectangles representing website pages/sections
-- Within each large section, include smaller rectangles showing specific UI elements
-- Include appropriate content placeholders and labels for each section
-- Each page rectangle should contain 4-8 UI elements with proposed content
-- Design with proper UI hierarchy, whitespace, and component relationships
-- Use "rectangle" shape for containers and sections
-- NO connections/edges between elements (this is a wireframe, not a flow)
-- Realistic layout with proper sizing and positioning of UI components
-- ALL UI TEXT AND LABELS should be in the selected language (${language})
-- For ${isRTL ? "RTL languages, align text to the right and layout from right to left" : "LTR languages, align text to the left and layout from left to right"}`;
+      return `PROFESSIONAL WEBSITE WIREFRAME REQUIREMENTS:
+- Create a sophisticated, modern web application interface design
+- Design enterprise-grade user experience with conversion optimization focus
+- Include advanced navigation systems, search functionality, and user account management
+- Incorporate modern UI patterns: hero sections, call-to-action areas, testimonials, feature showcases
+- Add professional elements: pricing tables, contact forms, resource libraries, dashboard interfaces
+- Use "rectangle" shape for all UI containers and components
+- NO connections/edges between elements (this is a wireframe layout)
+- Implement responsive design principles with mobile-first thinking
+- ALL UI LABELS must be in sophisticated ${language} using professional web terminology
+- For ${isRTL ? "RTL languages, align content right-to-left with proper localization" : "LTR languages, use left-to-right alignment with professional typography"}
+- Focus on business goals: lead generation, user engagement, and conversion optimization`;
 
     case DiagramType.EVENT_VISITOR_EXPERIENCE:
-      return `EVENT VISITOR EXPERIENCE REQUIREMENTS:
-- Create a LOGICAL PHYSICAL LAYOUT of an event space with rectangular areas for main zones
-- Include 8-12 distinct areas (entrance, registration, halls, booths, refreshment areas, etc.)
-- Place booth rectangles with proper spacing to create visitor walkways
-- Use ACTOR shape for visitor personas (2-3 different visitor types)
-- Create 2-3 distinct visitor journey paths through the event, each with:
-  * Clear starting points (entrance/registration areas) 
-  * Sequential movement through 4-6 areas of interest
-  * Logical ending points
-- Each visitor actor MUST BE CONNECTED to their journey with ANIMATED ARROWS
-- CONNECTION RULE: Arrows must indicate DIRECTION OF MOVEMENT:
-  * For horizontal movement: connect from left side to right side, or right side to left side
-  * For vertical movement: connect from top to bottom, or bottom to top
-- ALL visitor paths must be clearly visible, animate in the direction of travel
-- Ensure actors are positioned logically along their journey path
-- Layout should realistically represent event floor plan with proper spacing and zones
-- ALL AREA LABELS AND DESCRIPTIONS must be in the selected language (${language})`;
+      return `PROFESSIONAL EVENT MANAGEMENT REQUIREMENTS:
+- Design a comprehensive conference/exhibition venue with 10-12 strategically planned zones
+- Include executive areas: VIP lounges, speaker green rooms, media centers, sponsor pavilions
+- Create professional spaces: registration/check-in, main auditorium, breakout rooms, exhibition halls
+- Add business networking areas: cocktail zones, business lounges, one-on-one meeting spaces
+- Use ACTOR shape for different attendee personas (3-4 professional visitor types)
+- Design 3-4 distinct visitor journey paths with strategic touchpoints:
+  * C-Suite Executive path (VIP experiences, strategic sessions)
+  * Technical Professional path (product demos, technical workshops)  
+  * Business Development path (networking events, partnership opportunities)
+  * Industry Analyst path (briefing centers, research sessions)
+- Each visitor journey MUST show STRATEGIC MOVEMENT with ANIMATED ARROWS
+- CONNECTION STRATEGY: Arrows indicate purposeful business interactions and value-driven movement
+- Layout should reflect professional event management and corporate hospitality standards
+- ALL LABELS must use sophisticated ${language} event management terminology
+- Focus on business objectives: relationship building, knowledge transfer, and strategic partnerships`;
 
     case DiagramType.HIERARCHY:
-      return `HIERARCHY REQUIREMENTS:
-- Create clear organizational/hierarchical structure with 3-4 levels
-- Each node should be a rectangle containing appropriate text/label
-- Top level: 1-2 nodes (executives/main concepts)
-- Lower levels: expand appropriately based on hierarchy
-- CONNECTIONS: Always connect from BOTTOM of parent to TOP of child
-- Each higher-level shape should connect to all direct subordinates
-- All connections must be ARROWS (not lines)
-- Use consistent vertical spacing between levels
-- Create a clean, professionally spaced hierarchy
-- ALL NODE LABELS (titles, positions, department names) must be in the selected language (${language})
-- Layout direction is always top-down regardless of language`;
+      return `CORPORATE ORGANIZATIONAL REQUIREMENTS:
+- Create a sophisticated corporate structure with 4-5 executive levels
+- Top tier: C-Suite positions (CEO, COO, CTO, CFO, CMO, CHRO)
+- Second tier: Senior Vice Presidents and Division Heads
+- Third tier: Vice Presidents and Department Directors  
+- Fourth tier: Senior Managers and Practice Leaders
+- Fifth tier: Team Leads and Principal Contributors
+- CONNECTIONS: Always connect from executive level downward using proper corporate reporting lines
+- Use proper business titles that reflect modern corporate governance
+- Include cross-functional relationships and matrix reporting where appropriate
+- ALL TITLES must be in professional ${language} using standard corporate terminology
+- Layout should reflect organizational power structure and strategic decision-making flow
+- Focus on executive accountability, strategic oversight, and operational excellence`;
 
     case DiagramType.MINDMAP:
-      return `MINDMAP REQUIREMENTS:
-- Create a network-like diagram with a central concept and connected ideas
-- Use pill/capsule shapes for all concepts
-- The CENTRAL node is the only one that can have connections from ANY of its nodes
-- ALL OTHER nodes can only connect from their LEFT or RIGHT sides
-- All connections must be LINES (not arrows)
-- Central node should be larger and clearly distinguished
-- 3-5 main branches with 2-4 sub-branches each
-- Balanced layout around central node
-- Connections represent relationships between ideas/concepts
-- ALL CONCEPT TEXT AND LABELS must be in the selected language (${language})
-- For ${isRTL ? "RTL languages, prioritize expansion from right to left" : "LTR languages, prioritize expansion from left to right"}`;
+      return `STRATEGIC BUSINESS CONCEPT MAP REQUIREMENTS:
+- Create a comprehensive business strategy framework with central strategic theme
+- Use pill/capsule shapes for all strategic concepts and business domains
+- Central concept: Primary business objective or strategic initiative
+- 4-6 primary strategic pillars with 3-4 tactical elements each:
+  * Market Strategy & Competitive Positioning
+  * Operational Excellence & Process Innovation
+  * Financial Performance & Value Creation
+  * Technology Innovation & Digital Transformation
+  * Human Capital & Organizational Development
+  * Customer Experience & Market Expansion
+- ALL connections represent strategic relationships and business dependencies
+- Use sophisticated ${language} strategic planning and business development terminology
+- For ${isRTL ? "RTL languages, expand strategically from right to left" : "LTR languages, expand strategically from left to right"}
+- Focus on executive-level strategic thinking and business transformation initiatives`;
 
     default:
-      return `GENERAL DIAGRAM REQUIREMENTS:
-- Create diagram with at least 10 nodes
-- Use appropriate shapes for different elements
-- Include proper connections between related elements
-- Balanced layout with proper spacing
-- Clear labels on all elements
-- Ensure professional appearance with consistent styling
-- ALL TEXT must be in the selected language (${language})`;
+      return `PROFESSIONAL BUSINESS DIAGRAM REQUIREMENTS:
+- Create sophisticated business documentation with 12-15 strategic elements
+- Use industry-appropriate shapes and professional visual hierarchy
+- Include strategic relationships and business value connections
+- Maintain executive-quality presentation standards
+- Ensure all content demonstrates deep industry expertise
+- ALL TEXT must be in professional ${language} business terminology
+- Focus on measurable business outcomes and strategic value creation`;
   }
 }
 
@@ -277,68 +291,68 @@ function getDiagramTypeRequirements(
 export function getColorPalette(industry: IndustryType): string[] {
   const industryPalettes: Record<string, string[]> = {
     [IndustryType.MARKETING]: [
-      "#8A4FFF",
-      "#FF6B6B",
-      "#4ECDC4",
-      "#FFD166",
-      "#FF9F1C",
-      "#F2F7FF",
+      "#4F46E5", // Professional indigo
+      "#7C3AED", // Premium purple
+      "#0891B2", // Corporate cyan
+      "#059669", // Success green
+      "#DC2626", // Strategic red
+      "#EA580C", // Professional orange
     ],
     [IndustryType.PROFESSIONAL_SERVICES]: [
-      "#2D3E50",
-      "#4B86B4",
-      "#ADCBE3",
-      "#63ADF2",
-      "#E2E8F0",
-      "#FAFAFA",
+      "#1E40AF", // Executive blue
+      "#1F2937", // Professional dark
+      "#059669", // Success green
+      "#DC2626", // Important red
+      "#7C3AED", // Premium purple
+      "#0891B2", // Corporate cyan
     ],
     [IndustryType.TRAINING_COACHING]: [
-      "#2E8B57",
-      "#3AAFA9",
-      "#5CDB95",
-      "#8EE4AF",
-      "#EDF5E1",
-      "#05386B",
+      "#059669", // Growth green
+      "#0891B2", // Knowledge blue
+      "#7C3AED", // Insight purple
+      "#DC2626", // Action red
+      "#EA580C", // Energy orange
+      "#1E40AF", // Learning blue
     ],
     [IndustryType.PRODUCTION]: [
-      "#5D4037",
-      "#8D6E63",
-      "#90A4AE",
-      "#B0BEC5",
-      "#E0E0E0",
-      "#ECEFF1",
+      "#1F2937", // Industrial dark
+      "#374151", // Equipment gray
+      "#059669", // Success green
+      "#DC2626", // Alert red
+      "#EA580C", // Warning orange
+      "#0891B2", // Process blue
     ],
     [IndustryType.TECHNOLOGY]: [
-      "#0D47A1",
-      "#1976D2",
-      "#29B6F6",
-      "#81D4FA",
-      "#E1F5FE",
-      "#263238",
+      "#1E40AF", // Tech blue
+      "#7C3AED", // Innovation purple
+      "#059669", // Success green
+      "#DC2626", // Critical red
+      "#EA580C", // Alert orange
+      "#0891B2", // Digital cyan
     ],
     [IndustryType.EVENT_MANAGEMENT]: [
-      "#6A0DAD",
-      "#9C27B0",
-      "#E040FB",
-      "#EA80FC",
-      "#F3E5F5",
-      "#FFD54F",
+      "#7C3AED", // Premium purple
+      "#1E40AF", // Event blue
+      "#DC2626", // Important red
+      "#059669", // Success green
+      "#EA580C", // Energy orange
+      "#0891B2", // Professional cyan
     ],
     [IndustryType.FINANCIAL_SERVICES]: [
-      "#004D40",
-      "#00796B",
-      "#4DB6AC",
-      "#B2DFDB",
-      "#E0F2F1",
-      "#FFC107",
+      "#1E40AF", // Financial blue
+      "#1F2937", // Banking dark
+      "#059669", // Growth green
+      "#DC2626", // Risk red
+      "#EA580C", // Opportunity orange
+      "#7C3AED", // Premium purple
     ],
     [IndustryType.GENERAL]: [
-      "#455A64",
-      "#607D8B",
-      "#90A4AE",
-      "#CFD8DC",
-      "#ECEFF1",
-      "#FAFAFA",
+      "#1E40AF", // Professional blue
+      "#1F2937", // Business dark
+      "#059669", // Success green
+      "#DC2626", // Important red
+      "#7C3AED", // Premium purple
+      "#EA580C", // Professional orange
     ],
   };
 
@@ -358,5 +372,5 @@ export function getTextColorForBackground(backgroundColor: string): string {
   const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
 
   // Return white for dark backgrounds, dark gray for light backgrounds
-  return luminance > 0.5 ? "#212121" : "#FFFFFF";
+  return luminance > 0.5 ? "#1F2937" : "#FFFFFF";
 }

@@ -7,7 +7,7 @@ export function createDiagramToolSchema(diagramType: DiagramType) {
   // Base schema for all diagram types
   const baseSchema = {
     name: "generateDiagram",
-    description: `Generates a ${diagramType} diagram based on user requirements`,
+    description: `Generates a professional ${diagramType} diagram based on user requirements`,
     input_schema: {
       type: "object",
       properties: {
@@ -37,11 +37,12 @@ export function createDiagramToolSchema(diagramType: DiagramType) {
               },
               data: {
                 type: "object",
-                description: "Node data including label and shape",
+                description:
+                  "Node data containing ONLY label and shape - no other properties allowed",
                 properties: {
                   label: {
                     type: "string",
-                    description: "Text label for the node",
+                    description: "Professional text label for the node",
                   },
                   shape: {
                     type: "string",
@@ -63,6 +64,15 @@ export function createDiagramToolSchema(diagramType: DiagramType) {
                   },
                 },
                 required: ["label", "shape"],
+                additionalProperties: false,
+              },
+              width: {
+                type: "number",
+                description: "Width of the node in pixels",
+              },
+              height: {
+                type: "number",
+                description: "Height of the node in pixels",
               },
             },
             required: ["id", "type", "position", "data"],
@@ -127,7 +137,7 @@ export function createDiagramToolSchema(diagramType: DiagramType) {
         },
         nodeStyles: {
           type: "object",
-          description: "Styling for nodes, keyed by node ID",
+          description: "Professional styling for nodes, keyed by node ID",
           additionalProperties: {
             type: "object",
             properties: {

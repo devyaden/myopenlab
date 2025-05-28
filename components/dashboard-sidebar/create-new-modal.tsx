@@ -9,7 +9,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import Joyride from 'react-joyride';
 import {
   Form,
   FormControl,
@@ -27,18 +26,18 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { useForm } from "react-hook-form";
-import * as z from "zod";
-import { useState, useEffect } from "react";
-import { InputWithIcon } from "../input-with-icon";
-import { generateUntitledName } from "@/lib/utils";
-import { AIGenerationDialog } from "../canvas-new/ai-generation-dialog";
-import { Wand2 } from "lucide-react";
-import { useOnboardingStore } from "@/lib/store/useOnboarding";
-import CustomJoyrideTooltip from "../CustomJoyrideTooltip";
 import { useUser } from "@/lib/contexts/userContext";
-import { useMemo } from "react";
+import { useOnboardingStore } from "@/lib/store/useOnboarding";
+import { generateUntitledName } from "@/lib/utils";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { Wand2 } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { useForm } from "react-hook-form";
+import Joyride from "react-joyride";
+import * as z from "zod";
+import { AIGenerationDialog } from "../canvas-new/ai-generation-dialog";
+import CustomJoyrideTooltip from "../CustomJoyrideTooltip";
+import { InputWithIcon } from "../input-with-icon";
 
 export enum CANVAS_TYPE {
   HYBRID = "hybrid",
@@ -275,37 +274,40 @@ export function CreateNewModal({
   };
 
   const renderContent = () => {
-
-    const { 
-      isFirstVisit, 
-      data, 
-      protectedOnBording, 
-      setProtectedOnBording, 
+    const {
+      isFirstVisit,
+      data,
+      protectedOnBording,
+      setProtectedOnBording,
       createCategoryOnbording,
       isChecked,
-      setIsChecked
+      setIsChecked,
     } = useOnboardingStore();
-    const [stepIndex, setStepIndex] = useState(1)
+    const [stepIndex, setStepIndex] = useState(1);
 
     const canvasSteps = [
       {
-        target: '.new-canvas-diagram-board',
-        content: 'Click here to start with a new canvas. This will be your drawing board to create diagrams.',
+        target: ".new-canvas-diagram-board",
+        content:
+          "Click here to start with a new canvas. This will be your drawing board to create diagrams.",
         disableBeacon: true,
       },
       {
-        target: '.create-table-visual',
-        content: 'Click here to create a visual table. You can add values directly to cells for structured data.',
+        target: ".create-table-visual",
+        content:
+          "Click here to create a visual table. You can add values directly to cells for structured data.",
         disableBeacon: true,
       },
       {
-        target: '.create-doc-visual',
-        content: 'Click here to create a visual document. Ideal for drafting and structuring textual content.',
+        target: ".create-doc-visual",
+        content:
+          "Click here to create a visual document. Ideal for drafting and structuring textual content.",
         disableBeacon: true,
       },
       {
-        target: '.generate-with-ai',
-        content: 'Want help from AI? Click here to generate a diagram automatically based on your input.',
+        target: ".generate-with-ai",
+        content:
+          "Want help from AI? Click here to generate a diagram automatically based on your input.",
         disableBeacon: true,
       },
     ];
@@ -325,17 +327,17 @@ export function CreateNewModal({
         setProtectedOnBording(false)
       } else if (type === 'step:after') {
         setStepIndex((prev: any) => prev + 1);
-      } else if (type === 'step:after' && action === 'prev') {
+      } else if (type === "step:after" && action === "prev") {
         setStepIndex((prev: any) => Math.max(prev - 1, 0));
       }
     };
 
     const handleRedrectToAi = (data: any) => {
       const { action, index, status, type } = data;
-      if(index === 3 && type === 'step:after') {
-        handleOpenAIDialog()
+      if (index === 3 && type === "step:after") {
+        handleOpenAIDialog();
       }
-    }
+    };
 
     const isHasSeenCategoryOnborading = useMemo(() => {
       if (!user?.has_seen_onboarding) {
@@ -354,33 +356,35 @@ export function CreateNewModal({
     }, [user?.has_seen_onboarding, protectedOnBording])
 
     const onDontShowAgainChange = (e: any) => {
-      setIsChecked(e.target?.checked)
-    }
+      setIsChecked(e.target?.checked);
+    };
 
     // Step 1: Type selection (only for canvas)
     if (step === "select" && type === "canvas") {
       return (
         <>
-          {isHasSeenCategoryOnborading && isFirstVisit && <Joyride
-                steps={canvasSteps}
-                callback={handleRedrectToAi}
-                tooltipComponent={(props: any) => (
-                    <CustomJoyrideTooltip 
-                      {...props} 
-                      onDontShowAgainChange={onDontShowAgainChange}
-                      isChecked={isChecked}
-                    />
-                )}
-                continuous
-                showProgress
-                showSkipButton
-                styles={{
-                  options: {
-                    primaryColor: '#22c55e',
-                    zIndex: 10000,
-                  },
-                }}
-            />}
+          {isHasSeenCategoryOnborading && isFirstVisit && (
+            <Joyride
+              steps={canvasSteps}
+              callback={handleRedrectToAi}
+              tooltipComponent={(props: any) => (
+                <CustomJoyrideTooltip
+                  {...props}
+                  onDontShowAgainChange={onDontShowAgainChange}
+                  isChecked={isChecked}
+                />
+              )}
+              continuous
+              showProgress
+              showSkipButton
+              styles={{
+                options: {
+                  primaryColor: "#22c55e",
+                  zIndex: 10000,
+                },
+              }}
+            />
+          )}
           <div className="grid grid-cols-2 gap-4 py-4">
             <div
               className="flex flex-col items-center justify-center p-6 bg-gray-50 rounded-lg hover:bg-gray-100 cursor-pointer transition-colors new-canvas-diagram-board"
@@ -533,7 +537,10 @@ export function CreateNewModal({
                     Back
                   </Button>
                 )} */}
-                <Button type="submit" className="bg-yadn-accent-green submit-create-folder">
+                <Button
+                  type="submit"
+                  className="bg-yadn-accent-green submit-create-folder"
+                >
                   Create Folder
                 </Button>
               </DialogFooter>

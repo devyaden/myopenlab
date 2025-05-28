@@ -84,11 +84,6 @@ export default function ReactFlowCanvas({
     }
   }, [canvasData, setNodes, setEdges]);
 
-  console.log(
-    "[ReactFlowCanvas] Received initialViewport prop:",
-    initialViewport
-  );
-
   // Call onInternalChange when nodes or edges change
   useEffect(() => {
     if (onInternalChange) {
@@ -97,45 +92,45 @@ export default function ReactFlowCanvas({
   }, [nodes, edges, onInternalChange]);
 
   // Enhance nodes for printing when in print-friendly mode
-  useEffect(() => {
-    if (printFriendly && reactFlowWrapper.current) {
-      // Add styles for better print visibility
-      const container = reactFlowWrapper.current;
-      container.classList.add("print-friendly-flow");
+  // useEffect(() => {
+  //   if (printFriendly && reactFlowWrapper.current) {
+  //     // Add styles for better print visibility
+  //     const container = reactFlowWrapper.current;
+  //     container.classList.add("print-friendly-flow");
 
-      // Apply custom styles for better printing
-      const styleElement = document.createElement("style");
-      styleElement.textContent = `
-        @media print {
-          .print-friendly-flow {
-            height: 350px !important;
-            width: 100% !important;
-            overflow: visible !important;
-            page-break-inside: avoid !important;
-          }
-          .print-friendly-flow .react-flow__node {
-            background-color: white !important;
-            border: 1px solid #333 !important;
-            box-shadow: 0 1px 4px rgba(0, 0, 0, 0.16) !important;
-          }
-          .print-friendly-flow .react-flow__edge-path {
-            stroke: #333 !important;
-            stroke-width: 2px !important;
-          }
-          .print-friendly-flow .react-flow__controls,
-          .print-friendly-flow .react-flow__minimap,
-          .print-friendly-flow .react-flow__attribution {
-            display: none !important;
-          }
-        }
-      `;
-      document.head.appendChild(styleElement);
+  //     // Apply custom styles for better printing
+  //     const styleElement = document.createElement("style");
+  //     styleElement.textContent = `
+  //       @media print {
+  //         .print-friendly-flow {
+  //           height: 350px !important;
+  //           width: 100% !important;
+  //           overflow: visible !important;
+  //           page-break-inside: avoid !important;
+  //         }
+  //         .print-friendly-flow .react-flow__node {
+  //           background-color: white !important;
+  //           border: 1px solid #333 !important;
+  //           box-shadow: 0 1px 4px rgba(0, 0, 0, 0.16) !important;
+  //         }
+  //         .print-friendly-flow .react-flow__edge-path {
+  //           stroke: #333 !important;
+  //           stroke-width: 2px !important;
+  //         }
+  //         .print-friendly-flow .react-flow__controls,
+  //         .print-friendly-flow .react-flow__minimap,
+  //         .print-friendly-flow .react-flow__attribution {
+  //           display: none !important;
+  //         }
+  //       }
+  //     `;
+  //     document.head.appendChild(styleElement);
 
-      return () => {
-        document.head.removeChild(styleElement);
-      };
-    }
-  }, [printFriendly]);
+  //     return () => {
+  //       document.head.removeChild(styleElement);
+  //     };
+  //   }
+  // }, [printFriendly]);
 
   return (
     <div
@@ -176,16 +171,8 @@ export default function ReactFlowCanvas({
               node?.type === "imageNode"
                 ? node.style?.height
                 : node.style?.height || (node?.type === "textNode" ? 50 : 100),
-            ...(printFriendly
-              ? {
-                  backgroundColor: "white",
-                  border: "1px solid #333",
-                  boxShadow: "0 1px 4px rgba(0, 0, 0, 0.16)",
-                }
-              : {}),
           },
           connectable: node?.type !== "textNode",
-          // selected: selectedNodes.includes(node.id),
         }))}
         edges={edges.map((edge) => ({
           ...edge,
@@ -213,9 +200,7 @@ export default function ReactFlowCanvas({
         fitView={!initialViewport}
         proOptions={{ hideAttribution: true }}
       >
-        <Background size={1} color="#f8f8f8" />
-        {/* <Controls showInteractive={!printFriendly} /> */}
-        {!printFriendly && <MiniMap />}
+        <Background size={1} color="#fff" />
       </ReactFlow>
     </div>
   );

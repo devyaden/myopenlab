@@ -62,11 +62,26 @@ CRITICAL EVENT VISITOR EXPERIENCE INSTRUCTIONS:
 8. Use PROPER HANDLE CONNECTIONS: match connection points to the logical direction of movement
 9. NEVER create disconnected actors - all visitors must be part of the event journey
 10. Each journey must tell a COMPLETE STORY of how that visitor type experiences the event
-11. Use UNIQUE EDGE IDs for all connections to avoid duplicate ID errors in rendering`
+11. Use UNIQUE EDGE IDs for all connections to avoid duplicate ID errors in rendering
+
+CRITICAL DATA STRUCTURE REQUIREMENTS:
+- Node data objects must contain ONLY 'label' and 'shape' properties
+- DO NOT include 'incoming', 'outgoing', 'width', 'height', 'from', 'to' in node data
+- Width and height belong at the node level, not in the data object`
     );
   }
 
-  return systemPrompt;
+  // Add general data structure requirements for all diagram types
+  return (
+    systemPrompt +
+    `
+
+CRITICAL DATA STRUCTURE REQUIREMENTS:
+- Node data objects must contain ONLY 'label' and 'shape' properties
+- DO NOT include 'incoming', 'outgoing', 'width', 'height', 'from', 'to' in node data
+- Width and height belong at the node level, not in the data object
+- Keep the data structure clean and professional`
+  );
 }
 
 /**
@@ -96,17 +111,27 @@ export async function callClaudeAPIWithTools(
     // Create tools schema based on diagram type
     const tools = createDiagramToolSchema(diagramType);
 
+    // Enhanced user message with explicit data structure requirements
+    const enhancedUserMessage = `${userMessage}
+
+CRITICAL: Ensure the generated diagram follows these data structure requirements:
+- Node data objects must contain ONLY 'label' and 'shape' properties
+- DO NOT add 'incoming', 'outgoing', 'width', 'height', 'from', 'to' properties to node data
+- Width and height should be set at the node level (outside of data object)
+- Create professional, sophisticated content worthy of executive presentation
+- Use business-appropriate terminology and strategic thinking`;
+
     // API call with timeout control and tools
     const response = await client.messages.create(
       {
         model: model,
         max_tokens: 8000,
-        temperature: 1,
+        temperature: 0.7, // Reduced temperature for more consistent, professional output
         system: systemPrompt,
         messages: [
           {
             role: "user",
-            content: userMessage,
+            content: enhancedUserMessage,
           },
         ],
         tools: tools,
@@ -169,12 +194,12 @@ export async function callClaudeAPIWithTools(
         // Simplify system prompt and user message for retry
         systemPrompt =
           systemPrompt.split("\n\n").slice(0, 2).join("\n\n") +
-          "\nCRITICAL: Generate a SIMPLIFIED diagram with fewer nodes and connections.";
+          "\nCRITICAL: Generate a SIMPLIFIED professional diagram with fewer nodes and connections. Node data must contain ONLY 'label' and 'shape' properties.";
 
         userMessage =
           userMessage.split("\n")[0] +
           "\n" +
-          "Create a SIMPLIFIED version with 5-7 nodes maximum. Quality over quantity.";
+          "Create a SIMPLIFIED professional version with 5-7 nodes maximum. Focus on quality over quantity. Ensure clean data structure.";
       }
 
       return callClaudeAPIWithTools(

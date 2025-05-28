@@ -1190,12 +1190,19 @@ const Editor = (
   const handleInsertCroppedCanvas = (croppedData: any) => {
     if (!editor) return;
 
+    debugger;
+
     try {
       // Fix pointer events before inserting
       document.body.style.pointerEvents = "";
 
       // Check if we should use real-time data or static image
       if (croppedData.useRealTimeData && croppedData.canvasId) {
+        console.log(
+          "Inserting real-time canvas with styles:",
+          Object.keys(croppedData.originalStyles || {}).length
+        );
+
         // Insert as a ReactFlow node with real-time updates enabled
         editor
           .chain()
@@ -1208,6 +1215,7 @@ const Editor = (
               name: croppedData.name || "Canvas diagram",
               nodes: JSON.stringify(croppedData.originalNodes || []),
               edges: JSON.stringify(croppedData.originalEdges || []),
+              styles: JSON.stringify(croppedData.originalStyles || {}), // Include styles
               width: croppedData.dimensions?.width || 600,
               height: croppedData.dimensions?.height || 400,
               useRealTimeData: true,
@@ -1354,6 +1362,7 @@ const Editor = (
       dimensions: { width: 570, height: 300 }, // Default dimensions
       originalNodes: formattedCanvasData.nodes,
       originalEdges: formattedCanvasData.edges,
+      originalStyles: formattedCanvasData.styles,
       useRealTimeData: formattedCanvasData.useRealTimeData,
       canvasId: formattedCanvasData.canvasId,
     };
@@ -1604,7 +1613,6 @@ const Editor = (
       setIsExporting(false);
     }
   };
-
   // Update the handleZoomChange function
   const handleZoomChange = (newZoom: string) => {
     const zoomValue = Number.parseInt(newZoom) / 100;
@@ -1918,7 +1926,7 @@ const Editor = (
           top: "58px",
           left: 0,
           right: 0,
-          zIndex: 9999,
+          zIndex: 49,
           backgroundColor: "#fff",
           borderBottom: "1px solid #e0e0e0",
           boxShadow: "0 2px 8px rgba(0, 0, 0, 0.15)",

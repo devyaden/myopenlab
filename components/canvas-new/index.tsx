@@ -1,6 +1,5 @@
 "use client";
 
-import "./react-flow-fixes.css";
 import DocumentEditor from "@/components/editor";
 import { Input } from "@/components/ui/input";
 import { findAbsolutePosition } from "@/lib/canvas.utils";
@@ -18,12 +17,14 @@ import { LoadingSpinner } from "../loading-spinner";
 import { Unauthorized } from "../unauthorized";
 import { Header } from "./header";
 import { ImageManagerDialog } from "./image-manager-dialog";
+import "./react-flow-fixes.css";
 import { Sidebar } from "./sidebar";
 import { VIEW_MODE } from "./table-view/table.types";
 import { Toolbar } from "./toolbar";
 import { UMLEditor } from "./uml-editor";
 import { VerticalNav } from "./vertical-nav";
 import { ViewModeSwitcher } from "./view-mode-switcher";
+import { useMemo } from "react";
 
 interface NodeStyle {
   fontFamily: string;
@@ -152,6 +153,7 @@ export default function CanvasNew({ canvasId }: FigmaInterfaceProps) {
 
   const [edgeWidth, setEdgeWidth] = useState(2);
   const [edgeColor, setEdgeColor] = useState("#000000");
+  const [refReady, setRefReady] = useState(false);
 
   // Add a tableViewRef to access the TableView component's methods
 
@@ -381,11 +383,22 @@ export default function CanvasNew({ canvasId }: FigmaInterfaceProps) {
       }
 
       return (
-        <UMLEditor {...props} nodes={safeNodes} tableViewRef={tableViewRef} />
+        <UMLEditor {...props} nodes={safeNodes} tableViewRef={tableViewRef}/>
       );
     },
-    [fixCircularParentChildRelationships, setNodes, tableViewRef]
+    [fixCircularParentChildRelationships, setNodes]
   );
+
+  const exportToCSVFn = useMemo(() => {
+    if (viewMode !== VIEW_MODE.table || !tableViewRef.current) return undefined;
+    return tableViewRef.current.exportToCSV;
+  }, [viewMode, refReady, tableViewRef.current]);
+
+  const exportToExcelFn = useMemo(() => {
+    return viewMode === VIEW_MODE.table && tableViewRef.current
+      ? tableViewRef.current.exportToExcel
+      : undefined;
+  }, [viewMode, refReady, tableViewRef.current]);
 
   // Effect to check for circular references on EVERY render
   useEffect(() => {
@@ -406,6 +419,14 @@ export default function CanvasNew({ canvasId }: FigmaInterfaceProps) {
       }
     }
   }, [nodes, fixCircularParentChildRelationships, setNodes]);
+
+  useEffect(() => {
+    if (viewMode === VIEW_MODE.table && tableViewRef.current) {
+      setRefReady(true);
+    } else {
+      setRefReady(false);
+    }
+  }, [viewMode, tableViewRef.current]);
 
   const getNodeStyle = useCallback(
     (nodeId: string): NodeStyle => {
@@ -1230,6 +1251,7 @@ export default function CanvasNew({ canvasId }: FigmaInterfaceProps) {
   // Check authorization when canvas is loaded
   useEffect(() => {
     const checkAuthorization = async () => {
+      console.log("Checking authorization for canvas:", !user || !isLoaded);
       if (!user || !isLoaded) return;
 
       try {
@@ -1246,6 +1268,7 @@ export default function CanvasNew({ canvasId }: FigmaInterfaceProps) {
         }
 
         const data = await response.json();
+
         setVisibility(data.visibility || "private");
 
         // If user is not owner and canvas is not public, show unauthorized component
@@ -1288,7 +1311,7 @@ export default function CanvasNew({ canvasId }: FigmaInterfaceProps) {
   const handleVisibilityChange = async (newVisibility: string) => {
     try {
       const response = await fetch("/api/canvas/visibility", {
-        method: "PATCH",
+        method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
@@ -1328,7 +1351,8 @@ export default function CanvasNew({ canvasId }: FigmaInterfaceProps) {
   }
 
   // Create read-only props for non-owners viewing public canvases
-  const isReadOnly = !isOwner && visibility === "public";
+  const isReadOnly = !isOwner;
+  console.log("🚀 ~ CanvasNew ~ !isOwner:", visibility);
 
   if (isLoading) {
     return (
@@ -1361,16 +1385,8 @@ export default function CanvasNew({ canvasId }: FigmaInterfaceProps) {
             onVisibilityChange={handleVisibilityChange}
             isOwner={isOwner}
             viewMode={viewMode}
-            exportToCSV={
-              viewMode === VIEW_MODE.table
-                ? tableViewRef.current?.exportToCSV
-                : undefined
-            }
-            exportToExcel={
-              viewMode === VIEW_MODE.table
-                ? tableViewRef.current?.exportToExcel
-                : undefined
-            }
+            exportToCSV={exportToCSVFn}
+            exportToExcel={exportToExcelFn}
             propExportAsPDF={documentRef.current?.exportAsPDF}
             exportAsJSON={documentRef.current?.exportAsJSON}
             canvasType={canvas_type!}

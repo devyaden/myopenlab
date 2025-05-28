@@ -22,6 +22,7 @@ interface UMLToolbarProps {
   onChangeBackgroundColor: (color: string) => void;
   showMiniMap?: boolean;
   onToggleMiniMap?: (show: boolean) => void;
+  readOnly?: boolean;
 }
 
 export function UMLToolbar({
@@ -33,6 +34,7 @@ export function UMLToolbar({
   onChangeBackgroundColor,
   showMiniMap = true,
   onToggleMiniMap,
+  readOnly,
 }: UMLToolbarProps) {
   const [showColorDropdown, setShowColorDropdown] = useState(false);
 
@@ -133,6 +135,7 @@ export function UMLToolbar({
             size="icon"
             className="h-10 w-10"
             onClick={() => setShowColorDropdown(!showColorDropdown)}
+            disabled={readOnly}
           >
             <Palette className="h-5 w-5" />
           </Button>
