@@ -11,94 +11,48 @@ import { createJSONStorage, persist } from "zustand/middleware";
 import { supabase } from "../supabase/client";
 import { ALL_SHAPES } from "../types/flow-table.types";
 
-// Helper function to migrate existing columns to include dataKey
-const migrateExistingColumns = (columns: any[], nodes: any[] = []) => {
-  return columns.map((col) => {
-    // If dataKey is already correctly set for special columns, keep it
-    if (col.dataKey && ["label", "shape", "id"].includes(col.dataKey)) {
-      return {
-        ...col,
-        dataKey: col.dataKey,
-      };
-    }
+// Helper function to determine the correct dataKey for a column
+const getColumnDataKey = (column: any): string => {
+  // If dataKey is already set and it's one of the special keys, keep it
+  if (column.dataKey && ["label", "shape", "id"].includes(column.dataKey)) {
+    return column.dataKey;
+  }
 
-    // If data_key from database is set for special columns, use it
-    if (col.data_key && ["label", "shape", "id"].includes(col.data_key)) {
-      return {
-        ...col,
-        dataKey: col.data_key,
-      };
-    }
+  // If data_key from database is set and it's one of the special keys, use it
+  if (column.data_key && ["label", "shape", "id"].includes(column.data_key)) {
+    return column.data_key;
+  }
 
-    let dataKey = col.title;
+  // Check if this is a special column by its characteristics
+  if (column.type === "Text" && column.order === 1) {
+    return "label"; // This is likely the task column
+  }
 
-    // Standard mappings for current column titles
-    if (col.title === "task") {
-      dataKey = "label";
-    } else if (col.title === "type") {
-      dataKey = "shape";
-    } else if (col.title === "id") {
-      dataKey = "id";
-    }
-    // Smart detection for renamed default columns
-    else if (col.type === "Text" && col.order <= 2) {
-      // This might be a renamed "task" column - check if nodes have label data
-      const hasLabelData = nodes.some(
-        (node) => node.data && node.data.label && node.data.label.trim() !== ""
-      );
+  if (
+    column.type === "Select" &&
+    column.options &&
+    Array.isArray(column.options) &&
+    column.options.some((opt: string) =>
+      ["rectangle", "circle", "hexagon", "diamond", "triangle"].includes(opt)
+    )
+  ) {
+    return "shape"; // This is likely the type column
+  }
 
-      // Check if this column is empty (suggesting it's not mapping to the right data)
-      const columnIsEmpty = nodes.every(
-        (node) =>
-          !node.data || !node.data[col.title] || node.data[col.title] === ""
-      );
+  if (column.title === "id" || column.order === 0) {
+    return "id"; // This is the ID column
+  }
 
-      // If nodes have label data but this column is empty, it's likely a renamed task column
-      if (hasLabelData && columnIsEmpty) {
-        dataKey = "label";
-        console.log(
-          `🔧 Detected renamed task column: "${col.title}" → maps to "label"`
-        );
-      }
-    } else if (
-      col.type === "Select" &&
-      col.options &&
-      Array.isArray(col.options)
-    ) {
-      // Check if this has shape options (indicating it's a type column)
-      const hasShapeOptions = col.options.some((option: any) =>
-        ["rectangle", "circle", "hexagon", "diamond", "triangle"].includes(
-          option
-        )
-      );
+  // For all other columns, use the title as dataKey
+  return column.title;
+};
 
-      if (hasShapeOptions) {
-        // This might be a renamed "type" column - check if nodes have shape data
-        const hasShapeData = nodes.some(
-          (node) =>
-            node.data && node.data.shape && node.data.shape.trim() !== ""
-        );
-
-        // Check if this column is empty
-        const columnIsEmpty = nodes.every(
-          (node) =>
-            !node.data || !node.data[col.title] || node.data[col.title] === ""
-        );
-
-        if (hasShapeData && columnIsEmpty) {
-          dataKey = "shape";
-          console.log(
-            `🔧 Detected renamed type column: "${col.title}" → maps to "shape"`
-          );
-        }
-      }
-    }
-
-    return {
-      ...col,
-      dataKey,
-    };
-  });
+// Helper function to ensure columns have proper dataKey
+const ensureColumnDataKeys = (columns: any[]): any[] => {
+  return columns.map((col) => ({
+    ...col,
+    dataKey: getColumnDataKey(col),
+  }));
 };
 
 const initialUndoableState: UndoableState = {
@@ -107,13 +61,14 @@ const initialUndoableState: UndoableState = {
   nodeStyles: {},
   canvasSettings: {},
   columns: [
-    { title: "id", type: "Text", dataKey: "id" },
-    { title: "task", type: "Text", dataKey: "label" },
+    { title: "id", type: "Text", dataKey: "id", order: 0 },
+    { title: "task", type: "Text", dataKey: "label", order: 1 },
     {
       title: "type",
       type: "Select",
       options: ALL_SHAPES,
       dataKey: "shape",
+      order: 2,
     },
   ],
   name: "Untitled Canvas",
@@ -279,15 +234,15 @@ export const useCanvasStore = create<CanvasStore>()(
         setColumns: (columns) => {
           if (!columns.length) return;
 
-          // Migrate columns to include dataKey
-          const migratedColumns = migrateExistingColumns(columns);
+          // Ensure all columns have proper dataKey
+          const columnsWithDataKey = ensureColumnDataKeys(columns);
 
           const currentState = getUndoableState();
-          const newState = { ...currentState, columns: migratedColumns };
+          const newState = { ...currentState, columns: columnsWithDataKey };
           addToHistory(newState);
 
           set({
-            columns: migratedColumns,
+            columns: columnsWithDataKey,
             isDirty: true,
             updated_at: new Date(),
           });
@@ -366,13 +321,14 @@ export const useCanvasStore = create<CanvasStore>()(
               return column;
             });
 
-            // Migrate columns to include dataKey
-            const migratedColumns = migrateExistingColumns(
-              finalColumnDefs || [],
-              get().nodes || []
-            );
+            // Ensure columns have proper dataKey (using data_key from database)
+            const columnsWithDataKey =
+              finalColumnDefs?.map((col) => ({
+                ...col,
+                dataKey: col.data_key || getColumnDataKey(col),
+              })) || [];
 
-            set({ columns: migratedColumns });
+            set({ columns: columnsWithDataKey });
           } catch (error) {
             console.error("Error refreshing columns data:", error);
             toast.error("Error refreshing columns data.");
@@ -381,10 +337,13 @@ export const useCanvasStore = create<CanvasStore>()(
 
         addNewColumn: (column: any) => {
           const currentState = getUndoableState();
-          const migratedColumn = migrateExistingColumns([column])[0];
+          const columnWithDataKey = {
+            ...column,
+            dataKey: column.dataKey || column.title, // Default to title if no dataKey provided
+          };
           const newState = {
             ...currentState,
-            columns: [...currentState.columns, migratedColumn],
+            columns: [...currentState.columns, columnWithDataKey],
           };
           addToHistory(newState);
 
@@ -429,6 +388,7 @@ export const useCanvasStore = create<CanvasStore>()(
           set({ saveLoading: true });
           try {
             // Start a Supabase transaction
+
             const { data, error } = await supabase.rpc(
               "save_canvas_transaction",
               {
@@ -450,7 +410,7 @@ export const useCanvasStore = create<CanvasStore>()(
                   history_id: uuidv4(),
                   history_data: JSON.stringify(getUndoableState()),
 
-                  // Columns data - include dataKey
+                  // Columns data - ensure dataKey is always saved
                   columns: state.columns.map((column, index) => ({
                     id: column.id || uuidv4(),
                     title: column.title,
@@ -459,7 +419,7 @@ export const useCanvasStore = create<CanvasStore>()(
                     required: column.required || false,
                     related_canvas_id: column.related_canvas_id || null,
                     rollup_column_id: column.rollup_column_id || null,
-                    data_key: column.dataKey || column.title, // Save dataKey to database
+                    data_key: column.dataKey || column.title, // Always save dataKey
                     order: index,
                   })),
 
@@ -527,7 +487,7 @@ export const useCanvasStore = create<CanvasStore>()(
                 name: canvas.name,
                 description: canvas.description || "",
                 updated_at: new Date(canvas.updated_at),
-                columns: migrateExistingColumns(canvas.columns || []),
+                columns: ensureColumnDataKeys(canvas.columns || []),
                 canvas_type: canvas.canvas_type,
               })),
             });
@@ -628,10 +588,13 @@ export const useCanvasStore = create<CanvasStore>()(
             }
 
             if (canvas) {
-              // Migrate columns to include dataKey
-              const migratedColumns = columnDefs?.length
-                ? migrateExistingColumns(columnDefs, canvasData?.nodes || [])
-                : migrateExistingColumns(initialState.columns, []);
+              // Ensure columns have proper dataKey (using data_key from database)
+              const columnsWithDataKey = columnDefs?.length
+                ? columnDefs.map((col) => ({
+                    ...col,
+                    dataKey: col.data_key || getColumnDataKey(col),
+                  }))
+                : ensureColumnDataKeys(initialState.columns);
 
               const newState = {
                 id: canvasId,
@@ -644,7 +607,7 @@ export const useCanvasStore = create<CanvasStore>()(
                 nodes: canvasData?.nodes || [],
                 edges: canvasData?.edges || [],
                 nodeStyles: canvasData?.styles || {},
-                columns: migratedColumns,
+                columns: columnsWithDataKey,
                 version: canvasData?.version || 1,
                 isDirty: false,
                 lastSaved: new Date(),
@@ -746,7 +709,7 @@ export const useCanvasStore = create<CanvasStore>()(
                 options: columnData.options || null,
                 required: columnData.required || false,
                 related_canvas_id: columnData.related_canvas_id || null,
-                data_key: columnData.dataKey || columnData.title, // Include dataKey
+                data_key: columnData.dataKey || columnData.title, // Use dataKey or fallback to title
                 order: newOrder,
               })
               .select()
@@ -1012,6 +975,6 @@ export const useCanvasStore = create<CanvasStore>()(
 );
 
 // Subscribe to store changes for debugging
-// if (process.env.NODE_ENV === "development") {
-//   useCanvasStore.subscribe(console.log);
-// }
+if (process.env.NODE_ENV === "development") {
+  useCanvasStore.subscribe(console.log);
+}

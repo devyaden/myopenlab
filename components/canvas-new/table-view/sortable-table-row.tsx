@@ -34,17 +34,10 @@ import { Checkbox } from "../../ui/checkbox";
 import AddTableCellTrigger from "../add-table-cell-relation-trigger";
 import { HierarchyNode } from "./table.types";
 
-// Helper functions for column data mapping
+// Simplified helper function for column data mapping
 const getDataKey = (column: any): string => {
-  if (column.dataKey) {
-    return column.dataKey;
-  }
-
-  if (column.title === "task") return "label";
-  if (column.title === "type") return "shape";
-  if (column.title === "id") return "id";
-
-  return column.title;
+  // Use the dataKey if it exists, otherwise fall back to title
+  return column.dataKey || column.title;
 };
 
 const getCellValue = (node: any, column: any) => {
@@ -129,7 +122,7 @@ const SortableTableRow: React.FC<{
   const nonEditableItems = [
     ...nonEditableColumns,
     ...columns.filter((col) => col.type === "Rollup").map((col) => col.title),
-    // disbale editing of Last edited time and Last edited by
+    // disable editing of Last edited time and Last edited by
     ...columns
       .filter(
         (col) =>

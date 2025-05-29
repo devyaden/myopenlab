@@ -27,7 +27,6 @@ import {
   X,
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import TablePreview from "./TablePreview";
 
 interface TableSelectorDialogProps {
   isOpen: boolean;
@@ -66,25 +65,10 @@ interface FilterGroup {
 type SortDirection = "asc" | "desc" | null;
 type SortField = string | null;
 
-// Helper function to get data key (same as in TableView and CanvasTableNodeView)
+// Simplified helper function for column data mapping (same as other components)
 const getDataKey = (column: any): string => {
-  // If dataKey is explicitly set, use it
-  if (column.dataKey) {
-    return column.dataKey;
-  }
-
-  // If data_key from database is set, use it
-  if (column.data_key) {
-    return column.data_key;
-  }
-
-  // Fallback for existing columns without dataKey
-  if (column.title === "task") return "label";
-  if (column.title === "type") return "shape";
-  if (column.title === "id") return "id";
-
-  // For all other columns, use the title as the key
-  return column.title;
+  // Use the dataKey if it exists, otherwise fall back to title
+  return column.dataKey || column.title;
 };
 
 export default function TableSelectorDialog({
@@ -115,16 +99,11 @@ export default function TableSelectorDialog({
     groupId: string;
     filterId: string | null;
   } | null>(null);
-  const [tempFilterValue, setTempFilterValue] = useState<any>("");
 
-  // Implementation of the solution from GitHub issue
   const handleOpenChange = (open: boolean) => {
     if (!open) {
-      // This is the key fix from the GitHub issue
-      // We need to manually restore the pointer-events style that Radix UI sets
       document.body.style.pointerEvents = "";
 
-      // Reset dialog state
       setTimeout(() => {
         setSortField(null);
         setSortDirection(null);
@@ -142,7 +121,7 @@ export default function TableSelectorDialog({
     if (tableData) {
       setSelectedTable(tableData.id);
       setDisplayRows(Math.min(tableData.flowData?.[0]?.nodes?.length || 5, 5));
-      // Get columns excluding 'id'
+
       const columnTitles = tableData.columns
         ?.filter((col: any) => col.title !== "id")
         .map((col: any) => col.title);
@@ -150,7 +129,6 @@ export default function TableSelectorDialog({
     }
   }, [tableData]);
 
-  // Combine the initial tableData with the tables array for selection
   const availableTables = useMemo(() => {
     const allTables = [...(tables || [])];
 
@@ -159,6 +137,7 @@ export default function TableSelectorDialog({
       allTables.unshift(tableData);
     }
 
+    // The data already has proper dataKey set, no need to process further
     return allTables;
   }, [tableData, tables]);
 
@@ -169,11 +148,6 @@ export default function TableSelectorDialog({
       : tableData;
   }, [selectedTable, availableTables, tableData]);
 
-  // Calculate maximum rows and columns
-  const maxRowsInSelectedTable =
-    selectedTableData?.flowData?.nodes?.length || 0;
-
-  // Get all available columns, excluding 'id' column
   const availableColumns = useMemo(() => {
     if (!selectedTableData) return [];
     return selectedTableData.columns
@@ -181,7 +155,6 @@ export default function TableSelectorDialog({
       .map((column: any) => column.title);
   }, [selectedTableData]);
 
-  // Get filtered columns based on selection
   const visibleColumns = useMemo(() => {
     return selectedColumns;
   }, [selectedColumns]);
@@ -196,11 +169,9 @@ export default function TableSelectorDialog({
     });
   };
 
-  // Handle table selection
   const handleTableSelect = (tableId: string) => {
     setSelectedTable(tableId);
 
-    // Find the selected table
     const newSelectedTable = availableTables.find(
       (table) => table.id === tableId
     );
@@ -393,7 +364,9 @@ export default function TableSelectorDialog({
         return node?.data?.[columnTitle] || "";
       }
 
-      const dataKey = getDataKey(columnDef);
+      // Use dataKey directly from the column (it's already set correctly from the data)
+      const dataKey =
+        columnDef.dataKey || columnDef.data_key || columnDef.title;
 
       let cellValue;
       switch (dataKey) {
@@ -993,15 +966,77 @@ export default function TableSelectorDialog({
                               {table.name || "Untitled Canvas"}
                             </div>
                             <div className="h-[150px] overflow-hidden border rounded-md bg-gray-50">
-                              <TablePreview
-                                nodes={table.flowData?.[0]?.nodes}
-                                edges={table.flowData?.[0]?.edges}
-                                columns={table.columns}
-                                displayRows={5}
-                                visibleColumns={table.columns
-                                  ?.filter((col: any) => col.title !== "id")
-                                  .map((col: any) => col.title)}
-                              />
+                              {/* Custom inline table preview for selection */}
+                              <div className="p-2">
+                                <table className="w-full text-xs">
+                                  <thead className="bg-gray-100">
+                                    <tr>
+                                      {table.columns
+                                        ?.filter(
+                                          (col: any) => col.title !== "id"
+                                        )
+                                        .slice(0, 3) // Show only first 3 columns for preview
+                                        .map((col: any) => (
+                                          <th
+                                            key={col.title}
+                                            className="p-1 text-left border-r border-gray-200"
+                                          >
+                                            {col.title}
+                                          </th>
+                                        ))}
+                                    </tr>
+                                  </thead>
+                                  <tbody>
+                                    {table.flowData?.[0]?.nodes
+                                      ?.slice(0, 3)
+                                      .map((node: any, index: number) => (
+                                        <tr
+                                          key={node.id || index}
+                                          className="border-b border-gray-200"
+                                        >
+                                          {table.columns
+                                            ?.filter(
+                                              (col: any) => col.title !== "id"
+                                            )
+                                            .slice(0, 3)
+                                            .map((col: any) => {
+                                              const dataKey =
+                                                col.dataKey ||
+                                                col.data_key ||
+                                                col.title;
+                                              let cellValue;
+                                              switch (dataKey) {
+                                                case "label":
+                                                  cellValue =
+                                                    node?.data?.label || "";
+                                                  break;
+                                                case "shape":
+                                                  cellValue =
+                                                    node?.data?.shape || "";
+                                                  break;
+                                                case "id":
+                                                  cellValue = node?.id || "";
+                                                  break;
+                                                default:
+                                                  cellValue =
+                                                    node?.data?.[dataKey] ||
+                                                    node?.data?.[col.title] ||
+                                                    "";
+                                              }
+                                              return (
+                                                <td
+                                                  key={col.title}
+                                                  className="p-1 border-r border-gray-200 truncate"
+                                                >
+                                                  {cellValue || "—"}
+                                                </td>
+                                              );
+                                            })}
+                                        </tr>
+                                      ))}
+                                  </tbody>
+                                </table>
+                              </div>
                             </div>
                             <div className="mt-2 text-xs text-gray-500">
                               {table.flowData?.[0]?.nodes?.length || 0} rows,{" "}
@@ -1538,13 +1573,67 @@ export default function TableSelectorDialog({
                     <div className="text-sm font-medium mb-2">Preview:</div>
                     <div className="h-[200px] relative border rounded-md bg-gray-50 overflow-hidden">
                       <div className="absolute inset-0 overflow-auto">
-                        <TablePreview
-                          nodes={processedNodes}
-                          edges={selectedTableData.flowData?.[0]?.edges}
-                          columns={selectedTableData.columns}
-                          displayRows={displayRows}
-                          visibleColumns={visibleColumns}
-                        />
+                        {/* Custom inline table preview */}
+                        <table className="w-full text-sm">
+                          <thead className="bg-gray-100">
+                            <tr>
+                              {visibleColumns.map((columnTitle) => (
+                                <th
+                                  key={columnTitle}
+                                  className="p-2 text-left border-r border-gray-200"
+                                >
+                                  {columnTitle}
+                                </th>
+                              ))}
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {processedNodes
+                              .slice(0, displayRows)
+                              .map((node, index) => (
+                                <tr
+                                  key={node.id || index}
+                                  className="border-b border-gray-200"
+                                >
+                                  {visibleColumns.map((columnTitle) => {
+                                    const cellValue = getCellValue(
+                                      node,
+                                      columnTitle
+                                    );
+                                    return (
+                                      <td
+                                        key={columnTitle}
+                                        className="p-2 border-r border-gray-200"
+                                      >
+                                        {cellValue || "—"}
+                                      </td>
+                                    );
+                                  })}
+                                </tr>
+                              ))}
+                            {/* Show empty rows if needed */}
+                            {Array.from({
+                              length: Math.max(
+                                0,
+                                displayRows - processedNodes.length
+                              ),
+                            }).map((_, index) => (
+                              <tr
+                                key={`empty-${index}`}
+                                className="border-b border-gray-200"
+                              >
+                                {visibleColumns.map((columnTitle) => (
+                                  <td
+                                    key={columnTitle}
+                                    className="p-2 border-r border-gray-200 text-gray-400"
+                                  >
+                                    —
+                                  </td>
+                                ))}
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
                       </div>
                     </div>
                   </div>

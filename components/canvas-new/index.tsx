@@ -383,7 +383,7 @@ export default function CanvasNew({ canvasId }: FigmaInterfaceProps) {
       }
 
       return (
-        <UMLEditor {...props} nodes={safeNodes} tableViewRef={tableViewRef}/>
+        <UMLEditor {...props} nodes={safeNodes} tableViewRef={tableViewRef} />
       );
     },
     [fixCircularParentChildRelationships, setNodes]
@@ -1352,7 +1352,6 @@ export default function CanvasNew({ canvasId }: FigmaInterfaceProps) {
 
   // Create read-only props for non-owners viewing public canvases
   const isReadOnly = !isOwner;
-  console.log("🚀 ~ CanvasNew ~ !isOwner:", visibility);
 
   if (isLoading) {
     return (

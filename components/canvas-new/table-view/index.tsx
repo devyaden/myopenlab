@@ -91,20 +91,10 @@ import { validationSchemas } from "./validations";
 import { useCanvasStore } from "@/lib/store/useCanvas";
 import { supabase } from "@/lib/supabase/client";
 
-// Helper functions for column data mapping
+// Simplified helper function for column data mapping
 const getDataKey = (column: any): string => {
-  // If dataKey is explicitly set, use it
-  if (column.dataKey) {
-    return column.dataKey;
-  }
-
-  // Fallback for existing columns without dataKey
-  if (column.title === "task") return "label";
-  if (column.title === "type") return "shape";
-  if (column.title === "id") return "id";
-
-  // For all other columns, use the title as the key
-  return column.title;
+  // Use the dataKey if it exists, otherwise fall back to title
+  return column.dataKey || column.title;
 };
 
 const isSpecialColumn = (column: any): boolean => {
@@ -1162,7 +1152,12 @@ const TableView = forwardRef<
     };
 
     const handleAddColumn = (columnData: any) => {
-      onAddColumn(columnData);
+      // Ensure new columns have dataKey set to title by default
+      const columnWithDataKey = {
+        ...columnData,
+        dataKey: columnData.dataKey || columnData.title,
+      };
+      onAddColumn(columnWithDataKey);
     };
 
     const validateField = (
@@ -1606,8 +1601,8 @@ const TableView = forwardRef<
               ? {
                   ...col,
                   title: newTitle,
-
-                  dataKey: col.dataKey || getDataKey(col),
+                  // Keep existing dataKey for special columns, otherwise use new title
+                  dataKey: isSpecialColumn(col) ? col.dataKey : newTitle,
                 }
               : col
           )
@@ -1651,7 +1646,11 @@ const TableView = forwardRef<
           counter++;
         }
 
-        const newColumn = { ...originalColumn, title: newTitle };
+        const newColumn = {
+          ...originalColumn,
+          title: newTitle,
+          dataKey: newTitle, // New column uses title as dataKey
+        };
         setColumns([...columns, newColumn]);
 
         const updatedNodes = nodes.map((node) => ({
