@@ -24,6 +24,7 @@ import { Toolbar } from "./toolbar";
 import { UMLEditor } from "./uml-editor";
 import { VerticalNav } from "./vertical-nav";
 import { ViewModeSwitcher } from "./view-mode-switcher";
+import { useMemo } from "react";
 
 interface NodeStyle {
   fontFamily: string;
@@ -152,6 +153,7 @@ export default function CanvasNew({ canvasId }: FigmaInterfaceProps) {
 
   const [edgeWidth, setEdgeWidth] = useState(2);
   const [edgeColor, setEdgeColor] = useState("#000000");
+  const [refReady, setRefReady] = useState(false);
 
   // Add a tableViewRef to access the TableView component's methods
 
@@ -381,11 +383,22 @@ export default function CanvasNew({ canvasId }: FigmaInterfaceProps) {
       }
 
       return (
-        <UMLEditor {...props} nodes={safeNodes} tableViewRef={tableViewRef} />
+        <UMLEditor {...props} nodes={safeNodes} tableViewRef={tableViewRef}/>
       );
     },
-    [fixCircularParentChildRelationships, setNodes, tableViewRef]
+    [fixCircularParentChildRelationships, setNodes]
   );
+
+  const exportToCSVFn = useMemo(() => {
+    if (viewMode !== VIEW_MODE.table || !tableViewRef.current) return undefined;
+    return tableViewRef.current.exportToCSV;
+  }, [viewMode, refReady, tableViewRef.current]);
+
+  const exportToExcelFn = useMemo(() => {
+    return viewMode === VIEW_MODE.table && tableViewRef.current
+      ? tableViewRef.current.exportToExcel
+      : undefined;
+  }, [viewMode, refReady, tableViewRef.current]);
 
   // Effect to check for circular references on EVERY render
   useEffect(() => {
@@ -406,6 +419,14 @@ export default function CanvasNew({ canvasId }: FigmaInterfaceProps) {
       }
     }
   }, [nodes, fixCircularParentChildRelationships, setNodes]);
+
+  useEffect(() => {
+    if (viewMode === VIEW_MODE.table && tableViewRef.current) {
+      setRefReady(true);
+    } else {
+      setRefReady(false);
+    }
+  }, [viewMode, tableViewRef.current]);
 
   const getNodeStyle = useCallback(
     (nodeId: string): NodeStyle => {
@@ -1364,16 +1385,8 @@ export default function CanvasNew({ canvasId }: FigmaInterfaceProps) {
             onVisibilityChange={handleVisibilityChange}
             isOwner={isOwner}
             viewMode={viewMode}
-            exportToCSV={
-              viewMode === VIEW_MODE.table
-                ? tableViewRef.current?.exportToCSV
-                : undefined
-            }
-            exportToExcel={
-              viewMode === VIEW_MODE.table
-                ? tableViewRef.current?.exportToExcel
-                : undefined
-            }
+            exportToCSV={exportToCSVFn}
+            exportToExcel={exportToExcelFn}
             propExportAsPDF={documentRef.current?.exportAsPDF}
             exportAsJSON={documentRef.current?.exportAsJSON}
             canvasType={canvas_type!}

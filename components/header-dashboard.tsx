@@ -90,11 +90,11 @@ export const HeaderSidebar = () => {
 
   const breadcrumbs = generateBreadcrumbs();
 
-  const handleSignOut = () => {
+  const handleSignOut = async() => {
     if (user && !user?.has_seen_onboarding) {
       setNotFirstVisit(false);
       setOnBoardingTour(false);
-      updateUserOnboardingStatus(user.id, true);
+      await updateUserOnboardingStatus(user.id, true);
     }
     signOut();
   };

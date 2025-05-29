@@ -315,17 +315,17 @@ export function CreateNewModal({
     const handleJoyrideCallback = (data: any) => {
       const { action, index, status, type } = data;
 
-      if (isChecked) {
+      if(isChecked) {
         setStepIndex(0);
         setIsChecked(false);
-        setProtectedOnBording(false);
+        setProtectedOnBording(false)
       }
 
-      if (status === "finished" || status === "skipped") {
+      if (status === 'finished' || status === 'skipped') {
         setStepIndex(0);
         setIsChecked(false);
-        setProtectedOnBording(false);
-      } else if (type === "step:after") {
+        setProtectedOnBording(false)
+      } else if (type === 'step:after') {
         setStepIndex((prev: any) => prev + 1);
       } else if (type === "step:after" && action === "prev") {
         setStepIndex((prev: any) => Math.max(prev - 1, 0));
@@ -341,19 +341,19 @@ export function CreateNewModal({
 
     const isHasSeenCategoryOnborading = useMemo(() => {
       if (!user?.has_seen_onboarding) {
-        return !user?.has_seen_onboarding && createCategoryOnbording;
+        return !user?.has_seen_onboarding && createCategoryOnbording
       } else {
-        return user?.has_seen_onboarding && createCategoryOnbording;
+        return user?.has_seen_onboarding && createCategoryOnbording
       }
-    }, [user?.has_seen_onboarding, createCategoryOnbording]);
+    }, [user?.has_seen_onboarding, createCategoryOnbording])
 
     const isHasSeenProtectedOnBording = useMemo(() => {
       if (!user?.has_seen_onboarding) {
-        return !user?.has_seen_onboarding && protectedOnBording;
+        return !user?.has_seen_onboarding && protectedOnBording
       } else {
-        return user?.has_seen_onboarding && protectedOnBording;
+        return user?.has_seen_onboarding && protectedOnBording
       }
-    }, [user?.has_seen_onboarding, protectedOnBording]);
+    }, [user?.has_seen_onboarding, protectedOnBording])
 
     const onDontShowAgainChange = (e: any) => {
       setIsChecked(e.target?.checked);
@@ -485,30 +485,28 @@ export function CreateNewModal({
       if (type === "folder") {
         return (
           <Form {...folderForm}>
-            {isHasSeenProtectedOnBording && isFirstVisit && (
-              <Joyride
-                steps={data}
-                stepIndex={stepIndex}
-                run={isFirstVisit}
-                callback={handleJoyrideCallback}
-                tooltipComponent={(props: any) => (
-                  <CustomJoyrideTooltip
-                    {...props}
-                    onDontShowAgainChange={onDontShowAgainChange}
-                    isChecked={isChecked}
-                  />
-                )}
-                continuous
-                showProgress
-                showSkipButton
-                styles={{
-                  options: {
-                    primaryColor: "#22c55e",
-                    zIndex: 10000,
-                  },
-                }}
-              />
-            )}
+            {isHasSeenProtectedOnBording && isFirstVisit && <Joyride
+              steps={data}
+              stepIndex={stepIndex}
+              run={isFirstVisit}
+              callback={handleJoyrideCallback}
+              tooltipComponent={(props: any) => (
+                <CustomJoyrideTooltip 
+                  {...props}
+                  onDontShowAgainChange={onDontShowAgainChange}
+                  isChecked={isChecked}
+                />
+              )}
+              continuous
+              showProgress
+              showSkipButton
+              styles={{
+                options: {
+                  primaryColor: '#22c55e',
+                  zIndex: 10000,
+                },
+              }}
+            />}
             <form
               onSubmit={folderForm.handleSubmit(handleCreateFolder)}
               className="space-y-8"

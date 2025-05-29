@@ -56,7 +56,7 @@ export const useOnboardingStore = create<OnboardingStore>()(
           .from("users")
           .update({ has_seen_onboarding: status })
           .eq("id", userId);
-        set({ isFirstVisit: false });
+        set({ isFirstVisit: !status });
       },
     }),
     {

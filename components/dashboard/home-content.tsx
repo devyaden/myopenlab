@@ -46,6 +46,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { useOnboardingStore } from "@/lib/store/useOnboarding";
 import CustomJoyrideTooltip from "../CustomJoyrideTooltip";
+import { useMemo } from "react";
 
 export function HomeContent() {
   const {
@@ -231,6 +232,14 @@ export function HomeContent() {
     }
   }
 
+  const isHasSeenProtectedOnBording = useMemo(() => {
+    if (!user?.has_seen_onboarding) {
+      return !user?.has_seen_onboarding && protectedOnBording
+    } else {
+      return user?.has_seen_onboarding && protectedOnBording
+    }
+  }, [user?.has_seen_onboarding, protectedOnBording])
+
   useEffect(() => {
     if (isFirstVisit && protectedOnBording) {
       setData(steps);
@@ -246,7 +255,7 @@ export function HomeContent() {
 
   return (
     <div className="flex flex-col h-full">
-      {hasMounted && isFirstVisit && (!user?.has_seen_onboarding || protectedOnBording) && (
+      {hasMounted && isChecked && isHasSeenProtectedOnBording && (
         <Joyride
           steps={steps}
           run={runTour}
