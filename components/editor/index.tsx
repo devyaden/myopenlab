@@ -1900,25 +1900,25 @@ const Editor = (
   return (
     <div className="w-full h-full editor-container">
       {/* {renderSaveStatus()} */}
-      {canvasType !== CANVAS_TYPE.HYBRID && (
-        <Header
-          projectName={name}
-          setProjectName={setName}
-          onBackToDashboard={() => router.push("/protected")}
-          onImportCanvas={handleImportCanvas}
-          saveLoading={saveLoading || saveStatus === "saving"}
-          onSave={handleSave}
-          canvasId={canvasId}
-          visibility={visibility}
-          onVisibilityChange={handleVisibilityChange}
-          isOwner={isOwner}
-          viewMode={"document"}
-          exportAsJSON={handleExportJSON}
-          propExportAsPDF={handleBrowserPrintToPDF}
-          canvasType={CANVAS_TYPE.DOCUMENT}
-          currentFolder={folder}
-        />
-      )}
+      {/* {canvasType !== CANVAS_TYPE.HYBRID && ( */}
+      <Header
+        projectName={name}
+        setProjectName={setName}
+        onBackToDashboard={() => router.push("/protected")}
+        onImportCanvas={handleImportCanvas}
+        saveLoading={saveLoading || saveStatus === "saving"}
+        onSave={handleSave}
+        canvasId={canvasId}
+        visibility={visibility}
+        onVisibilityChange={handleVisibilityChange}
+        isOwner={isOwner}
+        viewMode={"document"}
+        exportAsJSON={handleExportJSON}
+        propExportAsPDF={handleBrowserPrintToPDF}
+        canvasType={CANVAS_TYPE.DOCUMENT}
+        currentFolder={folder}
+      />
+      {/* // )} */}
 
       <div
         style={{

@@ -78,6 +78,7 @@ export default function TableSelectorDialog({
   tableData,
   tables,
 }: TableSelectorDialogProps) {
+  console.log("🚀 ~ tables:", tables);
   // Step-based navigation (replaces tabs)
   const [currentStep, setCurrentStep] = useState<number>(1);
 
@@ -384,7 +385,30 @@ export default function TableSelectorDialog({
           cellValue = node?.data?.[dataKey] || node?.data?.[columnTitle] || "";
       }
 
-      return cellValue;
+      // Handle relation data - convert objects to readable strings
+      if (cellValue && typeof cellValue === "object") {
+        if (Array.isArray(cellValue)) {
+          // For arrays of relation objects, join their labels
+          return cellValue
+            .map((item) => {
+              if (item && typeof item === "object" && item.label) {
+                return item.label;
+              }
+              return String(item);
+            })
+            .filter(Boolean)
+            .join(", ");
+        } else if (cellValue.label) {
+          // For single relation object, return its label
+          return cellValue.label;
+        } else {
+          // For other objects, stringify them
+          return JSON.stringify(cellValue);
+        }
+      }
+
+      // Ensure the value is always a string
+      return String(cellValue || "");
     },
     [selectedTableData]
   );

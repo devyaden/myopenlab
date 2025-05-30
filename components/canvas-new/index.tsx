@@ -1368,31 +1368,32 @@ export default function CanvasNew({ canvasId }: FigmaInterfaceProps) {
     <ReactFlowProvider>
       <>
         <div className="h-screen bg-white flex flex-col w-screen">
-          <Header
-            currentState={currentState}
-            projectName={projectName}
-            setProjectName={(newName) => {
-              setProjectName(newName);
-              handleCanvasNameChange(canvasId, newName);
-            }}
-            onBackToDashboard={() => router.push("/protected")}
-            onImportCanvas={handleImportCanvas}
-            saveLoading={saveLoading}
-            onSave={saveCanvas}
-            canvasId={canvasId}
-            visibility={visibility}
-            onVisibilityChange={handleVisibilityChange}
-            isOwner={isOwner}
-            viewMode={viewMode}
-            exportToCSV={exportToCSVFn}
-            exportToExcel={exportToExcelFn}
-            propExportAsPDF={documentRef.current?.exportAsPDF}
-            exportAsJSON={documentRef.current?.exportAsJSON}
-            canvasType={canvas_type!}
-            toggleMiniMap={miniMapRef}
-            currentFolder={currentFolder}
-          />
-
+          {viewMode !== VIEW_MODE.document && (
+            <Header
+              currentState={currentState}
+              projectName={projectName}
+              setProjectName={(newName) => {
+                setProjectName(newName);
+                handleCanvasNameChange(canvasId, newName);
+              }}
+              onBackToDashboard={() => router.push("/protected")}
+              onImportCanvas={handleImportCanvas}
+              saveLoading={saveLoading}
+              onSave={saveCanvas}
+              canvasId={canvasId}
+              visibility={visibility}
+              onVisibilityChange={handleVisibilityChange}
+              isOwner={isOwner}
+              viewMode={viewMode}
+              exportToCSV={exportToCSVFn}
+              exportToExcel={exportToExcelFn}
+              propExportAsPDF={documentRef.current?.exportAsPDF}
+              exportAsJSON={documentRef.current?.exportAsJSON}
+              canvasType={canvas_type!}
+              toggleMiniMap={miniMapRef}
+              currentFolder={currentFolder}
+            />
+          )}
           {/* Add view mode switcher for read-only mode */}
           {isReadOnly && viewMode === VIEW_MODE.canvas && (
             <div className="flex justify-end p-2 border-b">
