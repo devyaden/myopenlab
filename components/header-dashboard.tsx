@@ -10,7 +10,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { useSidebar } from "@/components/ui/sidebar";
 import { useUser } from "@/lib/contexts/userContext";
 import { useOnboardingStore } from "@/lib/store/useOnboarding";
 import { useSidebarStore } from "@/lib/store/useSidebar";
@@ -90,7 +89,7 @@ export const HeaderSidebar = () => {
 
   const breadcrumbs = generateBreadcrumbs();
 
-  const handleSignOut = async() => {
+  const handleSignOut = async () => {
     if (user && !user?.has_seen_onboarding) {
       setNotFirstVisit(false);
       setOnBoardingTour(false);
