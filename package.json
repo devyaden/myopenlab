@@ -47,6 +47,8 @@
     "@tiptap/extension-image": "latest",
     "@tiptap/extension-link": "latest",
     "@tiptap/extension-list-item": "^2.12.0",
+    "@tiptap/extension-list-keymap": "^2.12.0",
+    "@tiptap/extension-ordered-list": "^2.12.0",
     "@tiptap/extension-placeholder": "latest",
     "@tiptap/extension-subscript": "latest",
     "@tiptap/extension-superscript": "latest",

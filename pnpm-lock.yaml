@@ -131,6 +131,12 @@ importers:
       '@tiptap/extension-list-item':
         specifier: ^2.12.0
         version: 2.12.0(@tiptap/core@2.12.0(@tiptap/pm@2.12.0))
+      '@tiptap/extension-list-keymap':
+        specifier: ^2.12.0
+        version: 2.12.0(@tiptap/core@2.12.0(@tiptap/pm@2.12.0))
+      '@tiptap/extension-ordered-list':
+        specifier: ^2.12.0
+        version: 2.12.0(@tiptap/core@2.12.0(@tiptap/pm@2.12.0))
       '@tiptap/extension-placeholder':
         specifier: latest
         version: 2.12.0(@tiptap/core@2.12.0(@tiptap/pm@2.12.0))(@tiptap/pm@2.12.0)
@@ -1393,6 +1399,11 @@ packages:
 
   '@tiptap/extension-list-item@2.12.0':
     resolution: {integrity: sha512-4YwZooC8HP+gPxs6YrkB1ayggyYbgVvJx/rWBT6lKSW2MVVg8QXi1zAcSI3MhIhHmqDysXXFPL8JURlbeGjaFA==}
+    peerDependencies:
+      '@tiptap/core': ^2.7.0
+
+  '@tiptap/extension-list-keymap@2.12.0':
+    resolution: {integrity: sha512-2I7udw2FABIKAr49/S/zvcYEDKl6znX2+tKOT1VqKUQuQCrovYwxwtPQJxTjRKo3h0s5fzqeLaeahVj6VIs4fA==}
     peerDependencies:
       '@tiptap/core': ^2.7.0
 
@@ -4728,6 +4739,10 @@ snapshots:
       linkifyjs: 4.3.1
 
   '@tiptap/extension-list-item@2.12.0(@tiptap/core@2.12.0(@tiptap/pm@2.12.0))':
+    dependencies:
+      '@tiptap/core': 2.12.0(@tiptap/pm@2.12.0)
+
+  '@tiptap/extension-list-keymap@2.12.0(@tiptap/core@2.12.0(@tiptap/pm@2.12.0))':
     dependencies:
       '@tiptap/core': 2.12.0(@tiptap/pm@2.12.0)
 

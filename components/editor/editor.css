@@ -13,92 +13,6 @@
   position: relative;
 }
 
-.editor-inner {
-  background: #fff;
-  position: relative;
-  max-width: 100%;
-  min-height: 11in;
-  margin: 0 auto;
-  padding: 1in;
-  box-shadow:
-    0 1px 3px rgba(0, 0, 0, 0.12),
-    0 1px 2px rgba(0, 0, 0, 0.24);
-}
-
-.editor-input-container {
-  position: relative;
-}
-
-.editor-input {
-  width: 100%;
-  height: 100%;
-  background-color: red;
-  min-height: 11in;
-  resize: none;
-  font-size: 11pt;
-  position: relative;
-  tab-size: 1;
-  outline: 0;
-  caret-color: #1a73e8;
-  overflow-y: auto;
-}
-
-.editor-input:focus {
-  outline: none;
-}
-
-.editor-input img {
-  max-width: 100%;
-  height: auto;
-}
-
-.editor-input table {
-  border-collapse: collapse;
-  margin: 1rem 0;
-}
-
-.editor-input table td,
-.editor-input table th {
-  border: 1px solid #ddd;
-  padding: 8px;
-}
-
-.editor-input blockquote {
-  border-left: 4px solid #e2e8f0;
-  padding-left: 1rem;
-  color: #4a5568;
-  font-style: italic;
-}
-
-.editor-input pre {
-  background-color: #f7fafc;
-  padding: 1rem;
-  border-radius: 0.25rem;
-  overflow-x: auto;
-  font-family: monospace;
-}
-
-.editor-input code {
-  background-color: #f7fafc;
-  padding: 0.2rem 0.4rem;
-  border-radius: 0.25rem;
-  font-family: monospace;
-  font-size: 0.875em;
-}
-
-.editor-input ul,
-.editor-input ol {
-  padding-left: 2rem;
-}
-
-.editor-input ul {
-  list-style-type: disc;
-}
-
-.editor-input ol {
-  list-style-type: decimal;
-}
-
 .editor-toolbar {
   position: sticky !important;
   top: 0 !important;
@@ -113,93 +27,6 @@
   width: 100%;
 }
 
-.toolbar-button {
-  height: 32px;
-  width: 32px;
-  border-radius: 4px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: none;
-  border: none;
-  cursor: pointer;
-  color: #5f6368;
-}
-
-.toolbar-button.with-text {
-  width: auto;
-  padding: 0 8px;
-}
-
-.toolbar-button:hover {
-  background-color: rgba(0, 0, 0, 0.05);
-}
-
-.toolbar-button.active {
-  background-color: rgba(0, 0, 0, 0.05);
-  color: #1a73e8;
-}
-
-/* Dropdown styles */
-.toolbar-dropdown {
-  position: relative;
-  display: inline-block;
-}
-
-.toolbar-dropdown-button {
-  height: 32px;
-  padding: 0 12px;
-  border-radius: 4px;
-  display: flex;
-  align-items: center;
-  background: none;
-  border: none;
-  cursor: pointer;
-  color: #5f6368;
-  font-size: 14px;
-  white-space: nowrap;
-}
-
-.toolbar-dropdown-button:hover {
-  background-color: rgba(0, 0, 0, 0.05);
-}
-
-.toolbar-dropdown-content {
-  display: none;
-  position: absolute;
-  background-color: white;
-  min-width: 160px;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
-  border-radius: 4px;
-  z-index: 1;
-  max-height: 300px;
-  overflow-y: auto;
-  top: 100%;
-  left: 0;
-  margin-top: 4px;
-}
-
-.toolbar-dropdown:hover .toolbar-dropdown-content {
-  display: block;
-}
-
-.dropdown-item {
-  padding: 8px 16px;
-  text-align: left;
-  width: 100%;
-  border: none;
-  background: none;
-  cursor: pointer;
-  font-size: 14px;
-  color: #202124;
-  display: flex;
-  align-items: center;
-}
-
-.dropdown-item:hover {
-  background-color: rgba(0, 0, 0, 0.05);
-}
-
 /* Font size input */
 .font-size-input {
   width: 32px;
@@ -208,59 +35,6 @@
   border: 1px solid #dadce0;
   border-radius: 4px;
   font-size: 14px;
-}
-
-/* Zoom control */
-.toolbar-select {
-  height: 32px;
-  padding: 0 24px 0 8px;
-  border-radius: 4px;
-  background: none;
-  border: 1px solid transparent;
-  cursor: pointer;
-  color: #5f6368;
-  font-size: 14px;
-  -webkit-appearance: none;
-  -moz-appearance: none;
-  appearance: none;
-  background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3E%3C/svg%3E");
-  background-position: right 4px center;
-  background-repeat: no-repeat;
-  background-size: 16px 16px;
-}
-
-.toolbar-select:hover {
-  border-color: #dadce0;
-}
-
-/* Top menu bar */
-.top-menu-bar {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 4px 16px;
-  border-bottom: 1px solid #e0e0e0;
-  height: 40px;
-}
-
-.left-section {
-  display: flex;
-  align-items: center;
-}
-
-.doc-icon {
-  margin-right: 8px;
-}
-
-.doc-title {
-  font-size: 18px;
-  font-weight: 400;
-  margin-right: 40px;
-  color: #202124;
-}
-
-.menu-items {
-  display: flex;
 }
 
 .menu-item {
@@ -280,167 +54,16 @@
   background-color: rgba(0, 0, 0, 0.05);
 }
 
-.right-section {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.icon-button {
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: none;
-  border: none;
-  cursor: pointer;
-  color: #5f6368;
-}
-
-.icon-button:hover {
-  background-color: rgba(0, 0, 0, 0.05);
-}
-
-.share-button {
-  background-color: #1a73e8;
-  color: white;
-  border: none;
-  border-radius: 4px;
-  padding: 0 16px;
-  height: 36px;
-  font-size: 14px;
-  font-weight: 500;
-  cursor: pointer;
-}
-
-.share-button:hover {
-  background-color: #1765cc;
-}
-
 /* Responsive adjustments */
 @media (max-width: 768px) {
   .menu-items {
     display: none;
-  }
-
-  .toolbar-button.with-text span {
-    display: none;
-  }
-
-  .doc-title {
-    margin-right: 8px;
   }
 }
 
 /* Add space to the right of the toolbar */
 .ml-auto {
   margin-left: auto;
-}
-
-/* Add styles for the text case dropdown */
-.text-case-dropdown {
-  position: absolute;
-  top: 100%;
-  left: 0;
-  z-index: 10;
-  min-width: 280px;
-  padding: 8px 0;
-  margin-top: 4px;
-  background-color: #fff;
-  border-radius: 4px;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
-}
-
-.text-case-item {
-  display: flex;
-  align-items: center;
-  width: 100%;
-  padding: 8px 16px;
-  text-align: left;
-  border: none;
-  background: none;
-  cursor: pointer;
-  font-size: 14px;
-  color: #202124;
-}
-
-.text-case-item:hover {
-  background-color: rgba(0, 0, 0, 0.05);
-}
-
-.text-case-icon {
-  width: 24px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  margin-right: 12px;
-  color: #5f6368;
-  font-size: 16px;
-}
-
-.text-case-label {
-  flex-grow: 1;
-}
-
-.text-case-shortcut {
-  color: #5f6368;
-  font-size: 12px;
-  margin-left: 8px;
-}
-
-.line-through {
-  text-decoration: line-through;
-}
-
-/* Insert dropdown styles */
-.insert-dropdown {
-  position: absolute;
-  top: 100%;
-  left: 0;
-  z-index: 10;
-  min-width: 240px;
-  padding: 8px 0;
-  margin-top: 4px;
-  background-color: #fff;
-  border-radius: 4px;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
-}
-
-.insert-item {
-  display: flex;
-  align-items: center;
-  width: 100%;
-  padding: 8px 16px;
-  text-align: left;
-  border: none;
-  background: none;
-  cursor: pointer;
-  font-size: 14px;
-  color: #202124;
-}
-
-.insert-item:hover {
-  background-color: rgba(0, 0, 0, 0.05);
-}
-
-.insert-icon {
-  width: 24px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  margin-right: 12px;
-  color: #5f6368;
-}
-
-.insert-label {
-  flex-grow: 1;
-}
-
-/* Image selection and resizing styles */
-.selected-image {
-  outline: 2px solid #0070f3;
 }
 
 /* Update the image-container style to add some padding */
@@ -510,20 +133,6 @@
   left: -4px;
   transform: translateY(-50%);
   cursor: w-resize;
-}
-
-/* Update the dimension indicator to ensure it's visible */
-.dimension-indicator {
-  position: absolute;
-  bottom: -25px;
-  left: 50%;
-  transform: translateX(-50%);
-  background-color: rgba(0, 0, 0, 0.7);
-  color: white;
-  padding: 2px 6px;
-  border-radius: 3px;
-  font-size: 12px;
-  pointer-events: none;
 }
 
 /* Multi-page editor styles */
@@ -767,7 +376,7 @@
 .ProseMirror ul,
 .ProseMirror ol {
   padding-left: 2em;
-  margin: 0.5em 0; /* Reduced from 1em */
+  margin: 0.5em 0;
 }
 
 .ProseMirror ul {
