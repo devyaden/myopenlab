@@ -66,8 +66,6 @@ function FlowWithCropping({
   viewportRef: React.RefObject<HTMLDivElement>;
   onCrop: (cropData: any, reactFlowInstance: any) => void;
 }) {
-  console.log("🚀 ~ canvasData:", canvasData);
-
   const { nodes = [], edges = [], styles = {} } = canvasData || {};
 
   const reactFlowInstance = useReactFlow();

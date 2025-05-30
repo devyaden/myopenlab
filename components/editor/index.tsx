@@ -29,7 +29,6 @@ import TextAlign from "@tiptap/extension-text-align";
 import TextStyle from "@tiptap/extension-text-style";
 import Typography from "@tiptap/extension-typography";
 import Underline from "@tiptap/extension-underline";
-
 import { EditorContent, useEditor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import debounce from "lodash/debounce";
@@ -53,7 +52,6 @@ import PaginationExtension, {
 } from "tiptap-extension-pagination";
 import { Header } from "../canvas-new/header";
 import { Unauthorized } from "../unauthorized";
-import CanvasCropDialog from "./CanvasCropDialog";
 import CanvasDialog from "./CanvasDialog";
 import "./editor.css";
 import EditorToolbar from "./EditorToolbar";
@@ -61,93 +59,11 @@ import CanvasTableNode from "./extensions/CanvasTableNode";
 import { ReactFlowNode } from "./extensions/ReactFlowNode";
 import ResizableImageNode from "./extensions/ResizableImageNode";
 import { TextDirection } from "./extensions/TextDirection";
-import HeaderFooterDialog, {
-  type HeaderFooterConfig,
-} from "./HeaderFooterDialog";
 import { useDocumentStore } from "./hooks/useDocument";
 import ImageDialog from "./ImageDialog";
 import LinkDialog from "./LinkDialog";
 import TableDialog from "./TableDialog";
 import TableSelectorDialog from "./TableSelectorDialog";
-
-// Add the function to generate the HTML content for header/footer
-const generateHeaderFooterContent = (config: HeaderFooterConfig) => {
-  const {
-    type,
-    includeCompanyLogo,
-    companyLogoUrl,
-    companyName,
-    alignment,
-    showPageNumbers,
-    showDate,
-    customText,
-    style,
-  } = config;
-
-  // Create base wrapper with alignment
-  let alignmentClass = "";
-  if (alignment === "center") alignmentClass = "text-center";
-  if (alignment === "right") alignmentClass = "text-right";
-
-  // Apply style classes based on selected style
-  let styleClasses = "";
-  switch (style) {
-    case "bold":
-      styleClasses = "font-bold text-gray-800";
-      break;
-    case "minimal":
-      styleClasses = "text-sm text-gray-600";
-      break;
-    case "corporate":
-      styleClasses = "border-b border-gray-300 pb-2";
-      break;
-    default:
-      styleClasses = "text-gray-700";
-  }
-
-  // Build the HTML content
-  let html = `<div class="${alignmentClass} ${styleClasses} w-full flex items-center ${alignment === "center" ? "justify-center" : alignment === "right" ? "justify-end" : "justify-start"} space-x-2">`;
-
-  // Add company logo if included
-  if (includeCompanyLogo && companyLogoUrl) {
-    html += `<img src="${companyLogoUrl}" alt="${companyName || "Company"} Logo" class="h-8 w-auto object-contain" />`;
-  }
-
-  // Add company name if provided
-  if (companyName) {
-    html += `<span class="font-semibold">${companyName}</span>`;
-  }
-
-  // Add custom text if provided
-  if (customText) {
-    html += `<span class="text-sm">${customText}</span>`;
-  }
-
-  // Add date if selected
-  if (showDate) {
-    const currentDate = new Date().toLocaleDateString();
-    html += `<span class="text-sm text-gray-500">${currentDate}</span>`;
-  }
-
-  // Add page number placeholder if selected
-  if (showPageNumbers) {
-    // Use the pagination extension's page number format
-    html += `<span class="text-sm text-gray-500">Page <span class="page-number"></span></span>`;
-  }
-
-  html += "</div>";
-
-  return html;
-};
-
-// Define proper types
-interface Document {
-  id: string;
-  name: string;
-  content: string;
-  nodes: any[];
-  edges: any[];
-}
 
 interface EditorState {
   isBold: boolean;
@@ -190,11 +106,9 @@ const Editor = (
   const [tableDialogOpen, setTableDialogOpen] = useState(false);
   const [linkDialogOpen, setLinkDialogOpen] = useState(false);
   const [inlineImageMode, setInlineImageMode] = useState(false);
-  const [isExporting, setIsExporting] = useState(false);
+
   const [zoom, setZoom] = useState("100%");
   const [canvasDialogOpen, setCanvasDialogOpen] = useState(false);
-  const [cropCanvasDialogOpen, setCropCanvasDialogOpen] = useState(false);
-  const [selectedCanvasForCrop, setSelectedCanvasForCrop] = useState<any>(null);
   const [tableSelectorDialogOpen, setTableSelectorDialogOpen] = useState(false);
   const [selectedTableData, setSelectedTableData] = useState<any>(null);
   const [visibility, setVisibility] = useState<string>("private");
@@ -206,18 +120,6 @@ const Editor = (
   >("saved");
 
   const { user } = useUser();
-
-  const [headerFooterDialogOpen, setHeaderFooterDialogOpen] =
-    useState<boolean>(false);
-  const [headerFooterType, setHeaderFooterType] = useState<"header" | "footer">(
-    "header"
-  );
-  const [headerConfig, setHeaderConfig] = useState<HeaderFooterConfig | null>(
-    null
-  );
-  const [footerConfig, setFooterConfig] = useState<HeaderFooterConfig | null>(
-    null
-  );
 
   const router = useRouter();
 
@@ -873,31 +775,6 @@ const Editor = (
     }
   }, [editor, showPageMargins]);
 
-  // Apply header and footer when editor is initialized
-  // useEffect(() => {
-  //   if (editor && (headerConfig || footerConfig)) {
-  //     if (headerConfig) {
-  //       editor
-  //         .chain()
-  //         .focus()
-  //         .updateAttributes("doc", {
-  //           header: generateHeaderFooterContent(headerConfig),
-  //         })
-  //         .run();
-  //     }
-
-  //     if (footerConfig) {
-  //       editor
-  //         .chain()
-  //         .focus()
-  //         .updateAttributes("doc", {
-  //           footer: generateHeaderFooterContent(footerConfig),
-  //         })
-  //         .run();
-  //     }
-  //   }
-  // }, [editor, headerConfig, footerConfig]);
-
   // A complete approach to handle page size changes that forces a full editor recreation
   const handlePageSizeChange = (newSize: PaperSize) => {
     if (!editor) return;
@@ -1237,9 +1114,6 @@ const Editor = (
       } else {
         toast.error("No image data available from cropped canvas");
       }
-
-      setCropCanvasDialogOpen(false);
-      setSelectedCanvasForCrop(null);
     } catch (error) {
       console.error("Error inserting cropped canvas:", error);
       // toast.error("Failed to insert cropped canvas");
@@ -1368,50 +1242,6 @@ const Editor = (
     handleInsertCroppedCanvas(croppedData);
   };
 
-  const handleApplyHeaderFooter = (config: HeaderFooterConfig) => {
-    if (!editor) return;
-
-    const { type } = config;
-
-    // Save the config
-    if (type === "header") {
-      setHeaderConfig(config);
-    } else {
-      setFooterConfig(config);
-    }
-
-    // Generate HTML content based on config
-    const content = generateHeaderFooterContent(config);
-
-    // Apply the header or footer to all pages using the correct approach
-    // The pagination extension uses attributes on the document node
-
-    if (type === "header") {
-      // Set header content using the pagination extension's API
-      editor
-        .chain()
-        .focus()
-        .updateAttributes("doc", {
-          header: content,
-        })
-        .run();
-    } else {
-      // Set footer content using the pagination extension's API
-      editor
-        .chain()
-        .focus()
-        .updateAttributes("doc", {
-          footer: content,
-        })
-        .run();
-    }
-
-    toast.success(
-      `${type === "header" ? "Header" : "Footer"} applied successfully!`
-    );
-  };
-
-  // Insert content
   const insertContent = (type: string) => {
     if (!editor) return;
 
@@ -1492,14 +1322,6 @@ const Editor = (
         break;
       case "task-item":
         editor.chain().focus().splitListItem("taskItem").run();
-        break;
-      case "header":
-        setHeaderFooterType("header");
-        setHeaderFooterDialogOpen(true);
-        break;
-      case "footer":
-        setHeaderFooterType("footer");
-        setHeaderFooterDialogOpen(true);
         break;
       default:
         break;
@@ -1587,8 +1409,6 @@ const Editor = (
     }
 
     try {
-      setIsExporting(true);
-
       // Get the editor DOM element
       const editorElement = document.querySelector(".ProseMirror");
 
@@ -1609,7 +1429,6 @@ const Editor = (
           ((error as Error)?.message || "Unknown error")
       );
     } finally {
-      setIsExporting(false);
     }
   };
   // Update the handleZoomChange function
@@ -1828,8 +1647,6 @@ const Editor = (
     pageSize,
     orientation,
     paginationSettings,
-    headerConfig,
-    footerConfig,
     triggerAutoSave,
     readOnly,
     editor,
@@ -2058,12 +1875,7 @@ const Editor = (
         onInsertCanvas={handleInsertCanvas}
         canvases={filteredCanvases}
       />
-      <CanvasCropDialog
-        isOpen={cropCanvasDialogOpen}
-        onClose={() => setCropCanvasDialogOpen(false)}
-        onInsertCroppedCanvas={handleInsertCroppedCanvas}
-        canvasData={selectedCanvasForCrop}
-      />
+
       <TableSelectorDialog
         isOpen={tableSelectorDialogOpen}
         onClose={() => setTableSelectorDialogOpen(false)}
@@ -2076,7 +1888,7 @@ const Editor = (
             canvas.columns?.length > 0
         )}
       />
-      <HeaderFooterDialog
+      {/* <HeaderFooterDialog
         isOpen={headerFooterDialogOpen}
         onClose={() => setHeaderFooterDialogOpen(false)}
         onApply={handleApplyHeaderFooter}
@@ -2086,7 +1898,7 @@ const Editor = (
             : footerConfig || undefined
         }
         type={headerFooterType}
-      />
+      /> */}
     </div>
   );
 };
