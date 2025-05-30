@@ -40,6 +40,7 @@ import {
   useCallback,
   useEffect,
   useImperativeHandle,
+  useMemo,
   useRef,
   useState,
 } from "react";
@@ -1190,8 +1191,6 @@ const Editor = (
   const handleInsertCroppedCanvas = (croppedData: any) => {
     if (!editor) return;
 
-    debugger;
-
     try {
       // Fix pointer events before inserting
       document.body.style.pointerEvents = "";
@@ -1847,50 +1846,20 @@ const Editor = (
     return methods;
   });
 
-  const renderSaveStatus = () => {
-    if (readOnly) return null;
+  const filteredCanvases = useMemo(() => {
+    if (canvasType === CANVAS_TYPE.HYBRID) {
+      // get the current canvas from id
+      const currentCanvas = folderCanvases.find(
+        (canvas) => canvas.id === canvasId
+      );
 
-    return (
-      <div className="save-status flex items-center text-sm ml-2">
-        {saveStatus === "saving" && (
-          <span className="text-yellow-600 flex items-center">
-            <RefreshCw className="h-3 w-3 mr-1 animate-spin" /> Saving...
-          </span>
-        )}
-        {saveStatus === "saved" && (
-          <span className="text-green-600 flex items-center">
-            <svg
-              className="h-3 w-3 mr-1"
-              fill="currentColor"
-              viewBox="0 0 20 20"
-            >
-              <path
-                fillRule="evenodd"
-                d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
-                clipRule="evenodd"
-              />
-            </svg>
-            Saved
-          </span>
-        )}
-        {saveStatus === "unsaved" && (
-          <span className="text-orange-600 flex items-center">
-            <span className="h-2 w-2 mr-1 rounded-full bg-orange-600"></span>
-            Unsaved changes
-          </span>
-        )}
-        {saveStatus === "error" && (
-          <span
-            className="text-red-600 flex items-center cursor-pointer"
-            onClick={handleSave}
-          >
-            <span className="h-2 w-2 mr-1 rounded-full bg-red-600"></span>
-            Save failed. Click to retry
-          </span>
-        )}
-      </div>
+      return [currentCanvas].filter(Boolean);
+    }
+
+    return folderCanvases.filter(
+      (canvas) => canvas.canvas_type === "hybrid" && canvas.flowData
     );
-  };
+  }, [folder, canvasType, folderCanvases]);
 
   // If unauthorized, show the Unauthorized component
   if (unauthorized) {
@@ -2087,9 +2056,7 @@ const Editor = (
         isOpen={canvasDialogOpen}
         onClose={() => setCanvasDialogOpen(false)}
         onInsertCanvas={handleInsertCanvas}
-        canvases={folderCanvases.filter(
-          (canvas) => canvas.canvas_type === "hybrid" && canvas.flowData
-        )}
+        canvases={filteredCanvases}
       />
       <CanvasCropDialog
         isOpen={cropCanvasDialogOpen}

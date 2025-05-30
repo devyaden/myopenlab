@@ -1251,7 +1251,6 @@ export default function CanvasNew({ canvasId }: FigmaInterfaceProps) {
   // Check authorization when canvas is loaded
   useEffect(() => {
     const checkAuthorization = async () => {
-      console.log("Checking authorization for canvas:", !user || !isLoaded);
       if (!user || !isLoaded) return;
 
       try {

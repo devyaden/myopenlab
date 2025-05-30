@@ -78,7 +78,6 @@ export default function TableSelectorDialog({
   tableData,
   tables,
 }: TableSelectorDialogProps) {
-  console.log("🚀 ~ tables:", tables);
   // Step-based navigation (replaces tabs)
   const [currentStep, setCurrentStep] = useState<number>(1);
 

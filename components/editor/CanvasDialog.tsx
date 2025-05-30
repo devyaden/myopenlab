@@ -276,7 +276,7 @@ export default function CanvasDialog({
           )}
         </div>
 
-        <div className="flex items-center space-x-2 mt-4">
+        {/* <div className="flex items-center space-x-2 mt-4">
           <Checkbox
             id="useRealTimeData"
             checked={useRealTimeData}
@@ -318,7 +318,7 @@ export default function CanvasDialog({
               </TooltipContent>
             </Tooltip>
           </TooltipProvider>
-        </div>
+        </div> */}
 
         <DialogFooter className="mt-4 space-x-2">
           <Button variant="outline" onClick={onClose}>
