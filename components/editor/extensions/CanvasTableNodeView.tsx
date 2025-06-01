@@ -21,6 +21,8 @@ interface CanvasTableNodeViewProps {
       displayRows: number;
       isDynamic: boolean;
       lastUpdated: string | null;
+      // NEW: RTL support
+      isRTL: boolean;
     };
   };
   updateAttributes: (attrs: Record<string, any>) => void;
@@ -118,6 +120,7 @@ export default function CanvasTableNodeView({
           : [],
         displayRows: node.attrs.displayRows || 5,
         isDynamic: node.attrs.isDynamic !== false, // Default to true
+        isRTL: node.attrs.isRTL || false, // NEW: RTL flag
       };
     } catch (e) {
       console.error("Error parsing saved configuration:", e);
@@ -127,6 +130,7 @@ export default function CanvasTableNodeView({
         selectedColumns: [],
         displayRows: 5,
         isDynamic: true,
+        isRTL: false, // Default to false
       };
     }
   }, [
@@ -135,6 +139,7 @@ export default function CanvasTableNodeView({
     node.attrs.selectedColumns,
     node.attrs.displayRows,
     node.attrs.isDynamic,
+    node.attrs.isRTL, // NEW: Include RTL in dependencies
   ]);
 
   // Get the current table data from folderCanvases
@@ -718,6 +723,13 @@ export default function CanvasTableNodeView({
     setContextMenu({ visible: false, x: 0, y: 0 });
   }, [savedConfig.isDynamic, updateAttributes, loadTableData]);
 
+  // NEW: Toggle RTL function
+  const toggleRTL = useCallback(() => {
+    const newIsRTL = !savedConfig.isRTL;
+    updateAttributes({ isRTL: newIsRTL });
+    setContextMenu({ visible: false, x: 0, y: 0 });
+  }, [savedConfig.isRTL, updateAttributes]);
+
   const forceRefresh = useCallback(async () => {
     setContextMenu({ visible: false, x: 0, y: 0 });
     await loadTableData(true);
@@ -845,6 +857,8 @@ export default function CanvasTableNodeView({
           maxWidth: "100%",
           minWidth: "400px",
           minHeight: `${Math.max(optimalHeight, 200)}px`,
+          // NEW: Apply RTL direction to wrapper
+          direction: savedConfig.isRTL ? "rtl" : "ltr",
         }}
         ref={wrapperRef}
         onClick={handleClick}
@@ -870,6 +884,8 @@ export default function CanvasTableNodeView({
           maxWidth: "100%",
           minWidth: "400px",
           minHeight: `${Math.max(optimalHeight, 200)}px`,
+          // NEW: Apply RTL direction to wrapper
+          direction: savedConfig.isRTL ? "rtl" : "ltr",
         }}
         ref={wrapperRef}
         onClick={handleClick}
@@ -902,13 +918,15 @@ export default function CanvasTableNodeView({
         maxWidth: "100%",
         minWidth: "400px",
         minHeight: `${Math.max(optimalHeight, 200)}px`,
+        // NEW: Apply RTL direction to wrapper
+        direction: savedConfig.isRTL ? "rtl" : "ltr",
       }}
       ref={wrapperRef}
       onClick={handleClick}
       onContextMenu={handleContextMenu}
       tabIndex={0}
       role="table"
-      aria-label={`Canvas table with ${tableData.length - 1} rows and ${tableData[0]?.length || 0} columns`}
+      aria-label={`Canvas table with ${tableData.length - 1} rows and ${tableData[0]?.length || 0} columns${savedConfig.isRTL ? " (RTL)" : ""}`}
     >
       {hasValidData ? (
         <div
@@ -916,11 +934,17 @@ export default function CanvasTableNodeView({
             isSelected ? "border-blue-500 border-2" : "border border-gray-300"
           } overflow-hidden`}
           ref={tableRef}
-          style={{ height: height ? `${height}px` : `${optimalHeight}px` }}
+          style={{
+            height: height ? `${height}px` : `${optimalHeight}px`,
+            // NEW: Apply RTL direction to table container
+            direction: savedConfig.isRTL ? "rtl" : "ltr",
+          }}
         >
           {/* Row count indicator for large tables */}
           {needsVerticalScroll && (
-            <div className="absolute top-2 left-2 z-10">
+            <div
+              className={`absolute top-2 z-10 ${savedConfig.isRTL ? "right-2" : "left-2"}`}
+            >
               <div className="bg-blue-100 border border-blue-300 rounded px-2 py-1 text-xs text-blue-700 flex items-center">
                 <svg
                   className="w-3 h-3 mr-1"
@@ -940,15 +964,39 @@ export default function CanvasTableNodeView({
             </div>
           )}
 
+          {/* NEW: RTL indicator */}
+          {savedConfig.isRTL && (
+            <div
+              className={`absolute top-2 z-10 ${savedConfig.isRTL ? "left-2" : "right-2"}`}
+            >
+              <div className="bg-purple-100 border border-purple-300 rounded px-2 py-1 text-xs text-purple-700 flex items-center">
+                <svg
+                  className="w-3 h-3 mr-1"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M3 5h12M9 3v2m1.048 9.5A18.022 18.022 0 016.412 9m6.088 9h7M11 21l5-10 5 10M12.751 5C11.783 10.77 8.07 15.61 3 18.129"
+                  />
+                </svg>
+                RTL
+              </div>
+            </div>
+          )}
+
           {/* Horizontal scroll container */}
           <div className="w-full h-full flex flex-col relative">
-            {/* Scroll indicator shadows */}
+            {/* Scroll indicator shadows - position based on RTL */}
             <div
-              className="absolute left-0 top-0 bottom-0 w-4 bg-gradient-to-r from-white to-transparent z-10 pointer-events-none opacity-0 transition-opacity duration-200"
+              className={`absolute top-0 bottom-0 w-4 bg-gradient-to-${savedConfig.isRTL ? "l" : "r"} from-white to-transparent z-10 pointer-events-none opacity-0 transition-opacity duration-200 ${savedConfig.isRTL ? "right-0" : "left-0"}`}
               id="left-shadow"
             ></div>
             <div
-              className="absolute right-0 top-0 bottom-0 w-4 bg-gradient-to-l from-white to-transparent z-10 pointer-events-none opacity-0 transition-opacity duration-200"
+              className={`absolute top-0 bottom-0 w-4 bg-gradient-to-${savedConfig.isRTL ? "r" : "l"} from-white to-transparent z-10 pointer-events-none opacity-0 transition-opacity duration-200 ${savedConfig.isRTL ? "left-0" : "right-0"}`}
               id="right-shadow"
             ></div>
 
@@ -957,6 +1005,8 @@ export default function CanvasTableNodeView({
               style={{
                 scrollbarWidth: "thin",
                 scrollbarColor: "#CBD5E0 #F7FAFC",
+                // NEW: RTL scrolling direction
+                direction: savedConfig.isRTL ? "rtl" : "ltr",
               }}
               onScroll={(e) => {
                 const target = e.target as HTMLDivElement;
@@ -989,10 +1039,16 @@ export default function CanvasTableNodeView({
                 className={`h-full flex flex-col ${needsVerticalScroll ? "" : "min-h-full"} pb-2`}
                 style={{
                   minWidth: `${Math.max(tableData[0]?.length * 200, 600)}px`,
+                  // NEW: RTL direction for table content
+                  direction: savedConfig.isRTL ? "rtl" : "ltr",
                 }}
               >
                 <table
                   className={`w-full border-collapse ${needsVerticalScroll ? "table-auto" : "flex-1 flex flex-col"}`}
+                  style={{
+                    // NEW: RTL table styling
+                    direction: savedConfig.isRTL ? "rtl" : "ltr",
+                  }}
                 >
                   <thead
                     className={`${needsVerticalScroll ? "sticky top-0" : "flex-shrink-0 sticky top-0"} z-5 bg-white`}
@@ -1003,13 +1059,15 @@ export default function CanvasTableNodeView({
                       {tableData[0]?.map((header, colIndex) => (
                         <th
                           key={`header-${colIndex}`}
-                          className="border-r border-gray-300 px-3 py-3 text-left text-sm font-bold text-gray-800 bg-gray-50 border-b border-gray-300"
+                          className={`border-r border-gray-300 px-3 py-3 text-sm font-bold text-gray-800 bg-gray-50 border-b border-gray-300 ${
+                            savedConfig.isRTL ? "text-right" : "text-left"
+                          }`}
                           style={
                             needsVerticalScroll
                               ? {
                                   minWidth: "200px",
                                   width: "200px",
-                                  height: "50px", // Updated to match calculation
+                                  height: "50px",
                                   position: "sticky",
                                   top: 0,
                                   zIndex: 10,
@@ -1017,7 +1075,7 @@ export default function CanvasTableNodeView({
                               : {
                                   minWidth: "200px",
                                   width: "200px",
-                                  height: "50px", // Updated to match calculation
+                                  height: "50px",
                                   display: "flex",
                                   alignItems: "center",
                                   flexShrink: 0,
@@ -1028,7 +1086,11 @@ export default function CanvasTableNodeView({
                           }
                         >
                           <div
-                            className="truncate w-full font-semibold flex items-center h-full"
+                            className={`truncate w-full font-semibold flex items-center h-full ${
+                              savedConfig.isRTL
+                                ? "justify-end"
+                                : "justify-start"
+                            }`}
                             title={header}
                           >
                             {header || `Column ${colIndex + 1}`}
@@ -1055,7 +1117,9 @@ export default function CanvasTableNodeView({
                         {row.map((cell, colIndex) => (
                           <td
                             key={`cell-${rowIndex + 1}-${colIndex}`}
-                            className="border-r border-gray-200 px-3 py-2 text-sm text-gray-700 align-top"
+                            className={`border-r border-gray-200 px-3 py-2 text-sm text-gray-700 align-top ${
+                              savedConfig.isRTL ? "text-right" : "text-left"
+                            }`}
                             style={
                               needsVerticalScroll
                                 ? {
@@ -1075,7 +1139,9 @@ export default function CanvasTableNodeView({
                           >
                             <div className="w-full overflow-hidden">
                               <div
-                                className="truncate cursor-help hover:text-blue-600 transition-colors"
+                                className={`truncate cursor-help hover:text-blue-600 transition-colors ${
+                                  savedConfig.isRTL ? "text-right" : "text-left"
+                                }`}
                                 title={`${cell}\n\nDouble-click to copy • Row ${rowIndex + 1}, Column ${colIndex + 1}`}
                                 onClick={(e) => {
                                   if (e.detail === 2) {
@@ -1139,7 +1205,9 @@ export default function CanvasTableNodeView({
                     d="M7 16l-4-4m0 0l4-4m-4 4h18"
                   />
                 </svg>
-                Scroll to see more columns
+                {savedConfig.isRTL
+                  ? "اسحب لرؤية المزيد من الأعمدة"
+                  : "Scroll to see more columns"}
                 <svg
                   className="w-3 h-3"
                   fill="none"
@@ -1157,7 +1225,9 @@ export default function CanvasTableNodeView({
             )}
 
             {needsVerticalScroll && (
-              <div className="absolute right-2 bottom-8 bg-black bg-opacity-75 text-white text-xs px-3 py-1 rounded-full pointer-events-none opacity-75 flex items-center gap-1">
+              <div
+                className={`absolute bottom-8 bg-black bg-opacity-75 text-white text-xs px-3 py-1 rounded-full pointer-events-none opacity-75 flex items-center gap-1 ${savedConfig.isRTL ? "left-2" : "right-2"}`}
+              >
                 <svg
                   className="w-3 h-3"
                   fill="none"
@@ -1171,14 +1241,18 @@ export default function CanvasTableNodeView({
                     d="M8 7l4-4m0 0l4 4m-4-4v18"
                   />
                 </svg>
-                Scroll for more rows
+                {savedConfig.isRTL
+                  ? "اسحب للمزيد من الصفوف"
+                  : "Scroll for more rows"}
               </div>
             )}
           </div>
 
           {/* Enhanced refresh button with export options */}
           {savedConfig.isDynamic && isSelected && (
-            <div className="absolute top-8 right-2 z-10 flex gap-1">
+            <div
+              className={`absolute top-8 z-10 flex gap-1 ${savedConfig.isRTL ? "left-2" : "right-2"}`}
+            >
               <button
                 onClick={(e) => {
                   e.stopPropagation();
@@ -1244,7 +1318,10 @@ export default function CanvasTableNodeView({
           )}
         </div>
       ) : (
-        <div className="p-4 border border-gray-300 rounded-md text-center text-gray-500 h-full flex items-center justify-center">
+        <div
+          className="p-4 border border-gray-300 rounded-md text-center text-gray-500 h-full flex items-center justify-center"
+          style={{ direction: savedConfig.isRTL ? "rtl" : "ltr" }}
+        >
           <div>
             <svg
               className="w-12 h-12 mx-auto mb-2 text-gray-400"
@@ -1325,6 +1402,9 @@ export default function CanvasTableNodeView({
             {needsVerticalScroll && (
               <span className="ml-2 text-blue-200">• Scrollable</span>
             )}
+            {savedConfig.isRTL && (
+              <span className="ml-2 text-blue-200">• RTL</span>
+            )}
           </div>
         </>
       )}
@@ -1336,6 +1416,7 @@ export default function CanvasTableNodeView({
           style={{
             left: contextMenu.x,
             top: contextMenu.y,
+            direction: "ltr", // Keep context menu LTR for consistency
           }}
           onClick={(e) => e.stopPropagation()}
         >
@@ -1439,6 +1520,17 @@ export default function CanvasTableNodeView({
             {savedConfig.isDynamic ? "Disable" : "Enable"} Live Updates
           </button>
 
+          {/* NEW: RTL Toggle in Context Menu */}
+          <button
+            onClick={toggleRTL}
+            className="w-full text-left px-3 py-2 text-sm hover:bg-gray-100 flex items-center"
+          >
+            <div
+              className={`w-2 h-2 rounded-full mr-2 ${savedConfig.isRTL ? "bg-purple-500" : "bg-gray-400"}`}
+            ></div>
+            {savedConfig.isRTL ? "Disable" : "Enable"} RTL Layout
+          </button>
+
           {savedConfig.isDynamic && (
             <button
               onClick={resetToStatic}
@@ -1477,6 +1569,7 @@ export default function CanvasTableNodeView({
                 {savedConfig.sortConfig && (
                   <div>↕️ Sorted by {savedConfig.sortConfig.field}</div>
                 )}
+                {savedConfig.isRTL && <div>🔤 RTL layout enabled</div>}
               </>
             ) : (
               <div>📄 Static table - data won't update</div>

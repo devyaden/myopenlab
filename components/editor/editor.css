@@ -1492,3 +1492,148 @@
   padding-right: 1rem;
   padding-left: 0;
 }
+
+/* Add these styles to your global CSS or component-specific CSS file */
+
+/* RTL Table Enhancements */
+.canvas-table-rtl {
+  direction: rtl;
+}
+
+.canvas-table-rtl table {
+  direction: rtl;
+}
+
+.canvas-table-rtl th,
+.canvas-table-rtl td {
+  text-align: right;
+}
+
+.canvas-table-rtl .table-header {
+  text-align: right;
+  justify-content: flex-end;
+}
+
+.canvas-table-rtl .table-cell {
+  text-align: right;
+  justify-content: flex-end;
+}
+
+/* RTL Scroll indicators */
+.canvas-table-rtl .scroll-shadow-left {
+  right: 0;
+  background: linear-gradient(to left, white, transparent);
+}
+
+.canvas-table-rtl .scroll-shadow-right {
+  left: 0;
+  background: linear-gradient(to right, white, transparent);
+}
+
+/* RTL Button positioning */
+.canvas-table-rtl .table-controls {
+  left: 8px;
+  right: auto;
+}
+
+.canvas-table-rtl .table-indicators {
+  right: 8px;
+  left: auto;
+}
+
+/* RTL Context menu adjustments */
+.canvas-table-rtl .context-menu {
+  direction: ltr; /* Keep context menu LTR for consistency */
+}
+
+/* RTL Resize handles - maintain proper cursor directions */
+.canvas-table-rtl .resize-handle-nw {
+  cursor: ne-resize;
+}
+
+.canvas-table-rtl .resize-handle-ne {
+  cursor: nw-resize;
+}
+
+.canvas-table-rtl .resize-handle-sw {
+  cursor: se-resize;
+}
+
+.canvas-table-rtl .resize-handle-se {
+  cursor: sw-resize;
+}
+
+/* RTL Scrollbar styling for better UX */
+.canvas-table-rtl .table-scroll-container::-webkit-scrollbar {
+  height: 8px;
+}
+
+.canvas-table-rtl .table-scroll-container::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 4px;
+}
+
+.canvas-table-rtl .table-scroll-container::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 4px;
+}
+
+.canvas-table-rtl .table-scroll-container::-webkit-scrollbar-thumb:hover {
+  background: #a8a8a8;
+}
+
+/* RTL Loading and error states */
+.canvas-table-rtl .loading-container,
+.canvas-table-rtl .error-container {
+  text-align: center;
+  direction: rtl;
+}
+
+/* RTL Table border adjustments for proper visual flow */
+.canvas-table-rtl th:first-child,
+.canvas-table-rtl td:first-child {
+  border-right: none;
+  border-left: 1px solid #e5e7eb;
+}
+
+.canvas-table-rtl th:last-child,
+.canvas-table-rtl td:last-child {
+  border-left: none;
+  border-right: 1px solid #e5e7eb;
+}
+
+/* RTL Tooltip positioning */
+.canvas-table-rtl [title]:hover::after {
+  direction: rtl;
+  text-align: right;
+}
+
+/* RTL Animation adjustments */
+@media (prefers-reduced-motion: no-preference) {
+  .canvas-table-rtl .table-transition {
+    transition: all 0.2s ease-in-out;
+  }
+}
+
+/* RTL Focus states */
+.canvas-table-rtl:focus-within {
+  outline: 2px solid #3b82f6;
+  outline-offset: 2px;
+}
+
+/* RTL Print styles */
+@media print {
+  .canvas-table-rtl {
+    direction: rtl;
+  }
+
+  .canvas-table-rtl table {
+    direction: rtl;
+    page-break-inside: avoid;
+  }
+
+  .canvas-table-rtl th,
+  .canvas-table-rtl td {
+    text-align: right;
+  }
+}

@@ -49,6 +49,10 @@ export const CanvasTableNode = Node.create({
       lastUpdated: {
         default: null, // Timestamp of last update
       },
+      // NEW: RTL support
+      isRTL: {
+        default: false, // Flag to enable RTL layout
+      },
     };
   },
 

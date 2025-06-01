@@ -1436,7 +1436,7 @@ export function NodePropertiesSidebar({
 
   return (
     <div
-      className="fixed right-0 top-[calc(4vh+105px)] bottom-0 z-50 w-96
+      className="fixed right-0 top-[calc(4vh+84px)] bottom-0 z-50 w-96
       animate-slide-in-right 
       bg-white border-l border-gray-200 
       flex flex-col 

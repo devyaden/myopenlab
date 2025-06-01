@@ -1167,7 +1167,7 @@ const Editor = (
         dataString = "[]";
       }
 
-      // Insert the canvas table node with enhanced attributes
+      // Insert the canvas table node with enhanced attributes including RTL support
       editor
         .chain()
         .focus()
@@ -1185,6 +1185,8 @@ const Editor = (
             displayRows: tableData.displayRows || 5,
             isDynamic: tableData.isDynamic !== false, // Default to true
             lastUpdated: tableData.lastUpdated || new Date().toISOString(),
+            // NEW: RTL support
+            isRTL: tableData.isRTL || false, // Include RTL configuration
           },
         })
         .run();
@@ -1678,6 +1680,22 @@ const Editor = (
     );
   }, [folder, canvasType, folderCanvases]);
 
+  const filteredTables = useMemo(() => {
+    if (canvasType === CANVAS_TYPE.HYBRID) {
+      const currentTable = folderCanvases.find(
+        (canvas) => canvas.id === canvasId
+      );
+
+      return [currentTable].filter(Boolean);
+    }
+
+    return folderCanvases.filter(
+      (canvas) =>
+        (canvas.canvas_type === "table" || canvas.canvas_type === "hybrid") &&
+        canvas.columns?.length > 0
+    );
+  }, [folderCanvases]);
+
   // If unauthorized, show the Unauthorized component
   if (unauthorized) {
     return <Unauthorized />;
@@ -1868,7 +1886,6 @@ const Editor = (
         onInsertLink={handleInsertLink}
       />
 
-      {/* Canvas Dialog */}
       <CanvasDialog
         isOpen={canvasDialogOpen}
         onClose={() => setCanvasDialogOpen(false)}
@@ -1881,24 +1898,8 @@ const Editor = (
         onClose={() => setTableSelectorDialogOpen(false)}
         onInsertTable={handleInsertCanvasTable}
         tableData={selectedTableData}
-        tables={folderCanvases.filter(
-          (canvas) =>
-            (canvas.canvas_type === "table" ||
-              canvas.canvas_type === "hybrid") &&
-            canvas.columns?.length > 0
-        )}
+        tables={filteredTables}
       />
-      {/* <HeaderFooterDialog
-        isOpen={headerFooterDialogOpen}
-        onClose={() => setHeaderFooterDialogOpen(false)}
-        onApply={handleApplyHeaderFooter}
-        initialConfig={
-          headerFooterType === "header"
-            ? headerConfig || undefined
-            : footerConfig || undefined
-        }
-        type={headerFooterType}
-      /> */}
     </div>
   );
 };

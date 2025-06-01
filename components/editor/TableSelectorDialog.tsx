@@ -25,6 +25,7 @@ import {
   Plus,
   SlidersHorizontal,
   X,
+  Languages,
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
@@ -87,6 +88,9 @@ export default function TableSelectorDialog({
   const [displayRows, setDisplayRows] = useState<number>(5);
   const [selectedColumns, setSelectedColumns] = useState<string[]>([]);
 
+  // RTL state - NEW
+  const [isRTL, setIsRTL] = useState<boolean>(false);
+
   // Sorting state
   const [sortField, setSortField] = useState<SortField>(null);
   const [sortDirection, setSortDirection] = useState<SortDirection>(null);
@@ -111,6 +115,7 @@ export default function TableSelectorDialog({
         setEditingFilter(null);
         setShowSortUI(false);
         setFilterDialogOpen(false);
+        setIsRTL(false); // Reset RTL state
         onClose();
       }, 10);
     }
@@ -897,6 +902,8 @@ export default function TableSelectorDialog({
       displayRows: displayRows,
       isDynamic: true,
       lastUpdated: new Date().toISOString(),
+      // NEW: RTL configuration
+      isRTL: isRTL,
     };
 
     // Fix pointer events before closing
@@ -1138,7 +1145,20 @@ export default function TableSelectorDialog({
                       Sort {sortField ? `(${sortField})` : ""}
                     </Button>
 
-                    {(sortField || filterGroups.length > 0) && (
+                    {/* NEW: RTL Toggle Button */}
+                    <Button
+                      variant={isRTL ? "default" : "outline"}
+                      size="sm"
+                      className={`text-sm ${isRTL ? "bg-blue-500/10 text-blue-600 hover:bg-blue-500/20 border-blue-500/20" : ""}`}
+                      onClick={() => setIsRTL(!isRTL)}
+                    >
+                      <Languages
+                        className={`h-4 w-4 mr-2 ${isRTL ? "text-blue-600" : ""}`}
+                      />
+                      RTL {isRTL ? "(On)" : "(Off)"}
+                    </Button>
+
+                    {(sortField || filterGroups.length > 0 || isRTL) && (
                       <Button
                         variant="outline"
                         size="sm"
@@ -1147,6 +1167,7 @@ export default function TableSelectorDialog({
                           setSortField(null);
                           setSortDirection(null);
                           clearAllFilters();
+                          setIsRTL(false); // Reset RTL
                         }}
                       >
                         <X className="h-4 w-4 mr-2" />
@@ -1561,8 +1582,23 @@ export default function TableSelectorDialog({
                     </div>
                   )}
 
-                  {/* Rows and Columns Selection */}
+                  {/* RTL Information Banner - NEW */}
+                  {isRTL && (
+                    <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-md">
+                      <div className="flex items-center gap-2 text-blue-800">
+                        <Languages className="h-4 w-4" />
+                        <span className="text-sm font-medium">
+                          RTL Mode Enabled
+                        </span>
+                      </div>
+                      <p className="text-xs text-blue-600 mt-1">
+                        Table will be displayed in right-to-left layout with
+                        headers and content aligned for RTL reading.
+                      </p>
+                    </div>
+                  )}
 
+                  {/* Rows and Columns Selection */}
                   <div className="mb-4">
                     <div className="text-sm font-medium mb-2">
                       Select Columns to Display:
@@ -1596,14 +1632,17 @@ export default function TableSelectorDialog({
                     <div className="text-sm font-medium mb-2">Preview:</div>
                     <div className="h-[200px] relative border rounded-md bg-gray-50 overflow-hidden">
                       <div className="absolute inset-0 overflow-auto">
-                        {/* Custom inline table preview */}
-                        <table className="w-full text-sm">
+                        {/* Custom inline table preview with RTL support */}
+                        <table
+                          className="w-full text-sm"
+                          style={{ direction: isRTL ? "rtl" : "ltr" }}
+                        >
                           <thead className="bg-gray-100">
                             <tr>
                               {visibleColumns.map((columnTitle) => (
                                 <th
                                   key={columnTitle}
-                                  className="p-2 text-left border-r border-gray-200"
+                                  className={`p-2 border-r border-gray-200 ${isRTL ? "text-right" : "text-left"}`}
                                 >
                                   {columnTitle}
                                 </th>
@@ -1626,7 +1665,7 @@ export default function TableSelectorDialog({
                                     return (
                                       <td
                                         key={columnTitle}
-                                        className="p-2 border-r border-gray-200"
+                                        className={`p-2 border-r border-gray-200 ${isRTL ? "text-right" : "text-left"}`}
                                       >
                                         {cellValue || "—"}
                                       </td>
@@ -1648,7 +1687,7 @@ export default function TableSelectorDialog({
                                 {visibleColumns.map((columnTitle) => (
                                   <td
                                     key={columnTitle}
-                                    className="p-2 border-r border-gray-200 text-gray-400"
+                                    className={`p-2 border-r border-gray-200 text-gray-400 ${isRTL ? "text-right" : "text-left"}`}
                                   >
                                     —
                                   </td>
