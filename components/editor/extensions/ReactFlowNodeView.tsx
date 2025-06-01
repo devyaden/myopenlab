@@ -6,6 +6,7 @@ import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useEdgesState, useNodesState } from "reactflow";
 import "reactflow/dist/style.css";
 import ReactFlowCanvas from "../ReactFlowCanvas";
+import { Button } from "@/components/ui";
 
 function ReactFlowNodeView({
   node,
@@ -463,26 +464,32 @@ function ReactFlowNodeView({
         />
       </div>
 
-      {useRealTimeData && (
-        <button
-          className="absolute top-2 right-2 bg-white rounded-full p-1 shadow-md hover:bg-gray-100 z-10"
+      {isSelected && (
+        <Button
+          variant="ghost"
+          className="absolute top-2 right-2 "
           onClick={handleRefresh}
           title="Refresh canvas data"
+          disabled={isLoading}
         >
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            width="16"
-            height="16"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
-            <path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2" />
-          </svg>
-        </button>
+          {isLoading ? (
+            <p className="text-black">Refreshing...</p>
+          ) : (
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2" />
+            </svg>
+          )}
+        </Button>
       )}
 
       {useRealTimeData && lastUpdated && (
