@@ -1364,236 +1364,242 @@ export default function CanvasNew({ canvasId }: FigmaInterfaceProps) {
   }
 
   return (
-    <ReactFlowProvider>
-      <>
-        <div className="h-screen bg-white flex flex-col w-screen">
-          {viewMode !== VIEW_MODE.document && (
-            <Header
-              currentState={currentState}
-              projectName={projectName}
-              setProjectName={(newName) => {
-                setProjectName(newName);
-                handleCanvasNameChange(canvasId, newName);
-              }}
-              onBackToDashboard={() => router.push("/protected")}
-              onImportCanvas={handleImportCanvas}
-              saveLoading={saveLoading}
-              onSave={saveCanvas}
-              canvasId={canvasId}
-              visibility={visibility}
-              onVisibilityChange={handleVisibilityChange}
-              isOwner={isOwner}
-              viewMode={viewMode}
-              exportToCSV={exportToCSVFn}
-              exportToExcel={exportToExcelFn}
-              propExportAsPDF={documentRef.current?.exportAsPDF}
-              exportAsJSON={documentRef.current?.exportAsJSON}
-              canvasType={canvas_type!}
-              toggleMiniMap={miniMapRef}
-              currentFolder={currentFolder}
-            />
-          )}
-          {/* Add view mode switcher for read-only mode */}
-          {isReadOnly && viewMode === VIEW_MODE.canvas && (
-            <div className="flex justify-end p-2 border-b">
-              <ViewModeSwitcher
+    <>
+      {viewMode === "canvas" || viewMode === "table" ? (
+        <ReactFlowProvider>
+          <>
+            <div className="h-screen bg-white flex flex-col w-screen">
+              <Header
+                currentState={currentState}
+                projectName={projectName}
+                setProjectName={(newName) => {
+                  setProjectName(newName);
+                  handleCanvasNameChange(canvasId, newName);
+                }}
+                onBackToDashboard={() => router.push("/protected")}
+                onImportCanvas={handleImportCanvas}
+                saveLoading={saveLoading}
+                onSave={saveCanvas}
+                canvasId={canvasId}
+                visibility={visibility}
+                onVisibilityChange={handleVisibilityChange}
+                isOwner={isOwner}
                 viewMode={viewMode}
-                onViewModeChange={handleViewModeChange}
-                canvasType={canvas_type}
+                exportToCSV={exportToCSVFn}
+                exportToExcel={exportToExcelFn}
+                propExportAsPDF={documentRef.current?.exportAsPDF}
+                exportAsJSON={documentRef.current?.exportAsJSON}
+                canvasType={canvas_type!}
+                toggleMiniMap={miniMapRef}
+                currentFolder={currentFolder}
               />
-            </div>
-          )}
 
-          {/* conditional rendering based on canvas type */}
-
-          {isLoaded &&
-            canvas_type === CANVAS_TYPE.HYBRID &&
-            viewMode === VIEW_MODE.canvas &&
-            !isReadOnly && (
-              <Toolbar
-                key={selectedNode || selectedEdge || "no-selection"}
-                fontFamily={selectedStyle?.fontFamily || "Arial"}
-                setFontFamily={(font) =>
-                  selectedNode &&
-                  updateNodeStyle(selectedNode, { fontFamily: font })
-                }
-                fontSize={selectedStyle?.fontSize || 12}
-                setFontSize={(size) =>
-                  selectedNode &&
-                  updateNodeStyle(selectedNode, { fontSize: size })
-                }
-                isBold={selectedStyle?.isBold || false}
-                setIsBold={(bold) =>
-                  selectedNode &&
-                  updateNodeStyle(selectedNode, { isBold: bold })
-                }
-                isItalic={selectedStyle?.isItalic || false}
-                setIsItalic={(italic) =>
-                  selectedNode &&
-                  updateNodeStyle(selectedNode, { isItalic: italic })
-                }
-                isUnderline={selectedStyle?.isUnderline || false}
-                setIsUnderline={(underline) =>
-                  selectedNode &&
-                  updateNodeStyle(selectedNode, { isUnderline: underline })
-                }
-                textAlign={selectedStyle?.textAlign || "left"}
-                setTextAlign={(align) =>
-                  selectedNode &&
-                  updateNodeStyle(selectedNode, { textAlign: align })
-                }
-                verticalAlign={selectedStyle?.verticalAlign || "top"}
-                setVerticalAlign={(align) =>
-                  selectedNode &&
-                  updateNodeStyle(selectedNode, { verticalAlign: align })
-                }
-                selectedNode={selectedNode}
-                onUndo={undo}
-                onRedo={redo}
-                canUndo={canUndo}
-                canRedo={canRedo}
-                onCopy={copySelectedNodes}
-                onPaste={pasteNodes}
-                onLock={lockNode}
-                onChangeShape={changeShape}
-                shape={selectedStyle?.shape || "rectangle"}
-                isLocked={selectedStyle?.locked || false}
-                borderStyle={selectedStyle?.borderStyle || "solid"}
-                setBorderStyle={setBorderStyle}
-                borderWidth={selectedStyle?.borderWidth || 2}
-                setBorderWidth={setBorderWidth}
-                isSwimlane={selectedStyle?.shape === "swimlane"}
-                onDelete={
-                  selectedNodes.length > 0
-                    ? deleteSelectedNodes
-                    : selectedEdge
-                      ? deleteSelectedEdges
-                      : () => {}
-                }
-                backgroundColor={selectedStyle?.backgroundColor || "#ffffff"}
-                setBackgroundColor={setBackgroundColor}
-                borderColor={selectedStyle?.borderColor || "#000000"}
-                setBorderColor={setBorderColor}
-                textColor={selectedStyle?.textColor || "#000000"}
-                setTextColor={setTextColor}
-                lineHeight={selectedStyle?.lineHeight || 1.2}
-                setLineHeight={setLineHeight}
-                selectedEdge={selectedEdge}
-                onChangeEdgeStyle={onChangeEdgeStyle}
-                currentEdgeStyle={selectedEdgeData?.type || "default"}
-                viewMode={viewMode}
-                onViewModeChange={handleViewModeChange}
-                // edge styles
-                edgeWidth={edgeWidth}
-                setEdgeWidth={handleEdgeWidthChange}
-                edgeColor={edgeColor}
-                setEdgeColor={handleEdgeColorChange}
-                onDetachNode={detachNodeFromParent}
-                selectedNodeHasParent={
-                  !!(
-                    selectedNode &&
-                    nodes.find((n) => n.id === selectedNode)?.parentNode
-                  )
-                }
-              />
-            )}
-
-          <div className="flex flex-1 overflow-hidden">
-            {!isReadOnly &&
-              viewMode === VIEW_MODE.canvas &&
-              canvas_type !== VIEW_MODE.table && (
-                <VerticalNav
-                  className="hidden md:flex"
-                  onToggleSidebar={toggleSidebar}
-                  canvasType={canvas_type}
-                  onDragStart={onDragStart}
-                  onOpenImageManager={toggleImageManager}
-                />
-              )}
-            <div className="flex-1 flex flex-col md:flex-row relative ">
-              {!isReadOnly && (
-                <Sidebar
-                  onDragStart={onDragStart}
-                  isVisible={isSidebarOpen}
-                  onShapeClick={handleShapeClick}
-                  onOpenImageManager={toggleImageManager}
-                />
-              )}
-              {viewMode === "canvas" || viewMode === "table" ? (
-                <div className="flex-1 relative">
-                  <SafeUMLEditor
-                    nodes={currentState.nodes}
-                    edges={currentState.edges}
-                    onNodesChange={isReadOnly ? undefined : onNodesChange}
-                    onEdgesChange={isReadOnly ? undefined : onEdgesChange}
-                    nodeStyles={currentState.nodeStyles}
-                    onNodeSelect={isReadOnly ? undefined : onNodeSelect}
-                    selectedNodes={selectedNodes}
-                    onAddNode={isReadOnly ? undefined : addNode}
-                    onAddSwimlane={isReadOnly ? undefined : addSwimlane}
-                    onLabelChange={isReadOnly ? undefined : onLabelChange}
-                    onAddLane={isReadOnly ? undefined : addLaneToSwimlane}
-                    onEdgeSelect={isReadOnly ? undefined : onEdgeSelect}
-                    onChangeEdgeLabel={
-                      isReadOnly ? undefined : onChangeEdgeLabel
-                    }
-                    onAddImage={isReadOnly ? undefined : addImage}
-                    onAddColumn={isReadOnly ? undefined : handleAddColumn}
-                    columns={columns}
-                    setColumns={isReadOnly ? undefined : setColumns}
-                    currentFolderCanvases={folderCanvases.map((canvas) => ({
-                      ...canvas,
-                      canvas_type:
-                        canvas.canvas_type || canvas_type || CANVAS_TYPE.HYBRID,
-                    }))}
-                    canvasId={canvasId}
-                    canvasType={canvas_type}
-                    onReactFlowInit={setReactFlowInstance}
-                    canvasSettings={canvasSettings}
-                    updateCanvasSettings={
-                      isReadOnly ? undefined : updateCanvasSettings
-                    }
+              {/* Add view mode switcher for read-only mode */}
+              {isReadOnly && viewMode === VIEW_MODE.canvas && (
+                <div className="flex justify-end p-2 border-b">
+                  <ViewModeSwitcher
                     viewMode={viewMode}
                     onViewModeChange={handleViewModeChange}
-                    readOnly={isReadOnly}
-                    onMiniMapToggleRef={handleMiniMapToggleRef}
+                    canvasType={canvas_type}
                   />
                 </div>
-              ) : (
-                <DocumentEditor
-                  canvasId={canvasId}
-                  isPartOfCanvas={true}
-                  onBackToBoard={() => setViewMode("canvas")}
-                  readOnly={isReadOnly}
-                  onViewModeChange={handleViewModeChange}
-                  viewMode={viewMode}
-                  canvasType={canvas_type!}
-                  ref={documentRef}
-                  onReady={() => setIsDocumentReady(true)}
-                />
               )}
-            </div>
-          </div>
-          <Input
-            type="file"
-            ref={fileInputRef}
-            className="hidden"
-            accept="image/*"
-            onChange={handleImageUpload}
-            disabled={isUploadingImage}
-          />
 
-          {/* Image Manager Dialog */}
-          <ImageManagerDialog
-            isOpen={imageManagerOpen}
-            onClose={() => setImageManagerOpen(false)}
-            images={uploadedImages}
-            onImageDelete={handleDeleteImage}
-            onImageUpload={addImage}
-            onImageSelect={handleSelectImage}
-          />
-        </div>
-      </>
-    </ReactFlowProvider>
+              {/* conditional rendering based on canvas type */}
+
+              {isLoaded &&
+                canvas_type === CANVAS_TYPE.HYBRID &&
+                viewMode === VIEW_MODE.canvas &&
+                !isReadOnly && (
+                  <Toolbar
+                    key={selectedNode || selectedEdge || "no-selection"}
+                    fontFamily={selectedStyle?.fontFamily || "Arial"}
+                    setFontFamily={(font) =>
+                      selectedNode &&
+                      updateNodeStyle(selectedNode, { fontFamily: font })
+                    }
+                    fontSize={selectedStyle?.fontSize || 12}
+                    setFontSize={(size) =>
+                      selectedNode &&
+                      updateNodeStyle(selectedNode, { fontSize: size })
+                    }
+                    isBold={selectedStyle?.isBold || false}
+                    setIsBold={(bold) =>
+                      selectedNode &&
+                      updateNodeStyle(selectedNode, { isBold: bold })
+                    }
+                    isItalic={selectedStyle?.isItalic || false}
+                    setIsItalic={(italic) =>
+                      selectedNode &&
+                      updateNodeStyle(selectedNode, { isItalic: italic })
+                    }
+                    isUnderline={selectedStyle?.isUnderline || false}
+                    setIsUnderline={(underline) =>
+                      selectedNode &&
+                      updateNodeStyle(selectedNode, { isUnderline: underline })
+                    }
+                    textAlign={selectedStyle?.textAlign || "left"}
+                    setTextAlign={(align) =>
+                      selectedNode &&
+                      updateNodeStyle(selectedNode, { textAlign: align })
+                    }
+                    verticalAlign={selectedStyle?.verticalAlign || "top"}
+                    setVerticalAlign={(align) =>
+                      selectedNode &&
+                      updateNodeStyle(selectedNode, { verticalAlign: align })
+                    }
+                    selectedNode={selectedNode}
+                    onUndo={undo}
+                    onRedo={redo}
+                    canUndo={canUndo}
+                    canRedo={canRedo}
+                    onCopy={copySelectedNodes}
+                    onPaste={pasteNodes}
+                    onLock={lockNode}
+                    onChangeShape={changeShape}
+                    shape={selectedStyle?.shape || "rectangle"}
+                    isLocked={selectedStyle?.locked || false}
+                    borderStyle={selectedStyle?.borderStyle || "solid"}
+                    setBorderStyle={setBorderStyle}
+                    borderWidth={selectedStyle?.borderWidth || 2}
+                    setBorderWidth={setBorderWidth}
+                    isSwimlane={selectedStyle?.shape === "swimlane"}
+                    onDelete={
+                      selectedNodes.length > 0
+                        ? deleteSelectedNodes
+                        : selectedEdge
+                          ? deleteSelectedEdges
+                          : () => {}
+                    }
+                    backgroundColor={
+                      selectedStyle?.backgroundColor || "#ffffff"
+                    }
+                    setBackgroundColor={setBackgroundColor}
+                    borderColor={selectedStyle?.borderColor || "#000000"}
+                    setBorderColor={setBorderColor}
+                    textColor={selectedStyle?.textColor || "#000000"}
+                    setTextColor={setTextColor}
+                    lineHeight={selectedStyle?.lineHeight || 1.2}
+                    setLineHeight={setLineHeight}
+                    selectedEdge={selectedEdge}
+                    onChangeEdgeStyle={onChangeEdgeStyle}
+                    currentEdgeStyle={selectedEdgeData?.type || "default"}
+                    viewMode={viewMode}
+                    onViewModeChange={handleViewModeChange}
+                    // edge styles
+                    edgeWidth={edgeWidth}
+                    setEdgeWidth={handleEdgeWidthChange}
+                    edgeColor={edgeColor}
+                    setEdgeColor={handleEdgeColorChange}
+                    onDetachNode={detachNodeFromParent}
+                    selectedNodeHasParent={
+                      !!(
+                        selectedNode &&
+                        nodes.find((n) => n.id === selectedNode)?.parentNode
+                      )
+                    }
+                  />
+                )}
+
+              <div className="flex flex-1 overflow-hidden">
+                {!isReadOnly &&
+                  viewMode === VIEW_MODE.canvas &&
+                  canvas_type !== VIEW_MODE.table && (
+                    <VerticalNav
+                      className="hidden md:flex"
+                      onToggleSidebar={toggleSidebar}
+                      canvasType={canvas_type}
+                      onDragStart={onDragStart}
+                      onOpenImageManager={toggleImageManager}
+                    />
+                  )}
+                <div className="flex-1 flex flex-col md:flex-row relative ">
+                  {!isReadOnly && (
+                    <Sidebar
+                      onDragStart={onDragStart}
+                      isVisible={isSidebarOpen}
+                      onShapeClick={handleShapeClick}
+                      onOpenImageManager={toggleImageManager}
+                    />
+                  )}
+
+                  <div className="flex-1 relative">
+                    <SafeUMLEditor
+                      nodes={currentState.nodes}
+                      edges={currentState.edges}
+                      onNodesChange={isReadOnly ? undefined : onNodesChange}
+                      onEdgesChange={isReadOnly ? undefined : onEdgesChange}
+                      nodeStyles={currentState.nodeStyles}
+                      onNodeSelect={isReadOnly ? undefined : onNodeSelect}
+                      selectedNodes={selectedNodes}
+                      onAddNode={isReadOnly ? undefined : addNode}
+                      onAddSwimlane={isReadOnly ? undefined : addSwimlane}
+                      onLabelChange={isReadOnly ? undefined : onLabelChange}
+                      onAddLane={isReadOnly ? undefined : addLaneToSwimlane}
+                      onEdgeSelect={isReadOnly ? undefined : onEdgeSelect}
+                      onChangeEdgeLabel={
+                        isReadOnly ? undefined : onChangeEdgeLabel
+                      }
+                      onAddImage={isReadOnly ? undefined : addImage}
+                      onAddColumn={isReadOnly ? undefined : handleAddColumn}
+                      columns={columns}
+                      setColumns={isReadOnly ? undefined : setColumns}
+                      currentFolderCanvases={folderCanvases.map((canvas) => ({
+                        ...canvas,
+                        canvas_type:
+                          canvas.canvas_type ||
+                          canvas_type ||
+                          CANVAS_TYPE.HYBRID,
+                      }))}
+                      canvasId={canvasId}
+                      canvasType={canvas_type}
+                      onReactFlowInit={setReactFlowInstance}
+                      canvasSettings={canvasSettings}
+                      updateCanvasSettings={
+                        isReadOnly ? undefined : updateCanvasSettings
+                      }
+                      viewMode={viewMode}
+                      onViewModeChange={handleViewModeChange}
+                      readOnly={isReadOnly}
+                      onMiniMapToggleRef={handleMiniMapToggleRef}
+                    />
+                  </div>
+                </div>
+              </div>
+              <Input
+                type="file"
+                ref={fileInputRef}
+                className="hidden"
+                accept="image/*"
+                onChange={handleImageUpload}
+                disabled={isUploadingImage}
+              />
+
+              {/* Image Manager Dialog */}
+              <ImageManagerDialog
+                isOpen={imageManagerOpen}
+                onClose={() => setImageManagerOpen(false)}
+                images={uploadedImages}
+                onImageDelete={handleDeleteImage}
+                onImageUpload={addImage}
+                onImageSelect={handleSelectImage}
+              />
+            </div>
+          </>
+        </ReactFlowProvider>
+      ) : (
+        <DocumentEditor
+          canvasId={canvasId}
+          isPartOfCanvas={true}
+          onBackToBoard={() => setViewMode("canvas")}
+          readOnly={isReadOnly}
+          onViewModeChange={handleViewModeChange}
+          viewMode={viewMode}
+          canvasType={canvas_type!}
+          ref={documentRef}
+          onReady={() => setIsDocumentReady(true)}
+        />
+      )}
+    </>
   );
 }

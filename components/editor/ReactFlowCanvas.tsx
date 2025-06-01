@@ -5,7 +5,6 @@ import ReactFlow, {
   applyEdgeChanges,
   applyNodeChanges,
   Background,
-  MiniMap,
   useEdgesState,
   useNodesState,
   type Viewport,
@@ -50,9 +49,11 @@ export default function ReactFlowCanvas({
   const [nodes, setNodes, onNodesChangeInternalOriginal] = useNodesState(
     canvasData.nodes || []
   );
+
   const [edges, setEdges, onEdgesChangeInternalOriginal] = useEdgesState(
     canvasData.edges || []
   );
+
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
 
   // Explicit handlers for node and edge changes
@@ -68,7 +69,6 @@ export default function ReactFlowCanvas({
   // Handler for viewport changes
   const handleViewportChange = useCallback(
     (event: MouseEvent | TouchEvent | undefined, viewport: Viewport) => {
-      console.log("[ReactFlowCanvas] onMove triggered. Viewport:", viewport);
       if (onViewportChange) {
         onViewportChange(viewport);
       }
@@ -91,51 +91,10 @@ export default function ReactFlowCanvas({
     }
   }, [nodes, edges, onInternalChange]);
 
-  // Enhance nodes for printing when in print-friendly mode
-  // useEffect(() => {
-  //   if (printFriendly && reactFlowWrapper.current) {
-  //     // Add styles for better print visibility
-  //     const container = reactFlowWrapper.current;
-  //     container.classList.add("print-friendly-flow");
-
-  //     // Apply custom styles for better printing
-  //     const styleElement = document.createElement("style");
-  //     styleElement.textContent = `
-  //       @media print {
-  //         .print-friendly-flow {
-  //           height: 350px !important;
-  //           width: 100% !important;
-  //           overflow: visible !important;
-  //           page-break-inside: avoid !important;
-  //         }
-  //         .print-friendly-flow .react-flow__node {
-  //           background-color: white !important;
-  //           border: 1px solid #333 !important;
-  //           box-shadow: 0 1px 4px rgba(0, 0, 0, 0.16) !important;
-  //         }
-  //         .print-friendly-flow .react-flow__edge-path {
-  //           stroke: #333 !important;
-  //           stroke-width: 2px !important;
-  //         }
-  //         .print-friendly-flow .react-flow__controls,
-  //         .print-friendly-flow .react-flow__minimap,
-  //         .print-friendly-flow .react-flow__attribution {
-  //           display: none !important;
-  //         }
-  //       }
-  //     `;
-  //     document.head.appendChild(styleElement);
-
-  //     return () => {
-  //       document.head.removeChild(styleElement);
-  //     };
-  //   }
-  // }, [printFriendly]);
-
   return (
     <div
       ref={reactFlowWrapper}
-      className={`canvas-container ${printFriendly ? "print-friendly-flow" : ""}`}
+      className={`canvas-container `}
       style={{
         height: (height ?? 310) - 6,
         width: "100%",
@@ -178,12 +137,6 @@ export default function ReactFlowCanvas({
           ...edge,
           type: "custom",
           data: { ...edge.data },
-          style: printFriendly
-            ? {
-                stroke: "#333",
-                strokeWidth: 2,
-              }
-            : undefined,
         }))}
         nodeTypes={nodeTypes}
         edgeTypes={edgeTypes}
