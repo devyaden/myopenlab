@@ -37,10 +37,7 @@ type UserContextType = {
   signInWithGoogle: () => Promise<void>;
   signOut: () => Promise<void>;
   forgotPassword: (email: string) => Promise<{ error?: string }>;
-  resetPassword: (
-    password: string,
-    confirmPassword: string
-  ) => Promise<{ error?: string }>;
+  resetPassword: (password: string, confirmPassword: string) => Promise<any>;
   refreshSession: () => Promise<void>;
   updateUserProfileAndCompleteOnboarding?: (
     data: ProfileCompletionFormData
@@ -240,11 +237,8 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
 
     if (error) {
       toast.error("Password update failed");
-      return { error: error.message };
+      throw new Error(error?.message || "Failed to update password");
     }
-
-    toast.success("Password updated successfully");
-    redirect("/protected");
   };
 
   const refreshSession = async () => {
