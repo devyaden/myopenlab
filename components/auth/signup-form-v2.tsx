@@ -32,6 +32,10 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "react-hot-toast";
 import { v4 as uuidv4 } from "uuid";
+// Import tracking utilities
+import { errorTracker } from "@/lib/posthog/errors";
+import { AuthEvent, FormEvent, InteractionEvent } from "@/lib/posthog/events";
+import { tracker } from "@/lib/posthog/tracker";
 
 // Define error types
 type ErrorType =
@@ -169,49 +173,34 @@ function AccountStep({
   showPassword: boolean;
   setShowPassword: React.Dispatch<React.SetStateAction<boolean>>;
 }) {
+  // Track field interactions
+  const handleFieldFocus = (fieldName: string) => {
+    tracker.trackForm(FormEvent.FIELD_FOCUSED, {
+      form_name: "signup_form",
+      field_name: fieldName,
+      form_step: 1,
+    });
+  };
+
+  const handleFieldBlur = (fieldName: string) => {
+    tracker.trackForm(FormEvent.FIELD_BLURRED, {
+      form_name: "signup_form",
+      field_name: fieldName,
+      form_step: 1,
+    });
+  };
+
+  const handlePasswordToggle = () => {
+    setShowPassword(!showPassword);
+    tracker.trackInteraction(InteractionEvent.BUTTON_CLICK, {
+      element_type: "button",
+      element_text: "toggle_password_visibility",
+      interaction_context: "signup_form_step_1",
+    });
+  };
+
   return (
     <>
-      {/* <div className="space-y-6">
-        <Button
-          type="button"
-          onClick={handleGoogleSignIn}
-          variant="outline"
-          className="w-full flex items-center justify-center gap-3 border-yadn-primary-gray/10 bg-transparent hover:bg-yadn-primary-gray/5 text-yadn-primary-gray h-11"
-        >
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            viewBox="0 0 24 24"
-            width="20"
-            height="20"
-          >
-            <path
-              fill="#4285F4"
-              d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
-            />
-            <path
-              fill="#34A853"
-              d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
-            />
-            <path
-              fill="#FBBC05"
-              d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"
-            />
-            <path
-              fill="#EA4335"
-              d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
-            />
-          </svg>
-          Continue with Google
-        </Button>
-
-        <div className="relative flex items-center justify-center !my-6">
-          <div className="h-px w-full bg-yadn-primary-gray/10"></div>
-          <span className="absolute bg-[#000A1F] px-4 text-sm text-yadn-primary-gray/60">
-            Or sign up with email
-          </span>
-        </div>
-      </div> */}
-
       <div className="grid grid-cols-2 gap-4">
         <div>
           <Input
@@ -220,6 +209,8 @@ function AccountStep({
             placeholder="First Name"
             value={formData.firstName}
             onChange={handleChange}
+            onFocus={() => handleFieldFocus("firstName")}
+            onBlur={() => handleFieldBlur("firstName")}
             className={cn(
               "bg-yadn-primary-gray/5 border-yadn-primary-gray/10 text-yadn-primary-gray placeholder:text-yadn-primary-gray/40 focus:border-yadn-accent-green focus:ring-yadn-accent-green",
               errors.firstName && "border-red-500"
@@ -236,6 +227,8 @@ function AccountStep({
             placeholder="Last Name"
             value={formData.lastName}
             onChange={handleChange}
+            onFocus={() => handleFieldFocus("lastName")}
+            onBlur={() => handleFieldBlur("lastName")}
             className={cn(
               "bg-yadn-primary-gray/5 border-yadn-primary-gray/10 text-yadn-primary-gray placeholder:text-yadn-primary-gray/40 focus:border-yadn-accent-green focus:ring-yadn-accent-green",
               errors.lastName && "border-red-500"
@@ -254,6 +247,8 @@ function AccountStep({
           placeholder="Email"
           value={formData.email}
           onChange={handleChange}
+          onFocus={() => handleFieldFocus("email")}
+          onBlur={() => handleFieldBlur("email")}
           className={cn(
             "bg-yadn-primary-gray/5 border-yadn-primary-gray/10 text-yadn-primary-gray placeholder:text-yadn-primary-gray/40 focus:border-yadn-accent-green focus:ring-yadn-accent-green",
             errors.email && "border-red-500"
@@ -271,6 +266,8 @@ function AccountStep({
           placeholder="Password"
           value={formData.password}
           onChange={handleChange}
+          onFocus={() => handleFieldFocus("password")}
+          onBlur={() => handleFieldBlur("password")}
           className={cn(
             "bg-yadn-primary-gray/5 border-yadn-primary-gray/10 text-yadn-primary-gray placeholder:text-yadn-primary-gray/40 focus:border-yadn-accent-green focus:ring-yadn-accent-green pr-10",
             errors.password && "border-red-500"
@@ -278,7 +275,7 @@ function AccountStep({
         />
         <button
           type="button"
-          onClick={() => setShowPassword(!showPassword)}
+          onClick={handlePasswordToggle}
           className="absolute right-3 top-1/2 -translate-y-1/2 text-yadn-primary-gray/60 hover:text-yadn-primary-gray"
         >
           {showPassword ? (
@@ -307,6 +304,30 @@ function CompanyStep({
   handleChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
   handleSelectChange: (name: string, value: string | boolean) => void;
 }) {
+  const handleFieldFocus = (fieldName: string) => {
+    tracker.trackForm(FormEvent.FIELD_FOCUSED, {
+      form_name: "signup_form",
+      field_name: fieldName,
+      form_step: 2,
+    });
+  };
+
+  const handleFieldBlur = (fieldName: string) => {
+    tracker.trackForm(FormEvent.FIELD_BLURRED, {
+      form_name: "signup_form",
+      field_name: fieldName,
+      form_step: 2,
+    });
+  };
+
+  const handleSelectOpen = (fieldName: string) => {
+    tracker.trackInteraction(InteractionEvent.DROPDOWN_OPENED, {
+      element_type: "select",
+      element_text: fieldName,
+      interaction_context: "signup_form_step_2",
+    });
+  };
+
   return (
     <>
       {formData.googleAuth && (
@@ -328,6 +349,8 @@ function CompanyStep({
           placeholder="Company Name"
           value={formData.companyName}
           onChange={handleChange}
+          onFocus={() => handleFieldFocus("companyName")}
+          onBlur={() => handleFieldBlur("companyName")}
           className={cn(
             "bg-yadn-primary-gray/5 border-yadn-primary-gray/10 text-yadn-primary-gray placeholder:text-yadn-primary-gray/40 focus:border-yadn-accent-green focus:ring-yadn-accent-green",
             errors.companyName && "border-red-500"
@@ -344,7 +367,17 @@ function CompanyStep({
         </Label>
         <Select
           value={formData.industry}
-          onValueChange={(value) => handleSelectChange("industry", value)}
+          onValueChange={(value) => {
+            handleSelectChange("industry", value);
+            tracker.trackForm(FormEvent.FIELD_FOCUSED, {
+              form_name: "signup_form",
+              field_name: "industry",
+              form_step: 2,
+            });
+          }}
+          onOpenChange={(open) => {
+            if (open) handleSelectOpen("industry");
+          }}
         >
           <SelectTrigger
             id="industry"
@@ -380,6 +413,8 @@ function CompanyStep({
             placeholder="Specify Industry"
             value={formData.customIndustry}
             onChange={handleChange}
+            onFocus={() => handleFieldFocus("customIndustry")}
+            onBlur={() => handleFieldBlur("customIndustry")}
             className={cn(
               "bg-yadn-primary-gray/5 border-yadn-primary-gray/10 text-yadn-primary-gray placeholder:text-yadn-primary-gray/40 focus:border-yadn-accent-green focus:ring-yadn-accent-green",
               errors.customIndustry && "border-red-500"
@@ -397,7 +432,17 @@ function CompanyStep({
         </Label>
         <Select
           value={formData.position}
-          onValueChange={(value) => handleSelectChange("position", value)}
+          onValueChange={(value) => {
+            handleSelectChange("position", value);
+            tracker.trackForm(FormEvent.FIELD_FOCUSED, {
+              form_name: "signup_form",
+              field_name: "position",
+              form_step: 2,
+            });
+          }}
+          onOpenChange={(open) => {
+            if (open) handleSelectOpen("position");
+          }}
         >
           <SelectTrigger
             id="position"
@@ -433,6 +478,8 @@ function CompanyStep({
             placeholder="Specify Position"
             value={formData.customPosition}
             onChange={handleChange}
+            onFocus={() => handleFieldFocus("customPosition")}
+            onBlur={() => handleFieldBlur("customPosition")}
             className={cn(
               "bg-yadn-primary-gray/5 border-yadn-primary-gray/10 text-yadn-primary-gray placeholder:text-yadn-primary-gray/40 focus:border-yadn-accent-green focus:ring-yadn-accent-green",
               errors.customPosition && "border-red-500"
@@ -450,7 +497,17 @@ function CompanyStep({
         </Label>
         <Select
           value={formData.companySize}
-          onValueChange={(value) => handleSelectChange("companySize", value)}
+          onValueChange={(value) => {
+            handleSelectChange("companySize", value);
+            tracker.trackForm(FormEvent.FIELD_FOCUSED, {
+              form_name: "signup_form",
+              field_name: "companySize",
+              form_step: 2,
+            });
+          }}
+          onOpenChange={(open) => {
+            if (open) handleSelectOpen("companySize");
+          }}
         >
           <SelectTrigger
             id="companySize"
@@ -486,6 +543,8 @@ function CompanyStep({
             placeholder="Specify Company Size"
             value={formData.customCompanySize}
             onChange={handleChange}
+            onFocus={() => handleFieldFocus("customCompanySize")}
+            onBlur={() => handleFieldBlur("customCompanySize")}
             className={cn(
               "bg-yadn-primary-gray/5 border-yadn-primary-gray/10 text-yadn-primary-gray placeholder:text-yadn-primary-gray/40 focus:border-yadn-accent-green focus:ring-yadn-accent-green",
               errors.customCompanySize && "border-red-500"
@@ -537,6 +596,35 @@ function PaymentStep({
     );
   };
 
+  const handlePaymentMethodChange = (value: string) => {
+    handleSelectChange("paymentMethod", value);
+    tracker.trackForm(FormEvent.PAYMENT_METHOD_SELECTED, {
+      form_name: "signup_form",
+      form_step: 3,
+      payment_method: value,
+    });
+  };
+
+  const handleTermsChange = (checked: boolean) => {
+    setFormData((prev) => ({
+      ...prev,
+      agreeToTerms: checked,
+    }));
+
+    tracker.trackInteraction(InteractionEvent.BUTTON_CLICK, {
+      element_type: "checkbox",
+      element_text: "agree_to_terms",
+      interaction_context: "signup_form_step_3",
+    });
+
+    if (checked && errors.agreeToTerms) {
+      setErrors((prev: FormErrors) => ({
+        ...prev,
+        agreeToTerms: undefined,
+      }));
+    }
+  };
+
   return (
     <>
       <div className="space-y-4">
@@ -544,7 +632,7 @@ function PaymentStep({
 
         <RadioGroup
           value={formData.paymentMethod}
-          onValueChange={(value) => handleSelectChange("paymentMethod", value)}
+          onValueChange={handlePaymentMethodChange}
           className="space-y-3"
         >
           <div
@@ -608,12 +696,18 @@ function PaymentStep({
               Payment details will be collected securely
             </p>
 
-            {/* This is a placeholder for payment form - would be replaced with actual payment processor */}
             <div className="space-y-4">
               <Input
                 type="text"
                 placeholder="Card Number"
                 className="bg-yadn-primary-gray/5 border-yadn-primary-gray/10 text-yadn-primary-gray placeholder:text-yadn-primary-gray/40 focus:border-yadn-accent-green focus:ring-yadn-accent-green"
+                onFocus={() => {
+                  tracker.trackForm(FormEvent.FIELD_FOCUSED, {
+                    form_name: "signup_form",
+                    field_name: "card_number",
+                    form_step: 3,
+                  });
+                }}
               />
 
               <div className="grid grid-cols-2 gap-4">
@@ -621,11 +715,25 @@ function PaymentStep({
                   type="text"
                   placeholder="MM/YY"
                   className="bg-yadn-primary-gray/5 border-yadn-primary-gray/10 text-yadn-primary-gray placeholder:text-yadn-primary-gray/40 focus:border-yadn-accent-green focus:ring-yadn-accent-green"
+                  onFocus={() => {
+                    tracker.trackForm(FormEvent.FIELD_FOCUSED, {
+                      form_name: "signup_form",
+                      field_name: "card_expiry",
+                      form_step: 3,
+                    });
+                  }}
                 />
                 <Input
                   type="text"
                   placeholder="CVC"
                   className="bg-yadn-primary-gray/5 border-yadn-primary-gray/10 text-yadn-primary-gray placeholder:text-yadn-primary-gray/40 focus:border-yadn-accent-green focus:ring-yadn-accent-green"
+                  onFocus={() => {
+                    tracker.trackForm(FormEvent.FIELD_FOCUSED, {
+                      form_name: "signup_form",
+                      field_name: "card_cvc",
+                      form_step: 3,
+                    });
+                  }}
                 />
               </div>
 
@@ -666,7 +774,6 @@ function PaymentStep({
                             padding: "15px 20px",
                             backgroundColor: "transparent",
                             position: "relative",
-                            // width: "300px",
                           }}
                           className="flex items-center justify-between"
                         >
@@ -680,6 +787,13 @@ function PaymentStep({
                               maxLength={8}
                               className="sr-only"
                               aria-label="Promo code"
+                              onFocus={() => {
+                                tracker.trackForm(FormEvent.FIELD_FOCUSED, {
+                                  form_name: "signup_form",
+                                  field_name: "promo_code",
+                                  form_step: 3,
+                                });
+                              }}
                             />
                           </div>
                           <div
@@ -700,7 +814,6 @@ function PaymentStep({
                           </div>
                         </div>
 
-                        {/* Promo code status message */}
                         {promoStatus && (
                           <div
                             className={cn(
@@ -745,21 +858,7 @@ function PaymentStep({
           id="terms"
           name="agreeToTerms"
           checked={formData.agreeToTerms}
-          onCheckedChange={(checked) => {
-            // Update form data directly
-            setFormData((prev) => ({
-              ...prev,
-              agreeToTerms: checked === true,
-            }));
-
-            // Clear the error when checked
-            if (checked === true && errors.agreeToTerms) {
-              setErrors((prev: FormErrors) => ({
-                ...prev,
-                agreeToTerms: undefined,
-              }));
-            }
-          }}
+          onCheckedChange={handleTermsChange}
           className={cn(
             "border-yadn-primary-gray/30 data-[state=checked]:bg-yadn-accent-green data-[state=checked]:border-yadn-accent-green",
             formSubmitted && errors.agreeToTerms && "border-red-500"
@@ -770,6 +869,13 @@ function PaymentStep({
           <Link
             href="/terms"
             className="text-yadn-accent-green hover:underline"
+            onClick={() => {
+              tracker.trackInteraction(InteractionEvent.LINK_CLICK, {
+                element_type: "link",
+                element_text: "Terms of Service",
+                interaction_context: "signup_form_step_3",
+              });
+            }}
           >
             Terms of Service
           </Link>{" "}
@@ -777,6 +883,13 @@ function PaymentStep({
           <Link
             href="/privacy"
             className="text-yadn-accent-green hover:underline"
+            onClick={() => {
+              tracker.trackInteraction(InteractionEvent.LINK_CLICK, {
+                element_type: "link",
+                element_text: "Privacy Policy",
+                interaction_context: "signup_form_step_3",
+              });
+            }}
           >
             Privacy Policy
           </Link>
@@ -818,6 +931,7 @@ export default function SignupForm({ googleData }: SignupFormProps) {
   const [showPassword, setShowPassword] = useState(false);
   const [errors, setErrors] = useState<FormErrors>({});
   const [formSubmitted, setFormSubmitted] = useState(false);
+  const [formStartTime, setFormStartTime] = useState<number>(Date.now());
   const promoInputRef = useRef<HTMLInputElement>(null);
 
   // Promo code validation states
@@ -829,27 +943,90 @@ export default function SignupForm({ googleData }: SignupFormProps) {
 
   const { signUp, checkIfEmailExists } = useUser();
 
+  // Track form initialization
+  useEffect(() => {
+    tracker.trackForm(FormEvent.FORM_STARTED, {
+      form_name: "signup_form",
+      form_step: currentStep,
+      total_steps: 3,
+    });
+
+    if (fromGoogle) {
+      tracker.trackAuth(AuthEvent.SIGNUP_STARTED, {
+        auth_method: "google",
+        step: 2,
+        total_steps: 3,
+        email_domain: googleData?.email?.split("@")[1],
+      });
+    } else {
+      tracker.trackAuth(AuthEvent.SIGNUP_STARTED, {
+        auth_method: "email",
+        step: 1,
+        total_steps: 3,
+      });
+    }
+
+    setFormStartTime(Date.now());
+  }, []);
+
+  // Track validation errors
+  useEffect(() => {
+    if (Object.keys(errors).length > 0) {
+      const validationErrors = Object.entries(errors).map(
+        ([field, error]) => `${field}: ${error?.message || error}`
+      );
+
+      tracker.trackForm(FormEvent.FORM_VALIDATION_ERROR, {
+        form_name: "signup_form",
+        validation_errors: validationErrors,
+        form_step: currentStep,
+      });
+
+      // Track individual field errors
+      Object.entries(errors).forEach(([fieldName, error]) => {
+        if (error) {
+          errorTracker.trackValidationError(
+            "signup_form",
+            fieldName,
+            typeof error === "string"
+              ? error
+              : typeof error === "object" &&
+                  error !== null &&
+                  "message" in error
+                ? (error as { message: string }).message
+                : "Validation error"
+          );
+        }
+      });
+    }
+  }, [errors, currentStep]);
+
   // Handle input change
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value, type, checked } = e.target;
 
     if (name === "promoCode") {
-      // Limit to 6 characters and uppercase
       const formattedValue = value.toUpperCase().slice(0, 8);
       setFormData((prev) => ({
         ...prev,
         [name]: formattedValue,
       }));
 
-      // Reset promo status when user changes the code
+      // Track promo code entry
+      if (formattedValue.length > 0) {
+        tracker.trackForm(FormEvent.PROMO_CODE_ENTERED, {
+          form_name: "signup_form",
+          form_step: 3,
+          promo_code: formattedValue,
+        });
+      }
+
       setPromoStatus(null);
 
-      // Debounce promo code validation
       if (promoValidationTimeout) {
         clearTimeout(promoValidationTimeout);
       }
 
-      // Only validate if we have a complete 6-character code
       if (formattedValue.length === 8) {
         const timeout = setTimeout(() => {
           validatePromoCodeInput(formattedValue);
@@ -893,6 +1070,13 @@ export default function SignupForm({ googleData }: SignupFormProps) {
           error: "Invalid or expired promo code",
           errorType: "invalid",
         });
+
+        tracker.trackForm(FormEvent.PROMO_CODE_VALIDATED, {
+          form_name: "signup_form",
+          form_step: 3,
+          promo_code: code,
+          error_message: "Invalid or expired promo code",
+        });
         return;
       }
 
@@ -903,10 +1087,17 @@ export default function SignupForm({ googleData }: SignupFormProps) {
           error: "This promo code has expired",
           errorType: "expired",
         });
+
+        tracker.trackForm(FormEvent.PROMO_CODE_VALIDATED, {
+          form_name: "signup_form",
+          form_step: 3,
+          promo_code: code,
+          error_message: "Promo code expired",
+        });
         return;
       }
 
-      // Check if promo code has reached its max usage limit (only if max_uses is set)
+      // Check if promo code has reached its max usage limit
       if (data.max_uses !== null) {
         const { count: totalUsageCount } = await supabase
           .from("user_subscription")
@@ -919,6 +1110,13 @@ export default function SignupForm({ googleData }: SignupFormProps) {
             error: "This promo code has reached its maximum usage limit",
             errorType: "maxUsed",
           });
+
+          tracker.trackForm(FormEvent.PROMO_CODE_VALIDATED, {
+            form_name: "signup_form",
+            form_step: 3,
+            promo_code: code,
+            error_message: "Max usage reached",
+          });
           return;
         }
       }
@@ -927,12 +1125,10 @@ export default function SignupForm({ googleData }: SignupFormProps) {
       const emailDomain = userEmail.split("@")[1];
       let isEmailValid = false;
 
-      // If promo code has allowed emails, check if user's email is in the list
       if (data.allowed_emails && data.allowed_emails.length > 0) {
         isEmailValid = data.allowed_emails.includes(userEmail);
       }
 
-      // If promo code is domain specific, check if user's domain is allowed
       if (
         data.is_domain_specific &&
         data.allowed_domains &&
@@ -941,7 +1137,6 @@ export default function SignupForm({ googleData }: SignupFormProps) {
         isEmailValid = data.allowed_domains.includes(emailDomain);
       }
 
-      // If neither allowed_emails nor allowed_domains are set, the promo code is unrestricted
       if (
         (!data.allowed_emails || data.allowed_emails.length === 0) &&
         (!data.is_domain_specific ||
@@ -952,19 +1147,22 @@ export default function SignupForm({ googleData }: SignupFormProps) {
       }
 
       if (!isEmailValid) {
-        if (data.is_domain_specific) {
-          setPromoStatus({
-            isValid: false,
-            error: "This promo code is not valid for your email domain",
-            errorType: "invalidDomain",
-          });
-        } else {
-          setPromoStatus({
-            isValid: false,
-            error: "This promo code is not valid for your email",
-            errorType: "invalidEmail",
-          });
-        }
+        const errorMessage = data.is_domain_specific
+          ? "This promo code is not valid for your email domain"
+          : "This promo code is not valid for your email";
+
+        setPromoStatus({
+          isValid: false,
+          error: errorMessage,
+          errorType: data.is_domain_specific ? "invalidDomain" : "invalidEmail",
+        });
+
+        tracker.trackForm(FormEvent.PROMO_CODE_VALIDATED, {
+          form_name: "signup_form",
+          form_step: 3,
+          promo_code: code,
+          error_message: errorMessage,
+        });
         return;
       }
 
@@ -976,13 +1174,26 @@ export default function SignupForm({ googleData }: SignupFormProps) {
         errorType: null,
         error: null,
       });
-    } catch (error) {
+
+      tracker.trackForm(FormEvent.PROMO_CODE_VALIDATED, {
+        form_name: "signup_form",
+        form_step: 3,
+        promo_code: code,
+        discount: data.subscription.title,
+      });
+    } catch (error: any) {
       console.error("Error validating promo code:", error);
       setPromoStatus({
         isValid: false,
         error: "Error validating promo code",
         errorType: "error",
       });
+
+      errorTracker.trackAPIError(
+        "/promo_code",
+        error.message || "Error validating promo code",
+        500
+      );
     } finally {
       setIsValidatingPromo(false);
     }
@@ -1074,25 +1285,54 @@ export default function SignupForm({ googleData }: SignupFormProps) {
     }
 
     if (isValid) {
-      setCurrentStep((prev) => prev + 1);
+      const nextStep = currentStep + 1;
+      setCurrentStep(nextStep);
+
+      // Track step completion
+      tracker.trackAuth(AuthEvent.SIGNUP_STEP_COMPLETED, {
+        auth_method: formData.googleAuth ? "google" : "email",
+        step: currentStep,
+        total_steps: 3,
+      });
+
+      tracker.trackForm(FormEvent.STEP_NAVIGATION, {
+        form_name: "signup_form",
+        form_step: nextStep,
+        navigation_direction: "forward",
+      });
     }
   };
 
   // Handle previous step
   const handlePrevStep = () => {
-    // If user came from Google auth and tries to go back from step 2,
-    // redirect to sign in page instead of showing step 1
+    // Track back button click
+    tracker.trackInteraction(InteractionEvent.BUTTON_CLICK, {
+      element_type: "button",
+      element_text: "Back",
+      interaction_context: `signup_form_step_${currentStep}`,
+    });
+
     if (currentStep === 2 && formData.googleAuth) {
       router.push("/");
     } else {
-      setCurrentStep((prev) => prev - 1);
+      const prevStep = currentStep - 1;
+      setCurrentStep(prevStep);
+
+      tracker.trackForm(FormEvent.STEP_NAVIGATION, {
+        form_name: "signup_form",
+        form_step: prevStep,
+        navigation_direction: "backward",
+      });
     }
   };
 
   // Handle Google sign in
   const handleGoogleSignIn = () => {
-    // In a real application, this would redirect to Google OAuth
-    // For demonstration, we'll simulate a successful Google sign-in
+    tracker.trackInteraction(InteractionEvent.BUTTON_CLICK, {
+      element_type: "button",
+      element_text: "Continue with Google",
+      interaction_context: "signup_form_step_1",
+    });
 
     // Simulate Google auth data
     const mockGoogleData = {
@@ -1101,7 +1341,6 @@ export default function SignupForm({ googleData }: SignupFormProps) {
       lastName: "Doe",
     };
 
-    // Update form data with Google info
     setFormData({
       ...initialFormData,
       email: mockGoogleData.email,
@@ -1110,19 +1349,16 @@ export default function SignupForm({ googleData }: SignupFormProps) {
       googleAuth: true,
     });
 
-    // Skip to step 2
     setCurrentStep(2);
-
-    // In a real app, you would redirect to Google OAuth:
-    // window.location.href = '/api/auth/google'
   };
 
-  // Ensure email validation and existence check
+  // Email validation
   const validateEmail = async (email: string) => {
     if (!/\S+@\S+\.\S+/.test(email)) {
       setErrors((prev: FormErrors) => ({ ...prev, email: "Email is invalid" }));
       return false;
     }
+
     const emailExists = await checkIfEmailExists(email);
     if (emailExists) {
       setErrors((prev: FormErrors) => ({
@@ -1134,10 +1370,19 @@ export default function SignupForm({ googleData }: SignupFormProps) {
     return true;
   };
 
-  // Update handleSubmit to use validateEmail
+  // Handle form submission
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setFormSubmitted(true);
+
+    // Track form submission attempt
+    tracker.trackForm(FormEvent.FORM_SUBMITTED, {
+      form_name: "signup_form",
+      form_duration: Date.now() - formStartTime,
+      form_step: 3,
+      payment_method: formData.paymentMethod,
+      promo_code: formData.promoCode,
+    });
 
     if ((await validateEmail(formData.email)) && validateStep3()) {
       const signupData = {
@@ -1175,7 +1420,6 @@ export default function SignupForm({ googleData }: SignupFormProps) {
           promoStatus.promoCodeData &&
           promoStatus.subscription
         ) {
-          // Create subscription for the user after successful signup
           const startDate = new Date();
           const endDate = new Date();
           endDate.setDate(
@@ -1196,6 +1440,12 @@ export default function SignupForm({ googleData }: SignupFormProps) {
 
           if (subscriptionError) {
             console.error("Error creating subscription:", subscriptionError);
+            errorTracker.trackAPIError(
+              "/user_subscription",
+              subscriptionError.message,
+              500,
+              { userId: user.id }
+            );
             toast.error("Error creating subscription. Please contact support.");
           } else {
             console.log("Subscription created successfully!");
@@ -1207,10 +1457,9 @@ export default function SignupForm({ googleData }: SignupFormProps) {
         } else {
           console.log("Form submitted with data:", formData);
           toast.success("Signup successful! Please confirm your email.");
-          // Redirect to dashboard or success page
           window.location.href = "/auth/login";
         }
-      } catch (error) {
+      } catch (error: any) {
         setErrors((prev: FormErrors) => ({
           ...prev,
           submit: "An error occurred. Please try again.",
@@ -1254,7 +1503,6 @@ export default function SignupForm({ googleData }: SignupFormProps) {
                     : currentStep > step
                       ? "bg-yadn-accent-green text-[#000A1F]"
                       : "bg-yadn-primary-gray/10 text-yadn-primary-gray/60",
-                  // If from Google and step is 1, show it as completed
                   formData.googleAuth && step === 1
                     ? "bg-yadn-accent-green text-[#000A1F]"
                     : ""
@@ -1332,6 +1580,13 @@ export default function SignupForm({ googleData }: SignupFormProps) {
             <Link
               href="/auth/login"
               className="flex items-center text-yadn-primary-gray/60 hover:text-yadn-primary-gray text-sm"
+              onClick={() => {
+                tracker.trackInteraction(InteractionEvent.LINK_CLICK, {
+                  element_type: "link",
+                  element_text: "Back to Sign In",
+                  interaction_context: "signup_form_step_1",
+                });
+              }}
             >
               <ArrowLeft className="mr-2 h-4 w-4" /> Back to Sign In
             </Link>
@@ -1355,6 +1610,13 @@ export default function SignupForm({ googleData }: SignupFormProps) {
                   formData.promoCode.length === 8 &&
                   promoStatus?.isValid === false)
               }
+              onClick={() => {
+                tracker.trackInteraction(InteractionEvent.BUTTON_CLICK, {
+                  element_type: "button",
+                  element_text: "Sign Up",
+                  interaction_context: "signup_form_step_3",
+                });
+              }}
             >
               Sign Up
             </Button>

@@ -1,10 +1,14 @@
-import { redirect } from "next/navigation";
+import { User } from "@/types/auth";
 import { createContext, useContext, useEffect, useState } from "react";
 import { toast } from "react-hot-toast";
+import { z } from "zod";
 import { supabase } from "../supabase/client";
 import { SignupFormData } from "../types/forms.types";
-import { User } from "@/types/auth";
-import { z } from "zod";
+// Import tracking utilities
+import { errorTracker } from "@/lib/posthog/errors";
+import { AuthEvent } from "@/lib/posthog/events";
+import { sessionManager } from "@/lib/posthog/session";
+import { tracker } from "@/lib/posthog/tracker";
 
 // Define Zod schema and type for profile completion (can be imported from the form component or a types file)
 // For now, defining it here for clarity in this step.
@@ -52,17 +56,39 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
 
   const fetchUserData = async (userId: string | undefined) => {
     if (!userId) return;
-    const { data, error } = await supabase
-      .from("user")
-      .select("*")
-      .eq("id", userId)
-      .single();
-    if (error) {
-      console.log("---- error while fetching user ----", error);
-    }
 
-    setUser(data);
-    return data;
+    try {
+      const { data, error } = await supabase
+        .from("user")
+        .select("*")
+        .eq("id", userId)
+        .single();
+
+      if (error) {
+        console.log("---- error while fetching user ----", error);
+        errorTracker.trackAPIError("/user", error.message, 500, {
+          userId,
+          action: "fetch_user_data",
+        });
+      }
+
+      setUser(data);
+
+      // Update session with user info if data exists
+      if (data) {
+        sessionManager.setUser(data.id, data.email);
+      }
+
+      return data;
+    } catch (error: any) {
+      errorTracker.trackAPIError(
+        "/user",
+        error.message || "Failed to fetch user data",
+        500,
+        { userId, action: "fetch_user_data" }
+      );
+      throw error;
+    }
   };
 
   useEffect(() => {
@@ -76,7 +102,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
 
         const {
           data: { subscription },
-        } = supabase.auth.onAuthStateChange(async (_event, session) => {
+        } = supabase.auth.onAuthStateChange(async (event, session) => {
           if (session?.user) {
             setTimeout(async () => {
               const fetchedUser = await fetchUserData(session?.user?.id);
@@ -92,12 +118,20 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
               //   window.location.href = "/auth/complete-profile";
               // }
             });
+          } else {
+            // User logged out or session ended, clear everything properly
+            setUser(null);
+            sessionManager.clearUser();
           }
         });
 
         return () => subscription.unsubscribe();
-      } catch (error) {
+      } catch (error: any) {
         console.error("Error getting user:", error);
+        errorTracker.trackSystemError(
+          error.message || "Failed to initialize user session",
+          "UserProvider"
+        );
       } finally {
         setLoading(false);
       }
@@ -106,6 +140,12 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
   }, [supabase]);
 
   const signUp = async (data: SignupFormData, password: string) => {
+    // Track signup start
+    tracker.trackAuth(AuthEvent.SIGNUP_STARTED, {
+      auth_method: "email",
+      email_domain: data?.personalInfo?.email?.split("@")[1],
+    });
+
     const userAdditionalAttributes = {
       email: data?.personalInfo?.email as string,
       username: data?.personalInfo?.username,
@@ -118,126 +158,293 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
     };
 
     const origin = window.location.origin;
-    const { data: signupUser, error } = await supabase.auth.signUp({
-      email: data?.personalInfo?.email as string,
-      password,
 
-      options: {
-        emailRedirectTo: `${origin}/auth/callback`,
-        data: userAdditionalAttributes,
-      },
-    });
+    try {
+      const { data: signupUser, error } = await supabase.auth.signUp({
+        email: data?.personalInfo?.email as string,
+        password,
+        options: {
+          emailRedirectTo: `${origin}/auth/callback`,
+          data: userAdditionalAttributes,
+        },
+      });
 
-    if (error) {
-      toast.error(error.message ?? "Sign up failed. Please try again later.");
-      return { error: error.message, user: null };
+      if (error) {
+        // Track signup failure
+        tracker.trackAuth(AuthEvent.SIGNUP_FAILED, {
+          auth_method: "email",
+          error_message: error.message,
+          email_domain: data?.personalInfo?.email?.split("@")[1],
+        });
+
+        errorTracker.trackAuthenticationError("email_signup", error.message, {
+          formData: userAdditionalAttributes,
+        });
+
+        toast.error(error.message ?? "Sign up failed. Please try again later.");
+        return { error: error.message, user: null };
+      }
+
+      // Track successful signup
+      tracker.trackAuth(AuthEvent.SIGNUP_COMPLETED, {
+        auth_method: "email",
+        email_domain: data?.personalInfo?.email?.split("@")[1],
+      });
+
+      toast.success(
+        "Success. Please check your email for a verification link."
+      );
+      return {
+        error: null,
+        user: signupUser?.user,
+      };
+    } catch (error: any) {
+      tracker.trackAuth(AuthEvent.SIGNUP_FAILED, {
+        auth_method: "email",
+        error_message: error.message || "Network error",
+        email_domain: data?.personalInfo?.email?.split("@")[1],
+      });
+
+      errorTracker.trackNetworkError(
+        "/auth/signup",
+        error.message || "Network error during signup"
+      );
+
+      throw error;
     }
-
-    toast.success("Success. Please check your email for a verification link.");
-    return {
-      error: null,
-      user: signupUser?.user,
-    };
   };
 
   const checkIfEmailExists = async (email: string) => {
-    const { data, error } = await supabase
-      .from("user")
-      .select("*")
-      .eq("email", email);
+    try {
+      const { data, error } = await supabase
+        .from("user")
+        .select("*")
+        .eq("email", email);
 
-    if (error) {
-      toast.error("Error checking email");
+      if (error) {
+        errorTracker.trackAPIError("/user", error.message, 500, {
+          action: "check_email_exists",
+        });
+        toast.error("Error checking email");
+        return false;
+      }
+
+      return data.length > 0;
+    } catch (error: any) {
+      errorTracker.trackNetworkError(
+        "/user",
+        error.message || "Failed to check email existence"
+      );
       return false;
     }
-
-    return data.length > 0;
   };
 
   const signIn = async (email: string, password: string) => {
-    const { error, data: signInData } = await supabase.auth.signInWithPassword({
-      email,
-      password,
+    // Track login start
+    tracker.trackAuth(AuthEvent.LOGIN_STARTED, {
+      auth_method: "email",
+      email_domain: email.split("@")[1],
     });
 
-    if (error) {
-      toast.error(error.message);
+    try {
+      const { error, data: signInData } =
+        await supabase.auth.signInWithPassword({
+          email,
+          password,
+        });
+
+      if (error) {
+        // Track login failure
+        tracker.trackAuth(AuthEvent.LOGIN_FAILED, {
+          auth_method: "email",
+          error_message: error.message,
+          email_domain: email.split("@")[1],
+        });
+
+        errorTracker.trackAuthenticationError("email_login", error.message, {
+          formData: { email },
+        });
+
+        toast.error(error.message);
+        throw error;
+      }
+
+      if (signInData?.user) {
+        await fetchUserData(signInData.user.id);
+
+        // Track successful login
+        tracker.trackAuth(AuthEvent.LOGIN_COMPLETED, {
+          auth_method: "email",
+          email_domain: email.split("@")[1],
+        });
+
+        // if (
+        //   fetchedUser &&
+        //   !fetchedUser.onboarding_completed &&
+        //   !window.location.pathname.startsWith("/auth/complete-profile")
+        // ) {
+        //   window.location.href = "/auth/complete-profile";
+        //   return;
+        // }
+      }
+
+      window.location.href = "/protected";
+    } catch (error: any) {
+      if (!error.message?.includes("Invalid login credentials")) {
+        errorTracker.trackNetworkError(
+          "/auth/signin",
+          error.message || "Network error during login"
+        );
+      }
       throw error;
     }
-
-    if (signInData?.user) {
-      await fetchUserData(signInData.user.id);
-      // if (
-      //   fetchedUser &&
-      //   !fetchedUser.onboarding_completed &&
-      //   !window.location.pathname.startsWith("/auth/complete-profile")
-      // ) {
-      //   window.location.href = "/auth/complete-profile";
-      //   return;
-      // }
-    }
-
-    window.location.href = "/protected";
   };
 
   const signInWithGoogle = async () => {
-    const { error, data } = await supabase.auth.signInWithOAuth({
-      provider: "google",
-      options: {
-        redirectTo: `${process.env.NEXT_PUBLIC_SERVER_URL}/auth/callback`,
-      },
+    // Track Google auth start
+    tracker.trackAuth(AuthEvent.GOOGLE_AUTH_STARTED, {
+      auth_method: "google",
     });
 
-    if (error) {
-      toast.error("Google sign-in failed");
-      throw error;
-    }
+    try {
+      const { error, data } = await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: {
+          redirectTo: `${process.env.NEXT_PUBLIC_SERVER_URL}/auth/callback`,
+        },
+      });
 
-    // The actual redirection to Google will happen here.
-    // The onboarding check will occur in onAuthStateChange after Google redirects back.
-    if (data.url) {
-      window.location.href = data.url;
+      if (error) {
+        // Track Google auth failure
+        tracker.trackAuth(AuthEvent.GOOGLE_AUTH_FAILED, {
+          auth_method: "google",
+          error_message: error.message,
+        });
+
+        errorTracker.trackAuthenticationError("google_auth", error.message);
+
+        toast.error("Google sign-in failed");
+        throw error;
+      }
+
+      // The actual redirection to Google will happen here.
+      // The onboarding check will occur in onAuthStateChange after Google redirects back.
+      if (data.url) {
+        window.location.href = data.url;
+      }
+    } catch (error: any) {
+      errorTracker.trackNetworkError(
+        "/auth/google",
+        error.message || "Network error during Google auth"
+      );
+      throw error;
     }
   };
 
   const signOut = async () => {
-    // Clear recent documents from localStorage
-    localStorage.removeItem("recentDocuments");
+    try {
+      // Track logout BEFORE clearing user data so we still have user context
+      tracker.trackAuth(AuthEvent.LOGOUT, {
+        auth_method: user ? "authenticated" : "anonymous",
+      });
 
-    await supabase.auth.signOut();
-    setUser(null);
+      // Clear recent documents from localStorage
+      localStorage.removeItem("recentDocuments");
 
-    window.location.href = "/auth/login";
+      // Sign out from Supabase
+      await supabase.auth.signOut();
+
+      // Clear user state
+      setUser(null);
+
+      // This will reset PostHog identity and start a new anonymous session
+      sessionManager.clearUser();
+
+      // Redirect to login
+      window.location.href = "/auth/login";
+    } catch (error: any) {
+      errorTracker.trackSystemError(
+        error.message || "Failed to sign out",
+        "signOut"
+      );
+      throw error;
+    }
   };
 
   const forgotPassword = async (email: string) => {
-    const origin = window.location.origin;
-    const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${origin}/auth/callback?redirect_to=/protected/reset-password`,
+    // Track password reset request
+    tracker.trackAuth(AuthEvent.PASSWORD_RESET_REQUESTED, {
+      auth_method: "email",
+      email_domain: email.split("@")[1],
     });
 
-    if (error) {
-      toast.error("Could not reset password");
-      return { error: error.message };
-    }
+    const origin = window.location.origin;
 
-    toast.success("Check your email for a link to reset your password.");
-    return {};
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${origin}/auth/callback?redirect_to=/protected/reset-password`,
+      });
+
+      if (error) {
+        errorTracker.trackAuthenticationError("password_reset", error.message, {
+          formData: { email },
+        });
+
+        toast.error("Could not reset password");
+        return { error: error.message };
+      }
+
+      toast.success("Check your email for a link to reset your password.");
+      return {};
+    } catch (error: any) {
+      errorTracker.trackNetworkError(
+        "/auth/reset-password",
+        error.message || "Network error during password reset"
+      );
+      throw error;
+    }
   };
 
   const resetPassword = async (password: string, confirmPassword: string) => {
     if (password !== confirmPassword) {
-      toast.error("Passwords do not match");
-      return { error: "Passwords do not match" };
+      const errorMessage = "Passwords do not match";
+      errorTracker.trackValidationError(
+        "reset_password_form",
+        "password_confirmation",
+        errorMessage,
+        { userId: user?.id }
+      );
+
+      toast.error(errorMessage);
+      return { error: errorMessage };
     }
 
-    const { error } = await supabase.auth.updateUser({
-      password: password,
-    });
+    try {
+      const { error } = await supabase.auth.updateUser({
+        password: password,
+      });
 
-    if (error) {
-      toast.error("Password update failed");
-      throw new Error(error?.message || "Failed to update password");
+      if (error) {
+        errorTracker.trackAuthenticationError(
+          "password_update",
+          error.message,
+          { userId: user?.id }
+        );
+
+        toast.error("Password update failed");
+        throw new Error(error?.message || "Failed to update password");
+      }
+
+      // Track successful password reset
+      tracker.trackAuth(AuthEvent.PASSWORD_RESET_COMPLETED, {
+        auth_method: "email",
+      });
+    } catch (error: any) {
+      errorTracker.trackNetworkError(
+        "/auth/update-password",
+        error.message || "Network error during password update"
+      );
+      throw error;
     }
   };
 
@@ -247,8 +454,16 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
         data: { session },
       } = await supabase.auth.getSession();
       await fetchUserData(session?.user?.id);
-    } catch (error) {
+
+      if (session?.user) {
+        sessionManager.extendSession();
+      }
+    } catch (error: any) {
       console.error("Error refreshing session:", error);
+      errorTracker.trackSystemError(
+        error.message || "Failed to refresh session",
+        "refreshSession"
+      );
     }
   };
 
@@ -264,20 +479,33 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
       role: user.role || "user",
     };
 
-    const { error } = await supabase
-      .from("user")
-      .update(updates)
-      .eq("id", user.id);
+    try {
+      const { error } = await supabase
+        .from("user")
+        .update(updates)
+        .eq("id", user.id);
 
-    if (error) {
-      console.error("Error updating user profile:", error);
-      toast.error(error.message || "Failed to update profile.");
+      if (error) {
+        console.error("Error updating user profile:", error);
+        errorTracker.trackAPIError("/user", error.message, 500, {
+          userId: user.id,
+          action: "profile_completion",
+        });
+
+        toast.error(error.message || "Failed to update profile.");
+        throw error;
+      }
+
+      await fetchUserData(user.id);
+      toast.success("Profile updated successfully!");
+      window.location.href = "/protected";
+    } catch (error: any) {
+      errorTracker.trackNetworkError(
+        "/user",
+        error.message || "Network error during profile update"
+      );
       throw error;
     }
-
-    await fetchUserData(user.id);
-    toast.success("Profile updated successfully!");
-    window.location.href = "/protected";
   };
 
   return (

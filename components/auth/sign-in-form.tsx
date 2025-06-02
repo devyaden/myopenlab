@@ -4,14 +4,16 @@ import { InputWithIcon } from "@/components/input-with-icon";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useUser } from "@/lib/contexts/userContext";
+import { errorTracker } from "@/lib/posthog/errors";
+import { FormEvent, InteractionEvent } from "@/lib/posthog/events";
+import { tracker } from "@/lib/posthog/tracker";
 import { zodResolver } from "@hookform/resolvers/zod";
-import Image from "next/image";
+import { Loader2 } from "lucide-react";
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import toast from "react-hot-toast";
 import * as z from "zod";
-import { Loader2 } from "lucide-react";
 
 const loginSchema = z.object({
   email: z.string().email("Please enter a valid email address"),
@@ -25,12 +27,14 @@ export default function SignInForm() {
   const [rememberMe, setRememberMe] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
+  const [formStartTime, setFormStartTime] = useState<number>(Date.now());
   const { signIn, signInWithGoogle } = useUser();
 
   const {
     control,
     handleSubmit,
     formState: { errors },
+    setError,
   } = useForm<LoginFormData>({
     resolver: zodResolver(loginSchema),
     defaultValues: {
@@ -39,60 +43,117 @@ export default function SignInForm() {
     },
   });
 
+  // Track form start when component mounts
+  useEffect(() => {
+    tracker.trackForm(FormEvent.FORM_STARTED, {
+      form_name: "signin_form",
+      form_step: 1,
+    });
+    setFormStartTime(Date.now());
+  }, []);
+
+  // Track validation errors
+  useEffect(() => {
+    if (Object.keys(errors).length > 0) {
+      const validationErrors = Object.entries(errors).map(
+        ([field, error]) => `${field}: ${error?.message}`
+      );
+
+      tracker.trackForm(FormEvent.FORM_VALIDATION_ERROR, {
+        form_name: "signin_form",
+        validation_errors: validationErrors,
+        form_step: 1,
+      });
+
+      // Track individual field errors
+      Object.entries(errors).forEach(([fieldName, error]) => {
+        if (error?.message) {
+          errorTracker.trackValidationError(
+            "signin_form",
+            fieldName,
+            error.message
+          );
+        }
+      });
+    }
+  }, [errors]);
+
   const onSubmit = async (data: LoginFormData) => {
     setIsLoading(true);
+
+    // Track form submission
+    tracker.trackForm(FormEvent.FORM_SUBMITTED, {
+      form_name: "signin_form",
+      form_duration: Date.now() - formStartTime,
+      form_step: 1,
+    });
+
     try {
       await signIn(data.email, data.password);
       toast.success("Successfully logged in!");
     } catch (error: any) {
+      // Track form submission error
+      tracker.trackForm(FormEvent.FORM_VALIDATION_ERROR, {
+        form_name: "signin_form",
+        error_message: error.message,
+        validation_errors: [error.message],
+        form_step: 1,
+      });
+
       toast.error(error.message ?? "Something went wrong!");
     } finally {
       setIsLoading(false);
     }
   };
 
-  // Handle Google sign in
-  const handleGoogleSignIn = async () => {
-    setIsGoogleLoading(true);
-    try {
-      await signInWithGoogle();
-    } catch (error: any) {
-      console.error(error);
-      toast.error(error.message ?? "Failed to sign in with Google");
-    } finally {
-      setIsGoogleLoading(false);
-    }
+  // Track field focus events
+  const handleFieldFocus = (fieldName: string) => {
+    tracker.trackForm(FormEvent.FIELD_FOCUSED, {
+      form_name: "signin_form",
+      field_name: fieldName,
+      form_step: 1,
+    });
+  };
+
+  // Track field blur events
+  const handleFieldBlur = (fieldName: string) => {
+    tracker.trackForm(FormEvent.FIELD_BLURRED, {
+      form_name: "signin_form",
+      field_name: fieldName,
+      form_step: 1,
+    });
+  };
+
+  // Track remember me checkbox
+  const handleRememberMeChange = (checked: boolean) => {
+    setRememberMe(checked);
+    tracker.trackInteraction(InteractionEvent.BUTTON_CLICK, {
+      element_type: "checkbox",
+      element_text: "remember_me",
+      interaction_context: "signin_form",
+    });
+  };
+
+  // Track forgot password link click
+  const handleForgotPasswordClick = () => {
+    tracker.trackInteraction(InteractionEvent.LINK_CLICK, {
+      element_type: "link",
+      element_text: "Forgot password?",
+      interaction_context: "signin_form",
+    });
+  };
+
+  // Track signup link click
+  const handleSignupLinkClick = () => {
+    tracker.trackInteraction(InteractionEvent.LINK_CLICK, {
+      element_type: "link",
+      element_text: "Sign up",
+      interaction_context: "signin_form",
+    });
   };
 
   return (
     <div className="w-full space-y-6">
-      {/* <button
-        onClick={handleGoogleSignIn}
-        disabled={isGoogleLoading || isLoading}
-        className="flex w-full items-center justify-center gap-3 rounded-lg border border-yadn-primary-gray/20 bg-transparent px-4 py-3 text-yadn-primary-gray hover:bg-yadn-primary-gray/5 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-      >
-        {isGoogleLoading ? (
-          <Loader2 className="h-5 w-5 animate-spin" />
-        ) : (
-          <Image
-            src="/assets/icons/google-icon.svg"
-            alt="Google"
-            width={24}
-            height={24}
-          />
-        )}
-        {isGoogleLoading ? "Signing in..." : "Sign in with Google"}
-      </button>
-
-
-      <div className="flex items-center justify-center">
-        <div className="h-px w-1/4 bg-yadn-primary-gray/10"></div>
-        <span className="px-4 text-sm text-yadn-primary-gray/60">
-          Or sign in with email
-        </span>
-        <div className="h-px w-1/4 bg-yadn-primary-gray/10"></div>
-      </div> */}
-
       {/* Email/Password Form */}
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
         {/* Email Input */}
@@ -108,6 +169,8 @@ export default function SignInForm() {
                 error={errors.email ? errors.email.message : undefined}
                 className="bg-yadn-primary-gray/5 border-yadn-primary-gray/10 text-yadn-primary-gray placeholder:text-yadn-primary-gray/40 focus:border-yadn-acctext-yadn-accent-green focus:ring-yadn-acctext-yadn-accent-green"
                 disabled={isLoading}
+                onFocus={() => handleFieldFocus("email")}
+                onBlur={() => handleFieldBlur("email")}
               />
             )}
           />
@@ -127,6 +190,8 @@ export default function SignInForm() {
                 showPasswordToggle
                 className="bg-yadn-primary-gray/5 border-yadn-primary-gray/10 text-yadn-primary-gray placeholder:text-yadn-primary-gray/40 focus:border-yadn-acctext-yadn-accent-green focus:ring-yadn-acctext-yadn-accent-green pr-10"
                 disabled={isLoading}
+                onFocus={() => handleFieldFocus("password")}
+                onBlur={() => handleFieldBlur("password")}
               />
             )}
           />
@@ -138,7 +203,7 @@ export default function SignInForm() {
             <Checkbox
               id="remember-me"
               checked={rememberMe}
-              onCheckedChange={(checked) => setRememberMe(checked as boolean)}
+              onCheckedChange={handleRememberMeChange}
               className="border-yadn-primary-gray/30 data-[state=checked]:bg-yadn-acctext-yadn-accent-green data-[state=checked]:border-yadn-acctext-yadn-accent-green"
               disabled={isLoading}
             />
@@ -155,6 +220,7 @@ export default function SignInForm() {
             className="text-sm text-yadn-accent-green hover:underline"
             tabIndex={isLoading ? -1 : 0}
             aria-disabled={isLoading}
+            onClick={handleForgotPasswordClick}
           >
             Forgot password?
           </Link>
@@ -165,6 +231,13 @@ export default function SignInForm() {
           type="submit"
           disabled={isLoading}
           className="w-full bg-yadn-accent-green hover:bg-yadn-acc text-yadn-accent-green/90 text-[#000A1F] font-medium py-6"
+          onClick={() => {
+            tracker.trackInteraction(InteractionEvent.BUTTON_CLICK, {
+              element_type: "button",
+              element_text: "Sign In",
+              interaction_context: "signin_form",
+            });
+          }}
         >
           {isLoading ? (
             <>
@@ -187,6 +260,7 @@ export default function SignInForm() {
           className="text-yadn-accent-green hover:underline font-medium"
           tabIndex={isLoading ? -1 : 0}
           aria-disabled={isLoading}
+          onClick={handleSignupLinkClick}
         >
           Sign up
         </Link>
