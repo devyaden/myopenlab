@@ -1,5 +1,3 @@
-import posthog from "posthog-js";
-import { v4 as uuidv4 } from "uuid";
 import {
   EventCategory,
   AuthEvent,
@@ -17,33 +15,132 @@ import {
   NavigationEventProperties,
 } from "./events";
 
+// Safe browser API access helpers
+const safeGetItem = (
+  storage: "localStorage" | "sessionStorage",
+  key: string
+): string | null => {
+  if (typeof window === "undefined") return null;
+  try {
+    return window[storage].getItem(key);
+  } catch {
+    return null;
+  }
+};
+
+const safeSetItem = (
+  storage: "localStorage" | "sessionStorage",
+  key: string,
+  value: string
+): void => {
+  if (typeof window === "undefined") return;
+  try {
+    window[storage].setItem(key, value);
+  } catch {
+    // Silently fail
+  }
+};
+
+const safeRemoveItem = (
+  storage: "localStorage" | "sessionStorage",
+  key: string
+): void => {
+  if (typeof window === "undefined") return;
+  try {
+    window[storage].removeItem(key);
+  } catch {
+    // Silently fail
+  }
+};
+
+// Safe PostHog access
+const safePostHogCapture = (eventName: string, properties: any): void => {
+  if (typeof window === "undefined") return;
+
+  try {
+    // Dynamic import to avoid SSR issues
+    import("posthog-js")
+      .then((posthogModule) => {
+        const posthog = posthogModule.default;
+        if (posthog && typeof posthog.capture === "function") {
+          posthog.capture(eventName, properties);
+        }
+      })
+      .catch(() => {
+        // Silently fail if PostHog not available
+      });
+  } catch {
+    // Silently fail
+  }
+};
+
+const safePostHogIdentify = (userId: string, properties: any): void => {
+  if (typeof window === "undefined") return;
+
+  try {
+    import("posthog-js")
+      .then((posthogModule) => {
+        const posthog = posthogModule.default;
+        if (posthog && typeof posthog.identify === "function") {
+          posthog.identify(userId, properties);
+        }
+      })
+      .catch(() => {
+        // Silently fail if PostHog not available
+      });
+  } catch {
+    // Silently fail
+  }
+};
+
 class PostHogTracker {
-  private sessionId: string;
-  private sessionStartTime: number;
+  private sessionId: string = "";
+  private sessionStartTime: number = 0;
   private pageViewCount: number = 0;
   private interactionCount: number = 0;
-  private lastActivityTime: number;
+  private lastActivityTime: number = 0;
+  private isInitialized: boolean = false;
+  private heartbeatInterval: NodeJS.Timeout | null = null;
 
   constructor() {
+    // Don't initialize anything here - wait for browser
+  }
+
+  initializeInBrowser(): void {
+    if (typeof window === "undefined" || this.isInitialized) return;
+
     this.sessionId = this.getOrCreateSessionId();
     this.sessionStartTime = Date.now();
     this.lastActivityTime = Date.now();
     this.setupSessionTracking();
+    this.isInitialized = true;
   }
 
   private getOrCreateSessionId(): string {
+    if (typeof window === "undefined") return "";
+
     const sessionKey = "posthog_session_id";
-    let sessionId = sessionStorage.getItem(sessionKey);
+    let sessionId = safeGetItem("sessionStorage", sessionKey);
 
     if (!sessionId) {
-      sessionId = uuidv4();
-      sessionStorage.setItem(sessionKey, sessionId);
+      // Generate UUID without external dependency
+      sessionId = "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(
+        /[xy]/g,
+        function (c) {
+          const r = (Math.random() * 16) | 0;
+          const v = c == "x" ? r : (r & 0x3) | 0x8;
+          return v.toString(16);
+        }
+      );
+      safeSetItem("sessionStorage", sessionKey, sessionId);
     }
 
     return sessionId;
   }
 
-  private setupSessionTracking() {
+  private setupSessionTracking(): void {
+    if (typeof window === "undefined") return;
+
     // Track session start
     this.trackSession(SessionEvent.SESSION_STARTED, {
       session_type: this.isReturningUser() ? "returning" : "new",
@@ -51,78 +148,130 @@ class PostHogTracker {
     });
 
     // Setup heartbeat every 30 seconds
-    setInterval(() => {
+    this.heartbeatInterval = setInterval(() => {
       this.trackSessionHeartbeat();
     }, 30000);
 
     // Track session end on page unload
-    window.addEventListener("beforeunload", () => {
+    const handleBeforeUnload = () => {
       this.endSession();
-    });
+    };
 
-    // Track session end on visibility change (tab close/minimize)
-    document.addEventListener("visibilitychange", () => {
+    const handleVisibilityChange = () => {
       if (document.visibilityState === "hidden") {
         this.endSession();
       }
-    });
+    };
+
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
+    // Cleanup on unmount
+    if (typeof window !== "undefined" && "addEventListener" in window) {
+      const cleanup = () => {
+        window.removeEventListener("beforeunload", handleBeforeUnload);
+        document.removeEventListener(
+          "visibilitychange",
+          handleVisibilityChange
+        );
+        if (this.heartbeatInterval) {
+          clearInterval(this.heartbeatInterval);
+        }
+      };
+
+      // Store cleanup function for potential later use
+      (window as any).__posthog_cleanup = cleanup;
+    }
   }
 
   private isReturningUser(): boolean {
-    return localStorage.getItem("user_has_visited") === "true";
+    return safeGetItem("localStorage", "user_has_visited") === "true";
   }
 
   private getDeviceType(): "mobile" | "tablet" | "desktop" {
-    const userAgent = navigator.userAgent;
-    if (/Mobile|Android|iPhone|iPad/.test(userAgent)) {
-      return /iPad/.test(userAgent) ? "tablet" : "mobile";
+    if (typeof window === "undefined" || typeof navigator === "undefined") {
+      return "desktop";
     }
-    return "desktop";
+
+    try {
+      const userAgent = navigator.userAgent;
+      if (/Mobile|Android|iPhone|iPad/.test(userAgent)) {
+        return /iPad/.test(userAgent) ? "tablet" : "mobile";
+      }
+      return "desktop";
+    } catch {
+      return "desktop";
+    }
   }
 
   private getBaseProperties(): BaseEventProperties {
-    return {
+    const baseProps: BaseEventProperties = {
       timestamp: new Date().toISOString(),
       session_id: this.sessionId,
-      page_url: window.location.href,
-      user_agent: navigator.userAgent,
-      referrer: document.referrer,
+      page_url: "",
+      user_agent: "",
+      referrer: "",
     };
+
+    if (typeof window !== "undefined") {
+      try {
+        baseProps.page_url = window.location.href;
+        baseProps.referrer = document.referrer || "";
+        if (typeof navigator !== "undefined") {
+          baseProps.user_agent = navigator.userAgent || "";
+        }
+      } catch {
+        // Use defaults
+      }
+    }
+
+    return baseProps;
   }
 
-  private updateActivity() {
+  private updateActivity(): void {
     this.lastActivityTime = Date.now();
     this.interactionCount++;
   }
 
-  // Authentication tracking methods
-  trackAuth(event: AuthEvent, properties: Partial<AuthEventProperties> = {}) {
+  private canTrack(): boolean {
+    return typeof window !== "undefined" && this.isInitialized;
+  }
+
+  // Public tracking methods
+  trackAuth(
+    event: AuthEvent,
+    properties: Partial<AuthEventProperties> = {}
+  ): void {
+    if (!this.canTrack()) return;
+
     const authProperties: AuthEventProperties = {
       ...this.getBaseProperties(),
       ...properties,
     };
 
-    posthog.capture(`${EventCategory.AUTH}_${event}`, authProperties);
+    safePostHogCapture(`${EventCategory.AUTH}_${event}`, authProperties);
     this.updateActivity();
   }
 
-  // Form tracking methods
-  trackForm(event: FormEvent, properties: Partial<FormEventProperties>) {
+  trackForm(event: FormEvent, properties: Partial<FormEventProperties>): void {
+    if (!this.canTrack()) return;
+
     const formProperties: FormEventProperties = {
       ...this.getBaseProperties(),
       form_name: properties.form_name || "unknown",
       ...properties,
     };
 
-    posthog.capture(`${EventCategory.FORM}_${event}`, formProperties);
+    safePostHogCapture(`${EventCategory.FORM}_${event}`, formProperties);
     this.updateActivity();
   }
 
-  // Session tracking methods
   trackSession(
     event: SessionEvent,
     properties: Partial<SessionEventProperties> = {}
-  ) {
+  ): void {
+    if (!this.canTrack()) return;
+
     const sessionProperties: SessionEventProperties = {
       ...this.getBaseProperties(),
       session_duration: Date.now() - this.sessionStartTime,
@@ -132,55 +281,63 @@ class PostHogTracker {
       ...properties,
     };
 
-    posthog.capture(`${EventCategory.SESSION}_${event}`, sessionProperties);
+    safePostHogCapture(`${EventCategory.SESSION}_${event}`, sessionProperties);
   }
 
-  private trackSessionHeartbeat() {
+  private trackSessionHeartbeat(): void {
     this.trackSession(SessionEvent.SESSION_HEARTBEAT);
   }
 
-  // Error tracking methods
-  trackError(event: ErrorEvent, properties: Partial<ErrorEventProperties>) {
+  trackError(
+    event: ErrorEvent,
+    properties: Partial<ErrorEventProperties>
+  ): void {
+    if (!this.canTrack()) return;
+
     const errorProperties: ErrorEventProperties = {
       ...this.getBaseProperties(),
       error_message: properties.error_message || "Unknown error",
       ...properties,
     };
 
-    posthog.capture(`${EventCategory.ERROR}_${event}`, errorProperties);
+    safePostHogCapture(`${EventCategory.ERROR}_${event}`, errorProperties);
     this.updateActivity();
   }
 
-  // Interaction tracking methods
   trackInteraction(
     event: InteractionEvent,
     properties: Partial<InteractionEventProperties>
-  ) {
+  ): void {
+    if (!this.canTrack()) return;
+
     const interactionProperties: InteractionEventProperties = {
       ...this.getBaseProperties(),
       element_type: properties.element_type || "unknown",
       ...properties,
     };
 
-    posthog.capture(
+    safePostHogCapture(
       `${EventCategory.USER_INTERACTION}_${event}`,
       interactionProperties
     );
     this.updateActivity();
   }
 
-  // Navigation tracking methods
   trackNavigation(
     event: NavigationEvent,
     properties: Partial<NavigationEventProperties>
-  ) {
+  ): void {
+    if (!this.canTrack()) return;
+
     const navigationProperties: NavigationEventProperties = {
       ...this.getBaseProperties(),
-      to_page: properties.to_page || window.location.pathname,
+      to_page:
+        properties.to_page ||
+        (typeof window !== "undefined" ? window.location.pathname : ""),
       ...properties,
     };
 
-    posthog.capture(
+    safePostHogCapture(
       `${EventCategory.NAVIGATION}_${event}`,
       navigationProperties
     );
@@ -191,8 +348,12 @@ class PostHogTracker {
     }
   }
 
-  // Utility methods for common tracking scenarios
-  trackButtonClick(buttonText: string, buttonId?: string, context?: string) {
+  // Utility methods
+  trackButtonClick(
+    buttonText: string,
+    buttonId?: string,
+    context?: string
+  ): void {
     this.trackInteraction(InteractionEvent.BUTTON_CLICK, {
       element_type: "button",
       element_text: buttonText,
@@ -206,7 +367,7 @@ class PostHogTracker {
     fieldName: string,
     errorMessage: string,
     step?: number
-  ) {
+  ): void {
     this.trackForm(FormEvent.FIELD_ERROR, {
       form_name: formName,
       field_name: fieldName,
@@ -219,7 +380,7 @@ class PostHogTracker {
     formName: string,
     validationErrors: string[],
     step?: number
-  ) {
+  ): void {
     this.trackForm(FormEvent.FORM_VALIDATION_ERROR, {
       form_name: formName,
       validation_errors: validationErrors,
@@ -232,7 +393,7 @@ class PostHogTracker {
     errorMessage: string,
     statusCode?: number,
     retryCount?: number
-  ) {
+  ): void {
     this.trackError(ErrorEvent.API_ERROR, {
       error_message: errorMessage,
       api_endpoint: endpoint,
@@ -241,7 +402,7 @@ class PostHogTracker {
     });
   }
 
-  trackJavaScriptError(error: Error, source?: string) {
+  trackJavaScriptError(error: Error, source?: string): void {
     this.trackError(ErrorEvent.JAVASCRIPT_ERROR, {
       error_message: error.message,
       error_stack: error.stack,
@@ -249,26 +410,32 @@ class PostHogTracker {
     });
   }
 
-  // Method to set user properties
-  identifyUser(userId: string, userProperties: Record<string, any> = {}) {
-    posthog.identify(userId, {
+  identifyUser(userId: string, userProperties: Record<string, any> = {}): void {
+    if (!this.canTrack()) return;
+
+    safePostHogIdentify(userId, {
       ...userProperties,
       first_seen: new Date().toISOString(),
     });
 
-    localStorage.setItem("user_has_visited", "true");
+    safeSetItem("localStorage", "user_has_visited", "true");
   }
 
-  // Method to end session
-  endSession() {
+  endSession(): void {
+    if (!this.canTrack()) return;
+
     this.trackSession(SessionEvent.SESSION_ENDED, {
       session_duration: Date.now() - this.sessionStartTime,
       pages_visited: this.pageViewCount,
       interactions_count: this.interactionCount,
     });
+
+    if (this.heartbeatInterval) {
+      clearInterval(this.heartbeatInterval);
+      this.heartbeatInterval = null;
+    }
   }
 
-  // Method to get current session info
   getSessionInfo() {
     return {
       sessionId: this.sessionId,
@@ -276,28 +443,55 @@ class PostHogTracker {
       pageViews: this.pageViewCount,
       interactions: this.interactionCount,
       lastActivity: this.lastActivityTime,
+      isInitialized: this.isInitialized,
     };
+  }
+
+  reset(): void {
+    if (typeof window !== "undefined") {
+      this.sessionId = this.getOrCreateSessionId();
+      this.sessionStartTime = Date.now();
+      this.lastActivityTime = Date.now();
+      this.pageViewCount = 0;
+      this.interactionCount = 0;
+    }
+  }
+
+  isReady(): boolean {
+    return this.isInitialized && this.canTrack();
   }
 }
 
-// Create singleton instance
+// Create singleton instance but don't initialize
 export const tracker = new PostHogTracker();
 
-// Error boundary integration
-export const trackUnhandledError = (error: Error, errorInfo?: any) => {
+// Safe error tracking
+export const trackUnhandledError = (error: Error, errorInfo?: any): void => {
   tracker.trackJavaScriptError(error, "unhandled_error");
 };
 
-// Setup global error handlers
+// Setup global error handlers only in browser
 if (typeof window !== "undefined") {
-  window.addEventListener("error", (event) => {
-    tracker.trackJavaScriptError(new Error(event.message), event.filename);
-  });
+  // Wait for DOM to be ready
+  const setupErrorHandlers = () => {
+    window.addEventListener("error", (event) => {
+      tracker.trackJavaScriptError(
+        new Error(event.message),
+        event.filename || "unknown"
+      );
+    });
 
-  window.addEventListener("unhandledrejection", (event) => {
-    tracker.trackJavaScriptError(
-      new Error(event.reason),
-      "unhandled_promise_rejection"
-    );
-  });
+    window.addEventListener("unhandledrejection", (event) => {
+      tracker.trackJavaScriptError(
+        new Error(String(event.reason)),
+        "unhandled_promise_rejection"
+      );
+    });
+  };
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", setupErrorHandlers);
+  } else {
+    setupErrorHandlers();
+  }
 }

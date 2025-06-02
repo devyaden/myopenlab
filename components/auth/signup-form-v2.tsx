@@ -972,8 +972,10 @@ export default function SignupForm({ googleData }: SignupFormProps) {
   // Track validation errors
   useEffect(() => {
     if (Object.keys(errors).length > 0) {
-      const validationErrors = Object.entries(errors).map(
-        ([field, error]) => `${field}: ${error?.message || error}`
+      const validationErrors = Object.entries(errors).map(([field, error]) =>
+        typeof error === "object" && error !== null && "message" in error
+          ? `${field}: ${(error as { message: string }).message}`
+          : `${field}: ${error}`
       );
 
       tracker.trackForm(FormEvent.FORM_VALIDATION_ERROR, {

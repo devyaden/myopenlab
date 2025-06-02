@@ -1,5 +1,42 @@
-import { tracker } from "./tracker";
 import { ErrorEvent } from "./events";
+
+// Safe browser API access
+const safeGetItem = (
+  storage: "localStorage" | "sessionStorage",
+  key: string
+): string | null => {
+  if (typeof window === "undefined") return null;
+  try {
+    return window[storage].getItem(key);
+  } catch {
+    return null;
+  }
+};
+
+const safeSetItem = (
+  storage: "localStorage" | "sessionStorage",
+  key: string,
+  value: string
+): void => {
+  if (typeof window === "undefined") return;
+  try {
+    window[storage].setItem(key, value);
+  } catch {
+    // Silently fail
+  }
+};
+
+const safeRemoveItem = (
+  storage: "localStorage" | "sessionStorage",
+  key: string
+): void => {
+  if (typeof window === "undefined") return;
+  try {
+    window[storage].removeItem(key);
+  } catch {
+    // Silently fail
+  }
+};
 
 export interface ErrorContext {
   userId?: string;
@@ -26,12 +63,12 @@ export interface RecurrentError {
 class ErrorTracker {
   private static instance: ErrorTracker;
   private errorCounts: Map<string, RecurrentError> = new Map();
-  private readonly MAX_ERROR_CONTEXTS = 10; // Limit contexts stored per error type
+  private readonly MAX_ERROR_CONTEXTS = 10;
   private readonly STORAGE_KEY = "yadn_error_tracking";
+  private isInitialized: boolean = false;
 
   constructor() {
-    this.loadErrorCounts();
-    this.setupGlobalErrorHandlers();
+    // Don't access localStorage during construction
   }
 
   static getInstance(): ErrorTracker {
@@ -41,50 +78,68 @@ class ErrorTracker {
     return ErrorTracker.instance;
   }
 
-  private setupGlobalErrorHandlers() {
-    // Handle JavaScript errors
-    window.addEventListener("error", (event) => {
-      this.trackJavaScriptError(
-        new Error(event.message),
-        {
-          page: window.location.pathname,
-          component: "global_error_handler",
-        },
-        event.filename,
-        event.lineno
-      );
-    });
+  initializeInBrowser(): void {
+    if (typeof window === "undefined" || this.isInitialized) return;
 
-    // Handle unhandled promise rejections
-    window.addEventListener("unhandledrejection", (event) => {
-      this.trackJavaScriptError(
-        new Error(`Unhandled Promise Rejection: ${event.reason}`),
-        {
-          page: window.location.pathname,
-          component: "promise_rejection_handler",
-        }
-      );
-    });
+    this.loadErrorCounts();
+    this.setupGlobalErrorHandlers();
+    this.isInitialized = true;
   }
 
-  private loadErrorCounts() {
+  private loadErrorCounts(): void {
+    if (typeof window === "undefined") return;
+
     try {
-      const stored = localStorage.getItem(this.STORAGE_KEY);
+      const stored = safeGetItem("localStorage", this.STORAGE_KEY);
       if (stored) {
         const data = JSON.parse(stored);
         this.errorCounts = new Map(Object.entries(data));
       }
-    } catch (error) {
-      console.warn("Failed to load error counts:", error);
+    } catch {
+      // Silently fail
     }
   }
 
-  private saveErrorCounts() {
+  private saveErrorCounts(): void {
+    if (typeof window === "undefined") return;
+
     try {
       const data = Object.fromEntries(this.errorCounts);
-      localStorage.setItem(this.STORAGE_KEY, JSON.stringify(data));
-    } catch (error) {
-      console.warn("Failed to save error counts:", error);
+      safeSetItem("localStorage", this.STORAGE_KEY, JSON.stringify(data));
+    } catch {
+      // Silently fail
+    }
+  }
+
+  private setupGlobalErrorHandlers(): void {
+    if (typeof window === "undefined") return;
+
+    try {
+      // Handle JavaScript errors
+      window.addEventListener("error", (event) => {
+        this.trackJavaScriptError(
+          new Error(event.message),
+          {
+            page: window.location.pathname,
+            component: "global_error_handler",
+          },
+          event.filename,
+          event.lineno
+        );
+      });
+
+      // Handle unhandled promise rejections
+      window.addEventListener("unhandledrejection", (event) => {
+        this.trackJavaScriptError(
+          new Error(`Unhandled Promise Rejection: ${event.reason}`),
+          {
+            page: window.location.pathname,
+            component: "promise_rejection_handler",
+          }
+        );
+      });
+    } catch {
+      // Silently fail
     }
   }
 
@@ -97,7 +152,7 @@ class ErrorTracker {
     errorMessage: string,
     errorCode: string | undefined,
     context: ErrorContext
-  ) {
+  ): void {
     const now = new Date().toISOString();
 
     if (this.errorCounts.has(errorKey)) {
@@ -130,17 +185,42 @@ class ErrorTracker {
     this.saveErrorCounts();
   }
 
+  private safeTrackError(
+    errorEvent: ErrorEvent,
+    errorMessage: string,
+    errorCode?: string,
+    additionalProperties: Record<string, any> = {}
+  ): void {
+    if (typeof window === "undefined") return;
+
+    try {
+      import("./tracker")
+        .then(({ tracker }) => {
+          tracker.trackError(errorEvent, {
+            error_message: errorMessage,
+            error_code: errorCode,
+            ...additionalProperties,
+          });
+        })
+        .catch(() => {
+          // Silently fail if tracker not available
+        });
+    } catch {
+      // Silently fail
+    }
+  }
+
   // Public methods for different error types
   trackAPIError(
     endpoint: string,
     errorMessage: string,
     statusCode?: number,
     context: Partial<ErrorContext> = {}
-  ) {
+  ): void {
     const errorContext: ErrorContext = {
       ...context,
       apiEndpoint: endpoint,
-      page: window.location.pathname,
+      page: typeof window !== "undefined" ? window.location.pathname : "",
       timestamp: new Date().toISOString(),
     };
 
@@ -152,12 +232,15 @@ class ErrorTracker {
       errorContext
     );
 
-    tracker.trackError(ErrorEvent.API_ERROR, {
-      error_message: errorMessage,
-      api_endpoint: endpoint,
-      http_status: statusCode,
-      error_code: `api_${statusCode}`,
-    });
+    this.safeTrackError(
+      ErrorEvent.API_ERROR,
+      errorMessage,
+      `api_${statusCode}`,
+      {
+        api_endpoint: endpoint,
+        http_status: statusCode,
+      }
+    );
   }
 
   trackValidationError(
@@ -165,12 +248,12 @@ class ErrorTracker {
     fieldName: string,
     errorMessage: string,
     context: Partial<ErrorContext> = {}
-  ) {
+  ): void {
     const errorContext: ErrorContext = {
       ...context,
       component: formName,
       action: `validation_${fieldName}`,
-      page: window.location.pathname,
+      page: typeof window !== "undefined" ? window.location.pathname : "",
       timestamp: new Date().toISOString(),
     };
 
@@ -185,22 +268,25 @@ class ErrorTracker {
       errorContext
     );
 
-    tracker.trackError(ErrorEvent.VALIDATION_ERROR, {
-      error_message: errorMessage,
-      error_code: `validation_${formName}`,
-      error_source: fieldName,
-    });
+    this.safeTrackError(
+      ErrorEvent.VALIDATION_ERROR,
+      errorMessage,
+      `validation_${formName}`,
+      {
+        error_source: fieldName,
+      }
+    );
   }
 
   trackAuthenticationError(
     authMethod: string,
     errorMessage: string,
     context: Partial<ErrorContext> = {}
-  ) {
+  ): void {
     const errorContext: ErrorContext = {
       ...context,
       action: `auth_${authMethod}`,
-      page: window.location.pathname,
+      page: typeof window !== "undefined" ? window.location.pathname : "",
       timestamp: new Date().toISOString(),
     };
 
@@ -212,31 +298,30 @@ class ErrorTracker {
       errorContext
     );
 
-    tracker.trackError(ErrorEvent.AUTHENTICATION_ERROR, {
-      error_message: errorMessage,
-      error_code: `auth_${authMethod}`,
-    });
+    this.safeTrackError(
+      ErrorEvent.AUTHENTICATION_ERROR,
+      errorMessage,
+      `auth_${authMethod}`
+    );
   }
 
   trackNetworkError(
     endpoint: string,
     errorMessage: string,
     context: Partial<ErrorContext> = {}
-  ) {
+  ): void {
     const errorContext: ErrorContext = {
       ...context,
       apiEndpoint: endpoint,
-      page: window.location.pathname,
+      page: typeof window !== "undefined" ? window.location.pathname : "",
       timestamp: new Date().toISOString(),
     };
 
     const errorKey = this.generateErrorKey(errorMessage, "network");
     this.updateRecurrentError(errorKey, errorMessage, "network", errorContext);
 
-    tracker.trackError(ErrorEvent.NETWORK_ERROR, {
-      error_message: errorMessage,
+    this.safeTrackError(ErrorEvent.NETWORK_ERROR, errorMessage, "network", {
       api_endpoint: endpoint,
-      error_code: "network",
     });
   }
 
@@ -245,10 +330,10 @@ class ErrorTracker {
     context: Partial<ErrorContext> = {},
     filename?: string,
     lineNumber?: number
-  ) {
+  ): void {
     const errorContext: ErrorContext = {
       ...context,
-      page: window.location.pathname,
+      page: typeof window !== "undefined" ? window.location.pathname : "",
       timestamp: new Date().toISOString(),
     };
 
@@ -260,23 +345,26 @@ class ErrorTracker {
       errorContext
     );
 
-    tracker.trackError(ErrorEvent.JAVASCRIPT_ERROR, {
-      error_message: error.message,
-      error_stack: error.stack,
-      error_source: filename || context.component || "unknown",
-      error_code: "javascript",
-    });
+    this.safeTrackError(
+      ErrorEvent.JAVASCRIPT_ERROR,
+      error.message,
+      "javascript",
+      {
+        error_stack: error.stack,
+        error_source: filename || context.component || "unknown",
+      }
+    );
   }
 
   trackSystemError(
     errorMessage: string,
     component: string,
     context: Partial<ErrorContext> = {}
-  ) {
+  ): void {
     const errorContext: ErrorContext = {
       ...context,
       component,
-      page: window.location.pathname,
+      page: typeof window !== "undefined" ? window.location.pathname : "",
       timestamp: new Date().toISOString(),
     };
 
@@ -288,18 +376,21 @@ class ErrorTracker {
       errorContext
     );
 
-    tracker.trackError(ErrorEvent.SYSTEM_ERROR, {
-      error_message: errorMessage,
-      error_source: component,
-      error_code: `system_${component}`,
-    });
+    this.safeTrackError(
+      ErrorEvent.SYSTEM_ERROR,
+      errorMessage,
+      `system_${component}`,
+      {
+        error_source: component,
+      }
+    );
   }
 
   // Methods for retrieving error data for admin dashboard
   getRecurrentErrors(): RecurrentError[] {
     return Array.from(this.errorCounts.values()).sort(
       (a, b) => b.count - a.count
-    ); // Sort by frequency
+    );
   }
 
   getErrorsByTimeRange(startDate: Date, endDate: Date): RecurrentError[] {
@@ -320,18 +411,16 @@ class ErrorTracker {
   }
 
   getCriticalErrors(): RecurrentError[] {
-    // Define critical errors as those affecting multiple users or occurring frequently
     return this.getRecurrentErrors().filter(
       (error) => error.count >= 5 || error.affectedUsers.length > 1
     );
   }
 
-  clearErrorCounts() {
+  clearErrorCounts(): void {
     this.errorCounts.clear();
-    localStorage.removeItem(this.STORAGE_KEY);
+    safeRemoveItem("localStorage", this.STORAGE_KEY);
   }
 
-  // Method to export error data for admin dashboard
   exportErrorData() {
     return {
       recurrentErrors: this.getRecurrentErrors(),
@@ -362,7 +451,7 @@ export const trackFormError = (
   fieldName: string,
   errorMessage: string,
   userId?: string
-) => {
+): void => {
   errorTracker.trackValidationError(formName, fieldName, errorMessage, {
     userId,
   });
@@ -373,7 +462,7 @@ export const trackAPIError = (
   errorMessage: string,
   statusCode?: number,
   userId?: string
-) => {
+): void => {
   errorTracker.trackAPIError(endpoint, errorMessage, statusCode, { userId });
 };
 
@@ -381,6 +470,6 @@ export const trackAuthError = (
   method: string,
   errorMessage: string,
   userId?: string
-) => {
+): void => {
   errorTracker.trackAuthenticationError(method, errorMessage, { userId });
 };

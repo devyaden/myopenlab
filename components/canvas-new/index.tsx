@@ -205,7 +205,7 @@ export default function CanvasNew({ canvasId }: FigmaInterfaceProps) {
       // First load the canvas from the server
       loadCanvas(canvasId).then(() => {
         // After loading, check if there's AI data pending to be applied
-        const pendingTimestamp = sessionStorage.getItem(
+        const pendingTimestamp = sessionStorage?.getItem(
           "pending-ai-data-timestamp"
         );
 

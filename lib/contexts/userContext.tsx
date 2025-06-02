@@ -1,17 +1,148 @@
-import { User } from "@/types/auth";
 import { createContext, useContext, useEffect, useState } from "react";
 import { toast } from "react-hot-toast";
-import { z } from "zod";
 import { supabase } from "../supabase/client";
 import { SignupFormData } from "../types/forms.types";
-// Import tracking utilities
-import { errorTracker } from "@/lib/posthog/errors";
+import { User } from "@/types/auth";
+import { z } from "zod";
 import { AuthEvent } from "@/lib/posthog/events";
-import { sessionManager } from "@/lib/posthog/session";
-import { tracker } from "@/lib/posthog/tracker";
 
-// Define Zod schema and type for profile completion (can be imported from the form component or a types file)
-// For now, defining it here for clarity in this step.
+// Safe browser API access
+const safeRemoveItem = (
+  storage: "localStorage" | "sessionStorage",
+  key: string
+): void => {
+  if (typeof window === "undefined") return;
+  try {
+    window[storage].removeItem(key);
+  } catch {
+    // Silently fail
+  }
+};
+
+// Safe tracking functions
+const safeTrackAuth = (event: AuthEvent, properties: any = {}): void => {
+  if (typeof window === "undefined") return;
+
+  try {
+    import("@/lib/posthog/tracker")
+      .then(({ tracker }) => {
+        tracker.trackAuth(event, properties);
+      })
+      .catch(() => {
+        // Silently fail if tracker not available
+      });
+  } catch {
+    // Silently fail
+  }
+};
+
+const safeTrackError = (
+  type: string,
+  message: string,
+  context: any = {}
+): void => {
+  if (typeof window === "undefined") return;
+
+  try {
+    import("@/lib/posthog/errors")
+      .then(({ errorTracker }) => {
+        switch (type) {
+          case "api":
+            errorTracker.trackAPIError(
+              context.endpoint || "",
+              message,
+              context.statusCode,
+              context
+            );
+            break;
+          case "auth":
+            errorTracker.trackAuthenticationError(
+              context.method || "",
+              message,
+              context
+            );
+            break;
+          case "network":
+            errorTracker.trackNetworkError(
+              context.endpoint || "",
+              message,
+              context
+            );
+            break;
+          case "validation":
+            errorTracker.trackValidationError(
+              context.formName || "",
+              context.fieldName || "",
+              message,
+              context
+            );
+            break;
+          case "system":
+            errorTracker.trackSystemError(
+              message,
+              context.component || "",
+              context
+            );
+            break;
+        }
+      })
+      .catch(() => {
+        // Silently fail if error tracker not available
+      });
+  } catch {
+    // Silently fail
+  }
+};
+
+const safeSessionSetUser = (userId: string, userEmail?: string): void => {
+  if (typeof window === "undefined") return;
+
+  try {
+    import("@/lib/posthog/session")
+      .then(({ sessionManager }) => {
+        sessionManager.setUser(userId, userEmail);
+      })
+      .catch(() => {
+        // Silently fail if session manager not available
+      });
+  } catch {
+    // Silently fail
+  }
+};
+
+const safeSessionClearUser = (): void => {
+  if (typeof window === "undefined") return;
+
+  try {
+    import("@/lib/posthog/session")
+      .then(({ sessionManager }) => {
+        sessionManager.clearUser();
+      })
+      .catch(() => {
+        // Silently fail if session manager not available
+      });
+  } catch {
+    // Silently fail
+  }
+};
+
+const safeSessionExtend = (): void => {
+  if (typeof window === "undefined") return;
+
+  try {
+    import("@/lib/posthog/session")
+      .then(({ sessionManager }) => {
+        sessionManager.extendSession();
+      })
+      .catch(() => {
+        // Silently fail if session manager not available
+      });
+  } catch {
+    // Silently fail
+  }
+};
+
+// Define Zod schema and type for profile completion
 const profileCompletionSchemaForContext = z.object({
   username: z.string().min(3, "Username must be at least 3 characters long."),
   name: z.string().min(1, "Name is required."),
@@ -25,6 +156,7 @@ const profileCompletionSchemaForContext = z.object({
   company_size: z.string().optional(),
   user_position: z.string().optional(),
 });
+
 export type ProfileCompletionFormData = z.infer<
   typeof profileCompletionSchemaForContext
 >;
@@ -66,7 +198,9 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
 
       if (error) {
         console.log("---- error while fetching user ----", error);
-        errorTracker.trackAPIError("/user", error.message, 500, {
+        safeTrackError("api", error.message, {
+          endpoint: "/user",
+          statusCode: 500,
           userId,
           action: "fetch_user_data",
         });
@@ -76,17 +210,17 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
 
       // Update session with user info if data exists
       if (data) {
-        sessionManager.setUser(data.id, data.email);
+        safeSessionSetUser(data.id, data.email);
       }
 
       return data;
     } catch (error: any) {
-      errorTracker.trackAPIError(
-        "/user",
-        error.message || "Failed to fetch user data",
-        500,
-        { userId, action: "fetch_user_data" }
-      );
+      safeTrackError("api", error.message || "Failed to fetch user data", {
+        endpoint: "/user",
+        statusCode: 500,
+        userId,
+        action: "fetch_user_data",
+      });
       throw error;
     }
   };
@@ -105,43 +239,35 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
         } = supabase.auth.onAuthStateChange(async (event, session) => {
           if (session?.user) {
             setTimeout(async () => {
-              const fetchedUser = await fetchUserData(session?.user?.id);
-              // if (
-              //   fetchedUser &&
-              //   !fetchedUser.onboarding_completed &&
-              //   !window.location.pathname.startsWith(
-              //     "/auth/complete-profile"
-              //   ) &&
-              //   !window.location.pathname.startsWith("/auth/login") &&
-              //   window.location.pathname !== "/auth/callback"
-              // ) {
-              //   window.location.href = "/auth/complete-profile";
-              // }
+              await fetchUserData(session?.user?.id);
             });
           } else {
             // User logged out or session ended, clear everything properly
             setUser(null);
-            sessionManager.clearUser();
+            safeSessionClearUser();
           }
         });
 
         return () => subscription.unsubscribe();
       } catch (error: any) {
         console.error("Error getting user:", error);
-        errorTracker.trackSystemError(
+        safeTrackError(
+          "system",
           error.message || "Failed to initialize user session",
-          "UserProvider"
+          {
+            component: "UserProvider",
+          }
         );
       } finally {
         setLoading(false);
       }
     };
     getUser();
-  }, [supabase]);
+  }, []);
 
   const signUp = async (data: SignupFormData, password: string) => {
     // Track signup start
-    tracker.trackAuth(AuthEvent.SIGNUP_STARTED, {
+    safeTrackAuth(AuthEvent.SIGNUP_STARTED, {
       auth_method: "email",
       email_domain: data?.personalInfo?.email?.split("@")[1],
     });
@@ -157,7 +283,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
       user_position: data?.companyInfo?.userPosition,
     };
 
-    const origin = window.location.origin;
+    const origin = typeof window !== "undefined" ? window.location.origin : "";
 
     try {
       const { data: signupUser, error } = await supabase.auth.signUp({
@@ -171,13 +297,14 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
 
       if (error) {
         // Track signup failure
-        tracker.trackAuth(AuthEvent.SIGNUP_FAILED, {
+        safeTrackAuth(AuthEvent.SIGNUP_FAILED, {
           auth_method: "email",
           error_message: error.message,
           email_domain: data?.personalInfo?.email?.split("@")[1],
         });
 
-        errorTracker.trackAuthenticationError("email_signup", error.message, {
+        safeTrackError("auth", error.message, {
+          method: "email_signup",
           formData: userAdditionalAttributes,
         });
 
@@ -186,7 +313,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
       }
 
       // Track successful signup
-      tracker.trackAuth(AuthEvent.SIGNUP_COMPLETED, {
+      safeTrackAuth(AuthEvent.SIGNUP_COMPLETED, {
         auth_method: "email",
         email_domain: data?.personalInfo?.email?.split("@")[1],
       });
@@ -199,15 +326,18 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
         user: signupUser?.user,
       };
     } catch (error: any) {
-      tracker.trackAuth(AuthEvent.SIGNUP_FAILED, {
+      safeTrackAuth(AuthEvent.SIGNUP_FAILED, {
         auth_method: "email",
         error_message: error.message || "Network error",
         email_domain: data?.personalInfo?.email?.split("@")[1],
       });
 
-      errorTracker.trackNetworkError(
-        "/auth/signup",
-        error.message || "Network error during signup"
+      safeTrackError(
+        "network",
+        error.message || "Network error during signup",
+        {
+          endpoint: "/auth/signup",
+        }
       );
 
       throw error;
@@ -222,7 +352,9 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
         .eq("email", email);
 
       if (error) {
-        errorTracker.trackAPIError("/user", error.message, 500, {
+        safeTrackError("api", error.message, {
+          endpoint: "/user",
+          statusCode: 500,
           action: "check_email_exists",
         });
         toast.error("Error checking email");
@@ -231,9 +363,12 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
 
       return data.length > 0;
     } catch (error: any) {
-      errorTracker.trackNetworkError(
-        "/user",
-        error.message || "Failed to check email existence"
+      safeTrackError(
+        "network",
+        error.message || "Failed to check email existence",
+        {
+          endpoint: "/user",
+        }
       );
       return false;
     }
@@ -241,7 +376,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
 
   const signIn = async (email: string, password: string) => {
     // Track login start
-    tracker.trackAuth(AuthEvent.LOGIN_STARTED, {
+    safeTrackAuth(AuthEvent.LOGIN_STARTED, {
       auth_method: "email",
       email_domain: email.split("@")[1],
     });
@@ -255,13 +390,14 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
 
       if (error) {
         // Track login failure
-        tracker.trackAuth(AuthEvent.LOGIN_FAILED, {
+        safeTrackAuth(AuthEvent.LOGIN_FAILED, {
           auth_method: "email",
           error_message: error.message,
           email_domain: email.split("@")[1],
         });
 
-        errorTracker.trackAuthenticationError("email_login", error.message, {
+        safeTrackError("auth", error.message, {
+          method: "email_login",
           formData: { email },
         });
 
@@ -273,27 +409,23 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
         await fetchUserData(signInData.user.id);
 
         // Track successful login
-        tracker.trackAuth(AuthEvent.LOGIN_COMPLETED, {
+        safeTrackAuth(AuthEvent.LOGIN_COMPLETED, {
           auth_method: "email",
           email_domain: email.split("@")[1],
         });
-
-        // if (
-        //   fetchedUser &&
-        //   !fetchedUser.onboarding_completed &&
-        //   !window.location.pathname.startsWith("/auth/complete-profile")
-        // ) {
-        //   window.location.href = "/auth/complete-profile";
-        //   return;
-        // }
       }
 
-      window.location.href = "/protected";
+      if (typeof window !== "undefined") {
+        window.location.href = "/protected";
+      }
     } catch (error: any) {
       if (!error.message?.includes("Invalid login credentials")) {
-        errorTracker.trackNetworkError(
-          "/auth/signin",
-          error.message || "Network error during login"
+        safeTrackError(
+          "network",
+          error.message || "Network error during login",
+          {
+            endpoint: "/auth/signin",
+          }
         );
       }
       throw error;
@@ -302,7 +434,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
 
   const signInWithGoogle = async () => {
     // Track Google auth start
-    tracker.trackAuth(AuthEvent.GOOGLE_AUTH_STARTED, {
+    safeTrackAuth(AuthEvent.GOOGLE_AUTH_STARTED, {
       auth_method: "google",
     });
 
@@ -316,26 +448,29 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
 
       if (error) {
         // Track Google auth failure
-        tracker.trackAuth(AuthEvent.GOOGLE_AUTH_FAILED, {
+        safeTrackAuth(AuthEvent.GOOGLE_AUTH_FAILED, {
           auth_method: "google",
           error_message: error.message,
         });
 
-        errorTracker.trackAuthenticationError("google_auth", error.message);
+        safeTrackError("auth", error.message, {
+          method: "google_auth",
+        });
 
         toast.error("Google sign-in failed");
         throw error;
       }
 
-      // The actual redirection to Google will happen here.
-      // The onboarding check will occur in onAuthStateChange after Google redirects back.
-      if (data.url) {
+      if (data.url && typeof window !== "undefined") {
         window.location.href = data.url;
       }
     } catch (error: any) {
-      errorTracker.trackNetworkError(
-        "/auth/google",
-        error.message || "Network error during Google auth"
+      safeTrackError(
+        "network",
+        error.message || "Network error during Google auth",
+        {
+          endpoint: "/auth/google",
+        }
       );
       throw error;
     }
@@ -344,12 +479,12 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
   const signOut = async () => {
     try {
       // Track logout BEFORE clearing user data so we still have user context
-      tracker.trackAuth(AuthEvent.LOGOUT, {
+      safeTrackAuth(AuthEvent.LOGOUT, {
         auth_method: user ? "authenticated" : "anonymous",
       });
 
-      // Clear recent documents from localStorage
-      localStorage.removeItem("recentDocuments");
+      // Clear recent documents from localStorage safely
+      safeRemoveItem("localStorage", "recentDocuments");
 
       // Sign out from Supabase
       await supabase.auth.signOut();
@@ -358,27 +493,28 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
       setUser(null);
 
       // This will reset PostHog identity and start a new anonymous session
-      sessionManager.clearUser();
+      safeSessionClearUser();
 
       // Redirect to login
-      window.location.href = "/auth/login";
+      if (typeof window !== "undefined") {
+        window.location.href = "/auth/login";
+      }
     } catch (error: any) {
-      errorTracker.trackSystemError(
-        error.message || "Failed to sign out",
-        "signOut"
-      );
+      safeTrackError("system", error.message || "Failed to sign out", {
+        component: "signOut",
+      });
       throw error;
     }
   };
 
   const forgotPassword = async (email: string) => {
     // Track password reset request
-    tracker.trackAuth(AuthEvent.PASSWORD_RESET_REQUESTED, {
+    safeTrackAuth(AuthEvent.PASSWORD_RESET_REQUESTED, {
       auth_method: "email",
       email_domain: email.split("@")[1],
     });
 
-    const origin = window.location.origin;
+    const origin = typeof window !== "undefined" ? window.location.origin : "";
 
     try {
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
@@ -386,7 +522,8 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
       });
 
       if (error) {
-        errorTracker.trackAuthenticationError("password_reset", error.message, {
+        safeTrackError("auth", error.message, {
+          method: "password_reset",
           formData: { email },
         });
 
@@ -397,9 +534,12 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
       toast.success("Check your email for a link to reset your password.");
       return {};
     } catch (error: any) {
-      errorTracker.trackNetworkError(
-        "/auth/reset-password",
-        error.message || "Network error during password reset"
+      safeTrackError(
+        "network",
+        error.message || "Network error during password reset",
+        {
+          endpoint: "/auth/reset-password",
+        }
       );
       throw error;
     }
@@ -408,12 +548,11 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
   const resetPassword = async (password: string, confirmPassword: string) => {
     if (password !== confirmPassword) {
       const errorMessage = "Passwords do not match";
-      errorTracker.trackValidationError(
-        "reset_password_form",
-        "password_confirmation",
-        errorMessage,
-        { userId: user?.id }
-      );
+      safeTrackError("validation", errorMessage, {
+        formName: "reset_password_form",
+        fieldName: "password_confirmation",
+        userId: user?.id,
+      });
 
       toast.error(errorMessage);
       return { error: errorMessage };
@@ -425,24 +564,26 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
       });
 
       if (error) {
-        errorTracker.trackAuthenticationError(
-          "password_update",
-          error.message,
-          { userId: user?.id }
-        );
+        safeTrackError("auth", error.message, {
+          method: "password_update",
+          userId: user?.id,
+        });
 
         toast.error("Password update failed");
         throw new Error(error?.message || "Failed to update password");
       }
 
       // Track successful password reset
-      tracker.trackAuth(AuthEvent.PASSWORD_RESET_COMPLETED, {
+      safeTrackAuth(AuthEvent.PASSWORD_RESET_COMPLETED, {
         auth_method: "email",
       });
     } catch (error: any) {
-      errorTracker.trackNetworkError(
-        "/auth/update-password",
-        error.message || "Network error during password update"
+      safeTrackError(
+        "network",
+        error.message || "Network error during password update",
+        {
+          endpoint: "/auth/update-password",
+        }
       );
       throw error;
     }
@@ -456,14 +597,13 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
       await fetchUserData(session?.user?.id);
 
       if (session?.user) {
-        sessionManager.extendSession();
+        safeSessionExtend();
       }
     } catch (error: any) {
       console.error("Error refreshing session:", error);
-      errorTracker.trackSystemError(
-        error.message || "Failed to refresh session",
-        "refreshSession"
-      );
+      safeTrackError("system", error.message || "Failed to refresh session", {
+        component: "refreshSession",
+      });
     }
   };
 
@@ -487,7 +627,9 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
 
       if (error) {
         console.error("Error updating user profile:", error);
-        errorTracker.trackAPIError("/user", error.message, 500, {
+        safeTrackError("api", error.message, {
+          endpoint: "/user",
+          statusCode: 500,
           userId: user.id,
           action: "profile_completion",
         });
@@ -498,11 +640,17 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
 
       await fetchUserData(user.id);
       toast.success("Profile updated successfully!");
-      window.location.href = "/protected";
+
+      if (typeof window !== "undefined") {
+        window.location.href = "/protected";
+      }
     } catch (error: any) {
-      errorTracker.trackNetworkError(
-        "/user",
-        error.message || "Network error during profile update"
+      safeTrackError(
+        "network",
+        error.message || "Network error during profile update",
+        {
+          endpoint: "/user",
+        }
       );
       throw error;
     }

@@ -1,13 +1,135 @@
 import { useCallback, useEffect, useRef } from "react";
-import { errorTracker } from "./errors";
 import {
-  AuthEvent,
   FormEvent,
   InteractionEvent,
+  AuthEvent,
   NavigationEvent,
 } from "./events";
-import { sessionManager } from "./session";
-import { tracker } from "./tracker";
+
+// Safe tracking functions
+const safeTrackForm = (event: FormEvent, properties: any): void => {
+  if (typeof window === "undefined") return;
+
+  try {
+    import("./tracker")
+      .then(({ tracker }) => {
+        tracker.trackForm(event, properties);
+      })
+      .catch(() => {
+        // Silently fail if tracker not available
+      });
+  } catch {
+    // Silently fail
+  }
+};
+
+const safeTrackInteraction = (
+  event: InteractionEvent,
+  properties: any
+): void => {
+  if (typeof window === "undefined") return;
+
+  try {
+    import("./tracker")
+      .then(({ tracker }) => {
+        tracker.trackInteraction(event, properties);
+      })
+      .catch(() => {
+        // Silently fail if tracker not available
+      });
+  } catch {
+    // Silently fail
+  }
+};
+
+const safeTrackAuth = (event: AuthEvent, properties: any): void => {
+  if (typeof window === "undefined") return;
+
+  try {
+    import("./tracker")
+      .then(({ tracker }) => {
+        tracker.trackAuth(event, properties);
+      })
+      .catch(() => {
+        // Silently fail if tracker not available
+      });
+  } catch {
+    // Silently fail
+  }
+};
+
+const safeTrackNavigation = (event: NavigationEvent, properties: any): void => {
+  if (typeof window === "undefined") return;
+
+  try {
+    import("./tracker")
+      .then(({ tracker }) => {
+        tracker.trackNavigation(event, properties);
+      })
+      .catch(() => {
+        // Silently fail if tracker not available
+      });
+  } catch {
+    // Silently fail
+  }
+};
+
+const safeTrackError = (type: string, message: string, context: any): void => {
+  if (typeof window === "undefined") return;
+
+  try {
+    import("./errors")
+      .then(({ errorTracker }) => {
+        switch (type) {
+          case "api":
+            errorTracker.trackAPIError(
+              context.endpoint || "",
+              message,
+              context.statusCode,
+              context
+            );
+            break;
+          case "validation":
+            errorTracker.trackValidationError(
+              context.formName || "",
+              context.fieldName || "",
+              message,
+              context
+            );
+            break;
+          case "javascript":
+            errorTracker.trackJavaScriptError(new Error(message), context);
+            break;
+          case "network":
+            errorTracker.trackNetworkError(
+              context.endpoint || "",
+              message,
+              context
+            );
+            break;
+          case "auth":
+            errorTracker.trackAuthenticationError(
+              context.method || "",
+              message,
+              context
+            );
+            break;
+          case "system":
+            errorTracker.trackSystemError(
+              message,
+              context.component || "",
+              context
+            );
+            break;
+        }
+      })
+      .catch(() => {
+        // Silently fail if error tracker not available
+      });
+  } catch {
+    // Silently fail
+  }
+};
 
 // Main tracking hook with commonly used methods
 export function useTracking() {
@@ -16,7 +138,7 @@ export function useTracking() {
   // Form tracking methods
   const trackFormStart = useCallback((formName: string, step?: number) => {
     formStartTimeRef.current = Date.now();
-    tracker.trackForm(FormEvent.FORM_STARTED, {
+    safeTrackForm(FormEvent.FORM_STARTED, {
       form_name: formName,
       form_step: step,
     });
@@ -24,7 +146,7 @@ export function useTracking() {
 
   const trackFormSubmit = useCallback(
     (formName: string, step?: number, additionalProps?: any) => {
-      tracker.trackForm(FormEvent.FORM_SUBMITTED, {
+      safeTrackForm(FormEvent.FORM_SUBMITTED, {
         form_name: formName,
         form_duration: Date.now() - formStartTimeRef.current,
         form_step: step,
@@ -41,7 +163,7 @@ export function useTracking() {
       errorMessage: string,
       step?: number
     ) => {
-      tracker.trackForm(FormEvent.FIELD_ERROR, {
+      safeTrackForm(FormEvent.FIELD_ERROR, {
         form_name: formName,
         field_name: fieldName,
         error_message: errorMessage,
@@ -53,7 +175,7 @@ export function useTracking() {
 
   const trackFormValidationErrors = useCallback(
     (formName: string, validationErrors: string[], step?: number) => {
-      tracker.trackForm(FormEvent.FORM_VALIDATION_ERROR, {
+      safeTrackForm(FormEvent.FORM_VALIDATION_ERROR, {
         form_name: formName,
         validation_errors: validationErrors,
         form_step: step,
@@ -64,7 +186,7 @@ export function useTracking() {
 
   const trackFieldFocus = useCallback(
     (formName: string, fieldName: string, step?: number) => {
-      tracker.trackForm(FormEvent.FIELD_FOCUSED, {
+      safeTrackForm(FormEvent.FIELD_FOCUSED, {
         form_name: formName,
         field_name: fieldName,
         form_step: step,
@@ -75,7 +197,7 @@ export function useTracking() {
 
   const trackFieldBlur = useCallback(
     (formName: string, fieldName: string, step?: number) => {
-      tracker.trackForm(FormEvent.FIELD_BLURRED, {
+      safeTrackForm(FormEvent.FIELD_BLURRED, {
         form_name: formName,
         field_name: fieldName,
         form_step: step,
@@ -87,14 +209,19 @@ export function useTracking() {
   // Interaction tracking methods
   const trackButtonClick = useCallback(
     (buttonText: string, context?: string, buttonId?: string) => {
-      tracker.trackButtonClick(buttonText, buttonId, context);
+      safeTrackInteraction(InteractionEvent.BUTTON_CLICK, {
+        element_type: "button",
+        element_text: buttonText,
+        element_id: buttonId,
+        interaction_context: context,
+      });
     },
     []
   );
 
   const trackLinkClick = useCallback(
     (linkText: string, href: string, context?: string) => {
-      tracker.trackInteraction(InteractionEvent.LINK_CLICK, {
+      safeTrackInteraction(InteractionEvent.LINK_CLICK, {
         element_type: "link",
         element_text: linkText,
         interaction_context: context,
@@ -104,7 +231,7 @@ export function useTracking() {
   );
 
   const trackModalOpen = useCallback((modalName: string, context?: string) => {
-    tracker.trackInteraction(InteractionEvent.MODAL_OPENED, {
+    safeTrackInteraction(InteractionEvent.MODAL_OPENED, {
       element_type: "modal",
       element_text: modalName,
       interaction_context: context,
@@ -112,7 +239,7 @@ export function useTracking() {
   }, []);
 
   const trackModalClose = useCallback((modalName: string, context?: string) => {
-    tracker.trackInteraction(InteractionEvent.MODAL_CLOSED, {
+    safeTrackInteraction(InteractionEvent.MODAL_CLOSED, {
       element_type: "modal",
       element_text: modalName,
       interaction_context: context,
@@ -121,7 +248,7 @@ export function useTracking() {
 
   const trackDropdownOpen = useCallback(
     (dropdownName: string, context?: string) => {
-      tracker.trackInteraction(InteractionEvent.DROPDOWN_OPENED, {
+      safeTrackInteraction(InteractionEvent.DROPDOWN_OPENED, {
         element_type: "dropdown",
         element_text: dropdownName,
         interaction_context: context,
@@ -131,7 +258,7 @@ export function useTracking() {
   );
 
   const trackSearch = useCallback((searchTerm: string, context?: string) => {
-    tracker.trackInteraction(InteractionEvent.SEARCH_PERFORMED, {
+    safeTrackInteraction(InteractionEvent.SEARCH_PERFORMED, {
       element_type: "search",
       element_text: searchTerm,
       interaction_context: context,
@@ -140,7 +267,7 @@ export function useTracking() {
 
   // Navigation tracking
   const trackPageVisit = useCallback((page: string, fromPage?: string) => {
-    tracker.trackNavigation(NavigationEvent.PAGE_VISITED, {
+    safeTrackNavigation(NavigationEvent.PAGE_VISITED, {
       to_page: page,
       from_page: fromPage,
     });
@@ -151,15 +278,13 @@ export function useTracking() {
     (method: "email" | "google" | "password_reset") => {
       switch (method) {
         case "email":
-          tracker.trackAuth(AuthEvent.LOGIN_STARTED, { auth_method: method });
+          safeTrackAuth(AuthEvent.LOGIN_STARTED, { auth_method: method });
           break;
         case "google":
-          tracker.trackAuth(AuthEvent.GOOGLE_AUTH_STARTED, {
-            auth_method: method,
-          });
+          safeTrackAuth(AuthEvent.GOOGLE_AUTH_STARTED, { auth_method: method });
           break;
         case "password_reset":
-          tracker.trackAuth(AuthEvent.PASSWORD_RESET_REQUESTED, {
+          safeTrackAuth(AuthEvent.PASSWORD_RESET_REQUESTED, {
             auth_method: method,
           });
           break;
@@ -172,15 +297,15 @@ export function useTracking() {
     (method: "email" | "google" | "password_reset") => {
       switch (method) {
         case "email":
-          tracker.trackAuth(AuthEvent.LOGIN_COMPLETED, { auth_method: method });
+          safeTrackAuth(AuthEvent.LOGIN_COMPLETED, { auth_method: method });
           break;
         case "google":
-          tracker.trackAuth(AuthEvent.GOOGLE_AUTH_COMPLETED, {
+          safeTrackAuth(AuthEvent.GOOGLE_AUTH_COMPLETED, {
             auth_method: method,
           });
           break;
         case "password_reset":
-          tracker.trackAuth(AuthEvent.PASSWORD_RESET_COMPLETED, {
+          safeTrackAuth(AuthEvent.PASSWORD_RESET_COMPLETED, {
             auth_method: method,
           });
           break;
@@ -193,13 +318,13 @@ export function useTracking() {
     (method: "email" | "google" | "password_reset", errorMessage: string) => {
       switch (method) {
         case "email":
-          tracker.trackAuth(AuthEvent.LOGIN_FAILED, {
+          safeTrackAuth(AuthEvent.LOGIN_FAILED, {
             auth_method: method,
             error_message: errorMessage,
           });
           break;
         case "google":
-          tracker.trackAuth(AuthEvent.GOOGLE_AUTH_FAILED, {
+          safeTrackAuth(AuthEvent.GOOGLE_AUTH_FAILED, {
             auth_method: method,
             error_message: errorMessage,
           });
@@ -246,8 +371,11 @@ export function useErrorTracking() {
       userId?: string,
       retryCount?: number
     ) => {
-      errorTracker.trackAPIError(endpoint, errorMessage, statusCode, {
+      safeTrackError("api", errorMessage, {
+        endpoint,
+        statusCode,
         userId,
+        retry_count: retryCount,
       });
     },
     []
@@ -260,7 +388,9 @@ export function useErrorTracking() {
       errorMessage: string,
       userId?: string
     ) => {
-      errorTracker.trackValidationError(formName, fieldName, errorMessage, {
+      safeTrackError("validation", errorMessage, {
+        formName,
+        fieldName,
         userId,
       });
     },
@@ -269,43 +399,77 @@ export function useErrorTracking() {
 
   const trackJavaScriptError = useCallback(
     (error: Error, component?: string, userId?: string) => {
-      errorTracker.trackJavaScriptError(error, { component, userId });
+      safeTrackError("javascript", error.message, {
+        component,
+        userId,
+        stack: error.stack,
+      });
     },
     []
   );
 
   const trackNetworkError = useCallback(
     (endpoint: string, errorMessage: string, userId?: string) => {
-      errorTracker.trackNetworkError(endpoint, errorMessage, { userId });
+      safeTrackError("network", errorMessage, {
+        endpoint,
+        userId,
+      });
     },
     []
   );
 
   const trackAuthError = useCallback(
     (method: string, errorMessage: string, userId?: string) => {
-      errorTracker.trackAuthenticationError(method, errorMessage, { userId });
+      safeTrackError("auth", errorMessage, {
+        method,
+        userId,
+      });
     },
     []
   );
 
   const trackSystemError = useCallback(
     (errorMessage: string, component: string, userId?: string) => {
-      errorTracker.trackSystemError(errorMessage, component, { userId });
+      safeTrackError("system", errorMessage, {
+        component,
+        userId,
+      });
     },
     []
   );
 
   // Get error analytics data
-  const getErrorSummary = useCallback(() => {
-    return errorTracker.exportErrorData();
+  const getErrorSummary = useCallback(async () => {
+    if (typeof window === "undefined") return null;
+
+    try {
+      const { errorTracker } = await import("./errors");
+      return errorTracker.exportErrorData();
+    } catch {
+      return null;
+    }
   }, []);
 
-  const getTopErrors = useCallback((limit: number = 10) => {
-    return errorTracker.getTopErrors(limit);
+  const getTopErrors = useCallback(async (limit: number = 10) => {
+    if (typeof window === "undefined") return [];
+
+    try {
+      const { errorTracker } = await import("./errors");
+      return errorTracker.getTopErrors(limit);
+    } catch {
+      return [];
+    }
   }, []);
 
-  const getCriticalErrors = useCallback(() => {
-    return errorTracker.getCriticalErrors();
+  const getCriticalErrors = useCallback(async () => {
+    if (typeof window === "undefined") return [];
+
+    try {
+      const { errorTracker } = await import("./errors");
+      return errorTracker.getCriticalErrors();
+    } catch {
+      return [];
+    }
   }, []);
 
   return {
@@ -326,40 +490,103 @@ export function useErrorTracking() {
 
 // Session tracking hook
 export function useSessionTracking() {
-  const extendSession = useCallback(() => {
-    sessionManager.extendSession();
+  const extendSession = useCallback(async () => {
+    if (typeof window === "undefined") return;
+
+    try {
+      const { sessionManager } = await import("./session");
+      sessionManager.extendSession();
+    } catch {
+      // Silently fail
+    }
   }, []);
 
-  const endSession = useCallback(() => {
-    sessionManager.endSession();
+  const endSession = useCallback(async () => {
+    if (typeof window === "undefined") return;
+
+    try {
+      const { sessionManager } = await import("./session");
+      sessionManager.endSession();
+    } catch {
+      // Silently fail
+    }
   }, []);
 
-  const updateActivity = useCallback(() => {
-    sessionManager.updateActivity();
+  const updateActivity = useCallback(async () => {
+    if (typeof window === "undefined") return;
+
+    try {
+      const { sessionManager } = await import("./session");
+      sessionManager.updateActivity();
+    } catch {
+      // Silently fail
+    }
   }, []);
 
-  const setUser = useCallback((userId: string, userEmail?: string) => {
-    sessionManager.setUser(userId, userEmail);
+  const setUser = useCallback(async (userId: string, userEmail?: string) => {
+    if (typeof window === "undefined") return;
+
+    try {
+      const { sessionManager } = await import("./session");
+      sessionManager.setUser(userId, userEmail);
+    } catch {
+      // Silently fail
+    }
   }, []);
 
-  const clearUser = useCallback(() => {
-    sessionManager.clearUser();
+  const clearUser = useCallback(async () => {
+    if (typeof window === "undefined") return;
+
+    try {
+      const { sessionManager } = await import("./session");
+      sessionManager.clearUser();
+    } catch {
+      // Silently fail
+    }
   }, []);
 
-  const getSessionData = useCallback(() => {
-    return sessionManager.getSessionData();
+  const getSessionData = useCallback(async () => {
+    if (typeof window === "undefined") return null;
+
+    try {
+      const { sessionManager } = await import("./session");
+      return sessionManager.getSessionData();
+    } catch {
+      return null;
+    }
   }, []);
 
-  const getSessionSummary = useCallback(() => {
-    return sessionManager.getSessionSummary();
+  const getSessionSummary = useCallback(async () => {
+    if (typeof window === "undefined") return null;
+
+    try {
+      const { sessionManager } = await import("./session");
+      return sessionManager.getSessionSummary();
+    } catch {
+      return null;
+    }
   }, []);
 
-  const isSessionActive = useCallback(() => {
-    return sessionManager.isSessionActive();
+  const isSessionActive = useCallback(async () => {
+    if (typeof window === "undefined") return false;
+
+    try {
+      const { sessionManager } = await import("./session");
+      return sessionManager.isSessionActive();
+    } catch {
+      return false;
+    }
   }, []);
 
-  const getSessionDuration = useCallback(() => {
-    return sessionManager.getSessionDuration();
+  const getSessionDuration = useCallback(async () => {
+    if (typeof window === "undefined") return 0;
+
+    try {
+      const { sessionManager } = await import("./session");
+      return sessionManager.getSessionDuration();
+    } catch {
+      return 0;
+    }
   }, []);
 
   return {
@@ -380,8 +607,10 @@ export function useComponentTracking(componentName: string) {
   const mountTimeRef = useRef<number>(Date.now());
 
   useEffect(() => {
+    if (typeof window === "undefined") return;
+
     // Track component mount
-    tracker.trackInteraction(InteractionEvent.BUTTON_CLICK, {
+    safeTrackInteraction(InteractionEvent.BUTTON_CLICK, {
       element_type: "component",
       element_text: `${componentName}_mounted`,
       interaction_context: "component_lifecycle",
@@ -391,8 +620,7 @@ export function useComponentTracking(componentName: string) {
 
     // Track component unmount
     return () => {
-      const duration = Date.now() - mountTimeRef.current;
-      tracker.trackInteraction(InteractionEvent.BUTTON_CLICK, {
+      safeTrackInteraction(InteractionEvent.BUTTON_CLICK, {
         element_type: "component",
         element_text: `${componentName}_unmounted`,
         interaction_context: "component_lifecycle",
@@ -402,7 +630,7 @@ export function useComponentTracking(componentName: string) {
 
   const trackComponentInteraction = useCallback(
     (interactionType: string, details?: Record<string, any>) => {
-      tracker.trackInteraction(InteractionEvent.BUTTON_CLICK, {
+      safeTrackInteraction(InteractionEvent.BUTTON_CLICK, {
         element_type: "component",
         element_text: `${componentName}_${interactionType}`,
         interaction_context: "component_interaction",
@@ -424,8 +652,10 @@ export function useFormTracking(formName: string) {
   const validationErrorsRef = useRef<string[]>([]);
 
   useEffect(() => {
+    if (typeof window === "undefined") return;
+
     // Track form initialization
-    tracker.trackForm(FormEvent.FORM_STARTED, {
+    safeTrackForm(FormEvent.FORM_STARTED, {
       form_name: formName,
     });
 
@@ -435,7 +665,7 @@ export function useFormTracking(formName: string) {
 
     return () => {
       // Track form abandonment if not submitted
-      tracker.trackForm(FormEvent.FORM_VALIDATION_ERROR, {
+      safeTrackForm(FormEvent.FORM_VALIDATION_ERROR, {
         form_name: formName,
         form_duration: Date.now() - formStartTimeRef.current,
         error_message: "Form abandoned",
@@ -452,7 +682,7 @@ export function useFormTracking(formName: string) {
         interactionType === "focus"
           ? FormEvent.FIELD_FOCUSED
           : FormEvent.FIELD_BLURRED;
-      tracker.trackForm(event, {
+      safeTrackForm(event, {
         form_name: formName,
         field_name: fieldName,
       });
@@ -464,7 +694,7 @@ export function useFormTracking(formName: string) {
     (fieldName: string, errorMessage: string) => {
       validationErrorsRef.current.push(`${fieldName}: ${errorMessage}`);
 
-      tracker.trackForm(FormEvent.FIELD_ERROR, {
+      safeTrackForm(FormEvent.FIELD_ERROR, {
         form_name: formName,
         field_name: fieldName,
         error_message: errorMessage,
@@ -485,14 +715,14 @@ export function useFormTracking(formName: string) {
       ).reduce((sum, count) => sum + count, 0);
 
       if (success) {
-        tracker.trackForm(FormEvent.FORM_SUBMITTED, {
+        safeTrackForm(FormEvent.FORM_SUBMITTED, {
           form_name: formName,
           form_duration: formDuration,
           field_interactions_count: totalFieldInteractions,
           ...additionalData,
         });
       } else {
-        tracker.trackForm(FormEvent.FORM_VALIDATION_ERROR, {
+        safeTrackForm(FormEvent.FORM_VALIDATION_ERROR, {
           form_name: formName,
           form_duration: formDuration,
           validation_errors: validationErrorsRef.current,
