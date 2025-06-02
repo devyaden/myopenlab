@@ -10,7 +10,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import Joyride from 'react-joyride';
+import Joyride from "react-joyride";
 import {
   Folder,
   FileText,
@@ -61,33 +61,33 @@ export function HomeContent() {
     getFolders,
     fetchRootCanvases,
   } = useSidebarStore();
-  const { 
-    protectedOnBording, 
-    isFirstVisit, 
-    setData, 
-    setProtectedOnBording, 
-    setCreateCategoryOnbording, 
+  const {
+    protectedOnBording,
+    isFirstVisit,
+    setData,
+    setProtectedOnBording,
+    setCreateCategoryOnbording,
     setCanvasOnbording,
     setNotFirstVisit,
     setIsChecked,
-    isChecked
+    isChecked,
   } = useOnboardingStore();
 
   const steps = [
     {
-      target: '.onboarding-create-button',
-      content: 'Click here to create a new folder!',
-      disableBeacon: true, 
+      target: ".onboarding-create-button",
+      content: "Click here to create a new folder!",
+      disableBeacon: true,
     },
     {
-      target: '.folderInput',
-      content: 'Write folder name!',
-      disableBeacon: true
+      target: ".folderInput",
+      content: "Write folder name!",
+      disableBeacon: true,
     },
     {
-      target: '.submit-create-folder',
-      content: 'By clicking on Create folder button it will create a folder!',
-      disableBeacon: true
+      target: ".submit-create-folder",
+      content: "By clicking on Create folder button it will create a folder!",
+      disableBeacon: true,
     },
   ];
 
@@ -221,24 +221,24 @@ export function HomeContent() {
   };
 
   const handleDontShowAgainChange = (e: any) => {
-    setIsChecked(e.target?.checked)
-  }
+    setIsChecked(e.target?.checked);
+  };
 
   const handleJoyrideCllback = (data: any) => {
     const { action, index, status, type } = data;
 
-    if (action === 'next' && index === 0) {
-      setCreateNewModalType("folder")
+    if (action === "next" && index === 0) {
+      setCreateNewModalType("folder");
     }
-  }
+  };
 
   const isHasSeenProtectedOnBording = useMemo(() => {
     if (!user?.has_seen_onboarding) {
-      return !user?.has_seen_onboarding && protectedOnBording
+      return !user?.has_seen_onboarding && protectedOnBording;
     } else {
-      return user?.has_seen_onboarding && protectedOnBording
+      return user?.has_seen_onboarding && protectedOnBording;
     }
-  }, [user?.has_seen_onboarding, protectedOnBording])
+  }, [user?.has_seen_onboarding, protectedOnBording]);
 
   useEffect(() => {
     if (isFirstVisit && protectedOnBording) {
@@ -261,8 +261,8 @@ export function HomeContent() {
           run={runTour}
           callback={handleJoyrideCllback}
           tooltipComponent={(props: any) => (
-            <CustomJoyrideTooltip 
-              {...props} 
+            <CustomJoyrideTooltip
+              {...props}
               onDontShowAgainChange={handleDontShowAgainChange}
               isChecked={isChecked}
             />
@@ -272,7 +272,7 @@ export function HomeContent() {
           showSkipButton
           styles={{
             options: {
-              primaryColor: '#22c55e',
+              primaryColor: "#22c55e",
               zIndex: 10000,
             },
           }}
@@ -313,7 +313,7 @@ export function HomeContent() {
 
       {/* Scrollable Folders Grid */}
       <ScrollArea className="flex-grow p-6 pt-0">
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-12 gap-6">
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-10 gap-6">
           {/* Root Folder - Only show if it matches search or thesearch is empty */}
           {showRootFolder && (
             <Link href={`/protected/folder/root`}>
@@ -401,21 +401,21 @@ export function HomeContent() {
           </div>
         </div>
       </ScrollArea>
-        <div>
-          <CreateNewModal
-            isOpen={Boolean(createNewModalType)}
-            onClose={() => {
-              setCreateNewModalType(null);
-              setCurrentFolderForCreate(null);
-            }}
-            onCreateFolder={handleCreateFolder}
-            onCreateCanvas={handleCreateCanvas}
-            folders={folders}
-            type={createNewModalType}
-            currentFolderId={currentFolderForCreate}
-            rootCanvases={rootCanvases}
-          />
-        </div>
+      <div>
+        <CreateNewModal
+          isOpen={Boolean(createNewModalType)}
+          onClose={() => {
+            setCreateNewModalType(null);
+            setCurrentFolderForCreate(null);
+          }}
+          onCreateFolder={handleCreateFolder}
+          onCreateCanvas={handleCreateCanvas}
+          folders={folders}
+          type={createNewModalType}
+          currentFolderId={currentFolderForCreate}
+          rootCanvases={rootCanvases}
+        />
+      </div>
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
         <DialogContent>
           <DialogHeader>
