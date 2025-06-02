@@ -503,6 +503,7 @@ export const useCanvasStore = create<CanvasStore>()(
         loadCanvas: async (canvasId) => {
           set({ isLoading: true, error: null });
 
+          // debugger;
           try {
             // Get canvas details
             const { data: canvas, error: canvasError } = await supabase

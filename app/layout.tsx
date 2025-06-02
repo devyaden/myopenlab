@@ -59,9 +59,7 @@ export default function RootLayout({
       dir="ltr"
     >
       <body className="bg-background text-foreground">
-        <PostHogProvider>
-          <ClientLayout>{children}</ClientLayout>
-        </PostHogProvider>
+        <ClientLayout>{children}</ClientLayout>
       </body>
     </html>
   );
