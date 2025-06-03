@@ -287,10 +287,10 @@ export function PromoCodeDetailsModal({
                       {userSubscriptions.map((subscription) => (
                         <tr key={subscription.id} className="border-b">
                           <td className="py-2 px-2">
-                            {subscription.user.name || "N/A"}
+                            {subscription.user?.name || "N/A"}
                           </td>
                           <td className="py-2 px-2">
-                            {subscription.user.email}
+                            {subscription.user?.email}
                           </td>
                           <td className="py-2 px-2">
                             {format(

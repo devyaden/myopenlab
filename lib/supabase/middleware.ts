@@ -55,7 +55,7 @@ export const updateSession = async (request: NextRequest) => {
 
       // Only redirect to auth for protected routes, allow auth page to load
       const { pathname } = request.nextUrl;
-      if (pathname.startsWith("/protected") || pathname.startsWith("/admin")) {
+      if (pathname.startsWith("/protected")) {
         return redirectToAuth(request);
       }
       return response;
@@ -64,7 +64,6 @@ export const updateSession = async (request: NextRequest) => {
     // Check path information
     const { pathname } = request.nextUrl;
     const isAuthenticated = !!user;
-    const isAdminRoute = pathname.startsWith("/admin");
     const isUserRoute = pathname.startsWith("/protected");
     const isRootRoute = pathname === "/";
     const isAuthRoute =
@@ -73,7 +72,7 @@ export const updateSession = async (request: NextRequest) => {
       pathname === "/forgot-password";
 
     // If user is not authenticated and trying to access protected routes
-    if (!isAuthenticated && (isAdminRoute || isUserRoute)) {
+    if (!isAuthenticated && isUserRoute) {
       return redirectToAuth(request);
     }
 
@@ -82,35 +81,9 @@ export const updateSession = async (request: NextRequest) => {
       return redirectToHome(request);
     }
 
-    // Only fetch user role if needed and user is authenticated
-    if (isAuthenticated && (isAdminRoute || isUserRoute || isRootRoute)) {
-      const { data: userRole, error: roleError } = await supabase
-        .from("user")
-        .select("role")
-        .eq("id", user.id)
-        .single();
-
-      if (roleError) {
-        console.error("Role fetch error:", roleError);
-        return redirectToAuth(request);
-      }
-
-      // Handle role-based access
-      if (userRole?.role === "admin") {
-        if (isUserRoute || isRootRoute) {
-          return NextResponse.redirect(new URL("/admin", request.url));
-        }
-      } else if (userRole?.role === "user") {
-        if (isAdminRoute) {
-          return NextResponse.redirect(new URL("/protected", request.url));
-        }
-        if (isRootRoute) {
-          return NextResponse.redirect(new URL("/protected", request.url));
-        }
-      } else {
-        // Invalid role
-        return redirectToAuth(request);
-      }
+    // If authenticated user is on root, redirect to protected
+    if (isAuthenticated && isRootRoute) {
+      return NextResponse.redirect(new URL("/protected", request.url));
     }
 
     return response;
@@ -119,7 +92,7 @@ export const updateSession = async (request: NextRequest) => {
 
     // In case of error, only redirect for protected routes
     const { pathname } = request.nextUrl;
-    if (pathname.startsWith("/protected") || pathname.startsWith("/admin")) {
+    if (pathname.startsWith("/protected")) {
       return redirectToAuth(request);
     }
 
