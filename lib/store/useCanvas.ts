@@ -976,6 +976,6 @@ export const useCanvasStore = create<CanvasStore>()(
 );
 
 // Subscribe to store changes for debugging
-if (process.env.NODE_ENV === "development") {
-  useCanvasStore.subscribe(console.log);
-}
+// if (process.env.NODE_ENV === "development") {
+//   useCanvasStore.subscribe(console.log);
+// }

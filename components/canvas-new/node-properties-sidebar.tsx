@@ -19,13 +19,13 @@ import {
   Edit,
   Eye,
   EyeOff,
+  File,
   Flag,
   ListTodo,
   MoreHorizontal,
   Plus,
   Users,
   X,
-  File,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import type { Node } from "reactflow";
@@ -58,8 +58,8 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { format } from "date-fns";
 import { ALL_SHAPES } from "@/lib/types/flow-table.types";
+import { format } from "date-fns";
 
 interface NodePropertiesSidebarProps {
   selectedNode: Node | null;
@@ -365,6 +365,7 @@ export function NodePropertiesSidebar({
 
   // Get canvas store for accessing canvasSettings and updateCanvasSettings
   const { canvasSettings, updateCanvasSettings } = useCanvasStore();
+  console.log("🚀 ~ canvasSettings:", canvasSettings);
 
   const populateFromAndTo = () => {
     const from = edges
@@ -778,10 +779,8 @@ export function NodePropertiesSidebar({
       setColumns(updatedColumns);
     }
 
-    // Update canvas settings' hiddenColumns if the old property name was hidden
     const hiddenColumns = canvasSettings?.table_settings?.hiddenColumns || [];
 
-    // If old property name was in hiddenColumns, replace it with new name
     if (hiddenColumns.includes(oldName)) {
       const updatedHiddenColumns = hiddenColumns.filter(
         (col: string) => col !== oldName
@@ -935,18 +934,18 @@ export function NodePropertiesSidebar({
 
     const property = properties[index];
     const hiddenColumns = canvasSettings?.table_settings?.hiddenColumns || [];
-    const isCurrentlyHidden = hiddenColumns.includes(property.name);
+    const isCurrentlyHidden = hiddenColumns.includes(property.dataKey);
 
     // Update hiddenColumns array using the same pattern as table view
     let updatedHiddenColumns;
     if (isCurrentlyHidden) {
       // Show the column by removing it from hiddenColumns
       updatedHiddenColumns = hiddenColumns.filter(
-        (col: string) => col !== property.name
+        (col: string) => col !== property.dataKey
       );
     } else {
       // Hide the column by adding it to hiddenColumns
-      updatedHiddenColumns = [...hiddenColumns, property.name];
+      updatedHiddenColumns = [...hiddenColumns, property.dataKey];
     }
 
     // Update canvas settings using the same pattern as table view
@@ -1050,7 +1049,7 @@ export function NodePropertiesSidebar({
     const newProperty: Property = {
       ...propertyToDuplicate,
       name: newName,
-      dataKey: newName, // For duplicated properties, dataKey should be the new name
+      dataKey: newName,
     };
 
     // Update properties state
@@ -1460,7 +1459,7 @@ export function NodePropertiesSidebar({
             <div
               key={`${property.name}-${index}`}
               className={`flex items-center gap-4 py-1.5 hover:bg-gray-50 rounded-md group relative ${
-                isPropertyHidden(property.name) ? "opacity-50" : ""
+                isPropertyHidden(property.dataKey as string) ? "opacity-50" : ""
               }`}
             >
               {/* Property name with inline editing */}
@@ -1533,7 +1532,7 @@ export function NodePropertiesSidebar({
                     <DropdownMenuItem
                       onClick={() => handleToggleVisibility(index)}
                     >
-                      {isPropertyHidden(property.name) ? (
+                      {isPropertyHidden(property.dataKey as string) ? (
                         <>
                           <Eye className="h-4 w-4 mr-2" />
                           <span>Show property</span>

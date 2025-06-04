@@ -104,6 +104,14 @@ const getOverlayAlignmentStyle = (
   };
 };
 
+// Helper function to get the data key for a property (same as sidebar)
+const getPropertyDataKey = (propertyName: string): string => {
+  if (propertyName === "task") return "label";
+  if (propertyName === "type") return "shape";
+  if (propertyName === "id") return "id";
+  return propertyName;
+};
+
 export const GenericNode = memo(
   ({ data, id, selected, isConnectable }: GenericNodeProps) => {
     const reactFlowInstance = useReactFlow();
@@ -123,22 +131,6 @@ export const GenericNode = memo(
         height: node?.height || data.height || 100,
       };
     });
-
-    // Update nodeSize if node dimensions change
-    // useEffect(() => {
-    //   const node = reactFlowInstance.getNode(id);
-    //   if (node?.width && node?.height) {
-    //     setNodeSize({
-    //       width: node.width,
-    //       height: node.height,
-    //     });
-    //   } else if (data.width && data.height) {
-    //     setNodeSize({
-    //       width: data.width,
-    //       height: data.height,
-    //     });
-    //   }
-    // }, [reactFlowInstance, id, data.width, data.height]);
 
     // Check if current shape is a human figure
     const currentShapeIsHumanFigure = isHumanFigure(data.shape);
@@ -344,28 +336,11 @@ export const GenericNode = memo(
         if (pattern.test(key)) return true;
       }
 
-      // We're no longer using node-level hiding
-      // Node visibility is controlled by the hiddenColumns array in canvas settings
-
       return false;
     };
 
-    // Get visible properties (not hidden and not excluded)
-    const visibleProperties = useMemo(() => {
-      let properties: { key: string; value: any }[] = [];
-
-      // Add type property (using shape) if not hidden
-
-      properties.push({
-        key: "type",
-        value: data.shape || "",
-      });
-
-      let fromLabels: any = [],
-        toLabels: any = [];
-
-      // add from and to labels inside properties
-
+    // Helper function to populate from and to labels (same as sidebar)
+    const populateFromAndTo = useCallback(() => {
       const edges = reactFlowInstance.getEdges();
       const nodes = reactFlowInstance.getNodes();
 
@@ -377,14 +352,32 @@ export const GenericNode = memo(
         ?.filter((edge) => edge.source === id)
         .map((edge) => edge.target);
 
-      fromLabels = from.map((id) => {
-        const node = nodes.find((node) => node.id === id);
+      const fromLabels = from.map((sourceId) => {
+        const node = nodes.find((node) => node.id === sourceId);
         return node ? node.data.label : "";
       });
 
-      toLabels = to.map((id) => {
-        const node = nodes.find((node) => node.id === id);
+      const toLabels = to.map((targetId) => {
+        const node = nodes.find((node) => node.id === targetId);
         return node ? node.data.label : "";
+      });
+
+      return {
+        fromLabels: fromLabels || [],
+        toLabels: toLabels || [],
+      };
+    }, [reactFlowInstance, id]);
+
+    // Get visible properties (not hidden and not excluded)
+    const visibleProperties = useMemo(() => {
+      let properties: { key: string; value: any }[] = [];
+
+      const { fromLabels, toLabels } = populateFromAndTo();
+
+      // Add type property (using shape) if not hidden
+      properties.push({
+        key: "type",
+        value: data.shape || "",
       });
 
       // Loop through all data properties
@@ -396,10 +389,6 @@ export const GenericNode = memo(
         ) {
           // Filter out null and undefined values, but keep boolean values
           if (value === null || value === undefined) {
-            console.log(
-              "🚀 ~ properties=properties.filter ~ properties:",
-              properties
-            );
             return; // Skip this property
           }
 
@@ -428,16 +417,21 @@ export const GenericNode = memo(
         }
       });
 
-      // filter out the propertis that are not hidden based on the hiddenColumns array in canvas settings
-
+      // Filter out the properties that are hidden based on the hiddenColumns array in canvas settings
       const hiddenColumns = canvasSettings?.table_settings?.hiddenColumns || [];
 
+      // Use the same key system as the sidebar for filtering
       properties = properties.filter((property) => {
-        return !hiddenColumns.includes(property.key);
+        // Get the data key for this property (same logic as sidebar)
+        const dataKey = getPropertyDataKey(property.key);
+        return (
+          !hiddenColumns.includes(dataKey) &&
+          !hiddenColumns.includes(property.key)
+        );
       });
 
       return properties;
-    }, [data]);
+    }, [data, canvasSettings, populateFromAndTo]);
 
     // Update the renderShape function to handle special shapes better
     const renderShape = () => {

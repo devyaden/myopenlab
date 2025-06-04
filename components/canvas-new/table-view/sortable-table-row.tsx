@@ -586,7 +586,7 @@ const SortableTableRow: React.FC<{
       {columns
         .filter(
           (column) =>
-            !hiddenColumns?.includes(column.title) && column.title !== "id"
+            !hiddenColumns?.includes(column.dataKey) && column.title !== "id"
         )
         .map((column, index) => {
           return (

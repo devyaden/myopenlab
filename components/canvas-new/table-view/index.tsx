@@ -605,6 +605,8 @@ const TableView = forwardRef<
       setEditingFilter(null);
     };
 
+    console.log("------ hidden columns -------", hiddenColumns);
+
     // if type of hidden columns is an empty object, initialize it as a Set
     if (
       typeof hiddenColumns === "object" &&
@@ -1668,10 +1670,10 @@ const TableView = forwardRef<
       }
     };
 
-    const toggleColumnVisibility = (columnTitle: string) => {
-      const updatedHiddenColumns = hiddenColumns.includes(columnTitle)
-        ? hiddenColumns.filter((col: string) => col !== columnTitle)
-        : [...hiddenColumns, columnTitle];
+    const toggleColumnVisibility = (columnKey: string) => {
+      const updatedHiddenColumns = hiddenColumns.includes(columnKey)
+        ? hiddenColumns.filter((col: string) => col !== columnKey)
+        : [...hiddenColumns, columnKey];
 
       updateTableSettings({
         ...canvasSettings.table_settings,
@@ -1899,7 +1901,7 @@ const TableView = forwardRef<
       // Get visible columns
       const visibleColumns = columns.filter(
         (column) =>
-          !hiddenColumns?.includes(column.title) && column.title !== "id"
+          !hiddenColumns?.includes(column.dataKey) && column.title !== "id"
       );
 
       // Create CSV header
@@ -1989,7 +1991,7 @@ const TableView = forwardRef<
       // Get visible columns
       const visibleColumns = columns.filter(
         (column) =>
-          !hiddenColumns?.includes(column.title) && column.title !== "id"
+          !hiddenColumns?.includes(column.dataKey) && column.title !== "id"
       );
 
       // Create Excel content
@@ -2298,7 +2300,7 @@ const TableView = forwardRef<
                         {columns
                           .filter(
                             (column) =>
-                              !hiddenColumns?.includes(column.title) &&
+                              !hiddenColumns?.includes(column.dataKey) &&
                               column.title !== "id"
                           )
                           .map((column) => {
@@ -2445,11 +2447,13 @@ const TableView = forwardRef<
                                         </DropdownMenuItem>
                                       </>
                                     )}
-                                    {!hiddenColumns?.includes(column.title) &&
+                                    {!hiddenColumns?.includes(column.dataKey) &&
                                       !readOnly && (
                                         <DropdownMenuItem
                                           onClick={() =>
-                                            toggleColumnVisibility(column.title)
+                                            toggleColumnVisibility(
+                                              column.dataKey
+                                            )
                                           }
                                         >
                                           Hide in view
@@ -2575,11 +2579,13 @@ const TableView = forwardRef<
                                         <Switch
                                           checked={
                                             !hiddenColumns?.includes(
-                                              column.title
+                                              column.dataKey
                                             )
                                           }
                                           onCheckedChange={() =>
-                                            toggleColumnVisibility(column.title)
+                                            toggleColumnVisibility(
+                                              column.dataKey
+                                            )
                                           }
                                         />
                                       </div>
@@ -2786,7 +2792,9 @@ const TableView = forwardRef<
                                       { title: "type", type: "Select" },
                                       ...columns.filter(
                                         (col) =>
-                                          !hiddenColumns?.includes(col.title) &&
+                                          !hiddenColumns?.includes(
+                                            col.dataKey
+                                          ) &&
                                           isColumnFilterable(
                                             col.type,
                                             col.title
@@ -3067,7 +3075,7 @@ const TableView = forwardRef<
                         // Filter only sortable columns
                         return (
                           isColumnSortable(col.type, col.title) &&
-                          !hiddenColumns?.includes(col.title)
+                          !hiddenColumns?.includes(col.dataKey)
                         );
                       })
                       .map((col) => (
