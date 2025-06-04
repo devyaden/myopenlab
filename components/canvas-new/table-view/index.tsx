@@ -44,6 +44,8 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { useUser } from "@/lib/contexts/userContext";
+import { useCanvasStore } from "@/lib/store/useCanvas";
+import { supabase } from "@/lib/supabase/client";
 import { ALL_SHAPES, SHAPES } from "@/lib/types/flow-table.types";
 import { DndContext, closestCenter } from "@dnd-kit/core";
 import {
@@ -61,6 +63,7 @@ import {
   Plus,
   SlidersHorizontal,
   Trash2,
+  Upload,
   X,
 } from "lucide-react";
 import {
@@ -72,11 +75,13 @@ import {
   useRef,
   useState,
 } from "react";
+import toast from "react-hot-toast";
 import type { Edge, Node } from "reactflow";
 import * as z from "zod";
 import { Checkbox } from "../../ui/checkbox";
 import { AddColumnSidebar } from "../add-column-sidebar";
 import { ViewModeSwitcher } from "../view-mode-switcher";
+import { ImportDialog } from "./import-dialog";
 import SortableTableRow from "./sortable-table-row";
 import {
   FilterGroup,
@@ -88,8 +93,6 @@ import {
   TableViewProps,
 } from "./table.types";
 import { validationSchemas } from "./validations";
-import { useCanvasStore } from "@/lib/store/useCanvas";
-import { supabase } from "@/lib/supabase/client";
 
 // Simplified helper function for column data mapping
 const getDataKey = (column: any): string => {
@@ -157,6 +160,8 @@ const TableView = forwardRef<
     );
     const [frozenColumns, setFrozenColumns] = useState<Set<string>>(new Set());
 
+    const canvasStore = useCanvasStore();
+
     // State for bulk deletion
     const [selectedNodes, setSelectedNodes] = useState<string[]>([]);
     const [deleteSelectedDialogOpen, setDeleteSelectedDialogOpen] =
@@ -177,6 +182,8 @@ const TableView = forwardRef<
     const [relationCache, setRelationCache] = useState<{ [key: string]: any }>(
       {}
     );
+
+    const [importModalOpen, setImportModalOpen] = useState(false);
 
     // Update rollup cache when relevant data changes
     useEffect(() => {
@@ -439,6 +446,7 @@ const TableView = forwardRef<
       groupId: string;
       filterId: string | null;
     } | null>(null);
+
     const [tempFilterValue, setTempFilterValue] = useState<any>("");
     const [showFilterUI, setShowFilterUI] = useState(false);
 
@@ -1323,10 +1331,6 @@ const TableView = forwardRef<
                               reciprocalColumn.title,
                               updatedRelations
                             );
-
-                          console.log(
-                            `✅ Added reciprocal relation: ${currentNodeInfo.label} → ${relatedItem.label}`
-                          );
                         }
                       }
                     }
@@ -1691,6 +1695,58 @@ const TableView = forwardRef<
 
       return canvasDetails;
     };
+
+    const handleImportData = useCallback(
+      async (importResult: any) => {
+        const {
+          nodes: importedNodes,
+          columns: importedColumns,
+          replaceExisting,
+        } = importResult;
+
+        try {
+          if (replaceExisting) {
+            if (importedColumns.length > 0) {
+              setColumns(importedColumns);
+            }
+            const newNodes = [...importedNodes];
+
+            canvasStore.setNodes(newNodes);
+          } else {
+            // Update columns first - only add truly new columns
+            const existingDataKeys = columns.map(
+              (col) => col.dataKey || col.data_key || col.title
+            );
+            const newColumns = importedColumns.filter(
+              (importCol: any) => !existingDataKeys.includes(importCol.dataKey)
+            );
+
+            if (newColumns.length > 0) {
+              const mergedColumns = [...columns, ...newColumns];
+              setColumns(mergedColumns);
+            }
+
+            // Then add nodes to existing nodes
+            const mergedNodes = [...nodes, ...importedNodes];
+
+            onNodesChange(mergedNodes);
+          }
+
+          // Show success message
+          const actionText = replaceExisting
+            ? "replaced existing data with"
+            : "imported";
+          toast.success(
+            `Successfully ${actionText} ${importedNodes.length} items!`
+          );
+        } catch (error) {
+          toast.error("Failed to import data. Please try again.");
+        }
+
+        setImportModalOpen(false);
+      },
+      [nodes, columns, onNodesChange, setColumns, canvasStore]
+    );
 
     const getRelatedCanvasesWithColumns = useCallback(() => {
       const relationColumns = columns.filter((col) => col?.type === "Relation");
@@ -2128,11 +2184,20 @@ const TableView = forwardRef<
 
               {!readOnly && (
                 <>
+                  {/* ADD THIS NEW IMPORT BUTTON */}
+                  <Button
+                    variant="outline"
+                    className="font-medium text-sm hover:bg-gray-50 ml-2 rounded-md bg-yadn-accent-green/10 hover:bg-yadn-accent-green/20 text-yadn-accent-green border-yadn-accent-green/20"
+                    onClick={() => setImportModalOpen(true)}
+                  >
+                    <Upload className="h-4 w-4 mr-2" />
+                    Import
+                  </Button>
+
                   <Button
                     variant={filterGroups.length > 0 ? "default" : "outline"}
                     className={`text-sm hover:bg-gray-50 ml-2 rounded-md ${filterGroups.length > 0 ? "bg-blue-50 text-blue-700 hover:bg-blue-100 border-blue-200" : "text-gray-500"}`}
                     onClick={() => {
-                      // Just open the dialog without adding a filter group
                       setFilterDialogOpen(true);
                     }}
                   >
@@ -3052,6 +3117,15 @@ const TableView = forwardRef<
             </div>
           )}
         </div>
+
+        <ImportDialog
+          isOpen={importModalOpen}
+          onClose={() => setImportModalOpen(false)}
+          onImport={handleImportData}
+          existingNodes={nodes}
+          existingColumns={columns}
+          shapeOptions={shapeOptions}
+        />
       </>
     );
   }

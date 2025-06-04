@@ -1110,7 +1110,6 @@ export default function CanvasNew({ canvasId }: FigmaInterfaceProps) {
   );
 
   const toggleSidebar = useCallback(() => {
-    // Don't open sidebar in table view
     if (viewMode === "table") {
       setIsSidebarOpen(false);
       return;
