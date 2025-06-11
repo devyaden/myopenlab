@@ -1,13 +1,7 @@
-'use client'
+"use client";
 import { Button } from "@/components/ui/button";
-import { useOnboardingStore } from "@/lib/store/useOnboarding";
 import { CANVAS_TYPE } from "@/types/store";
-import { Image, Printer, Shapes } from "lucide-react";
-import { useEffect, useState } from "react";
-import Joyride from 'react-joyride';
-import CustomJoyrideTooltip from "../CustomJoyrideTooltip";
-import { useUser } from "@/lib/contexts/userContext";
-import { useMemo } from "react";
+import { Image, Shapes } from "lucide-react";
 
 interface VerticalNavProps {
   className?: string;
@@ -24,61 +18,69 @@ export function VerticalNav({
   onDragStart,
   onOpenImageManager,
 }: VerticalNavProps) {
-  const { isFirstVisit, canvasOnbording, setIsChecked, isChecked } = useOnboardingStore();
-  const [isWindow, setIsWindow] = useState(false)
+  // const { isFirstVisit, canvasOnbording, setIsChecked, isChecked } =
+  //   useOnboardingStore();
+  // const [isWindow, setIsWindow] = useState(false);
 
-  const { user } = useUser();
+  // const { user } = useUser();
 
-  const steps = [
-    {
-      target: '.canvas-shapes',
-      content: 'You can draw multiple shapes by clicking here. Great for building diagrams and visual elements.',
-      disableBeacon: true,
-    },
-    {
-      target: '.images-library',
-      content: 'Click here to upload and manage images in your project. Useful for enhancing visuals.',
-      disableBeacon: true,
-    },
-  ];
+  // const steps = [
+  //   {
+  //     target: ".canvas-shapes",
+  //     content:
+  //       "You can draw multiple shapes by clicking here. Great for building diagrams and visual elements.",
+  //     disableBeacon: true,
+  //   },
+  //   {
+  //     target: ".images-library",
+  //     content:
+  //       "Click here to upload and manage images in your project. Useful for enhancing visuals.",
+  //     disableBeacon: true,
+  //   },
+  // ];
 
-  const handleDontShowAgainChange = (e: any) => {
-    setIsChecked(e.target?.checked)
-  }
+  // const handleDontShowAgainChange = (e: any) => {
+  //   setIsChecked(e.target?.checked);
+  // };
 
-  const isHasSeenOnborading = useMemo(() => {
-    if (!user?.has_seen_onboarding) {
-      return !user?.has_seen_onboarding && canvasOnbording
-    } else {
-      return user?.has_seen_onboarding && canvasOnbording
-    }
-  }, [user?.has_seen_onboarding, canvasOnbording])
+  // const isHasSeenOnborading = useMemo(() => {
+  //   if (!user?.has_seen_onboarding) {
+  //     return !user?.has_seen_onboarding && canvasOnbording;
+  //   } else {
+  //     return user?.has_seen_onboarding && canvasOnbording;
+  //   }
+  // }, [user?.has_seen_onboarding, canvasOnbording]);
 
-  useEffect(()=>{
-    setIsWindow(true)
-  },[])
+  // useEffect(() => {
+  //   setIsWindow(true);
+  // }, []);
 
   return (
     <>
-      {isHasSeenOnborading && isWindow && isFirstVisit && <Joyride
-        steps={steps}
-        tooltipComponent={(props: any) => (
-          <CustomJoyrideTooltip
-              {...props} 
+      {/* 
+      {isHasSeenOnborading && isWindow && isFirstVisit && (
+        <Joyride
+          steps={steps}
+          tooltipComponent={(props: any) => (
+            <CustomJoyrideTooltip
+              {...props}
               onDontShowAgainChange={handleDontShowAgainChange}
               isChecked={isChecked}
             />
           )}
-        continuous
-        showProgress
-        showSkipButton
-        styles={{
-          options: {
-            primaryColor: '#22c55e',
-            zIndex: 10000,
-          },
-        }}
-      />}
+          continuous
+          showProgress
+          showSkipButton
+          styles={{
+            options: {
+              primaryColor: "#22c55e",
+              zIndex: 10000,
+            },
+          }}
+        />
+      )}
+      */}
+
       <div
         className={`w-[72px] border-r border-gray-200 flex flex-col items-center py-4 gap-2 ${className} z-30 bg-white`}
       >

@@ -9,7 +9,7 @@ import { useCanvasStore } from "@/lib/store/useCanvas";
 import { CANVAS_TYPE } from "@/types/store";
 import { useRouter } from "next/navigation";
 import type React from "react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "react-hot-toast";
 import type { Edge, Node, ReactFlowInstance } from "reactflow";
 import { MarkerType, ReactFlowProvider } from "reactflow";
@@ -24,7 +24,6 @@ import { Toolbar } from "./toolbar";
 import { UMLEditor } from "./uml-editor";
 import { VerticalNav } from "./vertical-nav";
 import { ViewModeSwitcher } from "./view-mode-switcher";
-import { useMemo } from "react";
 
 interface NodeStyle {
   fontFamily: string;
@@ -125,7 +124,10 @@ export default function CanvasNew({ canvasId }: FigmaInterfaceProps) {
     canvasSettings,
     user_id,
     currentFolder,
+    isDirty,
   } = useCanvasStore();
+
+  const isReadOnly = !isOwner;
 
   const currentState: {
     nodes: Node[];
@@ -427,6 +429,63 @@ export default function CanvasNew({ canvasId }: FigmaInterfaceProps) {
       setRefReady(false);
     }
   }, [viewMode, tableViewRef.current]);
+
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      // Check if there are unsaved changes and not in read-only mode
+      if (isDirty && !isReadOnly && !saveLoading) {
+        // Try to save changes synchronously before unload
+        try {
+          // Get current state for potential save
+          const currentCanvasState = {
+            nodes,
+            edges,
+            nodeStyles,
+            name: projectName,
+            description: "", // Add description if you have it in state
+            folder_id: currentFolder?.id,
+          };
+
+          // Note: Synchronous save during beforeunload is limited
+          // Modern browsers may not complete async operations
+          // This is more for showing the confirmation dialog
+
+          console.log("Attempting to save before unload...");
+
+          // Standard way to show confirmation dialog
+          e.preventDefault();
+          e.returnValue =
+            "You have unsaved changes. Are you sure you want to leave?";
+          return "You have unsaved changes. Are you sure you want to leave?";
+        } catch (error) {
+          console.error("Error in beforeunload save attempt:", error);
+
+          // Still show confirmation even if save attempt failed
+          e.preventDefault();
+          e.returnValue =
+            "You have unsaved changes. Are you sure you want to leave?";
+          return "You have unsaved changes. Are you sure you want to leave?";
+        }
+      }
+    };
+
+    // Add the event listener
+    window.addEventListener("beforeunload", handleBeforeUnload);
+
+    // Cleanup on unmount
+    return () => {
+      window.removeEventListener("beforeunload", handleBeforeUnload);
+    };
+  }, [
+    isDirty,
+    isReadOnly,
+    saveLoading,
+    nodes,
+    edges,
+    nodeStyles,
+    projectName,
+    currentFolder,
+  ]);
 
   const getNodeStyle = useCallback(
     (nodeId: string): NodeStyle => {
@@ -1347,9 +1406,6 @@ export default function CanvasNew({ canvasId }: FigmaInterfaceProps) {
   if (unauthorized) {
     return <Unauthorized />;
   }
-
-  // Create read-only props for non-owners viewing public canvases
-  const isReadOnly = !isOwner;
 
   if (isLoading) {
     return (
