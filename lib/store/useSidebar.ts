@@ -82,6 +82,7 @@ export const useSidebarStore = create<SidebarStore>((set, get) => ({
   },
 
   updateFolder: async (id, name) => {
+    set({ folderLoading: true });
     const state = get();
     const oldFolders = [...state.folders];
 
@@ -109,10 +110,13 @@ export const useSidebarStore = create<SidebarStore>((set, get) => ({
         error: "Failed to update folder",
       });
       toast.error("Failed to update folder");
+    } finally {
+      set({ folderLoading: false });
     }
   },
 
   deleteFolder: async (id) => {
+    set({ folderLoading: true });
     const state = get();
     const oldFolders = [...state.folders];
 
@@ -138,10 +142,13 @@ export const useSidebarStore = create<SidebarStore>((set, get) => ({
         error: "Failed to delete folder and its contents",
       });
       toast.error("Failed to delete folder and its contents");
+    } finally {
+      set({ folderLoading: false });
     }
   },
 
   createCanvas: async (name, description, userId, folderId, canvas_type) => {
+    set({ canvasLoading: true });
     const state = get();
     const newCanvas = {
       id: uuidv4(),
@@ -175,7 +182,7 @@ export const useSidebarStore = create<SidebarStore>((set, get) => ({
       if (error) throw error;
 
       toast.success("Canvas created successfully!");
-
+      set({ canvasLoading: false });
       return newCanvas.id;
     } catch (error) {
       console.error("Error creating canvas:", error);
@@ -183,6 +190,7 @@ export const useSidebarStore = create<SidebarStore>((set, get) => ({
       set({
         folders: state.folders,
         error: "Failed to create canvas",
+        canvasLoading: false,
       });
       toast.error("Failed to create canvas");
 
@@ -191,6 +199,7 @@ export const useSidebarStore = create<SidebarStore>((set, get) => ({
   },
 
   updateCanvas: async (id, name, description) => {
+    set({ canvasLoading: true });
     const state = get();
     const oldFolders = [...state.folders];
 
@@ -227,10 +236,13 @@ export const useSidebarStore = create<SidebarStore>((set, get) => ({
         error: "Failed to update canvas",
       });
       toast.error("Failed to update canvas");
+    } finally {
+      set({ canvasLoading: false });
     }
   },
 
   deleteCanvas: async (id) => {
+    set({ canvasLoading: true });
     const state = get();
     const oldFolders = [...state.folders];
     const oldRootCanvases = [...state.rootCanvases];
@@ -283,10 +295,13 @@ export const useSidebarStore = create<SidebarStore>((set, get) => ({
         error: "Failed to delete canvas",
       });
       toast.error("Failed to delete canvas: " + (error || "Unknown error"));
+    } finally {
+      set({ canvasLoading: false });
     }
   },
 
   moveCanvas: async (canvasId, newFolderId) => {
+    set({ canvasLoading: true });
     const state = get();
     const oldFolders = [...state.folders];
 
@@ -331,6 +346,8 @@ export const useSidebarStore = create<SidebarStore>((set, get) => ({
         error: "Failed to move canvas",
       });
       toast.error("Failed to move canvas");
+    } finally {
+      set({ canvasLoading: false });
     }
   },
 
