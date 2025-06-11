@@ -1,4 +1,3 @@
-/* Fix for edges being hidden behind parent nodes */
 .react-flow__edges {
   z-index: 5 !important;
 }
@@ -28,7 +27,6 @@
   animation: dashdraw 0.5s linear infinite;
 }
 
-/* New animated edge style */
 .animated-edge-path {
   stroke-dasharray: 5, 5;
   animation: flowingDash 1s linear infinite;

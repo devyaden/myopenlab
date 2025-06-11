@@ -44,9 +44,18 @@ export const SHAPE_DEFINITIONS: any = {
   },
   triangle: {
     name: "Triangle",
-    viewBox: "0 0 100 100",
+    viewBox: "0 0 327 314",
     render: (props: ShapeProps) => (
-      <polygon points="50,10 90,90 10,90" {...props} />
+      <g transform="translate(2, 2)">
+        <path
+          d="M0,310 L161.5,0 L323,310 Z"
+          fill="#3F8AE2"
+          strokeWidth="2"
+          stroke="#3F8AE2"
+          fillOpacity="0.8"
+          {...props}
+        ></path>
+      </g>
     ),
   },
   hexagon: {
@@ -107,13 +116,19 @@ export const SHAPE_DEFINITIONS: any = {
   },
   cylinder: {
     name: "Cylinder",
-    viewBox: "0 0 100 100",
+    viewBox: "0 0 189 159",
     render: (props: ShapeProps) => (
       <>
-        <ellipse cx="50" cy="20" rx="30" ry="10" {...props} />
-        <ellipse cx="50" cy="80" rx="30" ry="10" {...props} />
-        <line x1="20" y1="20" x2="20" y2="80" {...props} />
-        <line x1="80" y1="20" x2="80" y2="80" {...props} />
+        <g transform="translate(2, 2)">
+          <path
+            d="M0,19.375  L 0,135.625 A 92.5 19.375 0 1 0 185 135.625 L 185,19.375 A 92.5 19.375 0 1 1 0 19.375 A 92.5 19.375 0 1 1 185 19.375 A 92.5 19.375 0 1 1 0 19.375 z"
+            fill="#438D57"
+            strokeWidth="2"
+            stroke="#438D57"
+            fillOpacity="0.8"
+            {...props}
+          ></path>
+        </g>
       </>
     ),
   },
