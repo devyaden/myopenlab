@@ -2,10 +2,18 @@
 import { useCanvasStore } from "@/lib/store/useCanvas";
 import { SHAPES } from "@/lib/types/flow-table.types";
 import type React from "react";
-import { memo, useCallback, useEffect, useMemo, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useState, useRef } from "react";
 import TextareaAutosize from "react-textarea-autosize";
 import { Handle, NodeResizer, Position, useReactFlow } from "reactflow";
 import { SHAPE_DEFINITIONS, isHumanFigure } from "../shape-utils";
+
+const HUMAN_FIGURE_SHAPES = [
+  "actor",
+  "standing-woman",
+  "sitting",
+  "arms-stretched",
+  "walking-man",
+];
 
 interface GenericNodeProps {
   data: {
@@ -45,15 +53,12 @@ interface GenericNodeProps {
 const SHOULD_MAINTAIN_ASPECT_RATIO: Record<string, boolean> = {
   circle: true,
   square: true,
-  // Explicitly exclude capsule from aspect ratio maintenance
 };
 
-// Add a mapping for shapes that need rounded corners
 const BORDER_RADIUS_MAP: Record<string, string> = {
   rounded: "8px",
 };
 
-// Properties that should never be displayed
 const EXCLUDED_PROPERTIES = [
   "label",
   "shape",
@@ -64,37 +69,184 @@ const EXCLUDED_PROPERTIES = [
   "id",
   "width",
   "height",
-  // "from",
-  // "to",
   "parent",
   "children",
 ];
 
-// Additional patterns to exclude (for function names and IDs)
-const EXCLUDED_PATTERNS = [
-  /^on[A-Z]/, // Matches event handlers like "onChange", "onAdd", etc.
-  /Id$/, // Matches properties ending with "Id"
-  /^id/, // Matches properties starting with "id"
-];
+const EXCLUDED_PATTERNS = [/^on[A-Z]/, /Id$/, /^id/];
 
-// Base font size for scaling calculations
-const BASE_FONT_SIZE = 12;
-const BASE_NODE_SIZE = 100;
+// Text measurement utilities
+const measureText = (
+  text: string,
+  fontSize: number,
+  fontFamily: string,
+  fontWeight: string = "normal"
+): { width: number; height: number } => {
+  const canvas = document.createElement("canvas");
+  const context = canvas.getContext("2d");
+  if (!context) return { width: 0, height: 0 };
 
-// Helper function for the position absolute overlay for shapes with text inside
+  context.font = `${fontWeight} ${fontSize}px ${fontFamily}`;
+  const metrics = context.measureText(text);
+
+  return {
+    width: metrics.width,
+    height: fontSize * 1.2, // Approximate height with line spacing
+  };
+};
+
+// Auto-sizing text hook
+const useAutoSizedText = (
+  text: string,
+  containerWidth: number,
+  containerHeight: number,
+  baseFontSize: number,
+  fontFamily: string,
+  fontWeight: string = "normal",
+  maxLines: number = 10
+) => {
+  const [fontSize, setFontSize] = useState(baseFontSize);
+
+  useEffect(() => {
+    if (!text || containerWidth <= 0 || containerHeight <= 0) {
+      setFontSize(baseFontSize);
+      return;
+    }
+
+    let optimalSize = baseFontSize;
+    const minSize = 8;
+    const maxSize = Math.min(baseFontSize * 2, 48);
+
+    // Binary search for optimal font size
+    let low = minSize;
+    let high = maxSize;
+
+    while (low <= high) {
+      const mid = Math.floor((low + high) / 2);
+      const lineHeight = mid * 1.2;
+
+      // Split text into words and calculate how many lines it would take
+      const words = text.split(" ");
+      let lines = 1;
+      let currentLineWidth = 0;
+
+      for (const word of words) {
+        const wordWidth = measureText(
+          word + " ",
+          mid,
+          fontFamily,
+          fontWeight
+        ).width;
+
+        if (currentLineWidth + wordWidth > containerWidth) {
+          if (currentLineWidth === 0) {
+            // Single word is too long, it will overflow anyway
+            break;
+          }
+          lines++;
+          currentLineWidth = wordWidth;
+        } else {
+          currentLineWidth += wordWidth;
+        }
+      }
+
+      const totalHeight = lines * lineHeight;
+
+      if (totalHeight <= containerHeight && lines <= maxLines) {
+        optimalSize = mid;
+        low = mid + 1;
+      } else {
+        high = mid - 1;
+      }
+    }
+
+    setFontSize(Math.max(optimalSize, minSize));
+  }, [
+    text,
+    containerWidth,
+    containerHeight,
+    baseFontSize,
+    fontFamily,
+    fontWeight,
+    maxLines,
+  ]);
+
+  return fontSize;
+};
+
+// Text container component with auto-sizing
+const AutoSizedTextContainer: React.FC<{
+  text: string;
+  containerWidth: number;
+  containerHeight: number;
+  style: any;
+  isProperty?: boolean;
+  className?: string;
+}> = ({
+  text,
+  containerWidth,
+  containerHeight,
+  style,
+  isProperty = false,
+  className = "",
+}) => {
+  const baseFontSize = isProperty
+    ? (style.fontSize || 12) * 0.8
+    : style.fontSize || 12;
+  const fontWeight = style.isBold ? "bold" : "normal";
+
+  const autoFontSize = useAutoSizedText(
+    text,
+    containerWidth - 16, // Account for padding
+    containerHeight - (isProperty ? 4 : 8), // Account for margins
+    baseFontSize,
+    style.fontFamily || "Arial",
+    fontWeight,
+    isProperty ? 3 : 10
+  );
+
+  const textStyle = {
+    fontFamily: style.fontFamily || "Arial",
+    fontSize: `${autoFontSize}px`,
+    fontWeight: fontWeight,
+    fontStyle: style.isItalic ? "italic" : "normal",
+    textDecoration: style.isUnderline ? "underline" : "none",
+    color: style.textColor || "#000000",
+    lineHeight: `${style.lineHeight || 1.2}`,
+    textAlign: style.textAlign || "center",
+    wordWrap: "break-word" as any,
+    overflowWrap: "break-word" as any,
+    hyphens: "auto" as any,
+    width: "100%",
+    margin: 0,
+    padding: 0,
+  };
+
+  return (
+    <div
+      className={className}
+      style={{
+        ...textStyle,
+        display: "block",
+        overflow: "visible",
+      }}
+    >
+      {text}
+    </div>
+  );
+};
+
 const getOverlayAlignmentStyle = (
   verticalAlign?: string,
   textAlign?: string
 ) => {
   return {
-    // Vertical alignment (top/middle/bottom)
     alignItems:
       verticalAlign === "top"
         ? "flex-start"
         : verticalAlign === "bottom"
           ? "flex-end"
           : "center",
-    // Horizontal alignment (left/center/right)
     justifyContent:
       textAlign === "left"
         ? "flex-start"
@@ -104,7 +256,6 @@ const getOverlayAlignmentStyle = (
   };
 };
 
-// Helper function to get the data key for a property (same as sidebar)
 const getPropertyDataKey = (propertyName: string): string => {
   if (propertyName === "task") return "label";
   if (propertyName === "type") return "shape";
@@ -117,37 +268,29 @@ export const GenericNode = memo(
     const reactFlowInstance = useReactFlow();
     const [isEditing, setIsEditing] = useState(false);
     const [labelValue, setLabelValue] = useState(data.label);
+    const containerRef = useRef<HTMLDivElement>(null);
 
     const { canvasSettings } = useCanvasStore();
 
-    // Initialize nodeSize from node dimensions first, data.width/height second, or defaults last
-    // We need to handle dimensions at both the node level and data level
+    // Initialize nodeSize from node dimensions
     const [nodeSize, setNodeSize] = useState(() => {
-      // Get the node from ReactFlow to access its width/height properties
       const node = reactFlowInstance.getNode(id);
-
       return {
         width: node?.width || data.width || 100,
         height: node?.height || data.height || 100,
       };
     });
 
-    // Check if current shape is a human figure
-    const currentShapeIsHumanFigure = isHumanFigure(data.shape);
-
-    // Sync label with data changes
     useEffect(() => {
       setLabelValue(data.label);
     }, [data.label]);
 
-    // Handle double-click to enable editing
     const handleDoubleClick = useCallback(() => {
       if (!data.style?.locked) {
         setIsEditing(true);
       }
     }, [data.style?.locked]);
 
-    // Handle blur to exit editing mode
     const handleBlur = useCallback(() => {
       setIsEditing(false);
       if (data.onLabelChange) {
@@ -155,7 +298,6 @@ export const GenericNode = memo(
       }
     }, [data, id, labelValue]);
 
-    // Handle Enter key to exit editing mode
     const handleKeyDown = useCallback(
       (event: React.KeyboardEvent<HTMLInputElement>) => {
         if (event.key === "Enter") {
@@ -168,7 +310,6 @@ export const GenericNode = memo(
       [data, id, labelValue]
     );
 
-    // Update node size on resize with smoother handling and persist to node data
     const handleResize = useCallback(
       (
         _: any,
@@ -184,14 +325,11 @@ export const GenericNode = memo(
         const newWidth = Math.min(Math.max(width, 30), MAX_DIMENSION);
         const newHeight = Math.min(Math.max(height, 30), MAX_DIMENSION);
 
-        // Update local state
         setNodeSize({ width: newWidth, height: newHeight });
 
-        // Persist dimensions to node data
         if (data.onResize) {
           data.onResize(id, newWidth, newHeight);
         } else {
-          // If no onResize handler is provided, update the node directly
           reactFlowInstance.setNodes((nodes) =>
             nodes.map((node) => {
               if (node.id === id) {
@@ -219,81 +357,29 @@ export const GenericNode = memo(
       [id, data, reactFlowInstance]
     );
 
-    // Calculate font size based on node dimensions
-    const calculateFontSize = useCallback(
-      (baseFontSize: number) => {
-        // Get the average dimension to use for scaling
-        const avgDimension = (nodeSize.width + nodeSize.height) / 2;
-
-        // Calculate scale factor based on the ratio of current size to base size
-        const scaleFactor = Math.sqrt(avgDimension / BASE_NODE_SIZE);
-
-        // Apply the scale factor to the base font size with limits
-        const userFontSize = data.style?.fontSize || BASE_FONT_SIZE;
-        const scaledFontSize = userFontSize * scaleFactor;
-
-        // Set minimum and maximum font sizes
-        const minFontSize = 8;
-        const maxFontSize = 36;
-
-        return Math.min(Math.max(scaledFontSize, minFontSize), maxFontSize);
-      },
-      [nodeSize, data.style?.fontSize]
+    const baseTextStyle = useMemo(
+      () => ({
+        fontFamily: data.style?.fontFamily || "Arial",
+        fontSize: data.style?.fontSize || 12,
+        isBold: data.style?.isBold,
+        isItalic: data.style?.isItalic,
+        isUnderline: data.style?.isUnderline,
+        textColor: data.style?.textColor || "#000000",
+        lineHeight: data.style?.lineHeight || 1.2,
+        textAlign: data.style?.textAlign || "center",
+      }),
+      [data.style]
     );
 
-    // Define consistent text styles with dynamic font sizing
-    const getTextStyle = useCallback(
-      (isProperty = false) => {
-        // Calculate the main font size
-        const mainFontSize = calculateFontSize(
-          data.style?.fontSize || BASE_FONT_SIZE
-        );
-
-        // Property text is slightly smaller
-        const propertyFontSize = isProperty ? mainFontSize * 0.8 : mainFontSize;
-
-        return {
-          fontFamily: data.style?.fontFamily || "Arial",
-          fontSize: `${propertyFontSize}px`,
-          fontWeight: isProperty
-            ? "normal"
-            : data.style?.isBold
-              ? "bold"
-              : "normal",
-          fontStyle: data.style?.isItalic ? "italic" : "normal",
-          textDecoration: data.style?.isUnderline ? "underline" : "none",
-          color: data.style?.textColor || "#000000",
-          lineHeight: `${data.style?.lineHeight || 1.2}`,
-          textAlign: data.style?.textAlign || "center",
-          overflow: "visible",
-          textOverflow: "ellipsis",
-          whiteSpace: "normal",
-          wordBreak: "break-all" as any,
-          width: "100%",
-        };
-      },
-      [data.style, calculateFontSize]
-    );
-
-    // Base node style with centering
     const nodeStyle: React.CSSProperties = {
       transition: `
-    width 0.15s cubic-bezier(0.4, 0, 0.2, 1),
-    height 0.15s cubic-bezier(0.4, 0, 0.2, 1),
-    transform 0.15s cubic-bezier(0.4, 0, 0.2, 1)
-  `,
+        width 0.15s cubic-bezier(0.4, 0, 0.2, 1),
+        height 0.15s cubic-bezier(0.4, 0, 0.2, 1),
+        transform 0.15s cubic-bezier(0.4, 0, 0.2, 1)
+      `,
       willChange: "width, height, transform",
     };
-    // Shape style with centering
-    const shapeStyle: React.CSSProperties = {
-      width: "100%",
-      height: "100%",
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "center",
-    };
 
-    // Common shape properties - outline only for human figures
     const shapeProps = useMemo(
       () => ({
         fill: data.style?.backgroundColor || "white",
@@ -309,7 +395,6 @@ export const GenericNode = memo(
       [data.style]
     );
 
-    // Handle styles - improved visibility when selected
     const handleStyle = useMemo(
       () => ({
         opacity: selected ? 1 : 0,
@@ -318,28 +403,19 @@ export const GenericNode = memo(
         backgroundColor: "#09BC8A",
         border: "1px solid white",
         zIndex: 20,
-        // transition: "opacity 0.2s ease",
       }),
       [selected]
     );
 
-    // Helper function to check if a property should be excluded
     const shouldExcludeProperty = (key: string, value: any) => {
-      // Check against explicit exclusion list
       if (EXCLUDED_PROPERTIES.includes(key)) return true;
-
-      // Check if it's a function
       if (typeof value === "function") return true;
-
-      // Check against regex patterns
       for (const pattern of EXCLUDED_PATTERNS) {
         if (pattern.test(key)) return true;
       }
-
       return false;
     };
 
-    // Helper function to populate from and to labels (same as sidebar)
     const populateFromAndTo = useCallback(() => {
       const edges = reactFlowInstance.getEdges();
       const nodes = reactFlowInstance.getNodes();
@@ -368,31 +444,25 @@ export const GenericNode = memo(
       };
     }, [reactFlowInstance, id]);
 
-    // Get visible properties (not hidden and not excluded)
     const visibleProperties = useMemo(() => {
       let properties: { key: string; value: any }[] = [];
 
       const { fromLabels, toLabels } = populateFromAndTo();
 
-      // Add type property (using shape) if not hidden
       properties.push({
         key: "type",
         value: data.shape || "",
       });
 
-      // Loop through all data properties
       Object.entries(data).forEach(([key, value]) => {
-        // Skip excluded properties and already added special properties
         if (
           !shouldExcludeProperty(key, value) &&
           !["task", "type"].includes(key)
         ) {
-          // Filter out null and undefined values, but keep boolean values
           if (value === null || value === undefined) {
-            return; // Skip this property
+            return;
           }
 
-          // if the value is of type array then display comma seperated values
           if (Array.isArray(value)) {
             properties.push({
               key,
@@ -417,12 +487,9 @@ export const GenericNode = memo(
         }
       });
 
-      // Filter out the properties that are hidden based on the hiddenColumns array in canvas settings
       const hiddenColumns = canvasSettings?.table_settings?.hiddenColumns || [];
 
-      // Use the same key system as the sidebar for filtering
       properties = properties.filter((property) => {
-        // Get the data key for this property (same logic as sidebar)
         const dataKey = getPropertyDataKey(property.key);
         return (
           !hiddenColumns.includes(dataKey) &&
@@ -433,742 +500,470 @@ export const GenericNode = memo(
       return properties;
     }, [data, canvasSettings, populateFromAndTo]);
 
-    // Update the renderShape function to handle special shapes better
+    // Improved text container for shapes with overlay text
+    const renderOverlayTextContainer = (
+      widthPercentage: string = "70%",
+      padding: string = "12px"
+    ) => (
+      <div
+        style={{
+          position: "absolute",
+          top: 0,
+          left: 0,
+          width: "100%",
+          height: "100%",
+          display: "flex",
+          ...getOverlayAlignmentStyle(
+            data.style?.verticalAlign,
+            data.style?.textAlign
+          ),
+          padding,
+          pointerEvents: "none",
+        }}
+      >
+        <div
+          style={{
+            width: widthPercentage,
+            display: "flex",
+            flexDirection: "column",
+            minHeight: "0",
+            gap: "2px",
+          }}
+        >
+          <AutoSizedTextContainer
+            text={labelValue}
+            containerWidth={(nodeSize.width * parseInt(widthPercentage)) / 100}
+            containerHeight={nodeSize.height * 0.6}
+            style={baseTextStyle}
+          />
+
+          {visibleProperties.length > 0 && (
+            <div
+              style={{ display: "flex", flexDirection: "column", gap: "1px" }}
+            >
+              {visibleProperties.map((prop) => (
+                <AutoSizedTextContainer
+                  key={prop.key}
+                  text={prop.value}
+                  containerWidth={
+                    (nodeSize.width * parseInt(widthPercentage)) / 100
+                  }
+                  containerHeight={nodeSize.height * 0.1}
+                  style={baseTextStyle}
+                  isProperty={true}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    );
+
+    // Improved text container for shapes with text below
+    const renderBelowTextContainer = (padding: string = "8px") => (
+      <div
+        style={{
+          width: "100%",
+          padding: `0 ${padding}`,
+          display: "flex",
+          flexDirection: "column",
+          flexGrow: 1,
+          minHeight: "0",
+          gap: "2px",
+        }}
+      >
+        <AutoSizedTextContainer
+          text={labelValue}
+          containerWidth={nodeSize.width - parseInt(padding) * 2}
+          containerHeight={nodeSize.height * 0.4}
+          style={baseTextStyle}
+        />
+
+        {visibleProperties.length > 0 && (
+          <div style={{ display: "flex", flexDirection: "column", gap: "1px" }}>
+            {visibleProperties.map((prop) => (
+              <AutoSizedTextContainer
+                key={prop.key}
+                text={prop.value}
+                containerWidth={nodeSize.width - parseInt(padding) * 2}
+                containerHeight={nodeSize.height * 0.08}
+                style={baseTextStyle}
+                isProperty={true}
+              />
+            ))}
+          </div>
+        )}
+      </div>
+    );
+
     const renderShape = () => {
-      // Base SVG style with improved scaling
-      const svgStyle: React.CSSProperties = {
+      // Only rectangular/bordered shapes need container padding
+      const shapesNeedingContainerPadding = [
+        "rectangle",
+        "rounded",
+        "square",
+        "interface",
+      ];
+      const needsContainerPadding = shapesNeedingContainerPadding.includes(
+        data.shape as string
+      );
+
+      const CONTAINER_PADDING = needsContainerPadding ? 8 : 0; // No padding for SVG shapes
+      const effectiveWidth = nodeSize.width - CONTAINER_PADDING * 2;
+      const effectiveHeight = nodeSize.height - CONTAINER_PADDING * 2;
+
+      const containerStyle: React.CSSProperties = {
         width: "100%",
         height: "100%",
-        display: "block", // Ensures proper sizing
+        padding: `${CONTAINER_PADDING}px`,
+        display: "flex",
+        flexDirection: "column",
       };
 
-      // For arrow shapes - move text below the shape with better positioning
-      if (
-        ["left-arrow", "right-arrow", "top-arrow", "bottom-arrow"].includes(
-          data.shape as string
-        )
-      ) {
+      // Shapes with text below the visual element
+      const shapesWithTextBelow = [
+        "left-arrow",
+        "right-arrow",
+        "top-arrow",
+        "bottom-arrow",
+        "cylinder",
+        ...HUMAN_FIGURE_SHAPES,
+      ];
+
+      if (shapesWithTextBelow.includes(data.shape as string)) {
+        // Dynamic shape height with proper constraints to prevent clipping
+        let shapeHeightPercentage;
+        if (data.shape === "cylinder") {
+          // For cylinder, ensure it can scale properly with container height
+          shapeHeightPercentage = Math.min(
+            0.8,
+            Math.max(0.5, effectiveHeight > 200 ? 0.75 : 0.7)
+          );
+        } else {
+          shapeHeightPercentage = Math.min(
+            0.75,
+            Math.max(0.4, effectiveHeight > 150 ? 0.65 : 0.6)
+          );
+        }
+
+        const shapeHeight = effectiveHeight * shapeHeightPercentage;
+        const textHeight = effectiveHeight - shapeHeight;
+
         return (
-          <div
-            style={{
-              width: "100%",
-              height: "auto", // Auto height to fit content
-              minHeight: "100%", // Ensure it takes at least full node height
-              display: "flex",
-              flexDirection: "column",
-            }}
-          >
-            {/* Arrow shape with minimal fixed height */}
+          <div style={containerStyle}>
             <div
               style={{
-                height: "40px",
+                height: `${shapeHeight}px`,
                 width: "100%",
-                marginBottom: "4px",
-                flexShrink: 0,
-              }}
-            >
-              <svg
-                style={svgStyle}
-                viewBox={SHAPE_DEFINITIONS[data.shape].viewBox}
-                preserveAspectRatio="none"
-                xmlns="http://www.w3.org/2000/svg"
-                width="100%"
-                height="100%"
-              >
-                {SHAPE_DEFINITIONS[data.shape].render(shapeProps)}
-              </svg>
-            </div>
-
-            {/* Text container that expands naturally */}
-            <div
-              style={{
-                width: "100%",
-                padding: "0 8px",
-                display: "flex",
-                flexDirection: "column",
-                flexGrow: 1,
-              }}
-            >
-              {/* Node label */}
-              <div
-                style={{
-                  ...getTextStyle(),
-                  width: "100%",
-                  whiteSpace: "normal",
-                  wordBreak: "break-all",
-                  marginBottom: "4px",
-                }}
-              >
-                {labelValue}
-              </div>
-
-              {/* Property list */}
-              {visibleProperties.length > 0 && (
-                <div
-                  style={{
-                    width: "100%",
-                    display: "flex",
-                    flexDirection: "column",
-                  }}
-                >
-                  {visibleProperties.map((prop) => (
-                    <div
-                      key={prop.key}
-                      style={{
-                        ...getTextStyle(true),
-
-                        width: "100%",
-                        whiteSpace: "normal",
-                        wordBreak: "break-all",
-                        marginBottom: "2px",
-                        lineHeight: "1.1",
-                      }}
-                    >
-                      {prop.value}
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
-        );
-      }
-
-      // For human figures, change to match arrow layout
-      if (currentShapeIsHumanFigure) {
-        return (
-          <div
-            style={{
-              width: "100%",
-              height: "auto",
-              minHeight: "100%",
-              display: "flex",
-              flexDirection: "column",
-            }}
-          >
-            {/* Human figure shape container */}
-            <div
-              style={{
-                height: "60px",
-                width: "100%",
-                marginBottom: "4px",
                 flexShrink: 0,
                 display: "flex",
                 justifyContent: "center",
                 alignItems: "center",
-              }}
-            >
-              {SHAPE_DEFINITIONS[data.shape] && (
-                <svg
-                  style={svgStyle}
-                  viewBox={SHAPE_DEFINITIONS[data.shape].viewBox}
-                  xmlns="http://www.w3.org/2000/svg"
-                  preserveAspectRatio="xMidYMid meet"
-                >
-                  {SHAPE_DEFINITIONS[data.shape].render(shapeProps)}
-                </svg>
-              )}
-            </div>
-
-            {/* Text container below the figure */}
-            <div
-              style={{
-                width: "100%",
-                padding: "0 8px",
-                display: "flex",
-                flexDirection: "column",
-                flexGrow: 1,
-              }}
-            >
-              <div
-                style={{
-                  ...getTextStyle(),
-
-                  width: "100%",
-                  whiteSpace: "normal",
-                  wordBreak: "break-all",
-                  marginBottom: "4px",
-                }}
-              >
-                {labelValue}
-              </div>
-
-              {visibleProperties.length > 0 && (
-                <div
-                  style={{
-                    width: "100%",
-                    display: "flex",
-                    flexDirection: "column",
-                  }}
-                >
-                  {visibleProperties.map((prop) => (
-                    <div
-                      key={prop.key}
-                      style={{
-                        ...getTextStyle(true),
-
-                        width: "100%",
-                        whiteSpace: "normal",
-                        wordBreak: "break-all",
-                        marginBottom: "2px",
-                        lineHeight: "1.1",
-                      }}
-                    >
-                      {prop.value}
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
-        );
-      }
-
-      // For cylinder shape - text below the shape
-      if ((data.shape as string) === "cylinder") {
-        return (
-          <div
-            style={{
-              width: "100%",
-              height: "auto",
-              minHeight: "100%",
-              display: "flex",
-              flexDirection: "column",
-            }}
-          >
-            {/* Cylinder shape container - top portion */}
-            <div
-              style={{
-                height: "60px",
-                width: "100%",
-                marginBottom: "4px",
-                flexShrink: 0,
+                overflow: "visible", // Prevent clipping
+                position: "relative",
               }}
             >
               <svg
-                style={svgStyle}
+                style={{
+                  width: "100%",
+                  height: "100%",
+                  display: "block",
+                  overflow: "visible", // Allow SVG to scale without clipping
+                  maxWidth: "100%",
+                  maxHeight: "100%",
+                }}
                 viewBox={SHAPE_DEFINITIONS[data.shape].viewBox}
-                preserveAspectRatio="none"
+                preserveAspectRatio="none" // Allow free scaling for all shapes in this category
                 xmlns="http://www.w3.org/2000/svg"
-                width="100%"
-                height="100%"
               >
                 {SHAPE_DEFINITIONS[data.shape].render(shapeProps)}
               </svg>
             </div>
 
-            {/* Text container below the shape */}
-            <div
-              style={{
-                width: "100%",
-                padding: "0 8px",
-                display: "flex",
-                flexDirection: "column",
-                flexGrow: 1,
-              }}
-            >
-              {/* Node label */}
-              <div
-                style={{
-                  ...getTextStyle(),
-
-                  width: "100%",
-                  whiteSpace: "normal",
-                  wordBreak: "break-all",
-                  marginBottom: "4px",
-                }}
-              >
-                {labelValue}
-              </div>
-
-              {/* Property list */}
-              {visibleProperties.length > 0 && (
-                <div
-                  style={{
-                    width: "100%",
-                    display: "flex",
-                    flexDirection: "column",
-                  }}
-                >
-                  {visibleProperties.map((prop) => (
-                    <div
-                      key={prop.key}
-                      style={{
-                        ...getTextStyle(true),
-
-                        width: "100%",
-                        whiteSpace: "normal",
-                        wordBreak: "break-all",
-                        marginBottom: "2px",
-                        lineHeight: "1.1",
-                      }}
-                    >
-                      {prop.value}
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
-        );
-      }
-
-      // For special shapes like hexagon, diamond, triangle, etc. - ensure text stays within bounds
-      if (
-        ["hexagon", "diamond", "triangle", "circle"].includes(
-          data.shape as string
-        )
-      ) {
-        // Calculate appropriate width percentage based on shape
-        const widthPercentage =
-          data.shape === "diamond"
-            ? "50%"
-            : data.shape === "triangle"
-              ? "60%"
-              : data.shape === "circle"
-                ? "70%"
-                : "65%";
-
-        const PRESERVED_ASPECT_RATIO_SHAPES = ["circle", "square"];
-
-        return (
-          <div style={{ position: "relative", width: "100%", height: "100%" }}>
-            {/* Render the shape as SVG */}
-            <svg
-              style={svgStyle}
-              viewBox={SHAPE_DEFINITIONS[data.shape].viewBox}
-              preserveAspectRatio={
-                PRESERVED_ASPECT_RATIO_SHAPES.includes(data.shape as string)
-                  ? "xMidYMid meet"
-                  : "none"
-              }
-              xmlns="http://www.w3.org/2000/svg"
-            >
-              {SHAPE_DEFINITIONS[data.shape].render(shapeProps)}
-            </svg>
-
-            {/* Overlay text on top of the shape */}
-            <div
-              style={{
-                position: "absolute",
-                top: 0,
-                left: 0,
-                width: "100%",
-                height: "100%",
-                display: "flex",
-                ...getOverlayAlignmentStyle(
-                  data.style?.verticalAlign,
-                  data.style?.textAlign
-                ),
-                padding: "15px",
-              }}
-            >
-              <div
-                style={{
-                  width: widthPercentage,
-                  display: "flex",
-                  flexDirection: "column",
-                  overflow: "visible",
-                  textAlign: data.style?.textAlign || "center",
-                }}
-              >
-                <div
-                  style={{
-                    ...getTextStyle(),
-                    overflow: "visible",
-                    textOverflow: "ellipsis",
-                  }}
-                >
-                  {labelValue}
-                </div>
-
-                {visibleProperties.length > 0 && (
-                  <div
-                    style={{
-                      width: "100%",
-                      marginTop: "2px",
-                      overflow: "visible",
-                    }}
-                  >
-                    {visibleProperties.map((prop) => (
-                      <div
-                        key={prop.key}
-                        style={{
-                          ...getTextStyle(true),
-                          overflow: "visible",
-                          textOverflow: "ellipsis",
-                        }}
-                      >
-                        {prop.value}
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-        );
-      }
-
-      // For capsule shape - render using SVG to maintain pill shape
-      if (data.shape === "capsule") {
-        return (
-          <div style={{ position: "relative", width: "100%", height: "100%" }}>
-            <svg
-              style={svgStyle}
-              viewBox={SHAPE_DEFINITIONS[data.shape].viewBox}
-              preserveAspectRatio="none"
-              xmlns="http://www.w3.org/2000/svg"
-              width="100%"
-              height="100%"
-            >
-              {SHAPE_DEFINITIONS[data.shape].render(shapeProps)}
-            </svg>
-
-            {/* Text overlaid on capsule */}
-            <div
-              style={{
-                position: "absolute",
-                top: 0,
-                left: 0,
-                width: "100%",
-                height: "100%",
-                display: "flex",
-                ...getOverlayAlignmentStyle(
-                  data.style?.verticalAlign,
-                  data.style?.textAlign
-                ),
-                padding: "15px",
-              }}
-            >
-              <div
-                style={{
-                  width: "70%", // Use percentage of container width to maintain spacing
-                  display: "flex",
-                  flexDirection: "column",
-                  overflow: "visible",
-                  textAlign: data.style?.textAlign || "center",
-                }}
-              >
-                <div
-                  style={{
-                    ...getTextStyle(),
-                    overflow: "visible",
-                    textOverflow: "ellipsis",
-                  }}
-                >
-                  {labelValue}
-                </div>
-
-                {visibleProperties.length > 0 && (
-                  <div
-                    style={{
-                      width: "100%",
-                      marginTop: "2px",
-                      overflow: "visible",
-                    }}
-                  >
-                    {visibleProperties.map((prop) => (
-                      <div
-                        key={prop.key}
-                        style={{
-                          ...getTextStyle(true),
-                          overflow: "visible",
-                          textOverflow: "ellipsis",
-                        }}
-                      >
-                        {prop.value}
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-        );
-      }
-
-      // For cylinder, document, and message-bubble shapes - ensure text stays within bounds
-      if (
-        ["cylinder", "document", "message-bubble"].includes(
-          data.shape as string
-        )
-      ) {
-        // Special case for cylinder - move text below the shape
-        if ((data.shape as string) === "cylinder") {
-          return (
-            <div
-              style={{
-                width: "100%",
-                height: "auto",
-                minHeight: "100%",
-                display: "flex",
-                flexDirection: "column",
-              }}
-            >
-              {/* Cylinder shape container - top portion */}
-              <div
-                style={{
-                  height: "70px",
-                  width: "100%",
-                  marginBottom: "8px",
-                  flexShrink: 0,
-                }}
-              >
-                <svg
-                  style={svgStyle}
-                  viewBox={SHAPE_DEFINITIONS[data.shape].viewBox}
-                  preserveAspectRatio="none"
-                  xmlns="http://www.w3.org/2000/svg"
-                  width="100%"
-                  height="100%"
-                >
-                  {SHAPE_DEFINITIONS[data.shape].render(shapeProps)}
-                </svg>
-              </div>
-
-              {/* Text container below the shape */}
+            {textHeight > 20 && ( // Only show text if there's meaningful space
               <div
                 style={{
                   width: "100%",
-                  padding: "0 8px",
+                  height: `${textHeight}px`,
                   display: "flex",
                   flexDirection: "column",
-                  flexGrow: 1,
+                  gap: "2px",
+                  overflow: "hidden",
+                  padding: "4px 8px",
+                  justifyContent: "flex-start",
+                  minHeight: "20px", // Ensure minimum text space
                 }}
               >
-                {/* Node label */}
-                <div
-                  style={{
-                    ...getTextStyle(),
-                    textAlign: data.style?.textAlign || "center",
-                    width: "100%",
-                    whiteSpace: "normal",
-                    wordBreak: "break-all",
-                    marginBottom: "8px",
-                  }}
-                >
-                  {labelValue}
-                </div>
+                <AutoSizedTextContainer
+                  text={labelValue}
+                  containerWidth={effectiveWidth - 16}
+                  containerHeight={Math.max(textHeight * 0.6, 15)}
+                  style={baseTextStyle}
+                />
 
-                {/* Property list */}
-                {visibleProperties.length > 0 && (
+                {visibleProperties.length > 0 && textHeight > 40 && (
                   <div
                     style={{
-                      width: "100%",
                       display: "flex",
                       flexDirection: "column",
+                      gap: "1px",
+                      flex: 1,
                     }}
                   >
                     {visibleProperties.map((prop) => (
-                      <div
+                      <AutoSizedTextContainer
                         key={prop.key}
-                        style={{
-                          ...getTextStyle(true),
-                          textAlign: data.style?.textAlign || "center",
-                          width: "100%",
-                          whiteSpace: "normal",
-                          wordBreak: "break-all",
-                          marginBottom: "4px",
-                          lineHeight: "1.2",
-                        }}
-                      >
-                        {prop.value}
-                      </div>
+                        text={prop.value}
+                        containerWidth={effectiveWidth - 16}
+                        containerHeight={Math.max(textHeight * 0.08, 12)}
+                        style={baseTextStyle}
+                        isProperty={true}
+                      />
                     ))}
                   </div>
                 )}
               </div>
-            </div>
-          );
-        }
-
-        // Other shapes (document, message-bubble) - use original approach
-        // Calculate width percentage based on shape
-        const widthPercentage = data.shape === "message-bubble" ? "70%" : "75%";
-
-        return (
-          <div style={{ position: "relative", width: "100%", height: "100%" }}>
-            {/* Render the shape */}
-            <svg
-              style={svgStyle}
-              viewBox={SHAPE_DEFINITIONS[data.shape].viewBox}
-              preserveAspectRatio="none"
-              xmlns="http://www.w3.org/2000/svg"
-              width="100%"
-              height="100%"
-            >
-              {SHAPE_DEFINITIONS[data.shape].render(shapeProps)}
-            </svg>
-
-            {/* Overlay text on top of the shape */}
-            <div
-              style={{
-                position: "absolute",
-                top: 0,
-                left: 0,
-                width: "100%",
-                height: "100%",
-                display: "flex",
-                ...getOverlayAlignmentStyle(
-                  data.style?.verticalAlign,
-                  data.style?.textAlign
-                ),
-                padding: "15px",
-              }}
-            >
-              <div
-                style={{
-                  width: widthPercentage,
-                  display: "flex",
-                  flexDirection: "column",
-                  overflow: "visible",
-                  textAlign: data.style?.textAlign || "center",
-                }}
-              >
-                <div
-                  style={{
-                    ...getTextStyle(),
-                    overflow: "visible",
-                    textOverflow: "ellipsis",
-                  }}
-                >
-                  {labelValue}
-                </div>
-
-                {visibleProperties.length > 0 && (
-                  <div
-                    style={{
-                      width: "100%",
-                      marginTop: "2px",
-                      overflow: "visible",
-                    }}
-                  >
-                    {visibleProperties.map((prop) => (
-                      <div
-                        key={prop.key}
-                        style={{
-                          ...getTextStyle(true),
-                          overflow: "visible",
-                          textOverflow: "ellipsis",
-                        }}
-                      >
-                        {prop.value}
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </div>
+            )}
           </div>
         );
       }
 
-      // Special cases for class and interface
-      switch (data.shape) {
-        case "interface":
-          return (
+      // Shapes with overlay text
+      const shapesWithOverlay = [
+        "hexagon",
+        "diamond",
+        "triangle",
+        "circle",
+        "capsule",
+        "document",
+        "message-bubble",
+      ];
+
+      if (shapesWithOverlay.includes(data.shape as string)) {
+        // Text width percentages for each shape
+        const textWidthPercentage =
+          data.shape === "diamond"
+            ? 0.45
+            : data.shape === "triangle"
+              ? 0.55
+              : data.shape === "circle"
+                ? 0.65
+                : data.shape === "message-bubble"
+                  ? 0.75
+                  : data.shape === "document"
+                    ? 0.8
+                    : data.shape === "capsule"
+                      ? 0.75
+                      : 0.7;
+
+        const textWidth = effectiveWidth * textWidthPercentage;
+        const textHeight = effectiveHeight * 0.85;
+
+        return (
+          <div style={containerStyle}>
             <div
-              style={{
-                ...shapeStyle,
-                borderColor: data.style?.borderColor || "#000000",
-                borderStyle: data.style?.borderStyle || "solid",
-                borderWidth: `${data.style?.borderWidth || 1}px`,
-                backgroundColor: data.style?.backgroundColor || "white",
-              }}
-              className="flex flex-col"
+              style={{ position: "relative", width: "100%", height: "100%" }}
             >
-              <div
-                className="border-b-2 p-2 font-bold"
-                style={{
-                  borderColor: data.style?.borderColor || "#000000",
-                  ...getTextStyle(true),
-                }}
-              >
-                «interface»
-              </div>
-              <div className="p-2">
-                <div
-                  style={{
-                    // width: "100%",
-                    ...getTextStyle(),
-                    whiteSpace: "normal",
-                    wordWrap: "break-word",
-                  }}
-                >
-                  {labelValue}
-                </div>
-              </div>
-            </div>
-          );
-        default:
-          return (
-            <div
-              style={{
-                ...shapeStyle,
-                borderColor: data.style?.borderColor || "#000000",
-                borderStyle: data.style?.borderStyle || "solid",
-                borderWidth: `${data.style?.borderWidth || 1}px`,
-                backgroundColor: data.style?.backgroundColor || "white",
-                padding: "8px",
-                // overflow: "hidden",
-                borderRadius: BORDER_RADIUS_MAP[data.shape] || "0px", // Apply border radius based on shape type
-              }}
-            >
-              <div
+              <svg
                 style={{
                   width: "100%",
                   height: "100%",
+                  display: "block",
+                }}
+                viewBox={SHAPE_DEFINITIONS[data.shape].viewBox}
+                preserveAspectRatio={
+                  ["circle", "square"].includes(data.shape as string)
+                    ? "xMidYMid meet"
+                    : "none"
+                }
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                {SHAPE_DEFINITIONS[data.shape].render(shapeProps)}
+              </svg>
+
+              <div
+                style={{
+                  position: "absolute",
+                  top: 0,
+                  left: 0,
+                  width: "100%",
+                  height: "100%",
                   display: "flex",
-                  flexDirection: "column",
-                  // Vertical alignment (top/middle/bottom)
-                  justifyContent:
-                    data.style?.verticalAlign === "top"
-                      ? "flex-start"
-                      : data.style?.verticalAlign === "bottom"
-                        ? "flex-end"
-                        : data.style?.verticalAlign === "middle"
-                          ? "center"
-                          : "flex-start", // Default to top
-                  overflow: "hidden",
+                  ...getOverlayAlignmentStyle(
+                    data.style?.verticalAlign,
+                    data.style?.textAlign
+                  ),
+                  pointerEvents: "none",
                 }}
               >
                 <div
                   style={{
-                    ...getTextStyle(),
-                    textAlign: data.style?.textAlign || "left", // Horizontal alignment
-                    width: "100%",
+                    width: `${textWidthPercentage * 100}%`,
+                    maxHeight: "85%",
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: "2px",
+                    overflow: "hidden",
+                    padding: data.shape === "document" ? "8px 4px" : "4px",
                   }}
                 >
-                  {labelValue}
-                </div>
+                  <AutoSizedTextContainer
+                    text={labelValue}
+                    containerWidth={textWidth - 8}
+                    containerHeight={textHeight * 0.7}
+                    style={baseTextStyle}
+                  />
 
-                {visibleProperties.length > 0 && (
-                  <div
-                    style={{
-                      width: "100%",
-                      marginTop: "4px",
-                      overflow: "hidden",
-                    }}
-                  >
-                    {visibleProperties.map((prop) => (
-                      <div
-                        key={prop.key}
-                        style={{
-                          ...getTextStyle(true),
-                          textAlign: data.style?.textAlign || "left", // Horizontal alignment
-                          width: "100%",
-                        }}
-                      >
-                        {prop.value}
-                      </div>
-                    ))}
-                  </div>
-                )}
+                  {visibleProperties.length > 0 && (
+                    <div
+                      style={{
+                        display: "flex",
+                        flexDirection: "column",
+                        gap: "1px",
+                      }}
+                    >
+                      {visibleProperties.map((prop) => (
+                        <AutoSizedTextContainer
+                          key={prop.key}
+                          text={prop.value}
+                          containerWidth={textWidth - 8}
+                          containerHeight={textHeight * 0.08}
+                          style={baseTextStyle}
+                          isProperty={true}
+                        />
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
-          );
+          </div>
+        );
       }
+
+      // Interface shape special case
+      if (data.shape === "interface") {
+        return (
+          <div style={containerStyle}>
+            <div
+              style={{
+                width: "100%",
+                height: "100%",
+                borderColor: data.style?.borderColor || "#000000",
+                borderStyle: data.style?.borderStyle || "solid",
+                borderWidth: `${data.style?.borderWidth || 1}px`,
+                backgroundColor: data.style?.backgroundColor || "white",
+                display: "flex",
+                flexDirection: "column",
+                boxSizing: "border-box",
+              }}
+            >
+              <div
+                style={{
+                  borderBottom: `2px solid ${data.style?.borderColor || "#000000"}`,
+                  padding: "8px",
+                  fontWeight: "bold",
+                  width: "100%",
+                  textAlign: "center",
+                  height: "auto",
+                  flexShrink: 0,
+                }}
+              >
+                <AutoSizedTextContainer
+                  text="«interface»"
+                  containerWidth={effectiveWidth - 16}
+                  containerHeight={30}
+                  style={baseTextStyle}
+                />
+              </div>
+              <div
+                style={{
+                  padding: "12px",
+                  flexGrow: 1,
+                  width: "100%",
+                  overflow: "hidden",
+                }}
+              >
+                <AutoSizedTextContainer
+                  text={labelValue}
+                  containerWidth={effectiveWidth - 24}
+                  containerHeight={effectiveHeight - 60}
+                  style={baseTextStyle}
+                />
+              </div>
+            </div>
+          </div>
+        );
+      }
+
+      // Default rectangular shapes
+      return (
+        <div style={containerStyle}>
+          <div
+            style={{
+              width: "100%",
+              height: "100%",
+              borderColor: data.style?.borderColor || "#000000",
+              borderStyle: data.style?.borderStyle || "solid",
+              borderWidth: `${data.style?.borderWidth || 1}px`,
+              backgroundColor: data.style?.backgroundColor || "white",
+              padding: "12px",
+              borderRadius: BORDER_RADIUS_MAP[data.shape] || "0px",
+              display: "flex",
+              flexDirection: "column",
+              justifyContent:
+                data.style?.verticalAlign === "top"
+                  ? "flex-start"
+                  : data.style?.verticalAlign === "bottom"
+                    ? "flex-end"
+                    : data.style?.verticalAlign === "middle"
+                      ? "center"
+                      : "flex-start",
+              overflow: "hidden",
+              boxSizing: "border-box",
+            }}
+          >
+            <div style={{ width: "100%", marginBottom: "4px", flexShrink: 0 }}>
+              <AutoSizedTextContainer
+                text={labelValue}
+                containerWidth={effectiveWidth - 24}
+                containerHeight={effectiveHeight * 0.6}
+                style={{
+                  ...baseTextStyle,
+                  textAlign: data.style?.textAlign || "left",
+                }}
+              />
+            </div>
+
+            {visibleProperties.length > 0 && (
+              <div
+                style={{
+                  width: "100%",
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: "2px",
+                  flex: 1,
+                  overflow: "hidden",
+                }}
+              >
+                {visibleProperties.map((prop) => (
+                  <AutoSizedTextContainer
+                    key={prop.key}
+                    text={prop.value}
+                    containerWidth={effectiveWidth - 24}
+                    containerHeight={effectiveHeight * 0.08}
+                    style={{
+                      ...baseTextStyle,
+                      textAlign: data.style?.textAlign || "left",
+                    }}
+                    isProperty={true}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      );
     };
 
     return (
@@ -1197,19 +992,21 @@ export const GenericNode = memo(
           }}
         />
         <div
+          ref={containerRef}
           style={{
             ...nodeStyle,
-            ...shapeStyle,
             width: nodeSize.width,
             height: nodeSize.height,
             boxShadow: selected ? "0 0 0 1px rgba(26, 25, 43, 0.3)" : "none",
+            position: "relative",
+            overflow: "hidden", // Keep this hidden to maintain clean edges
           }}
           className={`${data.style?.locked ? "cursor-not-allowed" : "cursor-pointer"}`}
           role="application"
           aria-label={`${data.shape} node`}
           aria-describedby={`node-${id}-desc`}
         >
-          {/* Target Handles - Now only visible when selected */}
+          {/* Handles */}
           <Handle
             type="target"
             position={Position.Top}
@@ -1238,8 +1035,6 @@ export const GenericNode = memo(
             isConnectable={isConnectable}
             id="d"
           />
-
-          {/* Source Handles - Now only visible when selected */}
           <Handle
             type="source"
             position={Position.Top}
@@ -1269,22 +1064,46 @@ export const GenericNode = memo(
             id="h"
           />
 
-          {/* Render editable input or shape */}
           {isEditing ? (
-            <TextareaAutosize
-              value={labelValue}
-              onChange={(e) => setLabelValue(e.target.value)}
-              onBlur={handleBlur}
-              //@ts-ignore
-              onKeyDown={handleKeyDown}
-              className="w-full text-center bg-transparent border-none outline-none resize-none px-4"
-              style={getTextStyle()}
-              autoFocus
-              minRows={1}
-              maxRows={2} // Limit to 2 rows when editing
-            />
+            <div
+              style={{
+                width: "100%",
+                height: "100%",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                padding: "8px",
+              }}
+            >
+              <TextareaAutosize
+                value={labelValue}
+                onChange={(e) => setLabelValue(e.target.value)}
+                onBlur={handleBlur}
+                // @ts-expect-error - ReactFlow types don't include onKeyDown
+                onKeyDown={handleKeyDown}
+                style={{
+                  width: "100%",
+                  background: "transparent",
+                  border: "1px solid #ccc",
+                  borderRadius: "4px",
+                  padding: "4px",
+                  outline: "none",
+                  resize: "none",
+                  fontFamily: data.style?.fontFamily || "Arial",
+                  fontSize: `${data.style?.fontSize || 12}px`,
+                  textAlign: (data.style?.textAlign || "center") as any,
+                }}
+                autoFocus
+                minRows={1}
+                maxRows={10}
+              />
+            </div>
           ) : (
-            <div className="w-full h-full" onDoubleClick={handleDoubleClick}>
+            <div
+              className="w-full h-full"
+              onDoubleClick={handleDoubleClick}
+              style={{ position: "relative" }}
+            >
               {renderShape()}
             </div>
           )}
