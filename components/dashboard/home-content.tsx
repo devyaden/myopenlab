@@ -152,25 +152,47 @@ const useHomeManagement = (user: any) => {
   };
 };
 
-// Skeleton loader for folder cards
+// Skeleton loader for folder cards - fixed size and no animation
 const SkeletonFolderCard = memo(() => (
-  <Card className="p-3 h-28 w-28 animate-pulse">
-    <div className="flex flex-col items-center justify-center h-full">
-      <div className="h-10 w-10 bg-gray-200 rounded mb-1"></div>
-      <div className="h-4 bg-gray-200 rounded w-16 mb-1"></div>
-      <div className="h-3 bg-gray-200 rounded w-12"></div>
-    </div>
-  </Card>
+  <div className="h-28 w-28">
+    <Card className="p-3 h-full w-full">
+      <div className="flex flex-col items-center justify-center h-full">
+        <div className="h-10 w-10 bg-gray-200 rounded mb-1"></div>
+        <div className="h-4 bg-gray-200 rounded w-16 mb-1"></div>
+        <div className="h-3 bg-gray-200 rounded w-12"></div>
+      </div>
+    </Card>
+  </div>
 ));
 
 SkeletonFolderCard.displayName = "SkeletonFolderCard";
 
-// Skeleton grid for folders
-const SkeletonFolderGrid = memo(({ count = 8 }: { count?: number }) => (
+// Skeleton grid for folders - matches exact real layout
+const SkeletonFolderGrid = memo(() => (
   <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-10 gap-6">
-    {Array.from({ length: count }).map((_, index) => (
+    {/* Root folder skeleton */}
+    <div className="h-28 w-28">
+      <Card className="p-3 border-2 border-dashed border-gray-200 h-full w-full flex items-center justify-center">
+        <div className="flex flex-col items-center justify-center">
+          <div className="h-10 w-10 bg-gray-200 rounded mb-1"></div>
+          <div className="h-4 bg-gray-200 rounded w-12 mb-1"></div>
+          <div className="h-3 bg-gray-200 rounded w-10"></div>
+        </div>
+      </Card>
+    </div>
+
+    {/* Regular folder skeletons */}
+    {Array.from({ length: 8 }).map((_, index) => (
       <SkeletonFolderCard key={index} />
     ))}
+
+    {/* New folder button skeleton */}
+    <div className="h-28 w-28">
+      <div className="flex flex-col text-sm w-full h-full border border-gray-200 rounded-lg items-center justify-center">
+        <div className="h-5 w-5 bg-gray-200 rounded mb-1"></div>
+        <div className="h-4 bg-gray-200 rounded w-16"></div>
+      </div>
+    </div>
   </div>
 ));
 
@@ -682,12 +704,16 @@ export const HomeContent = memo(() => {
   const renderContent = useMemo(() => {
     // Show error state if there's a persistent error
     if (error && hasInitialized) {
-      return <ErrorState error={error} onRetry={handleRetryOperation} />;
+      return (
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-10 gap-6">
+          <ErrorState error={error} onRetry={handleRetryOperation} />
+        </div>
+      );
     }
 
     // Show skeleton loading during initial load
     if (isLoading && !hasInitialized) {
-      return <SkeletonFolderGrid count={10} />;
+      return <SkeletonFolderGrid />;
     }
 
     const hasResults = showRootFolder || filteredFolders.length > 0;
