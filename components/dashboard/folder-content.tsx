@@ -4,6 +4,7 @@ import {
   CANVAS_TYPE,
   CreateNewModal,
 } from "@/components/dashboard-sidebar/create-new-modal";
+import { useOnboarding } from "@/components/onboarding/custom-tooltip";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -33,10 +34,10 @@ import {
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useUser } from "@/lib/contexts/userContext";
-import { useOnboardingStore } from "@/lib/store/useOnboarding";
 import { useSidebarStore } from "@/lib/store/useSidebar";
 import { generateUntitledName } from "@/lib/utils";
 import {
+  AlertCircle,
   ArrowLeft,
   Edit,
   File,
@@ -47,13 +48,10 @@ import {
   Search,
   Trash,
   X,
-  AlertCircle,
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useMemo, useState, memo } from "react";
-import Joyride from "react-joyride";
-import CustomJoyrideTooltip from "../CustomJoyrideTooltip";
+import { memo, useCallback, useEffect, useMemo, useState } from "react";
 
 interface FolderContentProps {
   folderId: string;
@@ -211,12 +209,14 @@ const CanvasCard = memo(
     onDelete,
     isDeleting = false,
     isUpdating = false,
+    className = "",
   }: {
     canvas: Canvas;
     onEdit: (id: string, name: string) => void;
     onDelete: (id: string) => void;
     isDeleting?: boolean;
     isUpdating?: boolean;
+    className?: string;
   }) => {
     const handleEdit = useCallback(
       (e: React.MouseEvent) => {
@@ -272,10 +272,10 @@ const CanvasCard = memo(
       <div
         className={`transition-all duration-200 ${
           isDeleting ? "opacity-50 scale-95" : ""
-        } ${isUpdating ? "opacity-75" : ""}`}
+        } ${isUpdating ? "opacity-75" : ""} ${className}`}
       >
         <Link href={href} className={isDisabled ? "pointer-events-none" : ""}>
-          <Card className="p-4 hover:shadow-md transition-shadow cursor-pointer group">
+          <Card className="p-4 hover:shadow-md transition-shadow cursor-pointer group onboarding-file-actions">
             <div className="flex items-start justify-between">
               <div className="flex items-center">
                 <div
@@ -359,19 +359,14 @@ ErrorState.displayName = "ErrorState";
 const EmptyState = memo(
   ({
     onCreateNew,
-    showOnboarding,
-    onboardingProps,
     isSearching = false,
     searchQuery = "",
   }: {
     onCreateNew: () => void;
-    showOnboarding: boolean;
-    onboardingProps?: any;
     isSearching?: boolean;
     searchQuery?: string;
   }) => (
     <div className="text-center py-8 bg-gray-50 rounded-lg">
-      {showOnboarding && onboardingProps && <Joyride {...onboardingProps} />}
       <FileText className="mx-auto h-12 w-12 text-gray-300 mb-2" />
       <p className="text-gray-500">
         {isSearching
@@ -382,7 +377,7 @@ const EmptyState = memo(
         <Button
           variant="outline"
           size="sm"
-          className="mt-4 onboarding-create-button"
+          className="mt-4"
           onClick={onCreateNew}
         >
           <Plus className="mr-1 h-4 w-4" /> Create New
@@ -409,8 +404,7 @@ LoadingOverlay.displayName = "LoadingOverlay";
 export const FolderContent = memo(({ folderId }: FolderContentProps) => {
   const router = useRouter();
   const { user } = useUser();
-  const { isFirstVisit, protectedOnBording, setIsChecked, isChecked } =
-    useOnboardingStore();
+  const { trackCreate, trackSearch } = useOnboarding();
 
   // Local state management
   const [searchQuery, setSearchQuery] = useState("");
@@ -426,7 +420,6 @@ export const FolderContent = memo(({ folderId }: FolderContentProps) => {
     isOpen: false,
     item: null,
   });
-  const [runTour, setRunTour] = useState(true);
 
   // Track operation states for visual feedback
   const [deletingItems, setDeletingItems] = useState<Set<string>>(new Set());
@@ -448,25 +441,6 @@ export const FolderContent = memo(({ folderId }: FolderContentProps) => {
     hasInitialized,
   } = useFolderManagement(folderId, user);
 
-  // Onboarding configuration
-  const isHasSeenProtectedOnBording = useMemo(() => {
-    if (!user?.has_seen_onboarding) {
-      return !user?.has_seen_onboarding && protectedOnBording;
-    }
-    return user?.has_seen_onboarding && protectedOnBording;
-  }, [user?.has_seen_onboarding, protectedOnBording]);
-
-  const onboardingSteps = useMemo(
-    () => [
-      {
-        target: ".onboarding-create-button",
-        content: "Click here to create a new folder!",
-        disableBeacon: true,
-      },
-    ],
-    []
-  );
-
   // Get canvases from current folder
   const allCanvases = useMemo(() => {
     return currentFolder?.canvases || [];
@@ -485,8 +459,13 @@ export const FolderContent = memo(({ folderId }: FolderContentProps) => {
     (e: React.ChangeEvent<HTMLInputElement>) => {
       setSearchQuery(e.target.value);
       setOperationError(null);
+
+      // Track search action for smart suggestions
+      if (e.target.value.length > 2) {
+        trackSearch();
+      }
     },
-    []
+    [trackSearch]
   );
 
   const handleSearchClear = useCallback(() => {
@@ -496,34 +475,6 @@ export const FolderContent = memo(({ folderId }: FolderContentProps) => {
   const handleBackNavigation = useCallback(() => {
     router.push("/protected");
   }, [router]);
-
-  const handleJoyrideCllback = useCallback(
-    (data: any) => {
-      const { action, index, status } = data;
-
-      if (action === "next" && index === 0) {
-        setCreateNewModalType("canvas");
-      }
-
-      if (isChecked) {
-        setIsChecked(false);
-        setRunTour(false);
-      }
-
-      if (status === "finished" || status === "skipped") {
-        setIsChecked(false);
-        setRunTour(false);
-      }
-    },
-    [isChecked, setIsChecked]
-  );
-
-  const handleDontShowAgainChange = useCallback(
-    (e: any) => {
-      setIsChecked(e.target?.checked);
-    },
-    [setIsChecked]
-  );
 
   const handleCreateCanvas = useCallback(
     async (
@@ -544,6 +495,8 @@ export const FolderContent = memo(({ folderId }: FolderContentProps) => {
           type
         );
 
+        trackCreate(); // Track for smart suggestions
+
         if (canvasId) {
           const href =
             type === CANVAS_TYPE.DOCUMENT
@@ -560,16 +513,17 @@ export const FolderContent = memo(({ folderId }: FolderContentProps) => {
       setCreateNewModalType(null);
       return true;
     },
-    [folderId, createCanvas, user?.id]
+    [folderId, createCanvas, user?.id, trackCreate]
   );
 
   const handleQuickCreate = useCallback(
     (type: CANVAS_TYPE) => {
       const name = generateUntitledName(type, allCanvases || []);
       const folderIdToUse = folderId === "root" ? null : folderId;
+      trackCreate(); // Track quick creation
       handleCreateCanvas(name, "", type, folderIdToUse);
     },
-    [allCanvases, folderId, handleCreateCanvas]
+    [allCanvases, folderId, handleCreateCanvas, trackCreate]
   );
 
   const handleEdit = useCallback((id: string, name: string) => {
@@ -680,7 +634,7 @@ export const FolderContent = memo(({ folderId }: FolderContentProps) => {
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button
-            className="bg-yadn-accent-green hover:bg-yadn-accent-green/80 text-white"
+            className="bg-yadn-accent-green hover:bg-yadn-accent-green/80 text-white onboarding-create-dropdown"
             disabled={canvasLoading}
           >
             {canvasLoading ? (
@@ -743,36 +697,8 @@ export const FolderContent = memo(({ folderId }: FolderContentProps) => {
       return (
         <EmptyState
           onCreateNew={() => setCreateNewModalType("canvas")}
-          showOnboarding={
-            isHasSeenProtectedOnBording && isFirstVisit && !searchQuery
-          }
           isSearching={!!searchQuery}
           searchQuery={searchQuery}
-          onboardingProps={
-            isHasSeenProtectedOnBording && isFirstVisit && !searchQuery
-              ? {
-                  steps: onboardingSteps,
-                  run: runTour,
-                  callback: handleJoyrideCllback,
-                  tooltipComponent: (props: any) => (
-                    <CustomJoyrideTooltip
-                      {...props}
-                      onDontShowAgainChange={handleDontShowAgainChange}
-                      isChecked={isChecked}
-                    />
-                  ),
-                  continuous: true,
-                  showProgress: true,
-                  showSkipButton: true,
-                  styles: {
-                    options: {
-                      primaryColor: "#22c55e",
-                      zIndex: 10000,
-                    },
-                  },
-                }
-              : undefined
-          }
         />
       );
     }
@@ -780,7 +706,7 @@ export const FolderContent = memo(({ folderId }: FolderContentProps) => {
     // Show file grid
     return (
       <div className="grid grid-cols-1 xs:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-        {filteredCanvases.map((canvas: Canvas) => (
+        {filteredCanvases.map((canvas: Canvas, index: number) => (
           <CanvasCard
             key={canvas.id}
             canvas={canvas}
@@ -788,6 +714,7 @@ export const FolderContent = memo(({ folderId }: FolderContentProps) => {
             onDelete={handleDelete}
             isDeleting={deletingItems.has(canvas.id)}
             isUpdating={updatingItems.has(canvas.id)}
+            className={index === 0 ? "onboarding-file-card" : ""}
           />
         ))}
       </div>
@@ -798,13 +725,6 @@ export const FolderContent = memo(({ folderId }: FolderContentProps) => {
     isLoading,
     filteredCanvases,
     searchQuery,
-    isHasSeenProtectedOnBording,
-    isFirstVisit,
-    onboardingSteps,
-    runTour,
-    handleJoyrideCllback,
-    handleDontShowAgainChange,
-    isChecked,
     handleEdit,
     handleDelete,
     deletingItems,
@@ -851,7 +771,7 @@ export const FolderContent = memo(({ folderId }: FolderContentProps) => {
             <Button
               variant="outline"
               size="sm"
-              className="mr-4"
+              className="mr-4 onboarding-back-nav"
               onClick={handleBackNavigation}
               disabled={isLoading}
             >
@@ -870,7 +790,7 @@ export const FolderContent = memo(({ folderId }: FolderContentProps) => {
             <Search className="absolute left-7 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
             <Input
               placeholder="Search files in this folder..."
-              className="pl-10 pr-10 h-12 rounded-lg border-gray-200"
+              className="pl-10 pr-10 h-12 rounded-lg border-gray-200 onboarding-folder-search"
               value={searchQuery}
               onChange={handleSearchChange}
               disabled={isLoading && !hasInitialized}

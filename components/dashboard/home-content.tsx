@@ -4,6 +4,7 @@ import {
   CANVAS_TYPE,
   CreateNewModal,
 } from "@/components/dashboard-sidebar/create-new-modal";
+import { useOnboarding } from "@/components/onboarding/custom-tooltip";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -32,23 +33,20 @@ import {
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useUser } from "@/lib/contexts/userContext";
-import { useOnboardingStore } from "@/lib/store/useOnboarding";
 import { useSidebarStore } from "@/lib/store/useSidebar";
 import {
+  AlertCircle,
   Edit,
   Folder,
+  Loader2,
   MoreVertical,
   Plus,
   Search,
   Trash,
   X,
-  Loader2,
-  AlertCircle,
 } from "lucide-react";
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useState, memo } from "react";
-import Joyride from "react-joyride";
-import CustomJoyrideTooltip from "../CustomJoyrideTooltip";
+import { memo, useCallback, useEffect, useMemo, useState } from "react";
 
 interface EditDialogState {
   isOpen: boolean;
@@ -245,7 +243,7 @@ const FolderCard = memo(
           href={`/protected/folder/${folder.id}`}
           className={isDisabled ? "pointer-events-none" : ""}
         >
-          <Card className="p-3 hover:shadow-md transition-shadow cursor-pointer group h-28 w-28 relative">
+          <Card className="p-3 hover:shadow-md transition-shadow cursor-pointer group h-28 w-28 relative onboarding-folder-card">
             <div className="absolute top-1 right-1">
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
@@ -302,7 +300,7 @@ FolderCard.displayName = "FolderCard";
 // Root folder card component
 const RootFolderCard = memo(({ rootCanvases }: { rootCanvases: any[] }) => (
   <Link href={`/protected/folder/root`}>
-    <Card className="p-3 hover:shadow-md transition-shadow cursor-pointer group border-2 border-dashed border-yadn-accent-blue/30 h-28 w-28 flex items-center justify-center">
+    <Card className="p-3 hover:shadow-md transition-shadow cursor-pointer group border-2 border-dashed border-yadn-accent-blue/30 h-28 w-28 flex items-center justify-center onboarding-root-folder">
       <div className="flex flex-col items-center justify-center">
         <Folder className="h-10 w-10 text-yadn-accent-blue mb-1" />
         <h3 className="font-medium text-gray-900 truncate max-w-[90px] text-center text-sm">
@@ -388,8 +386,7 @@ LoadingOverlay.displayName = "LoadingOverlay";
 
 export const HomeContent = memo(() => {
   const { user } = useUser();
-  const { protectedOnBording, isFirstVisit, setData, setIsChecked, isChecked } =
-    useOnboardingStore();
+  const { trackCreate, trackFolderCreate, trackSearch } = useOnboarding();
 
   // Local state management
   const [searchQuery, setSearchQuery] = useState("");
@@ -409,8 +406,6 @@ export const HomeContent = memo(() => {
     isOpen: false,
     item: null,
   });
-  const [runTour, setRunTour] = useState(true);
-  const [hasMounted, setHasMounted] = useState(false);
 
   // Operation state tracking
   const [deletingItems, setDeletingItems] = useState<Set<string>>(new Set());
@@ -436,49 +431,6 @@ export const HomeContent = memo(() => {
     hasInitialized,
   } = useHomeManagement(user);
 
-  // Onboarding configuration
-  const onboardingSteps = useMemo(
-    () => [
-      {
-        target: ".onboarding-create-button",
-        content: "Click here to create a new folder!",
-        disableBeacon: true,
-      },
-      {
-        target: ".folderInput",
-        content: "Write folder name!",
-        disableBeacon: true,
-      },
-      {
-        target: ".submit-create-folder",
-        content: "By clicking on Create folder button it will create a folder!",
-        disableBeacon: true,
-      },
-    ],
-    []
-  );
-
-  const isHasSeenProtectedOnBording = useMemo(() => {
-    if (!user?.has_seen_onboarding) {
-      return !user?.has_seen_onboarding && protectedOnBording;
-    }
-    return user?.has_seen_onboarding && protectedOnBording;
-  }, [user?.has_seen_onboarding, protectedOnBording]);
-
-  // Initialize onboarding
-  useEffect(() => {
-    if (isFirstVisit && protectedOnBording) {
-      setData(onboardingSteps);
-    }
-
-    const timeout = setTimeout(() => {
-      setHasMounted(true);
-      setRunTour(isFirstVisit);
-    }, 1500);
-
-    return () => clearTimeout(timeout);
-  }, [isFirstVisit, protectedOnBording, onboardingSteps, setData]);
-
   // Filtered data with memoization
   const filteredFolders = useMemo(() => {
     if (!debouncedSearchQuery) return folders;
@@ -499,27 +451,17 @@ export const HomeContent = memo(() => {
     (e: React.ChangeEvent<HTMLInputElement>) => {
       setSearchQuery(e.target.value);
       setOperationError(null);
+
+      // Track search action for smart suggestions
+      if (e.target.value.length > 2) {
+        trackSearch();
+      }
     },
-    []
+    [trackSearch]
   );
 
   const handleSearchClear = useCallback(() => {
     setSearchQuery("");
-  }, []);
-
-  const handleDontShowAgainChange = useCallback(
-    (e: any) => {
-      setIsChecked(e.target?.checked);
-    },
-    [setIsChecked]
-  );
-
-  const handleJoyrideCllback = useCallback((data: any) => {
-    const { action, index } = data;
-
-    if (action === "next" && index === 0) {
-      setCreateNewModalType("folder");
-    }
   }, []);
 
   const handleCreateFolder = useCallback(
@@ -529,6 +471,7 @@ export const HomeContent = memo(() => {
         try {
           await createFolder(name, user?.id as string);
           await refreshData();
+          trackFolderCreate(); // Track for smart suggestions
         } catch (error) {
           console.error("Failed to create folder:", error);
           setOperationError("Failed to create folder. Please try again.");
@@ -536,7 +479,7 @@ export const HomeContent = memo(() => {
       }
       setCreateNewModalType(null);
     },
-    [createFolder, user?.id, refreshData]
+    [createFolder, user?.id, refreshData, trackFolderCreate]
   );
 
   const handleCreateCanvas = useCallback(
@@ -561,6 +504,8 @@ export const HomeContent = memo(() => {
           await refreshData();
         }
 
+        trackCreate(); // Track for smart suggestions
+
         if (canvasId) {
           const href =
             type === CANVAS_TYPE.DOCUMENT
@@ -578,7 +523,7 @@ export const HomeContent = memo(() => {
       setCurrentFolderForCreate(null);
       return true;
     },
-    [createCanvas, user?.id, refreshData]
+    [createCanvas, user?.id, refreshData, trackCreate]
   );
 
   const handleEdit = useCallback(
@@ -735,11 +680,11 @@ export const HomeContent = memo(() => {
           />
         ))}
 
-        {/* New Folder Button */}
+        {/* New Folder Button - Updated onboarding class */}
         <div className="h-28 w-28">
           <Button
             variant="ghost"
-            className="flex flex-col text-sm w-full h-full border border-gray-200 rounded-lg onboarding-create-button"
+            className="flex flex-col text-sm w-full h-full border border-gray-200 rounded-lg onboarding-create-folder-btn"
             onClick={() => setCreateNewModalType("folder")}
             disabled={folderLoading}
           >
@@ -796,31 +741,6 @@ export const HomeContent = memo(() => {
 
   return (
     <div className="flex flex-col h-full relative">
-      {/* Onboarding */}
-      {hasMounted && isChecked && isHasSeenProtectedOnBording && (
-        <Joyride
-          steps={onboardingSteps}
-          run={runTour}
-          callback={handleJoyrideCllback}
-          tooltipComponent={(props: any) => (
-            <CustomJoyrideTooltip
-              {...props}
-              onDontShowAgainChange={handleDontShowAgainChange}
-              isChecked={isChecked}
-            />
-          )}
-          continuous
-          showProgress
-          showSkipButton
-          styles={{
-            options: {
-              primaryColor: "#22c55e",
-              zIndex: 10000,
-            },
-          }}
-        />
-      )}
-
       {/* Operation Error Toast */}
       {operationError && (
         <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-50">
@@ -856,7 +776,7 @@ export const HomeContent = memo(() => {
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
               <Input
                 placeholder="Search folders and files..."
-                className="pl-10 pr-10 h-12 rounded-lg border-gray-200"
+                className="pl-10 pr-10 h-12 rounded-lg border-gray-200 onboarding-search-input"
                 value={searchQuery}
                 onChange={handleSearchChange}
                 disabled={isLoading && !hasInitialized}
@@ -874,7 +794,7 @@ export const HomeContent = memo(() => {
           <div className="md:w-1/4 flex justify-end gap-3 mt-4 md:mt-0">
             <Button
               onClick={() => setCreateNewModalType("canvas")}
-              className="bg-yadn-accent-green hover:bg-yadn-accent-green/80 text-white"
+              className="bg-yadn-accent-green hover:bg-yadn-accent-green/80 text-white onboarding-create-new-btn"
               disabled={canvasLoading}
             >
               {canvasLoading ? (

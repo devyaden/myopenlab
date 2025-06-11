@@ -1,5 +1,6 @@
 "use client";
 
+import LayoutWrapper from "@/components/onboarding/layout-wrapper";
 import { SidebarProvider } from "@/components/ui/sidebar";
 
 export default function RootLayout({
@@ -7,5 +8,9 @@ export default function RootLayout({
 }: {
   children: React.ReactNode;
 }) {
-  return <SidebarProvider>{children}</SidebarProvider>;
+  return (
+    <LayoutWrapper>
+      <SidebarProvider>{children}</SidebarProvider>
+    </LayoutWrapper>
+  );
 }
