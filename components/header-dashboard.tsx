@@ -69,6 +69,7 @@ export const HeaderSidebar = () => {
     isRunning,
     activeTutorial,
   } = useOnboardingStore();
+  console.log("🚀 ~ HeaderSidebar ~ completedTutorials:", completedTutorials);
 
   const avatarUrl = STORAGE_URL + `avatars/` + user?.avatar_url;
 

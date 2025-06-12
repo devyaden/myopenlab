@@ -1,8 +1,4 @@
-import React, { useEffect, useCallback, useMemo, useState } from "react";
-import Joyride, { CallBackProps, STATUS, EVENTS, ACTIONS } from "react-joyride";
-import { useOnboardingStore, TUTORIALS } from "@/lib/store/useOnboarding";
-import { useUser } from "@/lib/contexts/userContext";
-import { usePathname, useRouter } from "next/navigation";
+import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
@@ -11,7 +7,11 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
+import { useUser } from "@/lib/contexts/userContext";
+import { TUTORIALS, useOnboardingStore } from "@/lib/store/useOnboarding";
+import { usePathname, useRouter } from "next/navigation";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
+import Joyride, { ACTIONS, CallBackProps, EVENTS, STATUS } from "react-joyride";
 
 interface CustomTooltipProps {
   continuous: boolean;
@@ -168,7 +168,6 @@ export const OnboardingManager: React.FC<OnboardingManagerProps> = ({
   const [suggestedTutorialId, setSuggestedTutorialId] = useState<string | null>(
     null
   );
-  const [isInitialized, setIsInitialized] = useState(false);
   const [navigationPending, setNavigationPending] = useState<string | null>(
     null
   );
@@ -178,6 +177,8 @@ export const OnboardingManager: React.FC<OnboardingManagerProps> = ({
     isRunning,
     currentStep,
     waitingForAction,
+    isHydrated,
+    isSyncing,
     completeTutorial,
     stopTutorial,
     skipTutorial,
@@ -191,15 +192,25 @@ export const OnboardingManager: React.FC<OnboardingManagerProps> = ({
     setWaitingForAction,
   } = useOnboardingStore();
 
-  // Sync with database when user is available
+  // Store user ID globally for the store to use in auto-save operations
   useEffect(() => {
-    if (user?.id && !isInitialized) {
+    if (user?.id) {
+      (window as any).currentUserId = user.id;
+    } else {
+      delete (window as any).currentUserId;
+    }
+  }, [user?.id]);
+
+  // Initial sync with database when user is available and store is hydrated
+  useEffect(() => {
+    if (user?.id && isHydrated && !isSyncing) {
       console.log("Syncing onboarding data with database...");
-      syncWithDatabase(user.id).finally(() => {
-        setIsInitialized(true);
+      // Use force: true on initial sync to ensure we get the latest data
+      syncWithDatabase(user.id, true).catch((error) => {
+        console.error("Failed to sync with database:", error);
       });
     }
-  }, [user?.id, syncWithDatabase, isInitialized]);
+  }, [user?.id, isHydrated, syncWithDatabase]);
 
   // Navigation helper
   const navigateIfNeeded = useCallback(
@@ -238,7 +249,6 @@ export const OnboardingManager: React.FC<OnboardingManagerProps> = ({
     async (step: any, stepIndex: number): Promise<boolean> => {
       if (!step.customAction && !step.triggerAction) return true;
 
-      console.log(`Handling interactive step ${stepIndex}:`, step.title);
       setWaitingForAction(true);
 
       try {
@@ -327,7 +337,8 @@ export const OnboardingManager: React.FC<OnboardingManagerProps> = ({
       const startTime = Date.now();
 
       while (Date.now() - startTime < timeout) {
-        const element = document.querySelector(selector);
+        const element: any = document.querySelector(selector);
+
         if (element && element.offsetParent !== null) {
           // Additional check for modal elements
           if (selector.includes("dialog") || selector.includes("modal")) {
@@ -347,7 +358,7 @@ export const OnboardingManager: React.FC<OnboardingManagerProps> = ({
 
   // Check for pending tutorials after navigation
   useEffect(() => {
-    if (user && isInitialized && navigationPending) {
+    if (user && isHydrated && navigationPending && !isSyncing) {
       const pendingTutorial = sessionStorage.getItem("pendingTutorial");
 
       if (
@@ -377,7 +388,8 @@ export const OnboardingManager: React.FC<OnboardingManagerProps> = ({
     }
   }, [
     user,
-    isInitialized,
+    isHydrated,
+    isSyncing,
     pathname,
     isRunning,
     activeTutorial,
@@ -390,7 +402,8 @@ export const OnboardingManager: React.FC<OnboardingManagerProps> = ({
   useEffect(() => {
     if (
       !user ||
-      !isInitialized ||
+      !isHydrated ||
+      isSyncing ||
       isRunning ||
       activeTutorial ||
       navigationPending
@@ -429,7 +442,8 @@ export const OnboardingManager: React.FC<OnboardingManagerProps> = ({
     }
   }, [
     user,
-    isInitialized,
+    isHydrated,
+    isSyncing,
     hasSeenWelcome,
     pathname,
     isRunning,
@@ -462,7 +476,7 @@ export const OnboardingManager: React.FC<OnboardingManagerProps> = ({
 
       for (let i = 0; i < maxChecks; i++) {
         const allElementsReady = tutorial.steps.every((step) => {
-          const element = document.querySelector(step.target);
+          const element: any = document.querySelector(step.target);
           return element && element.offsetParent !== null;
         });
 
@@ -596,6 +610,11 @@ export const OnboardingManager: React.FC<OnboardingManagerProps> = ({
     }
   }, [activeTutorial]);
 
+  // Loading state while hydrating
+  if (!isHydrated) {
+    return <>{children}</>;
+  }
+
   return (
     <>
       {children}
@@ -627,8 +646,7 @@ export const OnboardingManager: React.FC<OnboardingManagerProps> = ({
               boxShadow: "0 0 0 9999px rgba(0, 0, 0, 0.3)",
             },
             beacon: {
-              inner: "#22c55e",
-              outer: "#22c55e",
+              // No custom CSS properties here; 'inner' and 'outer' are not valid CSS keys
             },
           }}
           floaterProps={{
@@ -713,6 +731,7 @@ export const useOnboarding = () => {
     isTutorialAvailable,
     isRunning,
     activeTutorial,
+    isHydrated,
     getContextualTutorials,
     trackUserAction,
     getNextSuggestedTutorial,
@@ -724,6 +743,12 @@ export const useOnboarding = () => {
 
   const startSpecificTutorial = useCallback(
     async (tutorialId: string) => {
+      // Don't start if not hydrated
+      if (!isHydrated) {
+        console.warn("Store not hydrated yet, cannot start tutorial");
+        return false;
+      }
+
       const tutorial = TUTORIALS[tutorialId];
       if (!tutorial) {
         console.warn(`Tutorial ${tutorialId} not found`);
@@ -755,10 +780,12 @@ export const useOnboarding = () => {
       startTutorial(tutorialId);
       return true;
     },
-    [startTutorial, router]
+    [startTutorial, router, isHydrated]
   );
 
   const startSuggestedTutorial = useCallback(() => {
+    if (!isHydrated) return false;
+
     const nextTutorial = getNextSuggestedTutorial(pathname);
     if (nextTutorial && isTutorialAvailable(nextTutorial, pathname)) {
       return startSpecificTutorial(nextTutorial);
@@ -769,21 +796,25 @@ export const useOnboarding = () => {
     isTutorialAvailable,
     startSpecificTutorial,
     pathname,
+    isHydrated,
   ]);
 
   const getAvailableTutorials = useCallback(() => {
+    if (!isHydrated) return [];
     return getContextualTutorials(pathname);
-  }, [getContextualTutorials, pathname]);
+  }, [getContextualTutorials, pathname, isHydrated]);
 
   const restartTutorial = useCallback(
     (tutorialId: string) => {
+      if (!isHydrated) return;
+
       resetTutorial(tutorialId);
       // Small delay to ensure state is updated
       setTimeout(() => {
         startSpecificTutorial(tutorialId);
       }, 100);
     },
-    [resetTutorial, startSpecificTutorial]
+    [resetTutorial, startSpecificTutorial, isHydrated]
   );
 
   const trackCreate = useCallback(() => {
@@ -806,9 +837,10 @@ export const useOnboarding = () => {
     isTutorialCompleted,
     isTutorialSkipped,
     isTutorialAvailable: (tutorialId: string) =>
-      isTutorialAvailable(tutorialId, pathname),
+      isHydrated && isTutorialAvailable(tutorialId, pathname),
     isRunning,
     activeTutorial,
+    isHydrated,
     getAvailableTutorials,
     trackCreate,
     trackFolderCreate,

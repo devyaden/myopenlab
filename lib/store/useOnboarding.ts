@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import { persist } from "zustand/middleware";
+import { createJSONStorage, persist } from "zustand/middleware";
 import { supabase } from "../supabase/client";
 
 export interface TutorialStep {
@@ -257,6 +257,9 @@ interface OnboardingState {
 
   // Session state (not persisted)
   welcomeShownThisSession: boolean;
+  isHydrated: boolean;
+  isSyncing: boolean;
+  lastSyncAt: string | null;
 
   // Active tutorial state
   activeTutorial: string | null;
@@ -290,6 +293,7 @@ interface OnboardingState {
     >
   ) => void;
   setWaitingForAction: (waiting: boolean) => void;
+  setHydrated: (hydrated: boolean) => void;
 
   // Smart behavior tracking
   trackUserAction: (action: "create" | "folder_create" | "search") => void;
@@ -310,8 +314,69 @@ interface OnboardingState {
   ) => "completed" | "skipped" | "available" | "unavailable";
 
   // Database sync
-  syncWithDatabase: (userId: string) => Promise<void>;
+  syncWithDatabase: (userId: string, force?: boolean) => Promise<void>;
+  saveToDatabase: (userId: string) => Promise<void>;
 }
+
+// Helper function to merge states intelligently
+const mergeOnboardingStates = (localState: any, dbState: any) => {
+  // Always prefer the most recent data
+  const localTime = localState.lastCompletedAt
+    ? new Date(localState.lastCompletedAt).getTime()
+    : 0;
+  const dbTime = dbState.lastCompletedAt
+    ? new Date(dbState.lastCompletedAt).getTime()
+    : 0;
+
+  // Merge arrays by combining and deduplicating
+  const mergedCompleted = Array.from(
+    new Set([
+      ...(localState.completedTutorials || []),
+      ...(dbState.completedTutorials || []),
+    ])
+  );
+
+  const mergedSkipped = Array.from(
+    new Set([
+      ...(localState.skippedTutorials || []),
+      ...(dbState.skippedTutorials || []),
+    ])
+  );
+
+  // Use most recent behavior data
+  const mergedBehavior = {
+    createdItems: Math.max(
+      localState.userBehavior?.createdItems || 0,
+      dbState.userBehavior?.createdItems || 0
+    ),
+    foldersCreated: Math.max(
+      localState.userBehavior?.foldersCreated || 0,
+      dbState.userBehavior?.foldersCreated || 0
+    ),
+    searchesPerformed: Math.max(
+      localState.userBehavior?.searchesPerformed || 0,
+      dbState.userBehavior?.searchesPerformed || 0
+    ),
+    lastActiveDate:
+      localTime > dbTime
+        ? localState.userBehavior?.lastActiveDate
+        : dbState.userBehavior?.lastActiveDate,
+  };
+
+  return {
+    completedTutorials: mergedCompleted,
+    skippedTutorials: mergedSkipped,
+    hasSeenWelcome:
+      localState.hasSeenWelcome || dbState.hasSeenWelcome || false,
+    lastCompletedAt:
+      localTime > dbTime ? localState.lastCompletedAt : dbState.lastCompletedAt,
+    autoStartTutorials:
+      localState.autoStartTutorials ?? dbState.autoStartTutorials ?? true,
+    showAdvancedTips:
+      localState.showAdvancedTips ?? dbState.showAdvancedTips ?? true,
+    userBehavior: mergedBehavior,
+  };
+};
 
 export const useOnboardingStore = create<OnboardingState>()(
   persist(
@@ -322,6 +387,9 @@ export const useOnboardingStore = create<OnboardingState>()(
       hasSeenWelcome: false,
       lastCompletedAt: null,
       welcomeShownThisSession: false,
+      isHydrated: false,
+      isSyncing: false,
+      lastSyncAt: null,
       activeTutorial: null,
       isRunning: false,
       currentStep: 0,
@@ -372,7 +440,7 @@ export const useOnboardingStore = create<OnboardingState>()(
           ? state.completedTutorials
           : [...state.completedTutorials, tutorialId];
 
-        set({
+        const newState = {
           completedTutorials: updatedCompleted,
           skippedTutorials: updatedSkipped,
           lastCompletedAt: new Date().toISOString(),
@@ -380,7 +448,15 @@ export const useOnboardingStore = create<OnboardingState>()(
           isRunning: false,
           currentStep: 0,
           waitingForAction: false,
-        });
+        };
+
+        set(newState);
+
+        // Auto-save to database in background
+        const currentUser = (window as any).currentUserId;
+        if (currentUser) {
+          get().saveToDatabase(currentUser).catch(console.error);
+        }
       },
 
       stopTutorial: () => {
@@ -405,14 +481,22 @@ export const useOnboardingStore = create<OnboardingState>()(
           ? state.skippedTutorials
           : [...state.skippedTutorials, tutorialId];
 
-        set({
+        const newState = {
           completedTutorials: updatedCompleted,
           skippedTutorials: updatedSkipped,
           activeTutorial: null,
           isRunning: false,
           currentStep: 0,
           waitingForAction: false,
-        });
+        };
+
+        set(newState);
+
+        // Auto-save to database in background
+        const currentUser = (window as any).currentUserId;
+        if (currentUser) {
+          get().saveToDatabase(currentUser).catch(console.error);
+        }
       },
 
       resetTutorial: (tutorialId: string) => {
@@ -460,6 +544,10 @@ export const useOnboardingStore = create<OnboardingState>()(
         set({ waitingForAction: waiting });
       },
 
+      setHydrated: (hydrated: boolean) => {
+        set({ isHydrated: hydrated });
+      },
+
       // Smart behavior tracking
       trackUserAction: (action) => {
         const state = get();
@@ -482,6 +570,16 @@ export const useOnboardingStore = create<OnboardingState>()(
         set({
           userBehavior: newBehavior,
         });
+
+        // Auto-save to database in background
+        const currentUser = (window as any).currentUserId;
+        if (currentUser) {
+          // Debounce saves for user actions
+          clearTimeout((window as any).onboardingSaveTimeout);
+          (window as any).onboardingSaveTimeout = setTimeout(() => {
+            get().saveToDatabase(currentUser).catch(console.error);
+          }, 2000);
+        }
       },
 
       // Getters
@@ -507,6 +605,9 @@ export const useOnboardingStore = create<OnboardingState>()(
         const state = get();
         const tutorial = TUTORIALS[tutorialId];
         if (!tutorial) return false;
+
+        // Don't auto-start until hydrated
+        if (!state.isHydrated) return false;
 
         // Check if tutorial is contextually relevant
         if (currentPath && tutorial.context.routes.length > 0) {
@@ -600,6 +701,11 @@ export const useOnboardingStore = create<OnboardingState>()(
           return null;
         }
 
+        // Don't suggest until hydrated
+        if (!state.isHydrated) {
+          return null;
+        }
+
         // Smart suggestion based on user behavior and context
         const { userBehavior } = state;
 
@@ -651,9 +757,42 @@ export const useOnboardingStore = create<OnboardingState>()(
         return availableTutorial?.id || null;
       },
 
-      // Database sync
-      syncWithDatabase: async (userId: string) => {
+      // Database sync - improved to prevent state overwrites
+      syncWithDatabase: async (userId: string, force: boolean = false) => {
+        const state = get();
+
+        // Prevent multiple simultaneous syncs
+        if (state.isSyncing && !force) {
+          console.log("Sync already in progress, skipping...");
+          return;
+        }
+
+        // Don't sync too frequently unless forced
+        const lastSync = state.lastSyncAt
+          ? new Date(state.lastSyncAt).getTime()
+          : 0;
+        const now = Date.now();
+        const fiveMinutes = 5 * 60 * 1000;
+
+        if (!force && now - lastSync < fiveMinutes) {
+          console.log("Recent sync found, skipping...");
+          return;
+        }
+
+        set({ isSyncing: true });
+
         try {
+          // Get current local state before any network calls
+          const currentLocalState = {
+            completedTutorials: state.completedTutorials,
+            skippedTutorials: state.skippedTutorials,
+            hasSeenWelcome: state.hasSeenWelcome,
+            lastCompletedAt: state.lastCompletedAt,
+            autoStartTutorials: state.autoStartTutorials,
+            showAdvancedTips: state.showAdvancedTips,
+            userBehavior: state.userBehavior,
+          };
+
           const { data: userData } = await supabase
             .from("user")
             .select("onboarding_data, has_seen_onboarding")
@@ -661,51 +800,80 @@ export const useOnboardingStore = create<OnboardingState>()(
             .single();
 
           if (userData?.onboarding_data) {
-            const onboardingData =
+            const dbOnboardingData =
               typeof userData.onboarding_data === "string"
                 ? JSON.parse(userData.onboarding_data)
                 : userData.onboarding_data;
 
-            set({
-              completedTutorials: onboardingData.completedTutorials || [],
-              skippedTutorials: onboardingData.skippedTutorials || [],
+            const dbState = {
+              ...dbOnboardingData,
               hasSeenWelcome: userData.has_seen_onboarding || false,
-              autoStartTutorials: onboardingData.autoStartTutorials ?? true,
-              showAdvancedTips: onboardingData.showAdvancedTips ?? true,
-              userBehavior: onboardingData.userBehavior || {
-                createdItems: 0,
-                foldersCreated: 0,
-                searchesPerformed: 0,
-                lastActiveDate: null,
-              },
-            });
+            };
+
+            // Merge states intelligently instead of overwriting
+            const mergedState = mergeOnboardingStates(
+              currentLocalState,
+              dbState
+            );
+
+            // Only update if there are actual changes
+            const hasChanges =
+              JSON.stringify(mergedState) !== JSON.stringify(currentLocalState);
+
+            if (hasChanges) {
+              console.log("Merging database state with local state");
+              set({
+                ...mergedState,
+                lastSyncAt: new Date().toISOString(),
+              });
+            } else {
+              set({ lastSyncAt: new Date().toISOString() });
+            }
+          } else {
+            // No database data, just update sync time
+            set({ lastSyncAt: new Date().toISOString() });
           }
 
-          // Save current state to database
+          // Save current state back to database to ensure consistency
+          await get().saveToDatabase(userId);
+        } catch (error) {
+          console.error("Failed to sync onboarding data:", error);
+        } finally {
+          set({ isSyncing: false });
+        }
+      },
+
+      // Separate function for saving to database
+      saveToDatabase: async (userId: string) => {
+        try {
           const state = get();
+
+          const dataToSave = {
+            completedTutorials: state.completedTutorials,
+            skippedTutorials: state.skippedTutorials,
+            autoStartTutorials: state.autoStartTutorials,
+            showAdvancedTips: state.showAdvancedTips,
+            lastCompletedAt: state.lastCompletedAt,
+            userBehavior: state.userBehavior,
+          };
+
           await supabase
             .from("user")
             .update({
-              onboarding_data: {
-                completedTutorials: state.completedTutorials,
-                skippedTutorials: state.skippedTutorials,
-                autoStartTutorials: state.autoStartTutorials,
-                showAdvancedTips: state.showAdvancedTips,
-                lastCompletedAt: state.lastCompletedAt,
-                userBehavior: state.userBehavior,
-              },
+              onboarding_data: dataToSave,
               has_seen_onboarding: state.hasSeenWelcome,
             })
             .eq("id", userId);
+
+          console.log("Onboarding data saved to database");
         } catch (error) {
-          console.error("Failed to sync onboarding data:", error);
+          console.error("Failed to save onboarding data to database:", error);
         }
       },
     }),
     {
-      name: "onboarding-store-v6",
-      version: 1,
-
+      name: "onboarding-store",
+      storage: createJSONStorage(() => localStorage),
       partialize: (state) => ({
         completedTutorials: state.completedTutorials,
         skippedTutorials: state.skippedTutorials,
@@ -714,7 +882,26 @@ export const useOnboardingStore = create<OnboardingState>()(
         autoStartTutorials: state.autoStartTutorials,
         showAdvancedTips: state.showAdvancedTips,
         userBehavior: state.userBehavior,
+        lastSyncAt: state.lastSyncAt,
       }),
+      onRehydrateStorage: () => (state) => {
+        console.log("Onboarding store hydrated from localStorage");
+        if (state) {
+          state.setHydrated(true);
+        }
+      },
     }
   )
 );
+
+// logs
+if (process.env.NODE_ENV === "development") {
+  useOnboardingStore.subscribe((state) => {
+    console.log("Onboarding store state changed:", {
+      completedTutorials: state.completedTutorials,
+      skippedTutorials: state.skippedTutorials,
+      isHydrated: state.isHydrated,
+      isSyncing: state.isSyncing,
+    });
+  });
+}
