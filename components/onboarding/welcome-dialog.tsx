@@ -113,7 +113,6 @@ export const WelcomeDialog: React.FC = () => {
   const handleSkip = () => {
     handleClose();
   };
-  console.log("🚀 ~ showDialog:", showDialog);
 
   if (!showDialog || !user) return null;
 

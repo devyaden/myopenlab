@@ -25,7 +25,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { useOnboardingStore } from "@/lib/store/useOnboarding";
 import {
   DiagramType,
   IndustryType,
@@ -33,15 +32,10 @@ import {
 } from "@/lib/types/diagram-types";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { InfoIcon, Sparkles } from "lucide-react";
-import { cn } from "@/lib/utils";
-import CustomJoyrideTooltip from "../CustomJoyrideTooltip";
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import toast from "react-hot-toast";
-import Joyride from "react-joyride";
 import * as z from "zod";
-import { useUser } from "@/lib/contexts/userContext";
-import { useMemo } from "react";
 
 // Define the form schema
 const formSchema = z.object({
@@ -136,17 +130,6 @@ export function AIGenerationDialog({
   const [loadingMessage, setLoadingMessage] = useState<string>("");
   const [loadingStartTime, setLoadingStartTime] = useState<number>(0);
   const [isLongLoading, setIsLongLoading] = useState<boolean>(false);
-  const [isMounted, setIsMounted] = useState<boolean>(false);
-
-  const { user } = useUser();
-
-  const { 
-    isFirstVisit, 
-    createCategoryOnbording, 
-    setCreateCategoryOnbording,
-    isChecked,
-    setIsChecked
-  } = useOnboardingStore();
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -200,31 +183,6 @@ export function AIGenerationDialog({
       clearInterval(delayCheckInterval);
     };
   }, [isLoading]); // Only depend on isLoading
-
-  // Get loading progress steps based on loading time
-  const getProgressSteps = () => {
-    const loadingTime = Date.now() - loadingStartTime;
-
-    if (loadingTime < 5000) {
-      return {
-        analyzing: "active",
-        creating: "waiting",
-        finalizing: "waiting",
-      };
-    } else if (loadingTime < 20000) {
-      return {
-        analyzing: "complete",
-        creating: "active",
-        finalizing: "waiting",
-      };
-    } else {
-      return {
-        analyzing: "complete",
-        creating: "complete",
-        finalizing: "active",
-      };
-    }
-  };
 
   const handleDiagramTypeChange = (value: string) => {
     setSelectedDiagramType(value);
@@ -289,24 +247,6 @@ export function AIGenerationDialog({
     }
   };
 
-  const handleJoyrideCallback = (data: any) => {
-    const { action, index, status, type } = data;
-
-    if(isChecked) {
-        setCreateCategoryOnbording(false)
-        setIsChecked(false)
-    }
-
-    if (status === 'finished' || status === 'skipped') {
-      setCreateCategoryOnbording(false)
-      setIsChecked(false)
-    }
-  };
-
-  const handleDontShowAgainChange = (e: any) => {
-    setIsChecked(e.target?.checked)
-  }
-
   // Prevent modal closure during loading
   const handleCloseAttempt = () => {
     if (!isLoading) {
@@ -314,46 +254,9 @@ export function AIGenerationDialog({
     }
   };
 
-  const isHasSeenOnborading = useMemo(() => {
-    if (!user?.has_seen_onboarding) {
-      return !user?.has_seen_onboarding && createCategoryOnbording
-    } else {
-      return user?.has_seen_onboarding && createCategoryOnbording
-    }
-  }, [user?.has_seen_onboarding, createCategoryOnbording])
-
-  useEffect(() => {
-    const timeout = setTimeout(() => {
-      setIsMounted(true);
-    }, 100);
-
-    return () => clearTimeout(timeout);
-  }, []);
-
   return (
     <Dialog open={isOpen} onOpenChange={handleCloseAttempt}>
       <DialogContent className="max-w-md">
-      {isHasSeenOnborading && isMounted && isFirstVisit && <Joyride
-        steps={aiCanvasSteps}
-        run={isFirstVisit}
-        callback={handleJoyrideCallback}
-        tooltipComponent={(props: any) => (
-          <CustomJoyrideTooltip
-            {...props} 
-            isChecked={isChecked}
-            onDontShowAgainChange={handleDontShowAgainChange}
-          />
-        )}
-        continuous
-        showProgress
-        showSkipButton
-        styles={{
-          options: {
-            primaryColor: '#22c55e',
-            zIndex: 10000,
-          },
-        }}
-      />}
         <DialogHeader>
           <DialogTitle>Generate Canvas with AI</DialogTitle>
           <DialogDescription>
