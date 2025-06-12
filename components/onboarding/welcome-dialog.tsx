@@ -1,4 +1,6 @@
-import React, { useEffect, useState } from "react";
+import { useOnboarding } from "@/components/onboarding/custom-tooltip";
+import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
   DialogContent,
@@ -7,13 +9,11 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
-import { useOnboardingStore, TUTORIALS } from "@/lib/store/useOnboarding";
-import { useOnboarding } from "@/components/onboarding/custom-tooltip";
 import { useUser } from "@/lib/contexts/userContext";
+import { TUTORIALS, useOnboardingStore } from "@/lib/store/useOnboarding";
+import { ArrowRight, GraduationCap, Sparkles } from "lucide-react";
 import { usePathname } from "next/navigation";
-import { GraduationCap, Sparkles, ArrowRight } from "lucide-react";
+import React, { useEffect, useState } from "react";
 
 export const WelcomeDialog: React.FC = () => {
   const { user } = useUser();
@@ -100,7 +100,6 @@ export const WelcomeDialog: React.FC = () => {
       updatePreferences({ autoStartTutorials: false });
     }
 
-    // Small delay to ensure dialog is fully closed before starting tutorial
     setTimeout(() => {
       console.log("Starting suggested tutorial from welcome dialog");
       const started = startSuggestedTutorial();
