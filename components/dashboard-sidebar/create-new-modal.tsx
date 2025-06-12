@@ -350,14 +350,16 @@ export function CreateNewModal({
           </div>
 
           <div
-            className="flex flex-col items-center justify-center p-6 bg-gray-50 rounded-lg hover:bg-gray-100 cursor-pointer transition-colors onboarding-ai-option"
+            className="flex flex-col items-center justify-center p-6 bg-gradient-to-br from-yadn-accent-green/10 to-yadn-accent-blue/10 border-2 border-yadn-accent-green/20 rounded-lg hover:border-yadn-accent-green/40 cursor-pointer transition-all onboarding-ai-option"
             onClick={handleOpenAIDialog}
           >
             <div className="mb-4">
               <Wand2 className="h-6 w-6 text-yadn-accent-green" />
             </div>
-            <span className="font-medium text-center">Generate with AI</span>
-            <span className="text-xs text-center text-muted-foreground mt-1">
+            <span className="font-medium text-center text-yadn-accent-green">
+              Generate with AI
+            </span>
+            <span className="text-xs text-center text-gray-600 mt-1">
               Let AI generate a diagram based on your requirements
             </span>
           </div>

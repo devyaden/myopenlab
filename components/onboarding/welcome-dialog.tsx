@@ -13,54 +13,74 @@ import { useOnboardingStore, TUTORIALS } from "@/lib/store/useOnboarding";
 import { useOnboarding } from "@/components/onboarding/custom-tooltip";
 import { useUser } from "@/lib/contexts/userContext";
 import { usePathname } from "next/navigation";
-import { GraduationCap, Sparkles, ArrowRight, X } from "lucide-react";
+import { GraduationCap, Sparkles, ArrowRight } from "lucide-react";
 
 export const WelcomeDialog: React.FC = () => {
   const { user } = useUser();
   const pathname = usePathname();
   const [showDialog, setShowDialog] = useState(false);
   const [dontShowAgain, setDontShowAgain] = useState(false);
+  const [hasCheckedForShow, setHasCheckedForShow] = useState(false);
 
   const {
     hasSeenWelcome,
+    welcomeShownThisSession,
     setWelcomeSeen,
     updatePreferences,
     completedTutorials,
+    skippedTutorials,
     isRunning,
     activeTutorial,
+    autoStartTutorials,
   } = useOnboardingStore();
 
   const { startSuggestedTutorial } = useOnboarding();
 
-  // Show welcome dialog for new users on the home page
+  // Determine if welcome should be shown
   useEffect(() => {
+    if (!user || hasCheckedForShow) {
+      return;
+    }
+
     const shouldShow =
       user &&
-      !hasSeenWelcome &&
       pathname === "/protected" &&
+      !hasSeenWelcome &&
+      !welcomeShownThisSession &&
       completedTutorials.length === 0 &&
-      !showDialog && // Prevent multiple shows
-      !isRunning && // Don't show if tutorial is running
-      !activeTutorial; // Don't show if tutorial is active
+      skippedTutorials.length === 0 &&
+      !isRunning &&
+      !activeTutorial &&
+      autoStartTutorials;
 
     if (shouldShow) {
       console.log("Showing welcome dialog for new user");
-      // Small delay to ensure page is fully loaded
-      const timer = setTimeout(() => {
-        setShowDialog(true);
-      }, 1500);
 
-      return () => clearTimeout(timer);
+      setShowDialog(true);
+      setWelcomeSeen(true);
+
+      setHasCheckedForShow(true);
+    } else {
+      setHasCheckedForShow(true);
     }
   }, [
     user,
     hasSeenWelcome,
+    welcomeShownThisSession,
     pathname,
     completedTutorials.length,
-    showDialog,
+    skippedTutorials.length,
     isRunning,
     activeTutorial,
+    autoStartTutorials,
+    hasCheckedForShow,
+    setWelcomeSeen,
   ]);
+
+  // Reset check flag when user changes
+  // useEffect(() => {
+  //   setHasCheckedForShow(false);
+  // }, [user?.id]);
 
   const handleClose = () => {
     setShowDialog(false);
@@ -85,7 +105,7 @@ export const WelcomeDialog: React.FC = () => {
       console.log("Starting suggested tutorial from welcome dialog");
       const started = startSuggestedTutorial();
       if (!started) {
-        console.warn("No suggested tutorial available, this should not happen");
+        console.warn("No suggested tutorial available");
       }
     }, 300);
   };
@@ -93,8 +113,9 @@ export const WelcomeDialog: React.FC = () => {
   const handleSkip = () => {
     handleClose();
   };
+  console.log("🚀 ~ showDialog:", showDialog);
 
-  if (!showDialog) return null;
+  if (!showDialog || !user) return null;
 
   return (
     <Dialog open={showDialog} onOpenChange={(open) => !open && handleClose()}>
@@ -187,7 +208,7 @@ export const WelcomeDialog: React.FC = () => {
             <Checkbox
               id="dont-show-again"
               checked={dontShowAgain}
-              //   @ts-ignore
+              // @ts-ignore
               onCheckedChange={setDontShowAgain}
             />
             <label

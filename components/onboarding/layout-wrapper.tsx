@@ -9,6 +9,9 @@ interface LayoutWrapperProps {
 /**
  * Main layout wrapper that provides onboarding functionality
  * to the entire application. This should wrap your main app content.
+ *
+ * Fixed version that properly manages welcome dialog state and prevents
+ * duplicate shows during navigation.
  */
 export const LayoutWrapper: React.FC<LayoutWrapperProps> = ({ children }) => {
   return (

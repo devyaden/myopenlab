@@ -680,11 +680,11 @@ export const HomeContent = memo(() => {
           />
         ))}
 
-        {/* New Folder Button - Updated onboarding class */}
+        {/* New Folder Button */}
         <div className="h-28 w-28">
           <Button
             variant="ghost"
-            className="flex flex-col text-sm w-full h-full border border-gray-200 rounded-lg onboarding-create-folder-btn"
+            className="flex flex-col text-sm w-full h-full border border-gray-200 rounded-lg"
             onClick={() => setCreateNewModalType("folder")}
             disabled={folderLoading}
           >

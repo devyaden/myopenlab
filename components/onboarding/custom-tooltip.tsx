@@ -169,6 +169,9 @@ export const OnboardingManager: React.FC<OnboardingManagerProps> = ({
     null
   );
   const [isInitialized, setIsInitialized] = useState(false);
+  const [navigationPending, setNavigationPending] = useState<string | null>(
+    null
+  );
 
   const {
     activeTutorial,
@@ -178,12 +181,12 @@ export const OnboardingManager: React.FC<OnboardingManagerProps> = ({
     completeTutorial,
     stopTutorial,
     skipTutorial,
-    shouldShowTutorial,
+    isTutorialAvailable,
+    shouldAutoStartTutorial,
     getNextSuggestedTutorial,
     startTutorial,
     syncWithDatabase,
     hasSeenWelcome,
-    setWelcomeSeen,
     trackUserAction,
     setWaitingForAction,
   } = useOnboardingStore();
@@ -191,6 +194,7 @@ export const OnboardingManager: React.FC<OnboardingManagerProps> = ({
   // Sync with database when user is available
   useEffect(() => {
     if (user?.id && !isInitialized) {
+      console.log("Syncing onboarding data with database...");
       syncWithDatabase(user.id).finally(() => {
         setIsInitialized(true);
       });
@@ -204,20 +208,22 @@ export const OnboardingManager: React.FC<OnboardingManagerProps> = ({
       if (!tutorial) return false;
 
       // Check if tutorial requires specific screen
-      const needsNavigation = tutorial.steps.some(
-        (step) => step.requiresNavigation
+      const currentPath = pathname;
+      const isOnCorrectPage = tutorial.context.routes.some(
+        (route) => currentPath === route || currentPath.startsWith(route)
       );
 
-      if (needsNavigation) {
-        const step = tutorial.steps.find((step) => step.requiresNavigation);
-        const targetPath = step?.requiresNavigation?.path;
-
-        if (targetPath && pathname !== targetPath) {
+      if (!isOnCorrectPage) {
+        const targetPath = tutorial.context.routes[0];
+        if (targetPath && currentPath !== targetPath) {
           console.log(`Navigating to ${targetPath} for tutorial ${tutorialId}`);
-          router.push(targetPath);
 
-          // Wait for navigation to complete
-          await new Promise((resolve) => setTimeout(resolve, 1000));
+          // Store pending tutorial before navigation
+          sessionStorage.setItem("pendingTutorial", tutorialId);
+          setNavigationPending(tutorialId);
+
+          // Navigate to target path
+          router.push(targetPath);
           return true;
         }
       }
@@ -227,7 +233,7 @@ export const OnboardingManager: React.FC<OnboardingManagerProps> = ({
     [pathname, router]
   );
 
-  // Interactive step handler
+  // Interactive step handler with enhanced modal support
   const handleInteractiveStep = useCallback(
     async (step: any, stepIndex: number): Promise<boolean> => {
       if (!step.customAction && !step.triggerAction) return true;
@@ -250,7 +256,7 @@ export const OnboardingManager: React.FC<OnboardingManagerProps> = ({
 
                   // Wait for modal or UI to open
                   if (step.waitForElement) {
-                    await waitForElement(step.waitForElement, 3000);
+                    await waitForElement(step.waitForElement, 5000);
                   }
                   await new Promise((resolve) => setTimeout(resolve, 500));
                 } else {
@@ -261,14 +267,13 @@ export const OnboardingManager: React.FC<OnboardingManagerProps> = ({
               break;
 
             case "open_modal":
-              // Handle modal opening logic
               console.log("Opening modal for tutorial");
               const createButton = document.querySelector(
                 ".onboarding-create-new-btn"
               ) as HTMLElement;
               if (createButton) {
                 createButton.click();
-                await waitForElement(".onboarding-canvas-option", 3000);
+                await waitForElement(".onboarding-canvas-option", 5000);
               }
               break;
 
@@ -298,7 +303,7 @@ export const OnboardingManager: React.FC<OnboardingManagerProps> = ({
 
         // Wait for target element if specified
         if (step.waitForElement) {
-          const elementReady = await waitForElement(step.waitForElement, 5000);
+          const elementReady = await waitForElement(step.waitForElement, 10000);
           if (!elementReady) {
             console.warn(`Element not ready: ${step.waitForElement}`);
             return false;
@@ -316,7 +321,7 @@ export const OnboardingManager: React.FC<OnboardingManagerProps> = ({
     [router, setWaitingForAction]
   );
 
-  // Wait for element helper
+  // Wait for element helper with better error handling
   const waitForElement = useCallback(
     async (selector: string, timeout = 5000): Promise<boolean> => {
       const startTime = Date.now();
@@ -324,6 +329,11 @@ export const OnboardingManager: React.FC<OnboardingManagerProps> = ({
       while (Date.now() - startTime < timeout) {
         const element = document.querySelector(selector);
         if (element && element.offsetParent !== null) {
+          // Additional check for modal elements
+          if (selector.includes("dialog") || selector.includes("modal")) {
+            // Wait a bit more for modal animations
+            await new Promise((resolve) => setTimeout(resolve, 300));
+          }
           return true;
         }
         await new Promise((resolve) => setTimeout(resolve, 100));
@@ -337,51 +347,85 @@ export const OnboardingManager: React.FC<OnboardingManagerProps> = ({
 
   // Check for pending tutorials after navigation
   useEffect(() => {
-    if (user && isInitialized) {
+    if (user && isInitialized && navigationPending) {
       const pendingTutorial = sessionStorage.getItem("pendingTutorial");
-      if (pendingTutorial && !isRunning && !activeTutorial) {
+
+      if (
+        pendingTutorial &&
+        !isRunning &&
+        !activeTutorial &&
+        pendingTutorial === navigationPending
+      ) {
         console.log(
           "Starting pending tutorial after navigation:",
           pendingTutorial
         );
+
+        // Clear pending state
         sessionStorage.removeItem("pendingTutorial");
+        setNavigationPending(null);
 
-        // Small delay to ensure page is ready
-        setTimeout(() => {
-          startTutorial(pendingTutorial);
-        }, 1500);
-      }
-    }
-  }, [user, isInitialized, pathname, isRunning, activeTutorial, startTutorial]);
-
-  // Auto-start onboarding for new users - ONLY if welcome dialog is not showing
-  useEffect(() => {
-    if (!user || !isInitialized || isRunning || activeTutorial) return;
-
-    // Don't auto-start if there's a pending tutorial
-    if (sessionStorage.getItem("pendingTutorial")) return;
-
-    // IMPORTANT: Only auto-start if user has already seen welcome
-    if (hasSeenWelcome && pathname === "/protected") {
-      const nextTutorial = getNextSuggestedTutorial(pathname);
-      if (nextTutorial && shouldShowTutorial(nextTutorial, pathname)) {
-        console.log("Auto-starting tutorial after welcome:", nextTutorial);
-
-        const timer = setTimeout(async () => {
-          // Check if navigation is needed
-          const didNavigate = await navigateIfNeeded(nextTutorial);
-
-          if (!didNavigate) {
-            // Wait for elements to be available
-            const elementsReady = await waitForTutorialElements(nextTutorial);
-            if (elementsReady && !isRunning && !activeTutorial) {
-              startTutorial(nextTutorial);
-            }
+        // Wait for page to be ready
+        const timer = setTimeout(() => {
+          if (isTutorialAvailable(pendingTutorial, pathname)) {
+            startTutorial(pendingTutorial);
           }
-        }, 1000);
+        }, 1500);
 
         return () => clearTimeout(timer);
       }
+    }
+  }, [
+    user,
+    isInitialized,
+    pathname,
+    isRunning,
+    activeTutorial,
+    startTutorial,
+    navigationPending,
+    isTutorialAvailable,
+  ]);
+
+  // Auto-start onboarding for qualified users
+  useEffect(() => {
+    if (
+      !user ||
+      !isInitialized ||
+      isRunning ||
+      activeTutorial ||
+      navigationPending
+    ) {
+      return;
+    }
+
+    // Don't auto-start if welcome hasn't been seen
+    if (!hasSeenWelcome) {
+      return;
+    }
+
+    // Don't auto-start if there's a pending tutorial
+    if (sessionStorage.getItem("pendingTutorial")) {
+      return;
+    }
+
+    const nextTutorial = getNextSuggestedTutorial(pathname);
+    if (nextTutorial && shouldAutoStartTutorial(nextTutorial, pathname)) {
+      console.log("Auto-starting suggested tutorial:", nextTutorial);
+
+      const timer = setTimeout(async () => {
+        // Check if navigation is needed
+        const didNavigate = await navigateIfNeeded(nextTutorial);
+
+        if (!didNavigate) {
+          // Wait for elements to be available
+          const elementsReady = await waitForTutorialElements(nextTutorial);
+          if (elementsReady && !isRunning && !activeTutorial) {
+            startTutorial(nextTutorial);
+          }
+        }
+      }, 2000); // Increased delay for better stability
+
+      return () => clearTimeout(timer);
     }
   }, [
     user,
@@ -390,8 +434,9 @@ export const OnboardingManager: React.FC<OnboardingManagerProps> = ({
     pathname,
     isRunning,
     activeTutorial,
+    navigationPending,
     getNextSuggestedTutorial,
-    shouldShowTutorial,
+    shouldAutoStartTutorial,
     startTutorial,
     navigateIfNeeded,
   ]);
@@ -404,7 +449,6 @@ export const OnboardingManager: React.FC<OnboardingManagerProps> = ({
 
       // For tutorials that require setup, don't wait for all elements initially
       if (tutorial.requiresSetup) {
-        // Just wait for the first element to be ready
         const firstStep = tutorial.steps[0];
         if (firstStep?.target) {
           return await waitForElement(firstStep.target, 3000);
@@ -474,7 +518,7 @@ export const OnboardingManager: React.FC<OnboardingManagerProps> = ({
 
         // Smart suggestion for next tutorial
         const nextTutorial = getNextSuggestedTutorial(pathname);
-        if (nextTutorial && shouldShowTutorial(nextTutorial, pathname)) {
+        if (nextTutorial && shouldAutoStartTutorial(nextTutorial, pathname)) {
           setSuggestedTutorialId(nextTutorial);
           setShowCompletionDialog(true);
         }
@@ -501,7 +545,7 @@ export const OnboardingManager: React.FC<OnboardingManagerProps> = ({
       skipTutorial,
       stopTutorial,
       getNextSuggestedTutorial,
-      shouldShowTutorial,
+      shouldAutoStartTutorial,
       pathname,
     ]
   );
@@ -665,12 +709,14 @@ export const useOnboarding = () => {
     startTutorial,
     stopTutorial,
     isTutorialCompleted,
-    shouldShowTutorial,
+    isTutorialSkipped,
+    isTutorialAvailable,
     isRunning,
     activeTutorial,
     getContextualTutorials,
     trackUserAction,
     getNextSuggestedTutorial,
+    resetTutorial,
   } = useOnboardingStore();
 
   const pathname = usePathname();
@@ -679,7 +725,10 @@ export const useOnboarding = () => {
   const startSpecificTutorial = useCallback(
     async (tutorialId: string) => {
       const tutorial = TUTORIALS[tutorialId];
-      if (!tutorial) return false;
+      if (!tutorial) {
+        console.warn(`Tutorial ${tutorialId} not found`);
+        return false;
+      }
 
       // Check if tutorial requires navigation
       const currentPath = window.location.pathname;
@@ -694,16 +743,15 @@ export const useOnboarding = () => {
           console.log(
             `Navigating to ${targetRoute} for tutorial ${tutorialId}`
           );
-          router.push(targetRoute);
 
-          // Wait for navigation and start tutorial
-          setTimeout(() => {
-            startTutorial(tutorialId);
-          }, 1000);
+          // Store pending tutorial before navigation
+          sessionStorage.setItem("pendingTutorial", tutorialId);
+          router.push(targetRoute);
           return true;
         }
       }
 
+      // Start tutorial immediately if on correct page
       startTutorial(tutorialId);
       return true;
     },
@@ -712,13 +760,13 @@ export const useOnboarding = () => {
 
   const startSuggestedTutorial = useCallback(() => {
     const nextTutorial = getNextSuggestedTutorial(pathname);
-    if (nextTutorial && shouldShowTutorial(nextTutorial, pathname)) {
+    if (nextTutorial && isTutorialAvailable(nextTutorial, pathname)) {
       return startSpecificTutorial(nextTutorial);
     }
     return false;
   }, [
     getNextSuggestedTutorial,
-    shouldShowTutorial,
+    isTutorialAvailable,
     startSpecificTutorial,
     pathname,
   ]);
@@ -726,6 +774,17 @@ export const useOnboarding = () => {
   const getAvailableTutorials = useCallback(() => {
     return getContextualTutorials(pathname);
   }, [getContextualTutorials, pathname]);
+
+  const restartTutorial = useCallback(
+    (tutorialId: string) => {
+      resetTutorial(tutorialId);
+      // Small delay to ensure state is updated
+      setTimeout(() => {
+        startSpecificTutorial(tutorialId);
+      }, 100);
+    },
+    [resetTutorial, startSpecificTutorial]
+  );
 
   const trackCreate = useCallback(() => {
     trackUserAction("create");
@@ -742,10 +801,12 @@ export const useOnboarding = () => {
   return {
     startTutorial: startSpecificTutorial,
     startSuggestedTutorial,
+    restartTutorial,
     stopTutorial,
     isTutorialCompleted,
-    shouldShowTutorial: (tutorialId: string) =>
-      shouldShowTutorial(tutorialId, pathname),
+    isTutorialSkipped,
+    isTutorialAvailable: (tutorialId: string) =>
+      isTutorialAvailable(tutorialId, pathname),
     isRunning,
     activeTutorial,
     getAvailableTutorials,

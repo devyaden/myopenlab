@@ -85,7 +85,7 @@ export const TUTORIALS: Record<string, Tutorial> = {
     name: "Creation Workflows",
     description: "Master the fastest ways to create and organize content",
     icon: "⚡",
-    value: "Efficient content creation patterns and shortcuts",
+    value: "Efficient content creation patterns and AI generation",
     requiresSetup: true,
     context: {
       routes: ["/protected", "/protected/folder/"],
@@ -95,7 +95,7 @@ export const TUTORIALS: Record<string, Tutorial> = {
         target: ".onboarding-create-new-btn",
         title: "Smart Creation Menu",
         content:
-          "This button adapts to your context and learns your patterns. Let's open it to see all the creation options available to you.",
+          "This button is your gateway to creating new content. Let's open it to see all the amazing creation options available to you.",
         placement: "left",
         spotlightPadding: 8,
         spotlightClicks: true,
@@ -109,37 +109,87 @@ export const TUTORIALS: Record<string, Tutorial> = {
         target: ".onboarding-canvas-option",
         title: "Canvas for Visual Thinking",
         content:
-          "Canvases are perfect for brainstorming, flowcharts, mind maps, and visual planning. Unlike documents, you can freely position elements anywhere. Click to create one!",
+          "Canvases are perfect for brainstorming, flowcharts, mind maps, and visual planning. Unlike documents, you can freely position elements anywhere and create visual relationships.",
         placement: "top",
         spotlightPadding: 4,
-        spotlightClicks: true,
+        spotlightClicks: false,
       },
       {
         target: ".onboarding-table-option",
         title: "Tables for Structured Data",
         content:
-          "Tables are ideal for organizing data, creating lists, tracking projects, and structured information. Perfect for when you need rows and columns.",
+          "Tables are ideal for organizing data, creating lists, tracking projects, and any structured information. Perfect when you need organized rows and columns.",
         placement: "top",
         spotlightPadding: 4,
-        spotlightClicks: true,
+        spotlightClicks: false,
       },
       {
         target: ".onboarding-document-option",
         title: "Documents for Writing",
         content:
-          "Documents are great for writing, notes, documentation, and any text-heavy content. They provide rich formatting and structure.",
+          "Documents are great for writing, notes, documentation, and any text-heavy content. They provide rich formatting and traditional document structure.",
         placement: "top",
         spotlightPadding: 4,
-        spotlightClicks: true,
+        spotlightClicks: false,
       },
       {
         target: ".onboarding-ai-option",
-        title: "AI-Powered Creation",
+        title: "🤖 AI-Powered Creation - The Magic!",
         content:
-          "This is where the magic happens! Describe what you want to create and AI will generate a starting structure. Try it - describe an org chart, process flow, or any diagram.",
+          "This is where the real magic happens! Click here to let AI generate entire diagrams, workflows, or visual content based on just your description. It's like having a professional designer at your fingertips!",
         placement: "top",
         spotlightPadding: 4,
         spotlightClicks: true,
+        customAction: {
+          type: "click_element",
+          target: ".onboarding-ai-option",
+        },
+        waitForElement: ".language",
+      },
+      {
+        target: ".language",
+        title: "Choose Your Language",
+        content:
+          "Start by selecting your preferred language. The AI will generate content and labels in the language you choose, making it perfect for international teams.",
+        placement: "bottom",
+        spotlightPadding: 4,
+        spotlightClicks: false,
+      },
+      {
+        target: ".diagram",
+        title: "Select Diagram Type",
+        content:
+          "Choose what type of diagram you want to create. Each type has different templates and structures optimized for specific use cases like workflows, hierarchies, or mind maps.",
+        placement: "bottom",
+        spotlightPadding: 4,
+        spotlightClicks: false,
+      },
+      {
+        target: ".industry",
+        title: "Industry Context",
+        content:
+          "Select your industry to get relevant examples and terminology. This helps the AI understand your business context and create more accurate, professional diagrams.",
+        placement: "bottom",
+        spotlightPadding: 4,
+        spotlightClicks: false,
+      },
+      {
+        target: ".prompt",
+        title: "Describe Your Vision",
+        content:
+          "This is where you describe what you want to create. Be specific about processes, relationships, and details. The more detailed your description, the better the AI can bring your vision to life!",
+        placement: "bottom",
+        spotlightPadding: 4,
+        spotlightClicks: false,
+      },
+      {
+        target: ".generate",
+        title: "Generate Magic! ✨",
+        content:
+          "Click here to let AI create your diagram! In moments, you'll have a professional, structured diagram that you can further customize and refine. Try it now - you'll be amazed!",
+        placement: "top",
+        spotlightPadding: 4,
+        spotlightClicks: false,
       },
     ],
   },
@@ -196,43 +246,17 @@ export const TUTORIALS: Record<string, Tutorial> = {
       },
     ],
   },
-
-  keyboard_mastery: {
-    id: "keyboard_mastery",
-    name: "Keyboard Shortcuts",
-    description: "Hidden shortcuts that make you 10x faster",
-    icon: "⌨️",
-    value: "Power user shortcuts and hidden hotkeys",
-    context: {
-      routes: ["/protected", "/protected/folder/"],
-    },
-    steps: [
-      {
-        target: "body",
-        title: "Global Shortcuts",
-        content:
-          'Here are the secret shortcuts power users know: Press "/" to focus search instantly, "n" to create new content, "?" to see all shortcuts. Try pressing "/" now!',
-        placement: "top",
-        disableBeacon: true,
-      },
-      {
-        target: ".onboarding-search-input",
-        title: "Search Like a Pro",
-        content:
-          'Try these search operators: "type:canvas" finds only canvases, "modified:today" shows recent files, "in:foldername" searches specific folders. Type one now!',
-        placement: "bottom",
-        spotlightPadding: 8,
-        spotlightClicks: true,
-      },
-    ],
-  },
 };
 
 interface OnboardingState {
   // Tutorial tracking
   completedTutorials: string[];
+  skippedTutorials: string[];
   hasSeenWelcome: boolean;
   lastCompletedAt: string | null;
+
+  // Session state (not persisted)
+  welcomeShownThisSession: boolean;
 
   // Active tutorial state
   activeTutorial: string | null;
@@ -259,7 +283,7 @@ interface OnboardingState {
   skipTutorial: (tutorialId: string) => void;
   resetTutorial: (tutorialId: string) => void;
   resetAllTutorials: () => void;
-  setWelcomeSeen: () => void;
+  setWelcomeSeen: (showThisSession?: boolean) => void;
   updatePreferences: (
     prefs: Partial<
       Pick<OnboardingState, "autoStartTutorials" | "showAdvancedTips">
@@ -272,9 +296,18 @@ interface OnboardingState {
 
   // Getters
   isTutorialCompleted: (tutorialId: string) => boolean;
-  shouldShowTutorial: (tutorialId: string, currentPath?: string) => boolean;
+  isTutorialSkipped: (tutorialId: string) => boolean;
+  isTutorialAvailable: (tutorialId: string, currentPath?: string) => boolean;
+  shouldAutoStartTutorial: (
+    tutorialId: string,
+    currentPath?: string
+  ) => boolean;
   getContextualTutorials: (currentPath: string) => Tutorial[];
   getNextSuggestedTutorial: (currentPath?: string) => string | null;
+  getTutorialStatus: (
+    tutorialId: string,
+    currentPath?: string
+  ) => "completed" | "skipped" | "available" | "unavailable";
 
   // Database sync
   syncWithDatabase: (userId: string) => Promise<void>;
@@ -285,8 +318,10 @@ export const useOnboardingStore = create<OnboardingState>()(
     (set, get) => ({
       // Initial state
       completedTutorials: [],
+      skippedTutorials: [],
       hasSeenWelcome: false,
       lastCompletedAt: null,
+      welcomeShownThisSession: false,
       activeTutorial: null,
       isRunning: false,
       currentStep: 0,
@@ -310,12 +345,12 @@ export const useOnboardingStore = create<OnboardingState>()(
 
         const state = get();
 
-        // Don't start if already running
+        // Stop any currently running tutorial
         if (state.isRunning && state.activeTutorial) {
-          console.warn("Another tutorial is already running");
-          return;
+          console.log(`Stopping current tutorial: ${state.activeTutorial}`);
         }
 
+        console.log(`Starting tutorial: ${tutorialId}`);
         set({
           activeTutorial: tutorialId,
           isRunning: true,
@@ -326,10 +361,20 @@ export const useOnboardingStore = create<OnboardingState>()(
 
       completeTutorial: (tutorialId: string) => {
         const state = get();
-        if (state.completedTutorials.includes(tutorialId)) return;
+
+        // Remove from skipped if it was there
+        const updatedSkipped = state.skippedTutorials.filter(
+          (id) => id !== tutorialId
+        );
+
+        // Add to completed if not already there
+        const updatedCompleted = state.completedTutorials.includes(tutorialId)
+          ? state.completedTutorials
+          : [...state.completedTutorials, tutorialId];
 
         set({
-          completedTutorials: [...state.completedTutorials, tutorialId],
+          completedTutorials: updatedCompleted,
+          skippedTutorials: updatedSkipped,
           lastCompletedAt: new Date().toISOString(),
           activeTutorial: null,
           isRunning: false,
@@ -349,34 +394,39 @@ export const useOnboardingStore = create<OnboardingState>()(
 
       skipTutorial: (tutorialId: string) => {
         const state = get();
-        const skippedId = `${tutorialId}_skipped`;
 
-        if (!state.completedTutorials.includes(skippedId)) {
-          set({
-            completedTutorials: [...state.completedTutorials, skippedId],
-            activeTutorial: null,
-            isRunning: false,
-            currentStep: 0,
-            waitingForAction: false,
-          });
-        } else {
-          set({
-            activeTutorial: null,
-            isRunning: false,
-            currentStep: 0,
-            waitingForAction: false,
-          });
-        }
+        // Remove from completed if it was there
+        const updatedCompleted = state.completedTutorials.filter(
+          (id) => id !== tutorialId
+        );
+
+        // Add to skipped if not already there
+        const updatedSkipped = state.skippedTutorials.includes(tutorialId)
+          ? state.skippedTutorials
+          : [...state.skippedTutorials, tutorialId];
+
+        set({
+          completedTutorials: updatedCompleted,
+          skippedTutorials: updatedSkipped,
+          activeTutorial: null,
+          isRunning: false,
+          currentStep: 0,
+          waitingForAction: false,
+        });
       },
 
       resetTutorial: (tutorialId: string) => {
         const state = get();
         const updatedCompleted = state.completedTutorials.filter(
-          (id) => id !== tutorialId && id !== `${tutorialId}_skipped`
+          (id) => id !== tutorialId
+        );
+        const updatedSkipped = state.skippedTutorials.filter(
+          (id) => id !== tutorialId
         );
 
         set({
           completedTutorials: updatedCompleted,
+          skippedTutorials: updatedSkipped,
           activeTutorial: null,
           isRunning: false,
           waitingForAction: false,
@@ -386,23 +436,20 @@ export const useOnboardingStore = create<OnboardingState>()(
       resetAllTutorials: () => {
         set({
           completedTutorials: [],
-          hasSeenWelcome: false,
+          skippedTutorials: [],
           lastCompletedAt: null,
           activeTutorial: null,
           isRunning: false,
           currentStep: 0,
           waitingForAction: false,
-          userBehavior: {
-            createdItems: 0,
-            foldersCreated: 0,
-            searchesPerformed: 0,
-            lastActiveDate: null,
-          },
         });
       },
 
-      setWelcomeSeen: () => {
-        set({ hasSeenWelcome: true });
+      setWelcomeSeen: (showThisSession = true) => {
+        set({
+          hasSeenWelcome: true,
+          welcomeShownThisSession: showThisSession,
+        });
       },
 
       updatePreferences: (prefs) => {
@@ -443,21 +490,23 @@ export const useOnboardingStore = create<OnboardingState>()(
         return state.completedTutorials.includes(tutorialId);
       },
 
-      shouldShowTutorial: (tutorialId: string, currentPath?: string) => {
+      isTutorialSkipped: (tutorialId: string) => {
+        const state = get();
+        return state.skippedTutorials.includes(tutorialId);
+      },
+
+      isTutorialAvailable: (tutorialId: string, currentPath?: string) => {
+        const tutorial = TUTORIALS[tutorialId];
+        if (!tutorial) return false;
+
+        // Always check if tutorial exists first
+        return true;
+      },
+
+      shouldAutoStartTutorial: (tutorialId: string, currentPath?: string) => {
         const state = get();
         const tutorial = TUTORIALS[tutorialId];
-
-        if (!tutorial || !state.autoStartTutorials) return false;
-
-        const isCompleted = state.completedTutorials.includes(tutorialId);
-        const isSkipped = state.completedTutorials.includes(
-          `${tutorialId}_skipped`
-        );
-        const isCurrentlyRunning = state.activeTutorial === tutorialId;
-
-        if (isCompleted || isSkipped || isCurrentlyRunning || state.isRunning) {
-          return false;
-        }
+        if (!tutorial) return false;
 
         // Check if tutorial is contextually relevant
         if (currentPath && tutorial.context.routes.length > 0) {
@@ -466,6 +515,23 @@ export const useOnboardingStore = create<OnboardingState>()(
           );
           if (!isRelevantRoute) return false;
         }
+
+        // Don't auto-start if user disabled it
+        if (!state.autoStartTutorials) return false;
+
+        // Don't auto-start if tutorial is running
+        if (state.isRunning) return false;
+
+        // Don't auto-start if completed or skipped
+        if (
+          state.completedTutorials.includes(tutorialId) ||
+          state.skippedTutorials.includes(tutorialId)
+        ) {
+          return false;
+        }
+
+        // Don't auto-start if welcome hasn't been seen yet
+        if (!state.hasSeenWelcome) return false;
 
         // Check prerequisites
         if (tutorial.prerequisites) {
@@ -479,23 +545,46 @@ export const useOnboardingStore = create<OnboardingState>()(
       },
 
       getContextualTutorials: (currentPath: string) => {
-        const state = get();
         return Object.values(TUTORIALS).filter((tutorial) => {
-          // Check if tutorial is relevant to current path
+          // Check if tutorial is contextually relevant to current path
+          if (tutorial.context.routes.length > 0) {
+            const isRelevantRoute = tutorial.context.routes.some(
+              (route) => currentPath === route || currentPath.startsWith(route)
+            );
+            return isRelevantRoute;
+          }
+          return false;
+        });
+      },
+
+      getTutorialStatus: (tutorialId: string, currentPath?: string) => {
+        const state = get();
+        const tutorial = TUTORIALS[tutorialId];
+
+        if (!tutorial) return "unavailable";
+
+        // Check completion/skip status first (global state)
+        if (state.completedTutorials.includes(tutorialId)) {
+          return "completed";
+        }
+        if (state.skippedTutorials.includes(tutorialId)) {
+          return "skipped";
+        }
+
+        // Check if tutorial is contextually available
+        if (currentPath && tutorial.context.routes.length > 0) {
           const isRelevantRoute = tutorial.context.routes.some(
             (route) => currentPath === route || currentPath.startsWith(route)
           );
+          if (isRelevantRoute) {
+            return "available";
+          } else {
+            return "unavailable";
+          }
+        }
 
-          if (!isRelevantRoute) return false;
-
-          // Check if not completed or skipped
-          const isCompleted = state.completedTutorials.includes(tutorial.id);
-          const isSkipped = state.completedTutorials.includes(
-            `${tutorial.id}_skipped`
-          );
-
-          return !isCompleted && !isSkipped;
-        });
+        // Default to available if no specific route restrictions
+        return "available";
       },
 
       getNextSuggestedTutorial: (currentPath?: string) => {
@@ -506,61 +595,60 @@ export const useOnboardingStore = create<OnboardingState>()(
           return null;
         }
 
+        // Don't suggest if auto-start is disabled
+        if (!state.autoStartTutorials) {
+          return null;
+        }
+
         // Smart suggestion based on user behavior and context
         const { userBehavior } = state;
 
-        // For new users, start with organization
+        // For new users on home page, start with organization
         if (
+          currentPath === "/protected" &&
           userBehavior.createdItems === 0 &&
-          userBehavior.foldersCreated === 0
+          userBehavior.foldersCreated === 0 &&
+          get().shouldAutoStartTutorial("advanced_organization", currentPath)
         ) {
-          if (
-            currentPath === "/protected" &&
-            state.shouldShowTutorial("advanced_organization", currentPath)
-          ) {
-            return "advanced_organization";
-          }
+          return "advanced_organization";
         }
 
         // If user has created content but not many folders, suggest organization
-        if (userBehavior.createdItems >= 3 && userBehavior.foldersCreated < 2) {
-          if (state.shouldShowTutorial("advanced_organization", currentPath)) {
-            return "advanced_organization";
-          }
+        if (
+          userBehavior.createdItems >= 3 &&
+          userBehavior.foldersCreated < 2 &&
+          get().shouldAutoStartTutorial("advanced_organization", currentPath)
+        ) {
+          return "advanced_organization";
         }
 
         // If user is in creation flow, suggest creation workflows
         if (
           currentPath?.includes("/protected") &&
-          userBehavior.createdItems < 5
+          userBehavior.createdItems < 5 &&
+          get().shouldAutoStartTutorial("creation_workflows", currentPath)
         ) {
-          if (state.shouldShowTutorial("creation_workflows", currentPath)) {
-            return "creation_workflows";
-          }
-        }
-
-        // If user has searched multiple times, suggest keyboard shortcuts
-        if (userBehavior.searchesPerformed >= 3) {
-          if (state.shouldShowTutorial("keyboard_mastery", currentPath)) {
-            return "keyboard_mastery";
-          }
+          return "creation_workflows";
         }
 
         // If user is actively using folders, suggest folder mastery
         if (
           currentPath?.includes("/folder/") &&
-          userBehavior.foldersCreated >= 1
+          userBehavior.foldersCreated >= 1 &&
+          get().shouldAutoStartTutorial("folder_mastery", currentPath)
         ) {
-          if (state.shouldShowTutorial("folder_mastery", currentPath)) {
-            return "folder_mastery";
-          }
+          return "folder_mastery";
         }
 
-        // Default fallback - suggest contextual tutorials
+        // Default fallback - suggest first available tutorial
         const contextualTutorials = get().getContextualTutorials(
           currentPath || "/protected"
         );
-        return contextualTutorials[0]?.id || null;
+        const availableTutorial = contextualTutorials.find((tutorial) =>
+          get().shouldAutoStartTutorial(tutorial.id, currentPath)
+        );
+
+        return availableTutorial?.id || null;
       },
 
       // Database sync
@@ -580,6 +668,7 @@ export const useOnboardingStore = create<OnboardingState>()(
 
             set({
               completedTutorials: onboardingData.completedTutorials || [],
+              skippedTutorials: onboardingData.skippedTutorials || [],
               hasSeenWelcome: userData.has_seen_onboarding || false,
               autoStartTutorials: onboardingData.autoStartTutorials ?? true,
               showAdvancedTips: onboardingData.showAdvancedTips ?? true,
@@ -599,6 +688,7 @@ export const useOnboardingStore = create<OnboardingState>()(
             .update({
               onboarding_data: {
                 completedTutorials: state.completedTutorials,
+                skippedTutorials: state.skippedTutorials,
                 autoStartTutorials: state.autoStartTutorials,
                 showAdvancedTips: state.showAdvancedTips,
                 lastCompletedAt: state.lastCompletedAt,
@@ -613,11 +703,12 @@ export const useOnboardingStore = create<OnboardingState>()(
       },
     }),
     {
-      name: "onboarding-store-v4",
+      name: "onboarding-store-v6",
       version: 1,
-      // Only persist essential data
+
       partialize: (state) => ({
         completedTutorials: state.completedTutorials,
+        skippedTutorials: state.skippedTutorials,
         hasSeenWelcome: state.hasSeenWelcome,
         lastCompletedAt: state.lastCompletedAt,
         autoStartTutorials: state.autoStartTutorials,

@@ -649,6 +649,7 @@ export const FolderContent = memo(({ folderId }: FolderContentProps) => {
           <DropdownMenuItem
             onClick={() => handleQuickCreate(CANVAS_TYPE.HYBRID)}
             disabled={canvasLoading}
+            className="onboarding-canvas-option"
           >
             <File className="mr-2 h-4 w-4" />
             New Canvas
@@ -656,6 +657,7 @@ export const FolderContent = memo(({ folderId }: FolderContentProps) => {
           <DropdownMenuItem
             onClick={() => handleQuickCreate(CANVAS_TYPE.TABLE)}
             disabled={canvasLoading}
+            className="onboarding-table-option"
           >
             <FileText className="mr-2 h-4 w-4" />
             New Table
@@ -663,6 +665,7 @@ export const FolderContent = memo(({ folderId }: FolderContentProps) => {
           <DropdownMenuItem
             onClick={() => handleQuickCreate(CANVAS_TYPE.DOCUMENT)}
             disabled={canvasLoading}
+            className="onboarding-document-option"
           >
             <FileText className="mr-2 h-4 w-4" />
             New Document
@@ -671,9 +674,10 @@ export const FolderContent = memo(({ folderId }: FolderContentProps) => {
           <DropdownMenuItem
             onClick={() => setCreateNewModalType("canvas")}
             disabled={canvasLoading}
+            className="onboarding-ai-option"
           >
             <Plus className="mr-2 h-4 w-4" />
-            Create with Details...
+            Create with AI...
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>

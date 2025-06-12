@@ -23,7 +23,6 @@ import { TUTORIALS, useOnboardingStore } from "@/lib/store/useOnboarding";
 import { useSidebarStore } from "@/lib/store/useSidebar";
 import { STORAGE_URL } from "@/utils/constants";
 import {
-  AlertTriangle,
   CheckCircle,
   ChevronRight,
   Crown,
@@ -32,8 +31,10 @@ import {
   LogOut,
   Navigation,
   Play,
+  RefreshCcw,
   RotateCcw,
   User,
+  XCircle,
 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
@@ -58,14 +59,15 @@ export const HeaderSidebar = () => {
 
   const {
     startTutorial,
-    isTutorialCompleted,
     resetTutorial,
     resetAllTutorials,
     completedTutorials,
+    skippedTutorials,
     syncWithDatabase,
-    shouldShowTutorial,
     getContextualTutorials,
+    getTutorialStatus,
     isRunning,
+    activeTutorial,
   } = useOnboardingStore();
 
   const avatarUrl = STORAGE_URL + `avatars/` + user?.avatar_url;
@@ -132,40 +134,87 @@ export const HeaderSidebar = () => {
   };
 
   const handleStartTutorial = (tutorialId: string) => {
+    const tutorial = TUTORIALS[tutorialId];
+    if (!tutorial) return;
+
+    // Check if tutorial requires navigation
+    const currentPath = pathname;
+    const isOnCorrectPage = tutorial.context.routes.some(
+      (route) => currentPath === route || currentPath.startsWith(route)
+    );
+
+    if (!isOnCorrectPage) {
+      // Show navigation dialog
+      const targetRoute = tutorial.context.routes[0];
+      if (targetRoute) {
+        setPendingTutorial({
+          id: tutorialId,
+          name: tutorial.name,
+          targetRoute,
+          targetName: getPageName(targetRoute),
+        });
+        setShowNavigationDialog(true);
+        return;
+      }
+    }
+
+    // Start tutorial directly if on correct page
     startTutorial(tutorialId);
   };
 
-  const handleResetTutorial = (tutorialId: string) => {
+  const handleRestartTutorial = (tutorialId: string) => {
     resetTutorial(tutorialId);
     // Small delay to ensure state is updated before starting
     setTimeout(() => {
-      startTutorial(tutorialId);
+      handleStartTutorial(tutorialId);
     }, 100);
   };
 
   const handleResetAllTutorials = () => {
     if (
       window.confirm(
-        "Are you sure you want to reset all tutorials? This will mark all tutorials as incomplete."
+        "Are you sure you want to reset all tutorials? This will mark all tutorials as incomplete and allow you to take them again."
       )
     ) {
       resetAllTutorials();
     }
   };
 
-  // Get tutorial availability based on current page
-  const getAvailableTutorials = () => {
-    const allTutorials = Object.values(TUTORIALS);
-
-    if (pathname === "/protected") {
-      return allTutorials.filter(
-        (t) => t.id === "home_basics" || t.id === "canvas_creation"
-      );
-    } else if (pathname.includes("/folder/")) {
-      return allTutorials.filter((t) => t.id === "folder_management");
+  const getPageName = (route: string): string => {
+    switch (route) {
+      case "/protected":
+        return "Home page";
+      case "/protected/folder/":
+        return "Folder page";
+      default:
+        return "appropriate page";
     }
+  };
 
-    return allTutorials;
+  const getTutorialStatusIcon = (status: string) => {
+    switch (status) {
+      case "completed":
+        return <CheckCircle className="h-4 w-4 text-green-500" />;
+      case "skipped":
+        return <XCircle className="h-4 w-4 text-gray-400" />;
+      case "available":
+        return <Play className="h-4 w-4 text-blue-500" />;
+      default:
+        return <Navigation className="h-4 w-4 text-orange-500" />;
+    }
+  };
+
+  const getTutorialStatusLabel = (status: string) => {
+    switch (status) {
+      case "completed":
+        return "Completed";
+      case "skipped":
+        return "Skipped";
+      case "available":
+        return "Available";
+      default:
+        return "Navigate to start";
+    }
   };
 
   const handleCancelNavigation = () => {
@@ -175,18 +224,22 @@ export const HeaderSidebar = () => {
 
   const handleConfirmNavigation = () => {
     if (pendingTutorial) {
+      // Store tutorial to start after navigation
+      sessionStorage.setItem("pendingTutorial", pendingTutorial.id);
       router.push(pendingTutorial.targetRoute);
-      startTutorial(pendingTutorial.id);
     }
     setShowNavigationDialog(false);
     setPendingTutorial(null);
   };
 
+  // Get tutorial availability based on current page
+  const getAvailableTutorials = () => {
+    return getContextualTutorials(pathname);
+  };
+
   const availableTutorials = getAvailableTutorials();
-  const completedCount = Object.keys(TUTORIALS).filter((id) =>
-    isTutorialCompleted(id)
-  ).length;
   const totalCount = Object.keys(TUTORIALS).length;
+  const completedCount = completedTutorials.length;
 
   return (
     <>
@@ -284,18 +337,26 @@ export const HeaderSidebar = () => {
                     Available on this page
                   </DropdownMenuLabel>
                   {availableTutorials.map((tutorial) => {
-                    const isCompleted = isTutorialCompleted(tutorial.id);
-                    const canStart = shouldShowTutorial(tutorial.id, pathname);
+                    const status = getTutorialStatus(tutorial.id, pathname);
+                    const canStart =
+                      (status === "available" ||
+                        status === "completed" ||
+                        status === "skipped") &&
+                      !isRunning;
+                    const isCurrentlyRunning = activeTutorial === tutorial.id;
+
                     return (
                       <DropdownMenuItem
                         key={tutorial.id}
                         className="flex items-center justify-between p-3 cursor-pointer"
                         onClick={() =>
                           canStart
-                            ? handleStartTutorial(tutorial.id)
+                            ? status === "completed" || status === "skipped"
+                              ? handleRestartTutorial(tutorial.id)
+                              : handleStartTutorial(tutorial.id)
                             : undefined
                         }
-                        disabled={!canStart || isRunning}
+                        disabled={!canStart && !isCurrentlyRunning}
                       >
                         <div className="flex items-center gap-3">
                           <span className="text-lg">{tutorial.icon}</span>
@@ -304,27 +365,28 @@ export const HeaderSidebar = () => {
                               <span className="font-medium">
                                 {tutorial.name}
                               </span>
-                              {isCompleted && (
-                                <CheckCircle className="h-4 w-4 text-green-500" />
-                              )}
+                              {getTutorialStatusIcon(status)}
                             </div>
                             <p className="text-xs text-muted-foreground">
                               {tutorial.value}
                             </p>
-                            {!canStart && (
-                              <p className="text-xs text-orange-500">
-                                {isCompleted
-                                  ? "Already completed"
-                                  : "Requirements not met"}
-                              </p>
-                            )}
+                            <p className="text-xs text-blue-600">
+                              {isCurrentlyRunning
+                                ? "Currently running"
+                                : status === "completed" || status === "skipped"
+                                  ? `${getTutorialStatusLabel(status)} - Click to restart`
+                                  : getTutorialStatusLabel(status)}
+                            </p>
                           </div>
                         </div>
-                        {canStart && !isRunning && (
-                          <Play className="h-4 w-4 text-muted-foreground" />
-                        )}
-                        {isRunning && (
-                          <AlertTriangle className="h-4 w-4 text-orange-500" />
+                        {canStart && (
+                          <div className="ml-2">
+                            {status === "completed" || status === "skipped" ? (
+                              <RefreshCcw className="h-4 w-4 text-muted-foreground" />
+                            ) : (
+                              <Play className="h-4 w-4 text-muted-foreground" />
+                            )}
+                          </div>
                         )}
                       </DropdownMenuItem>
                     );
@@ -338,59 +400,68 @@ export const HeaderSidebar = () => {
                 All Tutorials
               </DropdownMenuLabel>
               {Object.values(TUTORIALS).map((tutorial) => {
-                const isCompleted = isTutorialCompleted(tutorial.id);
-                const canStart = shouldShowTutorial(tutorial.id, pathname);
-                const isContextual = availableTutorials.some(
-                  (t) => t.id === tutorial.id
-                );
-                const needsNavigation = !tutorial.context.routes.some(
-                  (route) => pathname === route || pathname.startsWith(route)
-                );
+                const status = getTutorialStatus(tutorial.id, pathname);
+                const canStart = !isRunning && activeTutorial !== tutorial.id;
+                const isCurrentlyRunning = activeTutorial === tutorial.id;
+                const needsNavigation = status === "unavailable";
 
                 return (
                   <DropdownMenuItem
                     key={tutorial.id}
-                    className={`flex items-center justify-between p-3 cursor-pointer ${
-                      !canStart && !needsNavigation ? "opacity-50" : ""
-                    }`}
-                    onClick={() => handleStartTutorial(tutorial.id)}
-                    disabled={isRunning}
+                    className="flex items-center justify-between p-3"
+                    asChild
                   >
-                    <div className="flex items-center gap-3">
-                      <span className="text-lg">{tutorial.icon}</span>
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <span className="font-medium">{tutorial.name}</span>
-                          {isCompleted && (
-                            <CheckCircle className="h-4 w-4 text-green-500" />
-                          )}
-                          {needsNavigation && (
-                            <Navigation className="h-3 w-3 text-blue-500" />
-                          )}
+                    <div>
+                      <div className="flex items-center gap-3 flex-1">
+                        <span className="text-lg">{tutorial.icon}</span>
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2">
+                            <span className="font-medium">{tutorial.name}</span>
+                            {getTutorialStatusIcon(status)}
+                            {needsNavigation && (
+                              <Navigation className="h-3 w-3 text-blue-500" />
+                            )}
+                          </div>
+                          <p className="text-xs text-muted-foreground">
+                            {tutorial.value}
+                          </p>
+                          <p className="text-xs text-blue-600">
+                            {isCurrentlyRunning
+                              ? "Currently running"
+                              : status === "completed" || status === "skipped"
+                                ? `${getTutorialStatusLabel(status)} - Click to restart`
+                                : needsNavigation
+                                  ? "Will navigate to correct page"
+                                  : getTutorialStatusLabel(status)}
+                          </p>
                         </div>
-                        <p className="text-xs text-muted-foreground">
-                          {tutorial.value}
-                        </p>
-                        {needsNavigation && (
-                          <p className="text-xs text-blue-500">
-                            Will navigate to correct page
-                          </p>
-                        )}
-                        {!canStart && !needsNavigation && (
-                          <p className="text-xs text-orange-500">
-                            {isCompleted
-                              ? "Already completed"
-                              : "Requirements not met"}
-                          </p>
+                      </div>
+                      <div className="flex flex-col gap-1 ml-2">
+                        {canStart && (
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="h-6 w-6 p-0"
+                            onClick={() => {
+                              if (
+                                status === "completed" ||
+                                status === "skipped"
+                              ) {
+                                handleRestartTutorial(tutorial.id);
+                              } else {
+                                handleStartTutorial(tutorial.id);
+                              }
+                            }}
+                          >
+                            {status === "completed" || status === "skipped" ? (
+                              <RefreshCcw className="h-3 w-3" />
+                            ) : (
+                              <Play className="h-3 w-3" />
+                            )}
+                          </Button>
                         )}
                       </div>
                     </div>
-                    {!isRunning && (
-                      <Play className="h-4 w-4 text-muted-foreground" />
-                    )}
-                    {isRunning && (
-                      <AlertTriangle className="h-4 w-4 text-orange-500" />
-                    )}
                   </DropdownMenuItem>
                 );
               })}
@@ -398,7 +469,7 @@ export const HeaderSidebar = () => {
               <DropdownMenuSeparator />
 
               {/* Tutorial management */}
-              {completedCount > 0 && (
+              {(completedCount > 0 || skippedTutorials.length > 0) && (
                 <DropdownMenuItem
                   onClick={handleResetAllTutorials}
                   className="text-orange-600 hover:text-orange-700"
@@ -477,8 +548,7 @@ export const HeaderSidebar = () => {
               {pendingTutorial && (
                 <>
                   The <strong>{pendingTutorial.name}</strong> tutorial works
-                  best on the <strong>{pendingTutorial.targetName}</strong>{" "}
-                  page.
+                  best on the <strong>{pendingTutorial.targetName}</strong>.
                   <br />
                   <br />
                   Would you like to navigate there and start the tutorial?
