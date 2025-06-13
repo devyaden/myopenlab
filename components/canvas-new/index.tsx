@@ -1402,6 +1402,137 @@ export default function CanvasNew({ canvasId }: FigmaInterfaceProps) {
     []
   );
 
+  const handleMultiNodeGrouping = useCallback(() => {
+    const nodesToGroup = selectedNodes;
+    if (nodesToGroup.length < 2) {
+      toast.error("Select at least two nodes to group");
+      return;
+    }
+
+    // Get the actual node objects
+    const selectedNodeObjects = currentState.nodes.filter((node) =>
+      nodesToGroup.includes(node.id)
+    );
+
+    // Calculate the bounding box of all selected nodes
+    const calculateBoundingBox = (nodes: Node[]) => {
+      if (nodes.length === 0) return { x: 0, y: 0, width: 800, height: 600 };
+
+      let minX = Infinity;
+      let minY = Infinity;
+      let maxX = -Infinity;
+      let maxY = -Infinity;
+
+      nodes.forEach((node) => {
+        const nodeWidth = node.width || node.style?.width || 150; // Default width if not specified
+        const nodeHeight = node.height || node.style?.height || 50; // Default height if not specified
+
+        const nodeX = node.position.x;
+        const nodeY = node.position.y;
+
+        minX = Math.min(minX, nodeX);
+        minY = Math.min(minY, nodeY);
+        // @ts-ignore
+        maxX = Math.max(maxX, nodeX + nodeWidth);
+        // @ts-ignore
+        maxY = Math.max(maxY, nodeY + nodeHeight);
+      });
+
+      return {
+        x: minX,
+        y: minY,
+        width: maxX - minX,
+        height: maxY - minY,
+      };
+    };
+
+    const boundingBox = calculateBoundingBox(selectedNodeObjects);
+
+    // Add padding around the bounding box for better visual appearance
+    const padding = 40;
+    const parentWidth = boundingBox.width + padding * 2;
+    const parentHeight = boundingBox.height + padding * 2;
+    const parentX = boundingBox.x - padding;
+    const parentY = boundingBox.y - padding;
+
+    const groupedNodeId = `group-${Date.now()}`;
+    const groupedNode = {
+      id: groupedNodeId,
+      type: "genericNode",
+      position: {
+        x: parentX,
+        y: parentY,
+      },
+      data: {
+        label: `Group ${nodesToGroup.length}`,
+        nodes: nodesToGroup,
+      },
+      width: parentWidth,
+      height: parentHeight,
+      style: {
+        width: parentWidth,
+        height: parentHeight,
+        backgroundColor: "#f0f0f0",
+        borderColor: "#000000",
+        borderWidth: 2,
+        borderStyle: "solid",
+      },
+    };
+
+    // Update child nodes to be relative to the parent position
+    const updatedNodes = currentState.nodes.map((node) => {
+      if (nodesToGroup.includes(node.id)) {
+        return {
+          ...node,
+          parentNode: groupedNodeId,
+          // Adjust position to be relative to the parent node
+          position: {
+            x: node.position.x - parentX,
+            y: node.position.y - parentY,
+          },
+        };
+      }
+      return node;
+    });
+
+    // Store the grouped node styles
+    const groupedNodeStyles = nodesToGroup.reduce((styles, nodeId) => {
+      const node = currentState.nodes.find((n) => n.id === nodeId);
+      if (node) {
+        // @ts-ignore
+        styles[nodeId] = currentState.nodeStyles[nodeId];
+      }
+      return styles;
+    }, {});
+
+    updateState({
+      nodes: [...updatedNodes, groupedNode],
+      nodeStyles: {
+        ...currentState.nodeStyles,
+        [groupedNodeId]: {
+          fontFamily: "Arial",
+          fontSize: 12,
+          isBold: false,
+          isItalic: false,
+          isUnderline: false,
+          textAlign: "center",
+          verticalAlign: "middle",
+          shape: "rectangle",
+          locked: false,
+          isVertical: true,
+          borderStyle: "solid",
+          borderWidth: 2,
+          backgroundColor: "#f0f0f0",
+          borderColor: "#000000",
+          textColor: "#000000",
+          lineHeight: 1.2,
+        },
+        ...groupedNodeStyles,
+      },
+    });
+    setSelectedNodes([groupedNodeId]);
+  }, [selectedNodes, currentState.nodes, currentState.nodeStyles, updateState]);
+
   // If unauthorized, show the Unauthorized component
   if (unauthorized) {
     return <Unauthorized />;
@@ -1553,6 +1684,8 @@ export default function CanvasNew({ canvasId }: FigmaInterfaceProps) {
                         nodes.find((n) => n.id === selectedNode)?.parentNode
                       )
                     }
+                    areMultipleSelected={selectedNodes.length > 1}
+                    handleMultiNodeGrouping={handleMultiNodeGrouping}
                   />
                 )}
 

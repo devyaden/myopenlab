@@ -23,6 +23,7 @@ import {
   Copy,
   CornerUpLeft,
   CornerUpRight,
+  Group,
   Italic,
   Lock,
   Trash2,
@@ -83,6 +84,8 @@ interface ToolbarProps {
   canRedo: boolean;
   onDetachNode?: () => void;
   selectedNodeHasParent?: boolean;
+  areMultipleSelected?: boolean;
+  handleMultiNodeGrouping?: () => void;
 }
 
 export const Toolbar = React.memo(function Toolbar({
@@ -135,6 +138,8 @@ export const Toolbar = React.memo(function Toolbar({
   canRedo,
   selectedNodeHasParent,
   onDetachNode,
+  areMultipleSelected,
+  handleMultiNodeGrouping,
 }: ToolbarProps) {
   const fontFamilies = [
     "Arial",
@@ -811,6 +816,19 @@ export const Toolbar = React.memo(function Toolbar({
           >
             <Unlink className="h-4 w-4" />
             Detach
+          </Button>
+        )}
+
+        {areMultipleSelected && (
+          <Button
+            variant="outline"
+            size="sm"
+            className="rounded-lg gap-2"
+            onClick={handleMultiNodeGrouping}
+            title="Detach from parent"
+          >
+            <Group className="h-4 w-4" />
+            Group
           </Button>
         )}
       </div>
