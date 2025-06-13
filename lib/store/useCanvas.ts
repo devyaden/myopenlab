@@ -13,19 +13,16 @@ import { ALL_SHAPES } from "../types/flow-table.types";
 
 // Helper function to determine the correct dataKey for a column
 const getColumnDataKey = (column: any): string => {
-  // If dataKey is already set and it's one of the special keys, keep it
   if (column.dataKey && ["label", "shape", "id"].includes(column.dataKey)) {
     return column.dataKey;
   }
 
-  // If data_key from database is set and it's one of the special keys, use it
   if (column.data_key && ["label", "shape", "id"].includes(column.data_key)) {
     return column.data_key;
   }
 
-  // Check if this is a special column by its characteristics
   if (column.type === "Text" && column.order === 1) {
-    return "label"; // This is likely the task column
+    return "label";
   }
 
   if (
@@ -108,7 +105,7 @@ const initialHistoryState: HistoryState = {
   future: [],
 };
 
-const MAX_HISTORY_LENGTH = 50; // Limit history to prevent memory issues
+const MAX_HISTORY_LENGTH = 150; // Limit history to prevent memory issues
 let isDragging = false;
 let dragTimeout: NodeJS.Timeout | null = null;
 
