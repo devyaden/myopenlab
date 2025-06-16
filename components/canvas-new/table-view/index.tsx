@@ -253,7 +253,7 @@ const TableView = forwardRef<
             const relatedCanvas = relationColumn.related_canvas;
 
             const relatedCanvasNodes =
-              relatedCanvas?.canvas_data?.[0].nodes ??
+              relatedCanvas?.canvas_data?.[0]?.nodes ??
               relatedCanvas?.canvas_data?.nodes ??
               [];
 
