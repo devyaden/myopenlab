@@ -27,7 +27,7 @@ import {
   Users,
   X,
 } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useMemo } from "react";
 import type { Node } from "reactflow";
 
 // Add import for AlertDialog components
@@ -90,43 +90,22 @@ interface Property {
   type: PropertyType;
   options?: string[];
   isEditable?: boolean;
-  dataKey?: string; // Add dataKey to track the actual data property
+  dataKey?: string;
+  columnType?: string; // Store the original column type
 }
 
-// Helper functions for column data mapping
+// Helper functions for column data mapping (same as table)
 const getDataKey = (column: any): string => {
-  if (column.dataKey) {
-    return column.dataKey;
-  }
-
-  if (column.title === "task") return "label";
-  if (column.title === "type") return "shape";
-  if (column.title === "id") return "id";
-
-  return column.title;
+  return column.dataKey || column.title;
 };
 
-const getPropertyDataKey = (propertyName: string, columns: any[]): string => {
-  // Find matching column to get its dataKey
-  const matchingColumn = columns.find((col) => col.title === propertyName);
-  if (matchingColumn) {
-    return getDataKey(matchingColumn);
-  }
-
-  // Fallback for properties without matching columns
-  if (propertyName === "task") return "label";
-  if (propertyName === "type") return "shape";
-  if (propertyName === "id") return "id";
-
-  return propertyName;
+const isSpecialColumn = (column: any): boolean => {
+  const dataKey = getDataKey(column);
+  return ["label", "shape", "id"].includes(dataKey);
 };
 
-const getNodeValue = (
-  node: Node,
-  propertyName: string,
-  columns: any[]
-): any => {
-  const dataKey = getPropertyDataKey(propertyName, columns);
+const getNodeValue = (node: Node, column: any): any => {
+  const dataKey = getDataKey(column);
 
   switch (dataKey) {
     case "label":
@@ -136,17 +115,12 @@ const getNodeValue = (
     case "id":
       return node.id;
     default:
-      return node.data?.[propertyName];
+      return node.data?.[column.title];
   }
 };
 
-const updateNodeValue = (
-  node: Node,
-  propertyName: string,
-  value: any,
-  columns: any[]
-): any => {
-  const dataKey = getPropertyDataKey(propertyName, columns);
+const updateNodeValue = (node: Node, column: any, value: any): any => {
+  const dataKey = getDataKey(column);
   const updatedData = { ...node.data };
 
   switch (dataKey) {
@@ -157,27 +131,18 @@ const updateNodeValue = (
       updatedData.shape = value;
       break;
     case "id":
-      // ID should not be editable, but handle just in case
+      // ID should not be editable
       break;
     default:
-      updatedData[propertyName] = value;
+      updatedData[column.title] = value;
   }
 
   return updatedData;
 };
 
-// List of non-editable properties
-const NON_EDITABLE_PROPERTIES = ["id", "from", "to", "parent", "children"];
-// Properties to exclude from the sidebar
-const EXCLUDED_PROPERTIES = [
-  "id",
-  "label",
-  "shape",
-  "hidden",
-  "type",
-  "task",
-  "lanes",
-];
+// List of system properties that should not be editable
+// Note: Relation and Rollup properties are also made non-editable via type check
+const NON_EDITABLE_PROPERTIES = ["id"];
 
 // Shape options for the type property
 const SHAPE_OPTIONS = ALL_SHAPES.filter((shape) => shape !== "swimlane");
@@ -365,25 +330,44 @@ export function NodePropertiesSidebar({
 
   // Get canvas store for accessing canvasSettings and updateCanvasSettings
   const { canvasSettings, updateCanvasSettings } = useCanvasStore();
-  console.log("🚀 ~ canvasSettings:", canvasSettings);
 
+  // Get hidden columns from canvas settings (same logic as table) - memoized to prevent infinite re-renders
+  const hiddenColumns = useMemo(() => {
+    return canvasSettings?.table_settings?.hiddenColumns || [];
+  }, [canvasSettings?.table_settings?.hiddenColumns]);
+
+  // Add cache for rollup and relation data (same as table view)
+  const [rollupCache, setRollupCache] = useState<{ [key: string]: any }>({});
+  const [relationCache, setRelationCache] = useState<{ [key: string]: any }>(
+    {}
+  );
+
+  // Function to populate from and to connections (same as table view)
   const populateFromAndTo = () => {
+    if (!selectedNode) {
+      return { fromLabels: [], toLabels: [] };
+    }
+
     const from = edges
-      .filter((edge) => edge.target === selectedNode?.id)
+      .filter((edge) => edge.target === selectedNode.id)
       .map((edge) => edge.source);
 
     const to = edges
-      .filter((edge) => edge.source === selectedNode?.id)
+      .filter((edge) => edge.source === selectedNode.id)
       .map((edge) => edge.target);
 
     const fromLabels = from.map((id) => {
       const node = nodes.find((node) => node.id === id);
-      return node ? node.data.label : "";
+      return node
+        ? { id: node.id, label: node.data.label || node.id }
+        : { id, label: id };
     });
 
     const toLabels = to.map((id) => {
       const node = nodes.find((node) => node.id === id);
-      return node ? node.data.label : "";
+      return node
+        ? { id: node.id, label: node.data.label || node.id }
+        : { id, label: id };
     });
 
     return {
@@ -392,142 +376,146 @@ export function NodePropertiesSidebar({
     };
   };
 
-  // Load node data when selected node changes
+  // Update rollup cache when relevant data changes (EXACT same logic as table view)
   useEffect(() => {
-    if (selectedNode) {
-      const { fromLabels, toLabels } = populateFromAndTo();
+    console.log("Building rollup cache...", {
+      selectedNode: selectedNode?.id,
+      columnsCount: columns?.length,
+    });
 
-      // Load title from node data using dataKey mapping
-      // Find the "task" column (might be renamed)
-      const taskColumn = columns.find((col) => getDataKey(col) === "label");
-      const taskValue = getNodeValue(
-        selectedNode,
-        taskColumn?.title || "task",
-        columns
+    const newRollupCache: Record<string, any> = {};
+    const newRelationCache: Record<string, any> = {};
+
+    // Process rollup columns
+    const rollupColumns = columns?.filter((col) => col?.type === "Rollup");
+    console.log(
+      "Found rollup columns:",
+      rollupColumns?.map((c) => c.title)
+    );
+
+    if (rollupColumns?.length) {
+      // Create a map of relation columns to easily lookup by related canvas ID
+      const relationColumns = columns?.filter(
+        (col) => col?.type === "Relation" && col.related_canvas_id
       );
-      setTitle(taskValue || selectedNode.data?.label || "");
 
-      const nodeProperties: Property[] = [];
+      const relationColumnMap = new Map(
+        relationColumns.map((col) => [col.related_canvas_id, col])
+      );
 
-      // Add properties based on current columns (not node data keys)
-      columns.forEach((column) => {
-        // Skip excluded columns and task column (since it's displayed as title)
-        if (
-          EXCLUDED_PROPERTIES.includes(column.title) ||
-          column.title === "task" ||
-          getDataKey(column) === "label"
-        ) {
-          return;
-        }
+      nodes.forEach((node) => {
+        relationColumns.forEach((column) => {
+          const relationData = node.data[column.title];
 
-        // Get the actual value using dataKey mapping
-        const actualValue = getNodeValue(selectedNode, column.title, columns);
-        const isEditable = !NON_EDITABLE_PROPERTIES.includes(column.title);
-
-        // Determine property type
-        let propertyType: PropertyType = mapColumnTypeToPropertyType(
-          column.type || "Text"
-        );
-
-        // Special handling for type column
-        if (getDataKey(column) === "shape") {
-          propertyType = "select";
-        }
-
-        // Add the property with current column title
-        nodeProperties.push({
-          name: column.title, // Use current column title
-          value: actualValue,
-          type: propertyType,
-          options:
-            column.type === "Select" && column.title === "type"
-              ? SHAPE_OPTIONS
-              : column.options,
-          isEditable,
-          dataKey: getDataKey(column),
-        });
-      });
-
-      // Add additional properties that might exist in node data but not in columns
-      // (like from, to, etc.)
-      const nodeData = selectedNode.data
-        ? { ...selectedNode.data, from: fromLabels, to: toLabels }
-        : {};
-
-      Object.entries(nodeData).forEach(([key, value]) => {
-        // Skip if this property is already added from columns
-        const alreadyAdded = nodeProperties.some((prop) => {
-          const propDataKey = prop.dataKey || prop.name;
-          return propDataKey === key || prop.name === key;
+          if (relationData) {
+            const relationArray = Array.isArray(relationData)
+              ? relationData
+              : [relationData];
+            newRelationCache[`${node.id}-${column.title}`] = relationArray;
+          } else {
+            newRelationCache[`${node.id}-${column.title}`] = [];
+          }
         });
 
-        if (!alreadyAdded && !EXCLUDED_PROPERTIES.includes(key)) {
-          const isEditable = !NON_EDITABLE_PROPERTIES.includes(key);
+        rollupColumns.forEach((column) => {
+          const relatedCanvasId = column?.rollup_column?.canvas?.id;
 
-          let propertyType: PropertyType = "text";
-          if (typeof value === "number") {
-            propertyType = "number";
-          } else if (typeof value === "boolean") {
-            propertyType = "checkbox";
-          } else if (value instanceof Date) {
-            propertyType = "date";
-          } else if (typeof value === "string" && value.includes("@")) {
-            propertyType = "email";
+          if (!relatedCanvasId) {
+            console.log(
+              `No related canvas ID for rollup column ${column.title}`
+            );
+            return;
           }
 
-          nodeProperties.push({
-            name: key,
-            value: value,
-            type: propertyType,
-            isEditable,
-            dataKey: key, // For non-column properties, dataKey is the same as name
+          const relationColumn = relationColumnMap.get(relatedCanvasId);
+
+          if (!relationColumn) {
+            console.log(
+              `No relation column found for canvas ${relatedCanvasId}`
+            );
+            return;
+          }
+
+          // Get relation data from the node
+          const relationData = node.data[relationColumn.title];
+
+          if (
+            !relationData ||
+            !Array.isArray(relationData) ||
+            relationData.length === 0
+          ) {
+            newRollupCache[`${node.id}-${column.title}`] = [];
+            return;
+          }
+
+          // Get the target column to rollup
+          const rollupColumnTargetTitle = column?.rollup_column?.title;
+
+          if (!rollupColumnTargetTitle) {
+            console.log(`No target column title for rollup ${column.title}`);
+            return;
+          }
+
+          // Get the related canvas data from the relation column
+          const relatedCanvas = relationColumn.related_canvas;
+
+          const relatedCanvasNodes =
+            relatedCanvas?.canvas_data?.[0]?.nodes ??
+            relatedCanvas?.canvas_data?.nodes ??
+            [];
+
+          // Extract IDs from relation data
+          const relationIds = relationData.map((item) => item.id);
+
+          // Create a set for faster lookups
+          const relationIdSet = new Set(relationIds);
+
+          // Filter related nodes that match the relation IDs
+          const matchingRelatedNodes = relatedCanvasNodes.filter(
+            (relNode: Node) => relationIdSet.has(relNode.id)
+          );
+
+          const rollupData = matchingRelatedNodes.map((relNode: Node) => {
+            if (rollupColumnTargetTitle === "type") {
+              return {
+                label: relNode.data.shape || relNode.id,
+                value: relNode.data.shape || relNode.id,
+                sourceId: relNode.id,
+              };
+            }
+
+            if (rollupColumnTargetTitle === "task") {
+              return {
+                label: relNode.data.label || relNode.id,
+                value: relNode.data.label || relNode.id,
+                sourceId: relNode.id,
+              };
+            }
+
+            const value = relNode.data[rollupColumnTargetTitle];
+
+            return {
+              label: relNode.data.label || relNode.id,
+              value: value,
+              sourceId: relNode.id,
+            };
           });
-        }
+
+          // Store in cache
+          console.log(
+            `Setting rollup data for ${node.id}-${column.title}:`,
+            rollupData
+          );
+          newRollupCache[`${node.id}-${column.title}`] = rollupData;
+        });
       });
-
-      setProperties(nodeProperties);
-    }
-  }, [selectedNode, columns]);
-
-  // Handle click outside for property name editing
-  useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
-      if (
-        editingPropertyName !== null &&
-        propertyNameInputRef.current &&
-        !propertyNameInputRef.current.contains(event.target as any)
-      ) {
-        handleUpdatePropertyName(editingPropertyName, tempPropertyName);
-        setEditingPropertyName(null);
-      }
     }
 
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-    };
-  }, [editingPropertyName, tempPropertyName]);
-
-  // Handle click outside for property value editing
-  useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
-      if (
-        editingPropertyValue !== null &&
-        propertyValueInputRef.current &&
-        !propertyValueInputRef.current.contains(event.target as any)
-      ) {
-        if (properties[editingPropertyValue]?.type === "text") {
-          handleUpdatePropertyValue(editingPropertyValue, tempPropertyValue);
-        }
-        setEditingPropertyValue(null);
-      }
-    }
-
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-    };
-  }, [editingPropertyValue, tempPropertyValue, properties]);
+    // Set both caches with the new data
+    console.log("Final rollup cache:", newRollupCache);
+    setRollupCache(newRollupCache);
+    setRelationCache(newRelationCache);
+  }, [nodes, columns]);
 
   // Helper function to map column types to property types
   const mapColumnTypeToPropertyType = (columnType: string): PropertyType => {
@@ -568,6 +556,191 @@ export function NodePropertiesSidebar({
     return typeMap[propType] || "Text";
   };
 
+  // Find the task column (used for title)
+  const getTaskColumn = () => {
+    return (
+      columns.find((col) => getDataKey(col) === "label") ||
+      columns.find((col) => col.title === "task")
+    );
+  };
+
+  // Load node data when selected node changes
+  useEffect(() => {
+    if (selectedNode) {
+      // Get title from task column (same logic as table)
+      const taskColumn = getTaskColumn();
+      const taskValue = taskColumn
+        ? getNodeValue(selectedNode, taskColumn)
+        : selectedNode.data?.label;
+      setTitle(taskValue || "");
+
+      const nodeProperties: Property[] = [];
+
+      // Get all columns except "id" and the task column (to avoid duplication with title)
+      const availableColumns = columns.filter(
+        (column) =>
+          column.title !== "id" && // Exclude id column
+          !(taskColumn && column.title === taskColumn.title) // Exclude task column since it's shown as title
+      );
+
+      // Add properties based on all available columns
+      availableColumns.forEach((column) => {
+        // Get the actual value using dataKey mapping and cache data
+        let actualValue = getNodeValue(selectedNode, column);
+
+        // Override with cache data for rollup and relation columns
+        if (column.type === "Rollup") {
+          const rollupKey = `${selectedNode.id}-${column.title}`;
+          actualValue = rollupCache[rollupKey] || [];
+          // Debug: Log rollup data
+          console.log(
+            `Rollup data for ${column.title}:`,
+            actualValue,
+            "Cache key:",
+            rollupKey,
+            "Full cache:",
+            rollupCache
+          );
+        } else if (column.type === "Relation") {
+          actualValue =
+            relationCache[`${selectedNode.id}-${column.title}`] ||
+            selectedNode.data[column.title] ||
+            [];
+        }
+
+        // Determine if property is editable
+        // Exclude: system properties (id), relation columns, and rollup columns
+        const isEditable =
+          !NON_EDITABLE_PROPERTIES.includes(column.title) &&
+          column.type !== "Relation" &&
+          column.type !== "Rollup";
+
+        // Determine property type
+        let propertyType: PropertyType = mapColumnTypeToPropertyType(
+          column.type || "Text"
+        );
+
+        // Special handling for shape column (type)
+        if (getDataKey(column) === "shape") {
+          propertyType = "select";
+        }
+
+        // Add the property
+        nodeProperties.push({
+          name: column.title,
+          value: actualValue,
+          type: propertyType,
+          options:
+            column.type === "Select" && getDataKey(column) === "shape"
+              ? SHAPE_OPTIONS
+              : column.options,
+          isEditable,
+          dataKey: getDataKey(column),
+          columnType: column.type,
+        });
+      });
+
+      // Add connection-based properties (from/to) - same as table view
+      const { fromLabels, toLabels } = populateFromAndTo();
+
+      // Add "from" property if there are incoming connections
+      if (
+        fromLabels.length > 0 ||
+        columns.some((col) => col.title === "from")
+      ) {
+        nodeProperties.push({
+          name: "from",
+          value: fromLabels,
+          type: "relation",
+          isEditable: false,
+          dataKey: "from",
+          columnType: "Relation",
+        });
+      }
+
+      // Add "to" property if there are outgoing connections
+      if (toLabels.length > 0 || columns.some((col) => col.title === "to")) {
+        nodeProperties.push({
+          name: "to",
+          value: toLabels,
+          type: "relation",
+          isEditable: false,
+          dataKey: "to",
+          columnType: "Relation",
+        });
+      }
+
+      setProperties(nodeProperties);
+    }
+  }, [
+    selectedNode,
+    columns,
+    hiddenColumns,
+    rollupCache,
+    relationCache,
+    edges,
+    nodes,
+  ]);
+
+  // Handle click outside for property name editing
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (
+        editingPropertyName !== null &&
+        propertyNameInputRef.current &&
+        !propertyNameInputRef.current.contains(event.target as any)
+      ) {
+        handleUpdatePropertyName(editingPropertyName, tempPropertyName);
+        setEditingPropertyName(null);
+      }
+    }
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [editingPropertyName, tempPropertyName]);
+
+  // Handle click outside for property value editing
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (editingPropertyValue !== null) {
+        const property = properties[editingPropertyValue];
+
+        // Skip click outside for multiselect and color - they have their own save buttons
+        if (property?.type === "multiselect" || property?.type === "color") {
+          return;
+        }
+
+        if (
+          propertyValueInputRef.current &&
+          !propertyValueInputRef.current.contains(event.target as any)
+        ) {
+          if (
+            property?.type === "text" ||
+            property?.type === "longtext" ||
+            property?.type === "url" ||
+            property?.type === "email" ||
+            property?.type === "number"
+          ) {
+            handleUpdatePropertyValue(
+              editingPropertyValue,
+              property?.type === "number"
+                ? Number(tempPropertyValue)
+                : tempPropertyValue
+            );
+          }
+          setEditingPropertyValue(null);
+        }
+      }
+    }
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [editingPropertyValue, tempPropertyValue, properties]);
+
   // Validate property value based on type
   const validatePropertyValue = (
     value: any,
@@ -607,17 +780,20 @@ export function NodePropertiesSidebar({
   const handleSaveTitle = () => {
     if (!selectedNode) return;
 
-    // Update node data with new title using dataKey mapping
-    const updatedData = updateNodeValue(selectedNode, "task", title, columns);
+    const taskColumn = getTaskColumn();
+    if (taskColumn) {
+      // Update node data with new title using the task column
+      const updatedData = updateNodeValue(selectedNode, taskColumn, title);
 
-    // Update node in store
-    const updatedNodes = useCanvasStore
-      .getState()
-      .nodes.map((node) =>
-        node.id === selectedNode.id ? { ...node, data: updatedData } : node
-      );
+      // Update node in store
+      const updatedNodes = useCanvasStore
+        .getState()
+        .nodes.map((node) =>
+          node.id === selectedNode.id ? { ...node, data: updatedData } : node
+        );
 
-    useCanvasStore.getState().setNodes(updatedNodes);
+      useCanvasStore.getState().setNodes(updatedNodes);
+    }
   };
 
   const handleAddProperty = () => {
@@ -667,41 +843,58 @@ export function NodePropertiesSidebar({
           ? [...newPropertyOptions]
           : undefined,
       isEditable: true,
-      dataKey: newPropertyName, // For new properties, dataKey defaults to property name
+      dataKey: newPropertyName,
+      columnType: mapPropertyTypeToColumnType(newPropertyType),
     };
 
     // Update properties state
     const updatedProperties = [...properties, newProperty];
     setProperties(updatedProperties);
 
-    // Update node data using dataKey mapping
-    const updatedData = updateNodeValue(
-      selectedNode,
-      newProperty.name,
-      newProperty.value,
-      columns
+    // Find matching column
+    const matchingColumn = columns.find(
+      (col) => col.title === newProperty.name
     );
 
-    // Update node in store
-    const updatedNodes = useCanvasStore
-      .getState()
-      .nodes.map((node) =>
-        node.id === selectedNode.id ? { ...node, data: updatedData } : node
+    if (matchingColumn) {
+      // Update existing column data
+      const updatedData = updateNodeValue(
+        selectedNode,
+        matchingColumn,
+        newProperty.value
       );
 
-    useCanvasStore.getState().setNodes(updatedNodes);
+      // Update node in store
+      const updatedNodes = useCanvasStore
+        .getState()
+        .nodes.map((node) =>
+          node.id === selectedNode.id ? { ...node, data: updatedData } : node
+        );
 
-    // Add new column to table columns with dataKey
-    const newColumn = {
-      title: newProperty.name,
-      type: mapPropertyTypeToColumnType(newPropertyType),
-      options: newProperty.options,
-      dataKey: newProperty.name, // Set dataKey for new columns
-    };
+      useCanvasStore.getState().setNodes(updatedNodes);
+    } else {
+      // Add new column to table columns
+      const newColumn = {
+        title: newProperty.name,
+        type: mapPropertyTypeToColumnType(newPropertyType),
+        options: newProperty.options,
+        dataKey: newProperty.name,
+      };
 
-    // Check if column already exists
-    if (!columns.some((col) => col.title === newProperty.name)) {
       setColumns([...columns, newColumn]);
+
+      // Update node data
+      const updatedData = { ...selectedNode.data };
+      updatedData[newProperty.name] = newProperty.value;
+
+      // Update node in store
+      const updatedNodes = useCanvasStore
+        .getState()
+        .nodes.map((node) =>
+          node.id === selectedNode.id ? { ...node, data: updatedData } : node
+        );
+
+      useCanvasStore.getState().setNodes(updatedNodes);
     }
 
     // Reset form
@@ -714,7 +907,8 @@ export function NodePropertiesSidebar({
   const handleUpdatePropertyName = (index: number, newName: string) => {
     if (!selectedNode) return;
 
-    const oldName = properties[index].name;
+    const property = properties[index];
+    const oldName = property.name;
 
     // Don't update if name hasn't changed
     if (oldName === newName) return;
@@ -734,60 +928,54 @@ export function NodePropertiesSidebar({
       setValidationErrors(rest);
     }
 
-    // Update properties state - preserve dataKey!
+    // Update properties state
     const updatedProperties = [...properties];
     updatedProperties[index] = {
       ...updatedProperties[index],
       name: newName,
-      // Keep the same dataKey - this is crucial for special columns
     };
     setProperties(updatedProperties);
 
-    // For regular properties (not special ones), update node data
-    const property = properties[index];
-    const isSpecialProperty =
-      property.dataKey && ["label", "shape", "id"].includes(property.dataKey);
+    // Find the column for this property
+    const matchingColumn = columns.find((col) => col.title === oldName);
 
-    if (!isSpecialProperty) {
-      // Only move data for regular properties
-      const updatedData = { ...selectedNode.data };
-      updatedData[newName] = updatedData[oldName];
-      delete updatedData[oldName];
-
-      // Update node in store
-      const updatedNodes = useCanvasStore
-        .getState()
-        .nodes.map((node) =>
-          node.id === selectedNode.id ? { ...node, data: updatedData } : node
-        );
-
-      useCanvasStore.getState().setNodes(updatedNodes);
-    }
-
-    // Update column title if it exists, but preserve dataKey
-    if (columns.some((col) => col.title === oldName)) {
+    if (matchingColumn) {
+      // Update column title
       const updatedColumns = columns.map((col) =>
         col.title === oldName
           ? {
               ...col,
               title: newName,
-              // Preserve existing dataKey - don't change it!
-              dataKey: col.dataKey || getDataKey(col),
+              dataKey: isSpecialColumn(col) ? col.dataKey : newName,
             }
           : col
       );
       setColumns(updatedColumns);
+
+      // For regular properties (not special ones), update node data
+      if (!isSpecialColumn(matchingColumn)) {
+        const updatedData = { ...selectedNode.data };
+        updatedData[newName] = updatedData[oldName];
+        delete updatedData[oldName];
+
+        // Update node in store
+        const updatedNodes = useCanvasStore
+          .getState()
+          .nodes.map((node) =>
+            node.id === selectedNode.id ? { ...node, data: updatedData } : node
+          );
+
+        useCanvasStore.getState().setNodes(updatedNodes);
+      }
     }
 
-    const hiddenColumns = canvasSettings?.table_settings?.hiddenColumns || [];
-
+    // Update hidden columns if needed
     if (hiddenColumns.includes(oldName)) {
       const updatedHiddenColumns = hiddenColumns.filter(
         (col: string) => col !== oldName
       );
       updatedHiddenColumns.push(newName);
 
-      // Update canvas settings
       updateCanvasSettings({
         ...canvasSettings,
         table_settings: {
@@ -827,30 +1015,30 @@ export function NodePropertiesSidebar({
     };
     setProperties(updatedProperties);
 
-    // Update node data using dataKey mapping
-    const updatedData = updateNodeValue(
-      selectedNode,
-      property.name,
-      value,
-      columns
-    );
+    // Find the matching column
+    const matchingColumn = columns.find((col) => col.title === property.name);
 
-    // Update node in store
-    const updatedNodes = useCanvasStore
-      .getState()
-      .nodes.map((node) =>
-        node.id === selectedNode.id ? { ...node, data: updatedData } : node
-      );
+    if (matchingColumn) {
+      // Update node data using column
+      const updatedData = updateNodeValue(selectedNode, matchingColumn, value);
 
-    useCanvasStore.getState().setNodes(updatedNodes);
+      // Update node in store
+      const updatedNodes = useCanvasStore
+        .getState()
+        .nodes.map((node) =>
+          node.id === selectedNode.id ? { ...node, data: updatedData } : node
+        );
+
+      useCanvasStore.getState().setNodes(updatedNodes);
+    }
   };
 
   const handleRemoveProperty = (index: number) => {
     const propertyToRemove = properties[index];
 
     // Check if property is deletable
-    if (NON_EDITABLE_PROPERTIES.includes(propertyToRemove.name)) {
-      return; // Don't allow deletion of non-editable properties
+    if (!propertyToRemove.isEditable) {
+      return;
     }
 
     // Open confirmation dialog
@@ -861,61 +1049,36 @@ export function NodePropertiesSidebar({
     });
   };
 
-  // Add this new function to handle the actual deletion after confirmation
   const confirmDeleteProperty = () => {
     if (!deleteConfirmation || !selectedNode) return;
 
     const propertyName = deleteConfirmation.propertyName;
     const index = deleteConfirmation.propertyIndex;
-    const property = properties[index];
 
     // Update properties state
     const updatedProperties = properties.filter((_, i) => i !== index);
     setProperties(updatedProperties);
 
-    // Update all nodes in the store to remove this property
-    const allNodes = useCanvasStore.getState().nodes;
-    const updatedNodes = allNodes.map((node) => {
-      // Skip nodes that don't have this property
-      const hasProperty = property.dataKey
-        ? getNodeValue(node, propertyName, columns) !== undefined
-        : node.data && node.data[propertyName] !== undefined;
-
-      if (!hasProperty) {
-        return node;
-      }
-
-      // Create a new data object without the property
-      const updatedData = { ...node.data };
-
-      // Remove using the correct key
-      if (property.dataKey && ["label", "shape"].includes(property.dataKey)) {
-        // Don't remove special properties like label and shape
-        // They should remain in the data
-      } else {
-        delete updatedData[propertyName];
-      }
-
-      return { ...node, data: updatedData };
-    });
-
-    // Update nodes in store
-    useCanvasStore.getState().setNodes(updatedNodes);
-
     // Remove from columns array
     const updatedColumns = columns.filter((col) => col.title !== propertyName);
     setColumns(updatedColumns);
 
-    // Remove property from hiddenColumns if it exists
-    const hiddenColumns = canvasSettings?.table_settings?.hiddenColumns || [];
+    // Update all nodes in the store to remove this property
+    const allNodes = useCanvasStore.getState().nodes;
+    const updatedNodes = allNodes.map((node) => {
+      const updatedData = { ...node.data };
+      delete updatedData[propertyName];
+      return { ...node, data: updatedData };
+    });
 
-    // Remove property from hiddenColumns
+    useCanvasStore.getState().setNodes(updatedNodes);
+
+    // Remove property from hiddenColumns if it exists
     if (hiddenColumns.includes(propertyName)) {
       const updatedHiddenColumns = hiddenColumns.filter(
         (col: string) => col !== propertyName
       );
 
-      // Update canvas settings
       updateCanvasSettings({
         ...canvasSettings,
         table_settings: {
@@ -925,7 +1088,6 @@ export function NodePropertiesSidebar({
       });
     }
 
-    // Close the confirmation dialog
     setDeleteConfirmation(null);
   };
 
@@ -933,22 +1095,25 @@ export function NodePropertiesSidebar({
     if (!selectedNode) return;
 
     const property = properties[index];
-    const hiddenColumns = canvasSettings?.table_settings?.hiddenColumns || [];
-    const isCurrentlyHidden = hiddenColumns.includes(property.dataKey);
+    const isCurrentlyHidden = hiddenColumns.includes(
+      property.dataKey || property.name
+    );
 
-    // Update hiddenColumns array using the same pattern as table view
+    // Update hiddenColumns array
     let updatedHiddenColumns;
     if (isCurrentlyHidden) {
       // Show the column by removing it from hiddenColumns
       updatedHiddenColumns = hiddenColumns.filter(
-        (col: string) => col !== property.dataKey
+        (col: string) => col !== (property.dataKey || property.name)
       );
     } else {
       // Hide the column by adding it to hiddenColumns
-      updatedHiddenColumns = [...hiddenColumns, property.dataKey];
+      updatedHiddenColumns = [
+        ...hiddenColumns,
+        property.dataKey || property.name,
+      ];
     }
 
-    // Update canvas settings using the same pattern as table view
     updateCanvasSettings({
       ...canvasSettings,
       table_settings: {
@@ -978,20 +1143,17 @@ export function NodePropertiesSidebar({
     setProperties(updatedProperties);
     setEditingOptions({ ...editingOptions, options: updatedOptions });
 
-    // Update node data
-    if (selectedNode) {
-      // Update column options
-      const columnIndex = columns.findIndex(
-        (col) => col.title === editingOptions.propertyName
-      );
-      if (columnIndex !== -1) {
-        const updatedColumns = [...columns];
-        updatedColumns[columnIndex] = {
-          ...updatedColumns[columnIndex],
-          options: updatedOptions,
-        };
-        setColumns(updatedColumns);
-      }
+    // Update column options
+    const columnIndex = columns.findIndex(
+      (col) => col.title === editingOptions.propertyName
+    );
+    if (columnIndex !== -1) {
+      const updatedColumns = [...columns];
+      updatedColumns[columnIndex] = {
+        ...updatedColumns[columnIndex],
+        options: updatedOptions,
+      };
+      setColumns(updatedColumns);
     }
   };
 
@@ -1034,6 +1196,12 @@ export function NodePropertiesSidebar({
     if (!selectedNode) return;
 
     const propertyToDuplicate = properties[index];
+
+    // Only allow duplication of editable properties
+    if (!propertyToDuplicate.isEditable) {
+      return;
+    }
+
     const newName = `${propertyToDuplicate.name} copy`;
 
     // Check for duplicate property name
@@ -1045,7 +1213,7 @@ export function NodePropertiesSidebar({
       return;
     }
 
-    // Create new property with proper dataKey
+    // Create new property
     const newProperty: Property = {
       ...propertyToDuplicate,
       name: newName,
@@ -1057,18 +1225,21 @@ export function NodePropertiesSidebar({
     updatedProperties.splice(index + 1, 0, newProperty);
     setProperties(updatedProperties);
 
-    // Update node data using dataKey mapping
-    const originalValue = getNodeValue(
-      selectedNode,
-      propertyToDuplicate.name,
-      columns
-    );
-    const updatedData = updateNodeValue(
-      selectedNode,
-      newProperty.name,
-      originalValue,
-      columns
-    );
+    // Add new column to table columns
+    const newColumn = {
+      title: newProperty.name,
+      type:
+        newProperty.columnType || mapPropertyTypeToColumnType(newProperty.type),
+      options: newProperty.options,
+      dataKey: newProperty.name,
+    };
+
+    setColumns([...columns, newColumn]);
+
+    // Update node data
+    const originalValue = newProperty.value;
+    const updatedData = { ...selectedNode.data };
+    updatedData[newProperty.name] = originalValue;
 
     // Update node in store
     const updatedNodes = useCanvasStore
@@ -1078,19 +1249,6 @@ export function NodePropertiesSidebar({
       );
 
     useCanvasStore.getState().setNodes(updatedNodes);
-
-    // Add new column to table columns with dataKey
-    const newColumn = {
-      title: newProperty.name,
-      type: mapPropertyTypeToColumnType(newProperty?.type),
-      options: newProperty.options,
-      dataKey: newProperty.name, // Set dataKey for duplicated columns
-    };
-
-    // Check if column already exists
-    if (!columns.some((col) => col.title === newProperty.name)) {
-      setColumns([...columns, newColumn]);
-    }
   };
 
   const startEditingPropertyName = (index: number) => {
@@ -1098,7 +1256,6 @@ export function NodePropertiesSidebar({
     setTempPropertyName(properties[index].name);
   };
 
-  // Update the startEditingPropertyValue function to handle different property types
   const startEditingPropertyValue = (index: number) => {
     if (!properties[index].isEditable) return;
 
@@ -1108,9 +1265,15 @@ export function NodePropertiesSidebar({
 
     switch (property?.type) {
       case "text":
-      case "longtext":
       case "url":
       case "email":
+        setTempPropertyValue(
+          property.value !== undefined && property.value !== null
+            ? String(property.value)
+            : ""
+        );
+        break;
+      case "longtext":
         setTempPropertyValue(
           property.value !== undefined && property.value !== null
             ? String(property.value)
@@ -1125,7 +1288,6 @@ export function NodePropertiesSidebar({
         );
         break;
       case "date":
-        // For date, we'll set the selected date for the date picker
         if (property.value) {
           setSelectedDate(new Date(property.value));
         } else {
@@ -1133,34 +1295,70 @@ export function NodePropertiesSidebar({
         }
         break;
       case "color":
-        // For color, we might want to open a color picker
-        setTempPropertyValue(property.value || "#ffffff");
+        setTempPropertyValue(property.value || "#09BC8A");
         break;
-      // Other types are handled directly by their components
     }
   };
 
   // Helper function to check if a property is hidden
-  const isPropertyHidden = (propertyName: string): boolean => {
-    const hiddenColumns = canvasSettings?.table_settings?.hiddenColumns || [];
-    return hiddenColumns.includes(propertyName);
+  const isPropertyHidden = (property: Property): boolean => {
+    return hiddenColumns.includes(property.dataKey || property.name);
   };
 
   // Render property value with inline editing
   const renderPropertyValue = (property: Property, index: number) => {
     const valueStyle = getPropertyValueStyle(property.name, property.value);
 
-    // If property is not editable, just display the value
+    // If property is not editable, just display the value with special styling
     if (!property.isEditable) {
       return (
-        <div className="px-2 py-1 text-gray-500 italic">
-          <span style={valueStyle}>
-            {Array.isArray(property.value)
-              ? property.value.join(", ")
-              : property.value !== undefined && property.value !== null
-                ? String(property.value)
-                : ""}
-          </span>
+        <div className="px-2 py-1 text-gray-500 italic bg-gray-50 rounded border-l-2 border-gray-300">
+          {property.type === "rollup" ? (
+            <div className="flex flex-wrap gap-1">
+              {Array.isArray(property.value) && property.value.length > 0 ? (
+                property.value.map((item: any, itemIndex: number) => (
+                  <span
+                    key={itemIndex}
+                    className="text-xs text-gray-600 bg-gray-200 rounded-md px-2 py-1"
+                    title={`From: ${item.label || "Unknown source"}`}
+                  >
+                    {typeof item === "object" && item !== null
+                      ? item.value !== undefined
+                        ? String(item.value)
+                        : item.label || String(item)
+                      : String(item)}
+                  </span>
+                ))
+              ) : (
+                <span className="text-gray-400 text-sm">No rollup data</span>
+              )}
+            </div>
+          ) : property.type === "relation" ? (
+            <div className="flex flex-wrap gap-1">
+              {Array.isArray(property.value) && property.value.length > 0 ? (
+                property.value.map((item: any, itemIndex: number) => (
+                  <span
+                    key={itemIndex}
+                    className="text-xs text-gray-600 bg-blue-100 rounded-md px-2 py-1 flex items-center gap-1"
+                  >
+                    <File className="h-3 w-3" />
+                    {item.label || item.id || String(item)}
+                  </span>
+                ))
+              ) : (
+                <span className="text-gray-400 text-sm">No relations</span>
+              )}
+            </div>
+          ) : (
+            <span style={valueStyle} className="text-sm">
+              {Array.isArray(property.value)
+                ? property.value.join(", ")
+                : property.value !== undefined && property.value !== null
+                  ? String(property.value)
+                  : "—"}
+            </span>
+          )}
+          <div className="text-xs text-gray-400 mt-1">Read-only</div>
         </div>
       );
     }
@@ -1170,7 +1368,44 @@ export function NodePropertiesSidebar({
       switch (property?.type) {
         case "text":
         case "longtext":
+          return (
+            <textarea
+              ref={propertyValueInputRef as any}
+              value={tempPropertyValue}
+              onChange={(e) => setTempPropertyValue(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && e.ctrlKey) {
+                  handleUpdatePropertyValue(index, tempPropertyValue);
+                  setEditingPropertyValue(null);
+                } else if (e.key === "Escape") {
+                  setEditingPropertyValue(null);
+                }
+              }}
+              className="min-h-[80px] px-2 py-1 text-sm border border-gray-300 rounded-md focus:border-[#09BC8A] focus:ring-[#09BC8A]/20 focus:outline-none resize-y"
+              placeholder="Enter long text... (Ctrl+Enter to save)"
+              autoFocus
+            />
+          );
         case "url":
+          return (
+            <Input
+              ref={propertyValueInputRef}
+              type="url"
+              value={tempPropertyValue}
+              onChange={(e) => setTempPropertyValue(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  handleUpdatePropertyValue(index, tempPropertyValue);
+                  setEditingPropertyValue(null);
+                } else if (e.key === "Escape") {
+                  setEditingPropertyValue(null);
+                }
+              }}
+              className="h-8 px-2 py-1 text-sm focus-visible:ring-1 focus:border-[#09BC8A] focus:ring-[#09BC8A]/20"
+              placeholder="https://example.com"
+              autoFocus
+            />
+          );
           return (
             <Input
               ref={propertyValueInputRef}
@@ -1184,7 +1419,7 @@ export function NodePropertiesSidebar({
                   setEditingPropertyValue(null);
                 }
               }}
-              className="h-8 px-2 py-1 text-sm focus-visible:ring-1"
+              className="h-8 px-2 py-1 text-sm focus-visible:ring-1 focus:border-[#09BC8A] focus:ring-[#09BC8A]/20"
               autoFocus
             />
           );
@@ -1203,7 +1438,7 @@ export function NodePropertiesSidebar({
                   setEditingPropertyValue(null);
                 }
               }}
-              className="h-8 px-2 py-1 text-sm focus-visible:ring-1"
+              className="h-8 px-2 py-1 text-sm focus-visible:ring-1 focus:border-[#09BC8A] focus:ring-[#09BC8A]/20"
               autoFocus
             />
           );
@@ -1222,7 +1457,7 @@ export function NodePropertiesSidebar({
                   setEditingPropertyValue(null);
                 }
               }}
-              className="h-8 px-2 py-1 text-sm focus-visible:ring-1"
+              className="h-8 px-2 py-1 text-sm focus-visible:ring-1 focus:border-[#09BC8A] focus:ring-[#09BC8A]/20"
               autoFocus
             />
           );
@@ -1233,7 +1468,7 @@ export function NodePropertiesSidebar({
                 <PopoverTrigger asChild>
                   <Button
                     variant="outline"
-                    className="w-full justify-start text-left font-normal h-8"
+                    className="w-full justify-start text-left font-normal h-8 hover:border-[#09BC8A] focus:border-[#09BC8A] focus:ring-[#09BC8A]/20"
                   >
                     {selectedDate ? (
                       format(selectedDate, "PPP")
@@ -1270,16 +1505,25 @@ export function NodePropertiesSidebar({
                   setTempPropertyValue(e.target.value);
                   handleUpdatePropertyValue(index, e.target.value);
                 }}
-                className="w-8 h-8 p-0 border rounded"
+                className="w-8 h-8 p-0 border rounded cursor-pointer"
               />
               <Input
                 value={tempPropertyValue}
                 onChange={(e) => setTempPropertyValue(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    handleUpdatePropertyValue(index, tempPropertyValue);
+                    setEditingPropertyValue(null);
+                  } else if (e.key === "Escape") {
+                    setEditingPropertyValue(null);
+                  }
+                }}
                 onBlur={() => {
                   handleUpdatePropertyValue(index, tempPropertyValue);
                   setEditingPropertyValue(null);
                 }}
-                className="h-8 px-2 py-1 text-sm focus-visible:ring-1"
+                className="h-8 px-2 py-1 text-sm focus-visible:ring-1 focus:border-[#09BC8A] focus:ring-[#09BC8A]/20"
+                placeholder="#09BC8A"
               />
             </div>
           );
@@ -1297,18 +1541,61 @@ export function NodePropertiesSidebar({
               onCheckedChange={(checked) =>
                 handleUpdatePropertyValue(index, checked)
               }
+              className="data-[state=checked]:bg-[#09BC8A]"
             />
           </div>
         );
       case "date":
         return (
           <div
-            className="cursor-pointer hover:bg-gray-50 px-2 py-1 rounded w-full"
+            className="cursor-pointer hover:bg-gray-50 px-2 py-1 rounded w-full transition-colors"
             onClick={() => startEditingPropertyValue(index)}
           >
-            {property.value
-              ? format(new Date(property.value), "PPP")
-              : "Click to set date"}
+            <span className="text-sm text-gray-700">
+              {property.value
+                ? format(new Date(property.value), "PPP")
+                : "Click to set date"}
+            </span>
+          </div>
+        );
+      case "url":
+        return (
+          <div
+            className="cursor-pointer hover:bg-gray-50 px-2 py-1 rounded w-full transition-colors"
+            onClick={() => startEditingPropertyValue(index)}
+          >
+            {property.value ? (
+              <a
+                href={property.value}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-[#5DA9E9] hover:text-[#003F91] underline text-sm break-all"
+                onClick={(e) => e.stopPropagation()}
+              >
+                {property.value}
+              </a>
+            ) : (
+              <span className="text-gray-400 text-sm">Click to add URL</span>
+            )}
+          </div>
+        );
+      case "longtext":
+        return (
+          <div
+            className="cursor-pointer hover:bg-gray-50 px-2 py-1 rounded w-full transition-colors"
+            onClick={() => startEditingPropertyValue(index)}
+          >
+            <div className="text-sm text-gray-700 max-h-20 overflow-y-auto">
+              {property.value ? (
+                <div className="whitespace-pre-wrap break-words">
+                  {String(property.value).length > 100
+                    ? `${String(property.value).substring(0, 100)}...`
+                    : String(property.value)}
+                </div>
+              ) : (
+                <span className="text-gray-400">Click to add long text</span>
+              )}
+            </div>
           </div>
         );
       case "select":
@@ -1317,7 +1604,7 @@ export function NodePropertiesSidebar({
             value={String(property.value)}
             onValueChange={(value) => handleUpdatePropertyValue(index, value)}
           >
-            <SelectTrigger className="h-8 min-w-[120px] border-none bg-transparent hover:bg-gray-50 focus:ring-0 px-2">
+            <SelectTrigger className="h-8 min-w-[120px] border-none bg-transparent hover:bg-gray-50 focus:ring-0 px-2 focus:border-[#09BC8A]">
               <span style={valueStyle}>
                 {property.value || "Select an option"}
               </span>
@@ -1333,22 +1620,100 @@ export function NodePropertiesSidebar({
         );
       case "multiselect":
         return (
-          <div
-            className="flex flex-wrap gap-1 cursor-pointer hover:bg-gray-50 px-2 py-1 rounded w-full"
-            onClick={() => {
-              // Here you would open a multiselect dropdown
-              // For now, we'll just show a placeholder
-              alert("Multiselect editing would open here");
-            }}
-          >
-            {Array.isArray(property.value) && property.value.length > 0 ? (
-              property.value.map((val, i) => (
-                <div key={i} style={valueStyle}>
-                  {val}
+          <div className="w-full">
+            {editingPropertyValue === index ? (
+              <div className="space-y-2 p-3 border border-[#09BC8A] rounded-md bg-gray-50">
+                <div className="text-xs font-medium text-gray-600 mb-2">
+                  Select multiple options:
                 </div>
-              ))
+                {property.options && property.options.length > 0 ? (
+                  <div className="space-y-2 max-h-40 overflow-y-auto">
+                    {property.options.map((option, optionIndex) => (
+                      <label
+                        key={optionIndex}
+                        className="flex items-center gap-2 cursor-pointer"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={
+                            Array.isArray(property.value) &&
+                            property.value.includes(option)
+                          }
+                          onChange={(e) => {
+                            const currentValues = Array.isArray(property.value)
+                              ? property.value
+                              : [];
+                            let newValues;
+                            if (e.target.checked) {
+                              newValues = [...currentValues, option];
+                            } else {
+                              newValues = currentValues.filter(
+                                (v) => v !== option
+                              );
+                            }
+                            // Update immediately without saving
+                            const updatedProperties = [...properties];
+                            updatedProperties[index] = {
+                              ...updatedProperties[index],
+                              value: newValues,
+                            };
+                            setProperties(updatedProperties);
+                          }}
+                          className="rounded border-gray-300 text-[#09BC8A] focus:ring-[#09BC8A]/20"
+                        />
+                        <span className="text-sm text-gray-700">{option}</span>
+                      </label>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-sm text-gray-500 italic">
+                    No options available. Add options first in the column
+                    settings.
+                  </div>
+                )}
+                <div className="flex gap-2 mt-3 justify-end">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setEditingPropertyValue(null)}
+                    className="text-xs"
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    size="sm"
+                    onClick={() => {
+                      handleUpdatePropertyValue(index, property.value);
+                      setEditingPropertyValue(null);
+                    }}
+                    className="bg-[#09BC8A] hover:bg-[#08a378] text-white border-0 text-xs"
+                  >
+                    Save
+                  </Button>
+                </div>
+              </div>
             ) : (
-              <span className="text-gray-400">Click to select options</span>
+              <div
+                className="flex flex-wrap gap-1 cursor-pointer hover:bg-gray-50 px-2 py-1 rounded w-full transition-colors min-h-[32px] items-center"
+                onClick={() => startEditingPropertyValue(index)}
+              >
+                {Array.isArray(property.value) && property.value.length > 0 ? (
+                  property.value.map((val, i) => (
+                    <span
+                      key={i}
+                      className="text-xs bg-[#FFF0EA] text-[#FF4A1C] rounded-md px-2 py-1 border border-[#FF4A1C]/20"
+                    >
+                      {val}
+                    </span>
+                  ))
+                ) : (
+                  <span className="text-gray-400 text-sm">
+                    {property.options && property.options.length > 0
+                      ? "Click to select options"
+                      : "No options available"}
+                  </span>
+                )}
+              </div>
             )}
           </div>
         );
@@ -1356,77 +1721,122 @@ export function NodePropertiesSidebar({
         return (
           <div className="flex items-center gap-2 w-full">
             <div
-              className="w-4 h-4 rounded-full border"
-              style={{ backgroundColor: property.value || "#ffffff" }}
+              className="w-6 h-6 rounded-full border-2 border-gray-200 shadow-sm cursor-pointer"
+              style={{ backgroundColor: property.value || "#09BC8A" }}
+              onClick={() => startEditingPropertyValue(index)}
             ></div>
             <div
-              className="cursor-pointer hover:bg-gray-50 px-2 py-1 rounded flex-grow"
+              className="cursor-pointer hover:bg-gray-50 px-2 py-1 rounded flex-grow transition-colors"
               onClick={() => startEditingPropertyValue(index)}
             >
-              {property.value || "Click to set color"}
+              <span className="text-sm text-gray-700 font-mono">
+                {property.value || "#09BC8A"}
+              </span>
             </div>
           </div>
         );
       case "email":
         return (
           <div
-            className="cursor-pointer hover:bg-gray-50 px-2 py-1 rounded w-full"
+            className="cursor-pointer hover:bg-gray-50 px-2 py-1 rounded w-full transition-colors"
             onClick={() => startEditingPropertyValue(index)}
           >
-            <span style={valueStyle}>
-              {property.value || "Click to add email"}
-            </span>
+            {property.value ? (
+              <a
+                href={`mailto:${property.value}`}
+                className="text-[#5DA9E9] hover:text-[#003F91] underline text-sm"
+                onClick={(e) => e.stopPropagation()}
+              >
+                {property.value}
+              </a>
+            ) : (
+              <span className="text-gray-400 text-sm">Click to add email</span>
+            )}
           </div>
         );
       case "relation":
         return (
-          <div className="flex flex-wrap max-w-full">
-            {Array.isArray(property.value) && property.value.length > 0 ? (
-              property.value.map((item: any, index: number) => (
-                <p key={index} className="text-sm text-gray-600 flex mr-3">
-                  <File className="h-4 w-4 mr-1" /> {item.label}
-                </p>
-              ))
-            ) : (
-              <span className="text-gray-400 flex items-center">
-                <Plus className="h-4 w-4 mr-1" /> Add
-              </span>
-            )}
+          <div className="w-full">
+            <div className="flex flex-wrap gap-1 p-1 max-w-full">
+              {Array.isArray(property.value) && property.value.length > 0
+                ? property.value.map((item: any, itemIndex: number) => (
+                    <span
+                      key={itemIndex}
+                      className="text-xs text-[#003F91] bg-[#5DA9E9]/10 rounded-md px-2 py-1 border border-[#5DA9E9]/20 flex items-center gap-1 group"
+                    >
+                      <File className="h-3 w-3" />
+                      {item.label || item.id || String(item)}
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          const newValue = property.value.filter(
+                            (_: any, i: number) => i !== itemIndex
+                          );
+                          handleUpdatePropertyValue(index, newValue);
+                        }}
+                        className="ml-1 opacity-0 group-hover:opacity-100 text-red-500 hover:text-red-700 transition-all"
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    </span>
+                  ))
+                : null}
+              <button
+                onClick={() => {
+                  // Placeholder for relation picker
+                  alert(
+                    "Relation picker would open here. This requires the relation picker component to be implemented."
+                  );
+                }}
+                className="text-gray-400 hover:text-[#09BC8A] flex items-center text-xs px-2 py-1 border border-dashed border-gray-300 hover:border-[#09BC8A]/50 rounded-md transition-colors"
+              >
+                <Plus className="h-3 w-3 mr-1" />
+                Add relation
+              </button>
+            </div>
           </div>
         );
       case "rollup":
         return (
-          <div className="p-2 flex flex-wrap gap-1">
+          <div className="flex flex-wrap gap-1 p-1">
             {Array.isArray(property.value) && property.value.length > 0 ? (
-              property.value.map((item: any, index: number) => (
+              property.value.map((item: any, itemIndex: number) => (
                 <span
-                  key={index}
-                  className="text-sm text-gray-600 bg-gray-100 rounded-md px-2 py-1"
+                  key={itemIndex}
+                  className="text-xs text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-md px-2 py-1 border transition-colors cursor-default"
+                  title={`From: ${item.label || "Unknown source"}`}
                 >
-                  {typeof item.value !== "undefined"
-                    ? typeof item.value === "object"
-                      ? JSON.stringify(item.value).substring(0, 30)
-                      : String(item.value)
-                    : "—"}
+                  {typeof item === "object" && item !== null
+                    ? item.value !== undefined
+                      ? String(item.value)
+                      : item.label || String(item)
+                    : String(item)}
                 </span>
               ))
             ) : (
-              <span className="text-gray-400 px-1">—</span>
+              <span className="text-gray-400 text-sm px-1 italic">
+                No rollup data available
+              </span>
             )}
           </div>
         );
       default:
         return (
           <div
-            className="cursor-pointer hover:bg-gray-50 px-2 py-1 rounded w-full overflow-hidden text-ellipsis"
+            className="cursor-pointer hover:bg-gray-50 px-2 py-1 rounded w-full overflow-hidden text-ellipsis transition-colors"
             onClick={() => startEditingPropertyValue(index)}
           >
-            <span style={valueStyle} className="block truncate">
-              {Array.isArray(property.value)
-                ? property.value.join(", ")
-                : property.value !== undefined && property.value !== null
-                  ? String(property.value)
-                  : "Click to edit"}
+            <span
+              style={valueStyle}
+              className="block truncate text-sm text-gray-700"
+            >
+              {Array.isArray(property.value) ? (
+                property.value.join(", ")
+              ) : property.value !== undefined && property.value !== null ? (
+                String(property.value)
+              ) : (
+                <span className="text-gray-400">Click to edit</span>
+              )}
             </span>
           </div>
         );
@@ -1441,13 +1851,13 @@ export function NodePropertiesSidebar({
       flex flex-col 
       shadow-lg"
     >
-      <div className="flex items-center justify-between p-4 ">
+      <div className="flex items-center justify-between p-4 border-b border-gray-100">
         <Input
           value={title}
           onChange={(e) => setTitle(e.target.value)}
           onBlur={handleSaveTitle}
           onKeyDown={(e) => e.key === "Enter" && handleSaveTitle()}
-          className="!text-3xl !font-bold border-none focus-visible:ring-0 px-0 h-auto"
+          className="!text-3xl !font-bold border-none focus-visible:ring-0 px-0 h-auto focus:border-[#09BC8A] placeholder:text-gray-300"
           placeholder="Untitled"
         />
       </div>
@@ -1459,7 +1869,7 @@ export function NodePropertiesSidebar({
             <div
               key={`${property.name}-${index}`}
               className={`flex items-center gap-4 py-1.5 hover:bg-gray-50 rounded-md group relative ${
-                isPropertyHidden(property.dataKey as string) ? "opacity-50" : ""
+                isPropertyHidden(property) ? "opacity-40" : ""
               }`}
             >
               {/* Property name with inline editing */}
@@ -1477,18 +1887,27 @@ export function NodePropertiesSidebar({
                         setEditingPropertyName(null);
                       }
                     }}
-                    className="h-7 px-1 py-0 text-sm focus-visible:ring-1"
+                    className="h-7 px-1 py-0 text-sm focus-visible:ring-1 focus:border-[#09BC8A] focus:ring-[#09BC8A]/20"
                     autoFocus
                   />
                 ) : (
                   <span
-                    className="text-gray-500 cursor-pointer hover:underline truncate block"
+                    className={`text-gray-600 truncate block ${
+                      property.isEditable
+                        ? "cursor-pointer hover:text-[#09BC8A] hover:underline transition-colors"
+                        : "cursor-default italic opacity-75"
+                    }`}
                     onClick={() =>
                       property.isEditable && startEditingPropertyName(index)
                     }
-                    title={property.name}
+                    title={`${property.name}${!property.isEditable ? " (Read-only)" : ""}`}
                   >
                     {property.name}
+                    {!property.isEditable && (
+                      <span className="text-xs text-gray-400 ml-1">
+                        (Read-only)
+                      </span>
+                    )}
                   </span>
                 )}
               </div>
@@ -1496,61 +1915,75 @@ export function NodePropertiesSidebar({
               {/* Property value with appropriate styling and inline editing */}
               <div className="flex-grow overflow-hidden">
                 {renderPropertyValue(property, index)}
+                {validationErrors[property.name] && (
+                  <div className="text-xs text-red-500 mt-1 px-2">
+                    {validationErrors[property.name]}
+                  </div>
+                )}
               </div>
 
               {/* Actions menu (only visible on hover) */}
-              <div className="absolute right-1 opacity-0 group-hover:opacity-100 transition-opacity">
+              <div className="absolute right-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="icon" className="h-7 w-7">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-7 w-7 hover:bg-[#09BC8A]/10 hover:text-[#09BC8A]"
+                    >
                       <MoreHorizontal className="h-4 w-4" />
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end" className="w-48">
-                    <DropdownMenuItem
-                      onClick={() => startEditingPropertyName(index)}
-                    >
-                      <Edit className="h-4 w-4 mr-2" />
-                      Rename
-                    </DropdownMenuItem>
-
-                    {(property?.type === "select" ||
-                      property?.type === "multiselect") && (
+                    {property.isEditable && (
                       <DropdownMenuItem
-                        onClick={() =>
-                          setEditingOptions({
-                            propertyName: property.name,
-                            options: property.options || [],
-                          })
-                        }
+                        onClick={() => startEditingPropertyName(index)}
                       >
                         <Edit className="h-4 w-4 mr-2" />
-                        Edit options
+                        Rename
                       </DropdownMenuItem>
                     )}
+
+                    {property.isEditable &&
+                      (property?.type === "select" ||
+                        property?.type === "multiselect") && (
+                        <DropdownMenuItem
+                          onClick={() =>
+                            setEditingOptions({
+                              propertyName: property.name,
+                              options: property.options || [],
+                            })
+                          }
+                        >
+                          <Edit className="h-4 w-4 mr-2" />
+                          Edit options
+                        </DropdownMenuItem>
+                      )}
 
                     <DropdownMenuItem
                       onClick={() => handleToggleVisibility(index)}
                     >
-                      {isPropertyHidden(property.dataKey as string) ? (
+                      {isPropertyHidden(property) ? (
                         <>
                           <Eye className="h-4 w-4 mr-2" />
-                          <span>Show property</span>
+                          <span>Show in table</span>
                         </>
                       ) : (
                         <>
                           <EyeOff className="h-4 w-4 mr-2" />
-                          <span>Hide property</span>
+                          <span>Hide from table</span>
                         </>
                       )}
                     </DropdownMenuItem>
 
-                    <DropdownMenuItem
-                      onClick={() => handleDuplicateProperty(index)}
-                    >
-                      <Copy className="h-4 w-4 mr-2" />
-                      Duplicate property
-                    </DropdownMenuItem>
+                    {property.isEditable && (
+                      <DropdownMenuItem
+                        onClick={() => handleDuplicateProperty(index)}
+                      >
+                        <Copy className="h-4 w-4 mr-2" />
+                        Duplicate property
+                      </DropdownMenuItem>
+                    )}
 
                     {property.isEditable && (
                       <>
@@ -1572,23 +2005,23 @@ export function NodePropertiesSidebar({
 
           {/* Add New Property Button */}
           <button
-            className="flex items-center gap-2 text-gray-400 hover:text-gray-700 py-2 w-full mt-2"
+            className="flex items-center gap-2 text-gray-400 hover:text-[#09BC8A] py-3 w-full mt-4 transition-colors duration-200 border-2 border-dashed border-gray-200 hover:border-[#09BC8A]/30 rounded-lg justify-center bg-gray-50/50 hover:bg-[#09BC8A]/5"
             onClick={() => setShowPropertyTypeSelect(true)}
           >
             <Plus className="h-4 w-4" />
-            <span>Add a property</span>
+            <span className="font-medium">Add a property</span>
           </button>
         </div>
 
         {/* Add Property Form */}
         {showPropertyTypeSelect && (
-          <div className="bg-white rounded-lg border p-3 mt-2">
+          <div className="bg-white rounded-lg border-2 border-[#09BC8A]/20 p-4 mt-4 shadow-sm">
             <div className="mb-3">
               <Input
                 value={newPropertyName}
                 onChange={(e) => setNewPropertyName(e.target.value)}
                 placeholder="Property name"
-                className={`w-full ${validationErrors.newProperty ? "border-red-500" : ""}`}
+                className={`w-full focus:border-[#09BC8A] focus:ring-[#09BC8A]/20 ${validationErrors.newProperty ? "border-red-500" : ""}`}
               />
               {validationErrors.newProperty && (
                 <div className="text-xs text-red-500 mt-1">
@@ -1601,7 +2034,7 @@ export function NodePropertiesSidebar({
               value={newPropertyType}
               onValueChange={(value: PropertyType) => setNewPropertyType(value)}
             >
-              <SelectTrigger className="bg-white border-gray-300 mb-3 focus:outline-none">
+              <SelectTrigger className="bg-white border-gray-300 mb-3 focus:outline-none focus:border-[#09BC8A] focus:ring-[#09BC8A]/20">
                 <SelectValue placeholder="Select type" />
               </SelectTrigger>
               <SelectContent>
@@ -1681,7 +2114,7 @@ export function NodePropertiesSidebar({
                       }
                     }}
                     disabled={!newOptionInput.trim()}
-                    className="h-8"
+                    className="h-8 bg-[#09BC8A] hover:bg-[#08a378] text-white border-0"
                   >
                     Add
                   </Button>
@@ -1698,12 +2131,12 @@ export function NodePropertiesSidebar({
                   setNewPropertyName("");
                   setNewPropertyOptions([]);
                   setNewOptionInput("");
-                  // Clear validation errors
                   if (validationErrors.newProperty) {
                     const { newProperty, ...rest } = validationErrors;
                     setValidationErrors(rest);
                   }
                 }}
+                className="border-gray-300 hover:bg-gray-50"
               >
                 Cancel
               </Button>
@@ -1716,6 +2149,7 @@ export function NodePropertiesSidebar({
                     newPropertyType === "multiselect") &&
                     newPropertyOptions.length === 0)
                 }
+                className="bg-[#09BC8A] hover:bg-[#08a378] text-white border-0"
               >
                 Add
               </Button>
@@ -1725,15 +2159,16 @@ export function NodePropertiesSidebar({
 
         {/* Options Editor Dialog */}
         {editingOptions && (
-          <div className="bg-white rounded-lg border p-3 mt-2">
-            <div className="flex justify-between items-center mb-2">
-              <div className="font-medium">
+          <div className="bg-white rounded-lg border-2 border-[#5DA9E9]/20 p-4 mt-4 shadow-sm">
+            <div className="flex justify-between items-center mb-3">
+              <div className="font-medium text-[#003F91]">
                 Edit {editingOptions.propertyName} options
               </div>
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={() => setEditingOptions(null)}
+                className="hover:bg-gray-100"
               >
                 <X className="h-4 w-4" />
               </Button>
@@ -1803,6 +2238,7 @@ export function NodePropertiesSidebar({
                 size="sm"
                 onClick={handleAddOption}
                 disabled={!newOption.trim()}
+                className="bg-[#09BC8A] hover:bg-[#08a378] text-white border-0"
               >
                 Add
               </Button>
@@ -1829,7 +2265,7 @@ export function NodePropertiesSidebar({
               <AlertDialogCancel>Cancel</AlertDialogCancel>
               <AlertDialogAction
                 onClick={confirmDeleteProperty}
-                className="bg-red-500 hover:bg-red-600"
+                className="bg-[#FF4A1C] hover:bg-[#e6421a] text-white border-0"
               >
                 Delete
               </AlertDialogAction>
