@@ -62,29 +62,17 @@ export function RecentDocuments() {
     return () => window.removeEventListener("resize", checkMobile);
   }, []);
 
+  const fetchAndDisplayRecentDocuments = async () => {
+    // get recentDOcuments key from localStorage
+    const recentDocuments = localStorage.getItem("recentDocuments");
+    if (recentDocuments) {
+      const parsedDocuments: Document[] = JSON.parse(recentDocuments);
+      setDocuments(parsedDocuments);
+    }
+  };
+
   useEffect(() => {
-    // Mock documents data since localStorage is not available
-    const mockDocuments = [
-      {
-        id: "1",
-        title: "Project Overview",
-        date: "2 hours ago",
-        type: "document",
-      },
-      {
-        id: "2",
-        title: "Data Analysis Report",
-        date: "Yesterday",
-        type: "table",
-      },
-      {
-        id: "3",
-        title: "Meeting Notes",
-        date: "3 days ago",
-        type: "hybrid",
-      },
-    ];
-    setDocuments(mockDocuments);
+    fetchAndDisplayRecentDocuments();
   }, []);
 
   const handleToggleSidebar = (show: boolean) => {
@@ -108,6 +96,7 @@ export function RecentDocuments() {
   const handleDelete = (id: string) => {
     const updatedDocuments = documents.filter((doc) => doc.id !== id);
     setDocuments(updatedDocuments);
+    localStorage.setItem("recentDocuments", JSON.stringify(updatedDocuments));
   };
 
   const handleNavigate = (id: string, canvasType: string) => {
