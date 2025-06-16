@@ -439,7 +439,6 @@ const TableView = forwardRef<
       });
     };
 
-    // Filter state
     const [filterGroups, setFilterGroups] = useState<FilterGroup[]>([]);
     const [filterDialogOpen, setFilterDialogOpen] = useState(false);
     const [editingFilter, setEditingFilter] = useState<{
@@ -447,14 +446,11 @@ const TableView = forwardRef<
       filterId: string | null;
     } | null>(null);
 
-    const [tempFilterValue, setTempFilterValue] = useState<any>("");
     const [showFilterUI, setShowFilterUI] = useState(false);
 
-    // Generate a unique ID
     const generateId = () =>
       `id-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
 
-    // Helper function to check if a column can be filtered
     const isColumnFilterable = (
       columnType: string | undefined,
       columnTitle: string
@@ -471,7 +467,6 @@ const TableView = forwardRef<
       return true;
     };
 
-    // Add a new filter group
     const addFilterGroup = () => {
       // Find the first filterable column
       const firstFilterableColumn =
@@ -497,7 +492,6 @@ const TableView = forwardRef<
       });
     };
 
-    // Add a filter to a group
     const addFilterToGroup = (groupId: string) => {
       // Find the first filterable column
       const firstFilterableColumn =
@@ -521,7 +515,6 @@ const TableView = forwardRef<
       setEditingFilter({ groupId, filterId: newFilter.id });
     };
 
-    // Remove a filter
     const removeFilter = (groupId: string, filterId: string) => {
       setFilterGroups((prev) => {
         // Get the current group
@@ -548,7 +541,6 @@ const TableView = forwardRef<
       }
     };
 
-    // Remove a filter group
     const removeFilterGroup = (groupId: string) => {
       setFilterGroups((prev) => prev.filter((group) => group.id !== groupId));
 
@@ -557,7 +549,6 @@ const TableView = forwardRef<
       }
     };
 
-    // Toggle conjunction (AND/OR) for a filter group
     const toggleConjunction = (groupId: string) => {
       setFilterGroups((prev) =>
         prev.map((group) =>
@@ -571,7 +562,6 @@ const TableView = forwardRef<
       );
     };
 
-    // Update filter properties
     const updateFilter = (
       groupId: string,
       filterId: string,
@@ -599,15 +589,11 @@ const TableView = forwardRef<
       );
     };
 
-    // Clear all filters
     const clearAllFilters = () => {
       setFilterGroups([]);
       setEditingFilter(null);
     };
 
-    console.log("------ hidden columns -------", hiddenColumns);
-
-    // if type of hidden columns is an empty object, initialize it as a Set
     if (
       typeof hiddenColumns === "object" &&
       !Object.keys(hiddenColumns).length
