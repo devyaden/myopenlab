@@ -383,6 +383,13 @@ export const useCanvasStore = create<CanvasStore>()(
           if (!state.id || !state.user_id) return;
 
           set({ saveLoading: true });
+
+          if (state.nodes.length === 0 && state.edges.length === 0) {
+            console.log("No changes to save");
+            set({ saveLoading: false });
+            return;
+          }
+
           try {
             // Start a Supabase transaction
 
@@ -498,6 +505,62 @@ export const useCanvasStore = create<CanvasStore>()(
         },
 
         loadCanvas: async (canvasId) => {
+          const pendingTimestamp = sessionStorage?.getItem(
+            "pending-ai-data-timestamp"
+          );
+          if (pendingTimestamp) {
+            const aiDataKey = `ai-data-${pendingTimestamp}`;
+            const aiDataJson = localStorage.getItem(aiDataKey);
+            if (aiDataJson) {
+              try {
+                const aiData = JSON.parse(aiDataJson);
+                if (
+                  aiData.pending &&
+                  aiData.data &&
+                  (aiData.data.nodes?.length > 0 ||
+                    aiData.data.edges?.length > 0)
+                ) {
+                  console.log("Skipping server load - AI data pending");
+                  // Only load metadata, not the canvas data
+                  set({ isLoading: true, error: null });
+
+                  try {
+                    const { data: canvas, error: canvasError } = await supabase
+                      .from("canvas")
+                      .select("*, folder:folder!canvas_folder_id_fkey(*)")
+                      .eq("id", canvasId)
+                      .single();
+
+                    if (canvasError) throw canvasError;
+
+                    // Set basic canvas info but don't override nodes/edges
+                    set({
+                      id: canvasId,
+                      name: canvas.name,
+                      description: canvas.description || "",
+                      user_id: canvas.user_id,
+                      folder_id: canvas.folder_id,
+                      created_at: new Date(canvas.created_at),
+                      updated_at: new Date(canvas.updated_at),
+                      canvas_type: canvas.canvas_type,
+                      currentFolder: canvas.folder,
+                      isLoading: false,
+                    });
+
+                    get().loadFolderCanvases(canvas.folder_id);
+                    return; // Exit early
+                  } catch (error) {
+                    console.error("Error loading canvas metadata:", error);
+                    set({ error: "Failed to load canvas", isLoading: false });
+                    return;
+                  }
+                }
+              } catch (error) {
+                console.error("Error checking AI data:", error);
+              }
+            }
+          }
+
           set({ isLoading: true, error: null });
 
           // debugger;
