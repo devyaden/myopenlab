@@ -524,10 +524,11 @@ export const HeaderSidebar = () => {
 
             <Button
               size="sm"
-              className="hidden items-center gap-2 bg-yadn-accent-dark-blue text-sm font-medium hover:bg-yadn-accent-dark-blue/90 sm:flex"
+              onClick={() => router.push("/pricing")}
+              className="flex items-center gap-2 bg-yadn-accent-green text-white text-sm font-medium hover:bg-yadn-accent-green/90 shadow-md"
             >
               <Crown className="h-4 w-4" />
-              Upgrade
+              <span className="hidden sm:inline">Upgrade</span>
             </Button>
           </div>
         </div>

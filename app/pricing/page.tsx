@@ -75,6 +75,7 @@ export default function PricingPage() {
   const [loading, setLoading] = useState<string | null>(null);
   const [showModal, setShowModal] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState<typeof plans[0] | null>(null);
+  const [currentPlan, setCurrentPlan] = useState<string>("free");
   const router = useRouter();
   const { user } = useUser();
 
@@ -92,6 +93,49 @@ export default function PricingPage() {
 
     checkAuth();
   }, [router]);
+
+  // Load user's current subscription
+  useEffect(() => {
+    const loadSubscription = async () => {
+      if (!user) return;
+
+      const { data, error } = await supabase
+        .from("user_subscription")
+        .select(
+          `
+          *,
+          subscription:subscription_id (
+            id,
+            title
+          )
+        `
+        )
+        .eq("user_id", user.id)
+        .eq("is_active", true)
+        .gte("end_date", new Date().toISOString())
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .single();
+
+      if (data && data.subscription) {
+        const title = data.subscription.title?.toLowerCase();
+        if (title?.includes("monthly") && !title?.includes("yearly")) {
+          setCurrentPlan("monthly");
+        } else if (title?.includes("yearly")) {
+          setCurrentPlan("yearly");
+        } else if (title?.includes("pro")) {
+          // Fallback if title is just "Pro" or similar
+          setCurrentPlan("monthly");
+        } else {
+          setCurrentPlan("free");
+        }
+      } else {
+        setCurrentPlan("free");
+      }
+    };
+
+    loadSubscription();
+  }, [user]);
 
   const handlePlanClick = (plan: typeof plans[0]) => {
     if (plan.planType === "free") {
@@ -178,85 +222,99 @@ export default function PricingPage() {
             </div>
 
             {/* Pricing Cards */}
-            <div className="grid md:grid-cols-3 gap-8 max-w-6xl mx-auto mb-16">
-              {plans.map((plan) => (
-            <div
-              key={plan.planType}
-              className={`relative rounded-2xl border-2 transition-all duration-200 ${
-                plan.popular
-                  ? "border-yadn-accent-green shadow-lg shadow-yadn-accent-green/10 bg-white"
-                  : "border-gray-200 bg-white hover:border-gray-300 hover:shadow-md"
-              } p-8 flex flex-col`}
-            >
-              {plan.popular && (
-                <div className="absolute -top-5 left-1/2 -translate-x-1/2 bg-yadn-accent-green text-white px-6 py-2 rounded-full text-sm font-bold shadow-lg">
-                  MOST POPULAR
-                </div>
-              )}
-              {plan.badge && !plan.popular && (
-                <div className="absolute -top-5 left-1/2 -translate-x-1/2 bg-blue-500 text-white px-6 py-2 rounded-full text-sm font-bold shadow-lg">
-                  {plan.badge}
-                </div>
-              )}
+            <div className="grid md:grid-cols-3 gap-6 max-w-5xl mx-auto mb-16">
+              {plans.map((plan) => {
+                const isActive = plan.planType === currentPlan;
+                return (
+                  <div
+                    key={plan.planType}
+                    className={`relative rounded-xl border-2 transition-all duration-200 ${
+                      isActive
+                        ? "border-yadn-accent-green bg-gradient-to-br from-yadn-accent-green/5 to-yadn-accent-green/10 shadow-lg ring-2 ring-yadn-accent-green/20"
+                        : plan.popular
+                        ? "border-yadn-accent-green/40 bg-white hover:border-yadn-accent-green/60 hover:shadow-md"
+                        : "border-gray-200 bg-white hover:border-gray-300 hover:shadow-sm"
+                    } p-6 flex flex-col`}
+                  >
+                    {isActive && (
+                      <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-yadn-accent-green text-white px-4 py-1 rounded-full text-xs font-bold shadow-md">
+                        CURRENT PLAN
+                      </div>
+                    )}
+                    {!isActive && plan.popular && (
+                      <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-yadn-accent-green text-white px-4 py-1 rounded-full text-xs font-bold shadow-md">
+                        MOST POPULAR
+                      </div>
+                    )}
+                    {!isActive && plan.badge && !plan.popular && (
+                      <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-blue-500 text-white px-4 py-1 rounded-full text-xs font-bold shadow-md">
+                        {plan.badge}
+                      </div>
+                    )}
 
-              <div className="mb-6">
-                <h3 className="text-3xl font-bold mb-2 text-gray-900">
-                  {plan.name}
-                </h3>
-                <p className="text-gray-600 text-sm">{plan.description}</p>
-              </div>
+                    <div className="mb-4">
+                      <h3 className="text-2xl font-bold mb-1 text-gray-900">
+                        {plan.name}
+                      </h3>
+                      <p className="text-gray-600 text-xs">{plan.description}</p>
+                    </div>
 
-              <div className="mb-8">
-                <div className="flex items-baseline">
-                  <span className="text-6xl font-bold text-gray-900">
-                    {plan.price}
-                  </span>
-                  <span className="text-gray-600 ml-2 text-lg">
-                    {plan.period}
-                  </span>
-                </div>
-                {plan.planType === "yearly" && (
-                  <p className="text-sm text-yadn-accent-green font-semibold mt-2">
-                    Billed annually at £48
-                  </p>
-                )}
-              </div>
+                    <div className="mb-6">
+                      <div className="flex items-baseline">
+                        <span className="text-4xl font-bold text-gray-900">
+                          {plan.price}
+                        </span>
+                        <span className="text-gray-600 ml-1 text-base">
+                          {plan.period}
+                        </span>
+                      </div>
+                      {plan.planType === "yearly" && (
+                        <p className="text-xs text-yadn-accent-green font-semibold mt-1">
+                          Billed annually at £48
+                        </p>
+                      )}
+                    </div>
 
-              <ul className="space-y-4 mb-8 flex-grow">
-                {plan.features.map((feature, index) => (
-                  <li key={index} className="flex items-start">
-                    <Check
-                      className={`w-6 h-6 mr-3 flex-shrink-0 mt-0.5 ${
-                        plan.popular
-                          ? "text-yadn-accent-green"
-                          : "text-gray-600"
+                    <ul className="space-y-2.5 mb-6 flex-grow">
+                      {plan.features.map((feature, index) => (
+                        <li key={index} className="flex items-start">
+                          <Check
+                            className={`w-4 h-4 mr-2 flex-shrink-0 mt-0.5 ${
+                              isActive || plan.popular
+                                ? "text-yadn-accent-green"
+                                : "text-gray-500"
+                            }`}
+                          />
+                          <span className="text-gray-700 text-sm">{feature}</span>
+                        </li>
+                      ))}
+                    </ul>
+
+                    <Button
+                      onClick={() => handlePlanClick(plan)}
+                      disabled={loading !== null || isActive}
+                      className={`w-full py-4 text-base font-semibold transition-all duration-200 ${
+                        isActive
+                          ? "bg-gray-400 cursor-not-allowed text-white"
+                          : plan.popular
+                          ? "bg-yadn-accent-green hover:bg-yadn-accent-green/90 text-white shadow-md"
+                          : "bg-gray-900 hover:bg-gray-700 text-white"
                       }`}
-                    />
-                    <span className="text-gray-700 text-base">{feature}</span>
-                  </li>
-                ))}
-              </ul>
-
-              <Button
-                onClick={() => handlePlanClick(plan)}
-                disabled={loading !== null}
-                className={`w-full py-6 text-lg font-semibold transition-all duration-200 ${
-                  plan.popular
-                    ? "bg-yadn-accent-green hover:bg-[#00D084] text-white shadow-md"
-                    : "bg-gray-900 hover:bg-gray-700 text-white"
-                }`}
-              >
-                {loading === plan.planType ? (
-                  <span className="flex items-center justify-center">
-                    <Loader2 className="w-5 h-5 mr-2 animate-spin" />
-                    Processing...
-                  </span>
-                ) : (
-                  plan.cta
-                )}
-              </Button>
-                </div>
-              ))}
+                    >
+                      {isActive ? (
+                        "Current Plan"
+                      ) : loading === plan.planType ? (
+                        <span className="flex items-center justify-center">
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                          Processing...
+                        </span>
+                      ) : (
+                        plan.cta
+                      )}
+                    </Button>
+                  </div>
+                );
+              })}
             </div>
 
             {/* Contact Us */}

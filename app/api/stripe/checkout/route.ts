@@ -43,8 +43,8 @@ export async function POST(request: NextRequest) {
     }
 
     const baseUrl = process.env.NEXT_PUBLIC_SERVER_URL || request.nextUrl.origin;
-    const successUrl = `${baseUrl}/protected?payment=success`;
-    const cancelUrl = `${baseUrl}/pricing?payment=canceled`;
+    const successUrl = `${baseUrl}/payment/success?plan=${planType}`;
+    const cancelUrl = `${baseUrl}/payment/cancel`;
 
     // Get user email from Supabase
     const userEmail = user.email || "";

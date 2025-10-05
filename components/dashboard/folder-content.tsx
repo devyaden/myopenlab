@@ -17,6 +17,8 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { getUserFeatureLimits, SubscriptionFeatureFlag } from "@/lib/subscription-features";
+import { supabase } from "@/lib/supabase/client";
 import {
   Dialog,
   DialogContent,
@@ -486,6 +488,25 @@ export const FolderContent = memo(({ folderId }: FolderContentProps) => {
       const folderIdToUse = folderId === "root" ? null : folderId;
       setOperationError(null);
 
+      // Check diagram limit
+      if (user?.id) {
+        const limits = await getUserFeatureLimits(user.id);
+        const maxDiagrams = limits[SubscriptionFeatureFlag.MAX_DIAGRAMS];
+
+        // Get total diagrams count
+        const { count } = await supabase
+          .from("canvas")
+          .select("*", { count: "exact", head: true })
+          .eq("user_id", user.id);
+
+        if (count !== null && count >= maxDiagrams) {
+          setOperationError(`You've reached your limit of ${maxDiagrams} diagram(s). Upgrade to create more.`);
+          setCreateNewModalType(null);
+          router.push("/pricing");
+          return false;
+        }
+      }
+
       try {
         const canvasId = await createCanvas(
           name,
@@ -513,7 +534,7 @@ export const FolderContent = memo(({ folderId }: FolderContentProps) => {
       setCreateNewModalType(null);
       return true;
     },
-    [folderId, createCanvas, user?.id, trackCreate]
+    [folderId, createCanvas, user?.id, trackCreate, router]
   );
 
   const handleQuickCreate = useCallback(

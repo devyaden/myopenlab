@@ -61,6 +61,8 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { useSubscriptionLimits } from "@/lib/hooks/useSubscriptionLimits";
+import { UpgradeModal } from "@/components/upgrade-modal";
 
 export function UserSidebar() {
   const {
@@ -77,6 +79,7 @@ export function UserSidebar() {
   } = useSidebarStore();
 
   const { user } = useUser();
+  const { canCreateDiagram, canUseAI, limits, currentDiagramCount, refreshLimits } = useSubscriptionLimits(user?.id);
 
   const [createNewModalType, setCreateNewModalType] = useState<
     "folder" | "canvas" | null
@@ -95,6 +98,8 @@ export function UserSidebar() {
   const [currentFolderForCreate, setCurrentFolderForCreate] = useState<
     string | null
   >(null);
+  const [upgradeModalOpen, setUpgradeModalOpen] = useState(false);
+  const [upgradeReason, setUpgradeReason] = useState<"diagrams" | "ai_requests">("diagrams");
 
   const handleCreateFolder = async (name: string) => {
     if (name.trim()) {
@@ -111,6 +116,15 @@ export function UserSidebar() {
     type: CANVAS_TYPE,
     folderId?: string | null
   ) => {
+    // Check if user can create more diagrams
+    if (!canCreateDiagram()) {
+      setUpgradeReason("diagrams");
+      setUpgradeModalOpen(true);
+      setCreateNewModalType(null);
+      setCurrentFolderForCreate(null);
+      return false;
+    }
+
     const canvasId = await createCanvas(
       name,
       description,
@@ -123,6 +137,9 @@ export function UserSidebar() {
     if (!folderId) {
       fetchRootCanvases(user?.id);
     }
+
+    // Refresh limits after creating
+    await refreshLimits();
 
     if (
       canvasId &&
@@ -572,6 +589,11 @@ export function UserSidebar() {
         type={createNewModalType}
         currentFolderId={currentFolderForCreate}
         rootCanvases={rootCanvases}
+        canUseAI={canUseAI}
+        onAILimitReached={() => {
+          setUpgradeReason("ai_requests");
+          setUpgradeModalOpen(true);
+        }}
       />
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
         <DialogContent>
@@ -619,6 +641,15 @@ export function UserSidebar() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Upgrade Modal */}
+      <UpgradeModal
+        isOpen={upgradeModalOpen}
+        onClose={() => setUpgradeModalOpen(false)}
+        reason={upgradeReason}
+        currentCount={currentDiagramCount}
+        limit={limits.maxDiagrams}
+      />
     </Sidebar>
   );
 }
