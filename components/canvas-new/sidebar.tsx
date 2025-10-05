@@ -7,10 +7,14 @@ import {
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 import { cn } from "@/lib/utils";
-import { ChevronDown, Search, Star, StarIcon, X } from "lucide-react";
+import { ChevronDown, Search, Star, StarIcon, X, Lock } from "lucide-react";
 import type React from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { renderShapePreview } from "./shape-utils";
+import { getUserFeatureLimits, SubscriptionFeatureFlag } from "@/lib/subscription-features";
+import { useUser } from "@/lib/contexts/userContext";
+import { useRouter } from "next/navigation";
+import { toast } from "react-hot-toast";
 
 interface SidebarProps {
   onDragStart: (event: React.DragEvent, shapeType: string) => void;
@@ -52,6 +56,21 @@ export function Sidebar({
   const [isSearching, setIsSearching] = useState<boolean>(false);
   const sidebarRef = useRef<HTMLDivElement>(null);
   const [sidebarWidth, setSidebarWidth] = useState(0);
+  const [isPro, setIsPro] = useState(false);
+  const { user } = useUser();
+  const router = useRouter();
+
+  // Load subscription status
+  useEffect(() => {
+    const checkSubscription = async () => {
+      if (user?.id) {
+        const limits = await getUserFeatureLimits(user.id);
+        // Check if user has unlimited diagrams (Pro feature)
+        setIsPro(limits[SubscriptionFeatureFlag.MAX_DIAGRAMS] >= 999999);
+      }
+    };
+    checkSubscription();
+  }, [user?.id]);
 
   // Define the shape categories
   const shapeCategories: ShapeCategory[] = [
@@ -317,7 +336,14 @@ export function Sidebar({
 
   // Function to handle clicking a shape
   const handleShapeClick = useCallback(
-    (shapeType: string) => {
+    (shapeType: string, categoryTitle: string) => {
+      // Check if this is a Pro-only category and user is not Pro
+      if (categoryTitle !== "Basic Shapes" && !isPro) {
+        toast.error("Advanced shapes are only available for Pro users");
+        router.push("/pricing");
+        return;
+      }
+
       // For image type, open the image manager
       if (shapeType === "image" && onOpenImageManager) {
         onOpenImageManager();
@@ -326,7 +352,7 @@ export function Sidebar({
         onShapeClick(shapeType);
       }
     },
-    [onShapeClick, onOpenImageManager]
+    [onShapeClick, onOpenImageManager, isPro, router]
   );
 
   useEffect(() => {
@@ -443,24 +469,32 @@ export function Sidebar({
                         </CollapsibleTrigger>
                         <CollapsibleContent>
                           <div className="py-2 px-4 grid grid-cols-3 gap-2">
-                            {category.shapes.map((shape) => (
-                              <div
-                                key={shape.name}
-                                className="flex flex-col items-center justify-center py-2 cursor-move hover:bg-gray-100 rounded px-2"
-                                draggable
-                                onDragStart={(e) =>
-                                  handleShapeDragStart(e, shape?.type)
-                                }
-                                onClick={() => handleShapeClick(shape?.type)}
-                              >
-                                <div className="flex items-center justify-center h-10">
-                                  {shape.component}
+                            {category.shapes.map((shape) => {
+                              const isLocked = category.title !== "Basic Shapes" && !isPro;
+                              return (
+                                <div
+                                  key={shape.name}
+                                  className={`flex flex-col items-center justify-center py-2 rounded px-2 relative ${
+                                    isLocked ? "cursor-not-allowed opacity-60" : "cursor-move hover:bg-gray-100"
+                                  }`}
+                                  draggable={!isLocked}
+                                  onDragStart={(e) => {
+                                    if (!isLocked) handleShapeDragStart(e, shape?.type);
+                                  }}
+                                  onClick={() => handleShapeClick(shape?.type, category.title)}
+                                >
+                                  {isLocked && (
+                                    <Lock className="absolute top-1 right-1 h-3 w-3 text-orange-600" />
+                                  )}
+                                  <div className="flex items-center justify-center h-10">
+                                    {shape.component}
+                                  </div>
+                                  <span className="text-xs text-center line-clamp-1 mt-1">
+                                    {shape.name}
+                                  </span>
                                 </div>
-                                <span className="text-xs text-center line-clamp-1 mt-1">
-                                  {shape.name}
-                                </span>
-                              </div>
-                            ))}
+                              );
+                            })}
                           </div>
                         </CollapsibleContent>
                       </Collapsible>
@@ -524,24 +558,32 @@ export function Sidebar({
                         </CollapsibleTrigger>
                         <CollapsibleContent>
                           <div className="py-2 px-4 grid grid-cols-3 gap-2">
-                            {category.shapes.map((shape) => (
-                              <div
-                                key={shape.name}
-                                className="flex flex-col items-center justify-center py-2 cursor-move hover:bg-gray-100 rounded px-2"
-                                draggable
-                                onDragStart={(e) =>
-                                  handleShapeDragStart(e, shape?.type)
-                                }
-                                onClick={() => handleShapeClick(shape?.type)}
-                              >
-                                <div className="flex items-center justify-center h-10">
-                                  {shape.component}
+                            {category.shapes.map((shape) => {
+                              const isLocked = category.title !== "Basic Shapes" && !isPro;
+                              return (
+                                <div
+                                  key={shape.name}
+                                  className={`flex flex-col items-center justify-center py-2 rounded px-2 relative ${
+                                    isLocked ? "cursor-not-allowed opacity-60" : "cursor-move hover:bg-gray-100"
+                                  }`}
+                                  draggable={!isLocked}
+                                  onDragStart={(e) => {
+                                    if (!isLocked) handleShapeDragStart(e, shape?.type);
+                                  }}
+                                  onClick={() => handleShapeClick(shape?.type, category.title)}
+                                >
+                                  {isLocked && (
+                                    <Lock className="absolute top-1 right-1 h-3 w-3 text-orange-600" />
+                                  )}
+                                  <div className="flex items-center justify-center h-10">
+                                    {shape.component}
+                                  </div>
+                                  <span className="text-xs text-center line-clamp-1 mt-1">
+                                    {shape.name}
+                                  </span>
                                 </div>
-                                <span className="text-xs text-center line-clamp-1 mt-1">
-                                  {shape.name}
-                                </span>
-                              </div>
-                            ))}
+                              );
+                            })}
                           </div>
                         </CollapsibleContent>
                       </Collapsible>

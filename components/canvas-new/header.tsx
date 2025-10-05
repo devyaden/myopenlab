@@ -18,6 +18,9 @@ import { Folder } from "@/types/sidebar";
 import { CANVAS_TYPE } from "@/types/store";
 import { toJpeg, toPng, toSvg } from "html-to-image";
 import { jsPDF } from "jspdf";
+import { getUserFeatureLimits, SubscriptionFeatureFlag } from "@/lib/subscription-features";
+import { useUser } from "@/lib/contexts/userContext";
+import { useRouter } from "next/navigation";
 import {
   ChevronRight,
   Download,
@@ -27,6 +30,7 @@ import {
   FileText,
   Home,
   Link2,
+  Lock,
   Menu,
   Save,
   Send,
@@ -91,6 +95,20 @@ export function Header({
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
+  const [exportLimits, setExportLimits] = useState<any>(null);
+  const { user } = useUser();
+  const router = useRouter();
+
+  // Load export permissions
+  useEffect(() => {
+    const loadPermissions = async () => {
+      if (user?.id) {
+        const limits = await getUserFeatureLimits(user.id);
+        setExportLimits(limits);
+      }
+    };
+    loadPermissions();
+  }, [user?.id]);
 
   const handleTitleDoubleClick = () => {
     if (!isOwner) return;
@@ -456,11 +474,24 @@ export function Header({
                   </Button>
                   <Button
                     variant="outline"
-                    className="flex flex-col items-center justify-center gap-2 h-20 p-4"
-                    onClick={exportAsPDF}
+                    className="flex flex-col items-center justify-center gap-2 h-20 p-4 relative"
+                    onClick={() => {
+                      if (exportLimits && !exportLimits[SubscriptionFeatureFlag.ALLOW_EXPORT_PDF]) {
+                        toast.error("PDF export is only available for Pro users");
+                        router.push("/pricing");
+                      } else {
+                        exportAsPDF();
+                      }
+                    }}
+                    disabled={exportLimits && !exportLimits[SubscriptionFeatureFlag.ALLOW_EXPORT_PDF]}
                   >
-                    <FileText className="h-8 w-8 text-gray-600" />
-                    <span className="text-sm">PDF</span>
+                    {exportLimits && !exportLimits[SubscriptionFeatureFlag.ALLOW_EXPORT_PDF] && (
+                      <Lock className="absolute top-2 right-2 h-4 w-4 text-orange-600" />
+                    )}
+                    <FileText className={`h-8 w-8 ${exportLimits && !exportLimits[SubscriptionFeatureFlag.ALLOW_EXPORT_PDF] ? "text-gray-400" : "text-gray-600"}`} />
+                    <span className={`text-sm ${exportLimits && !exportLimits[SubscriptionFeatureFlag.ALLOW_EXPORT_PDF] ? "text-gray-400" : ""}`}>
+                      PDF {exportLimits && !exportLimits[SubscriptionFeatureFlag.ALLOW_EXPORT_PDF] && "(Pro)"}
+                    </span>
                   </Button>
                 </div>
               </div>
@@ -498,11 +529,24 @@ export function Header({
                 <div className="grid grid-cols-2 gap-3">
                   <Button
                     variant="outline"
-                    className="flex flex-col items-center justify-center gap-2 h-20 p-4"
-                    onClick={exportAsPDF}
+                    className="flex flex-col items-center justify-center gap-2 h-20 p-4 relative"
+                    onClick={() => {
+                      if (exportLimits && !exportLimits[SubscriptionFeatureFlag.ALLOW_EXPORT_PDF]) {
+                        toast.error("PDF export is only available for Pro users");
+                        router.push("/pricing");
+                      } else {
+                        exportAsPDF();
+                      }
+                    }}
+                    disabled={exportLimits && !exportLimits[SubscriptionFeatureFlag.ALLOW_EXPORT_PDF]}
                   >
-                    <FileText className="h-8 w-8 text-gray-600" />
-                    <span className="text-sm">PDF</span>
+                    {exportLimits && !exportLimits[SubscriptionFeatureFlag.ALLOW_EXPORT_PDF] && (
+                      <Lock className="absolute top-2 right-2 h-4 w-4 text-orange-600" />
+                    )}
+                    <FileText className={`h-8 w-8 ${exportLimits && !exportLimits[SubscriptionFeatureFlag.ALLOW_EXPORT_PDF] ? "text-gray-400" : "text-gray-600"}`} />
+                    <span className={`text-sm ${exportLimits && !exportLimits[SubscriptionFeatureFlag.ALLOW_EXPORT_PDF] ? "text-gray-400" : ""}`}>
+                      PDF {exportLimits && !exportLimits[SubscriptionFeatureFlag.ALLOW_EXPORT_PDF] && "(Pro)"}
+                    </span>
                   </Button>
                 </div>
               </div>

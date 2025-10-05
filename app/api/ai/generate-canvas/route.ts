@@ -61,6 +61,7 @@ export async function POST(request: NextRequest) {
 
     // Check AI usage limits
     const usageCheck = await checkAiUsageLimit(user.id);
+
     if (!usageCheck.allowed) {
       return NextResponse.json(
         {
