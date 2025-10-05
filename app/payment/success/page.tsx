@@ -31,16 +31,13 @@ export default function PaymentSuccessPage() {
 
         if (response.ok) {
           console.log("Subscription activated successfully", data);
-          alert(`Subscription activated: ${data.plan}`);
         } else {
           console.error("Failed to activate subscription:", data);
           setError(data.error || "Failed to activate");
-          alert(`Error: ${data.error}`);
         }
       } catch (error) {
         console.error("Error activating subscription:", error);
         setError(String(error));
-        alert(`Error: ${error}`);
       } finally {
         setIsActivating(false);
       }

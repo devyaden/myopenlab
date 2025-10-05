@@ -12,6 +12,14 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useUser } from "@/lib/contexts/userContext";
@@ -75,6 +83,7 @@ export default function ProfilePage() {
   const [subscription, setSubscription] = useState<any>(null);
   const [loadingSubscription, setLoadingSubscription] = useState(true);
   const [cancelingSubscription, setCancelingSubscription] = useState(false);
+  const [showCancelDialog, setShowCancelDialog] = useState(false);
 
   // Profile form
   const profileForm = useForm<ProfileFormValues>({
@@ -159,12 +168,9 @@ export default function ProfilePage() {
   }
 
   async function handleCancelSubscription() {
-    if (!confirm("Are you sure you want to cancel your subscription? You will lose access to premium features immediately.")) {
-      return;
-    }
-
     try {
       setCancelingSubscription(true);
+      setShowCancelDialog(false);
       const response = await fetch("/api/stripe/cancel-subscription", {
         method: "POST",
       });
@@ -652,17 +658,10 @@ export default function ProfilePage() {
                             <Button
                               variant="outline"
                               className="border-red-300 text-red-700 hover:bg-red-50 hover:text-red-800 hover:border-red-400"
-                              onClick={handleCancelSubscription}
+                              onClick={() => setShowCancelDialog(true)}
                               disabled={cancelingSubscription}
                             >
-                              {cancelingSubscription ? (
-                                <>
-                                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                  Canceling...
-                                </>
-                              ) : (
-                                "Cancel Subscription"
-                              )}
+                              Cancel Subscription
                             </Button>
                           </div>
                         </div>
@@ -724,6 +723,64 @@ export default function ProfilePage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Cancel Subscription Dialog */}
+      <Dialog open={showCancelDialog} onOpenChange={setShowCancelDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Cancel Subscription</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to cancel your subscription? You will lose access to premium features immediately.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4">
+            <p className="text-sm text-gray-600">
+              After canceling, you'll be downgraded to the free plan with:
+            </p>
+            <ul className="mt-3 space-y-2 text-sm text-gray-700">
+              <li className="flex items-center gap-2">
+                <span className="text-red-500">•</span>
+                Limited to 1 diagram
+              </li>
+              <li className="flex items-center gap-2">
+                <span className="text-red-500">•</span>
+                Only 5 AI requests per month
+              </li>
+              <li className="flex items-center gap-2">
+                <span className="text-red-500">•</span>
+                No PDF export
+              </li>
+              <li className="flex items-center gap-2">
+                <span className="text-red-500">•</span>
+                No advanced shapes
+              </li>
+            </ul>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setShowCancelDialog(false)}
+              disabled={cancelingSubscription}
+            >
+              Keep Subscription
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleCancelSubscription}
+              disabled={cancelingSubscription}
+            >
+              {cancelingSubscription ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Canceling...
+                </>
+              ) : (
+                "Yes, Cancel"
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
