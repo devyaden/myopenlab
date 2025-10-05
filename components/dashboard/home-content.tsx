@@ -901,6 +901,11 @@ export const HomeContent = memo(() => {
         type={createNewModalType}
         currentFolderId={currentFolderForCreate}
         rootCanvases={rootCanvases}
+        canUseAI={() => aiUsage.used < aiUsage.limit}
+        onAILimitReached={() => {
+          setOperationError(`You've used all ${aiUsage.limit} AI requests this month. Upgrade to Pro for unlimited AI generation.`);
+          router.push("/pricing");
+        }}
       />
 
       <Dialog open={editDialog.isOpen} onOpenChange={handleEditDialogClose}>

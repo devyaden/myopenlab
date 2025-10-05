@@ -427,6 +427,7 @@ export const FolderContent = memo(({ folderId }: FolderContentProps) => {
   const [deletingItems, setDeletingItems] = useState<Set<string>>(new Set());
   const [updatingItems, setUpdatingItems] = useState<Set<string>>(new Set());
   const [operationError, setOperationError] = useState<string | null>(null);
+  const [aiUsage, setAiUsage] = useState<{ used: number; limit: number }>({ used: 0, limit: 5 });
 
   // Custom hooks
   const debouncedSearchQuery = useDebounce(searchQuery, 300);
@@ -649,6 +650,29 @@ export const FolderContent = memo(({ folderId }: FolderContentProps) => {
     refreshData();
   }, [refreshData]);
 
+  // Function to load AI usage
+  const loadAiUsage = useCallback(async () => {
+    try {
+      const response = await fetch("/api/ai/usage");
+      if (response.ok) {
+        const usage = await response.json();
+        setAiUsage({
+          used: usage.used,
+          limit: usage.limit,
+        });
+      }
+    } catch (error) {
+      console.error("Error loading AI usage:", error);
+    }
+  }, []);
+
+  // Load AI usage on mount
+  useEffect(() => {
+    if (user?.id) {
+      loadAiUsage();
+    }
+  }, [user?.id, loadAiUsage]);
+
   // Render helpers
   const renderCreateDropdown = useMemo(
     () => (
@@ -848,7 +872,11 @@ export const FolderContent = memo(({ folderId }: FolderContentProps) => {
 
       <CreateNewModal
         isOpen={Boolean(createNewModalType)}
-        onClose={() => setCreateNewModalType(null)}
+        onClose={() => {
+          setCreateNewModalType(null);
+          // Refresh AI usage when modal closes (in case AI was used)
+          loadAiUsage();
+        }}
         onCreateFolder={() => {}}
         // @ts-ignore
         onCreateCanvas={handleCreateCanvas}
@@ -856,6 +884,11 @@ export const FolderContent = memo(({ folderId }: FolderContentProps) => {
         type={createNewModalType}
         currentFolderId={folderId === "root" ? null : folderId}
         rootCanvases={folderId === "root" ? allCanvases : []}
+        canUseAI={() => aiUsage.used < aiUsage.limit}
+        onAILimitReached={() => {
+          setOperationError(`You've used all ${aiUsage.limit} AI requests this month. Upgrade to Pro for unlimited AI generation.`);
+          router.push("/pricing");
+        }}
       />
 
       <Dialog open={editDialog.isOpen} onOpenChange={handleEditDialogClose}>
