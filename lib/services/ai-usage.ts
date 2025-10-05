@@ -37,8 +37,9 @@ export async function checkAiUsageLimit(userId: string): Promise<{
     .eq("user_id", userId)
     .eq("month", currentMonth)
     .eq("year", currentYear)
-    .single();
+    .maybeSingle(); // Use maybeSingle instead of single to handle no records
 
+  // If no record exists, count is 0
   const currentCount = usage?.count || 0;
   const remaining = Math.max(0, maxAiRequests - currentCount);
 
@@ -66,22 +67,35 @@ export async function incrementAiUsage(userId: string): Promise<void> {
     .eq("user_id", userId)
     .eq("month", currentMonth)
     .eq("year", currentYear)
-    .single();
+    .maybeSingle(); // Use maybeSingle instead of single
 
   if (existing) {
     // Update existing record
-    await supabase
+    const { error: updateError } = await supabase
       .from("ai_usage")
       .update({ count: existing.count + 1, updated_at: now.toISOString() })
       .eq("id", existing.id);
+
+    if (updateError) {
+      console.error("Error updating AI usage:", updateError);
+    } else {
+      console.log("AI usage incremented to:", existing.count + 1);
+    }
   } else {
-    // Create new record
-    await supabase.from("ai_usage").insert({
+    // Create new record with generated ID
+    const { error: insertError } = await supabase.from("ai_usage").insert({
+      id: crypto.randomUUID(),
       user_id: userId,
       month: currentMonth,
       year: currentYear,
       count: 1,
     });
+
+    if (insertError) {
+      console.error("Error creating AI usage record:", insertError);
+    } else {
+      console.log("AI usage record created with count: 1");
+    }
   }
 }
 

@@ -125,7 +125,7 @@ CRITICAL: Ensure the generated diagram follows these data structure requirements
     const response = await client.messages.create(
       {
         model: model,
-        max_tokens: 16384, // Increased to maximum viable limit for more complex diagrams
+        max_tokens: 8192, // Maximum allowed for claude-3-5-sonnet-20241022
         temperature: 0.7, // Reduced temperature for more consistent, professional output
         system: systemPrompt,
         messages: [

@@ -102,7 +102,7 @@ export async function POST(request: NextRequest) {
     ]);
 
     // Increment AI usage count after successful generation
-    await incrementAiUsage(user.id);
+      await incrementAiUsage(user.id);
 
     // Track successful completion
     // posthog.capture(PostHogEvents.AI_DIAGRAM_GENERATION_COMPLETED, {
