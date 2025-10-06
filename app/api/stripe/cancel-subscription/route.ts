@@ -59,13 +59,14 @@ export async function POST(request: NextRequest) {
     }
 
     // Mark subscription as inactive in database
-    const { error: updateError } = await supabase
+    const { error: updateError, data: updatedData } = await supabase
       .from("user_subscription")
       .update({
         is_active: false,
         updated_at: new Date().toISOString()
       })
-      .eq("id", userSubscription.id);
+      .eq("id", userSubscription.id)
+      .select();
 
     if (updateError) {
       return NextResponse.json(

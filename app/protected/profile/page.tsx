@@ -233,13 +233,13 @@ export default function ProfilePage() {
         throw new Error(data.error || "Failed to cancel subscription");
       }
 
-      toast.success("Subscription canceled successfully");
-      // Clear subscription state immediately
+      toast.success("Subscription canceled successfully. Switching to Free Plan...");
+
       setSubscription(null);
-      // Reload to confirm
-      await loadSubscription();
-      // Force page refresh to clear all caches
-      window.location.reload();
+
+      sessionStorage.clear();
+      localStorage.removeItem('subscription_cache');
+
     } catch (error: any) {
       toast.error(error.message || "Error canceling subscription");
     } finally {
