@@ -17,7 +17,8 @@ export default function PaymentSuccessPage() {
         // Get plan type from URL params (passed from checkout)
         const planType = searchParams.get("plan") || "monthly";
 
-        // Activate subscription in database
+        setIsActivating(false);
+
         const response = await fetch("/api/stripe/activate-subscription", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -27,15 +28,12 @@ export default function PaymentSuccessPage() {
         const data = await response.json();
         console.log("Activation response:", data);
 
-        if (response.ok) {
-        } else {
+        if (!response.ok) {
           setError(data.error || "Failed to activate");
         }
       } catch (error) {
         console.error("Error activating subscription:", error);
         setError(String(error));
-      } finally {
-        setIsActivating(false);
       }
     };
 

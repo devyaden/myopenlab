@@ -49,9 +49,7 @@ export async function POST(request: NextRequest) {
     const endDate = new Date();
     endDate.setMonth(endDate.getMonth() + (planType === "yearly" ? 12 : 1));
 
-    // Generate UUID for the subscription
-    const { data: uuidData } = await supabase.rpc('gen_random_uuid');
-    const subscriptionId = uuidData || crypto.randomUUID();
+    const subscriptionId = crypto.randomUUID();
 
     const { data: newSubscription, error: insertError } = await supabase
       .from("user_subscription")
