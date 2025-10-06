@@ -138,6 +138,11 @@ export default function PricingPage() {
   }, [user]);
 
   const handlePlanClick = (plan: typeof plans[0]) => {
+    if (plan.planType === "free" && (currentPlan === "monthly" || currentPlan === "yearly")) {
+      toast.error("You cannot downgrade from Pro to Free plan. Please cancel your subscription first from your profile settings.");
+      return;
+    }
+
     if (plan.planType === "free") {
       router.push("/auth/signup");
       return;
@@ -225,12 +230,15 @@ export default function PricingPage() {
             <div className="grid md:grid-cols-3 gap-6 max-w-5xl mx-auto mb-16">
               {plans.map((plan) => {
                 const isActive = plan.planType === currentPlan;
+                const isDowngrade = plan.planType === "free" && (currentPlan === "monthly" || currentPlan === "yearly");
                 return (
                   <div
                     key={plan.planType}
                     className={`relative rounded-xl border-2 transition-all duration-200 ${
                       isActive
                         ? "border-yadn-accent-green bg-gradient-to-br from-yadn-accent-green/5 to-yadn-accent-green/10 shadow-lg ring-2 ring-yadn-accent-green/20"
+                        : isDowngrade
+                        ? "border-gray-200 bg-gray-50 opacity-60"
                         : plan.popular
                         ? "border-yadn-accent-green/40 bg-white hover:border-yadn-accent-green/60 hover:shadow-md"
                         : "border-gray-200 bg-white hover:border-gray-300 hover:shadow-sm"
@@ -292,10 +300,12 @@ export default function PricingPage() {
 
                     <Button
                       onClick={() => handlePlanClick(plan)}
-                      disabled={loading !== null || isActive}
+                      disabled={loading !== null || isActive || isDowngrade}
                       className={`w-full py-4 text-base font-semibold transition-all duration-200 ${
                         isActive
                           ? "bg-gray-400 cursor-not-allowed text-white"
+                          : isDowngrade
+                          ? "bg-gray-300 cursor-not-allowed text-gray-500"
                           : plan.popular
                           ? "bg-yadn-accent-green hover:bg-yadn-accent-green/90 text-white shadow-md"
                           : "bg-gray-900 hover:bg-gray-700 text-white"
@@ -303,6 +313,8 @@ export default function PricingPage() {
                     >
                       {isActive ? (
                         "Current Plan"
+                      ) : isDowngrade ? (
+                        "Not Available"
                       ) : loading === plan.planType ? (
                         <span className="flex items-center justify-center">
                           <Loader2 className="w-4 h-4 mr-2 animate-spin" />
