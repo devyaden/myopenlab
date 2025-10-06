@@ -17,67 +17,106 @@ import { supabase } from "@/lib/supabase/client";
 import { useUser } from "@/lib/contexts/userContext";
 import toast from "react-hot-toast";
 
-const plans = [
-  {
-    name: "Free",
-    price: "£0",
-    period: "/month",
-    description: "Perfect for getting started",
-    features: [
-      "1 Diagram",
-      "5 AI Requests per month",
-      "Basic diagram types",
-      "Export as PNG/SVG",
-    ],
-    cta: "Get Started",
-    planType: "free" as const,
-    popular: false,
-  },
-  {
-    name: "Monthly Pro",
-    price: "£5",
-    period: "/month",
-    description: "Best for individuals and small teams",
-    features: [
-      "Unlimited Diagrams",
-      "Unlimited AI Requests",
-      "All diagram types",
-      "Export as PNG/SVG/PDF",
-      "Advanced collaboration",
-      "Priority support",
-    ],
-    cta: "Pay with Stripe",
-    planType: "monthly" as const,
-    popular: true,
-  },
-  {
-    name: "Yearly Pro",
-    price: "£4",
-    period: "/month",
-    description: "Save £12/year with annual billing",
-    features: [
-      "Unlimited Diagrams",
-      "Unlimited AI Requests",
-      "All diagram types",
-      "Export as PNG/SVG/PDF",
-      "Advanced collaboration",
-      "Priority support",
-      "Save £12/year (billed £48/year)",
-    ],
-    cta: "Pay with Stripe",
-    planType: "yearly" as const,
-    popular: false,
-    badge: "Best Value",
-  },
-];
+interface StripePlan {
+  id: string;
+  name: string;
+  description: string | null;
+  metadata: {
+    plan_type?: string;
+    features?: string;
+    popular?: string;
+    badge?: string;
+  };
+  prices: Array<{
+    id: string;
+    amount: number | null;
+    currency: string;
+    interval: string | null;
+    intervalCount: number | null;
+    type: string;
+    metadata: any;
+  }>;
+  defaultPrice: {
+    id: string;
+    amount: number | null;
+    currency: string;
+    currencySymbol: string;
+    interval: string | null;
+    intervalCount: number | null;
+    customUnitLabel: string | null;
+  } | null;
+}
 
 export default function PricingPage() {
   const [loading, setLoading] = useState<string | null>(null);
   const [showModal, setShowModal] = useState(false);
-  const [selectedPlan, setSelectedPlan] = useState<typeof plans[0] | null>(null);
+  const [selectedPlan, setSelectedPlan] = useState<any>(null);
   const [currentPlan, setCurrentPlan] = useState<string>("free");
+  const [plans, setPlans] = useState<any[]>([]);
+  const [loadingPlans, setLoadingPlans] = useState(true);
   const router = useRouter();
   const { user } = useUser();
+
+  // Fetch Stripe products
+  useEffect(() => {
+    const fetchProducts = async () => {
+      try {
+        setLoadingPlans(true);
+        const response = await fetch("/api/stripe/products");
+        if (!response.ok) throw new Error("Failed to fetch products");
+
+        const data = await response.json();
+
+        const formattedPlans = data.products
+          .filter((product: StripePlan) => {
+            const planType = product.metadata?.plan_type;
+            const isFree = planType === "free" || product.name.toLowerCase().includes("free");
+            return !isFree;
+          })
+          .map((product: StripePlan) => {
+            const features = Array.isArray(product.metadata?.features)
+              ? product.metadata.features
+              : [];
+
+            const price = product.defaultPrice?.amount
+              ? (product.defaultPrice.amount / 100).toFixed(0)
+              : "0";
+
+            const currencySymbol = product.defaultPrice?.currencySymbol || "$";
+            const interval = product.defaultPrice?.interval;
+            const customUnitLabel = product.defaultPrice?.customUnitLabel;
+
+            let planType = product.metadata?.plan_type;
+            if (!planType) {
+              planType = interval === "year" ? "yearly" : "monthly";
+            }
+
+            return {
+              id: product.id,
+              priceId: product.defaultPrice?.id,
+              name: product.name,
+              price: `${currencySymbol}${price}`,
+              period: interval ? `/${interval}` : "/month",
+              description: product.description || "",
+              features: features,
+              cta: "Pay with Stripe",
+              planType: planType,
+              popular: customUnitLabel?.toLowerCase() === "popular" || product.metadata?.popular === "true",
+              badge: product.metadata?.badge,
+            };
+          });
+
+        setPlans(formattedPlans);
+      } catch (error) {
+        console.error("Error fetching products:", error);
+        toast.error("Failed to load pricing plans");
+      } finally {
+        setLoadingPlans(false);
+      }
+    };
+
+    fetchProducts();
+  }, []);
 
   // Redirect to login if not authenticated
   useEffect(() => {
@@ -101,15 +140,7 @@ export default function PricingPage() {
 
       const { data, error } = await supabase
         .from("user_subscription")
-        .select(
-          `
-          *,
-          subscription:subscription_id (
-            id,
-            title
-          )
-        `
-        )
+        .select("*")
         .eq("user_id", user.id)
         .eq("is_active", true)
         .gte("end_date", new Date().toISOString())
@@ -117,18 +148,31 @@ export default function PricingPage() {
         .limit(1)
         .single();
 
-      if (data && data.subscription) {
-        const title = data.subscription.title?.toLowerCase();
-        if (title?.includes("monthly") && !title?.includes("yearly")) {
-          setCurrentPlan("monthly");
-        } else if (title?.includes("yearly")) {
-          setCurrentPlan("yearly");
-        } else if (title?.includes("pro")) {
-          // Fallback if title is just "Pro" or similar
-          setCurrentPlan("monthly");
-        } else {
-          setCurrentPlan("free");
+      if (data) {
+        console.log("🚀 Pricing page - Subscription data:", data);
+
+        // Determine plan type from stripe_subscription_id or dates
+        let planType = "free";
+
+        if (data.stripe_subscription_id) {
+          // Check if it's in the subscription ID
+          if (data.stripe_subscription_id.includes('yearly')) {
+            planType = "yearly";
+          } else if (data.stripe_subscription_id.includes('monthly')) {
+            planType = "monthly";
+          } else {
+            // Calculate from dates
+            const startDate = new Date(data.start_date);
+            const endDate = new Date(data.end_date);
+            const monthsDiff = (endDate.getFullYear() - startDate.getFullYear()) * 12 +
+                               (endDate.getMonth() - startDate.getMonth());
+
+            planType = monthsDiff >= 12 ? "yearly" : "monthly";
+          }
         }
+
+        console.log("🚀 Pricing page - Detected plan type:", planType);
+        setCurrentPlan(planType);
       } else {
         setCurrentPlan("free");
       }
@@ -137,16 +181,7 @@ export default function PricingPage() {
     loadSubscription();
   }, [user]);
 
-  const handlePlanClick = (plan: typeof plans[0]) => {
-    if (plan.planType === "free" && (currentPlan === "monthly" || currentPlan === "yearly")) {
-      toast.error("You cannot downgrade from Pro to Free plan. Please cancel your subscription first from your profile settings.");
-      return;
-    }
-
-    if (plan.planType === "free") {
-      router.push("/auth/signup");
-      return;
-    }
+  const handlePlanClick = (plan: any) => {
     setSelectedPlan(plan);
     setShowModal(true);
   };
@@ -154,14 +189,10 @@ export default function PricingPage() {
   const handleConfirmPayment = async () => {
     if (!selectedPlan) return;
 
-    const planType = selectedPlan.planType as "monthly" | "yearly";
+    const planType = selectedPlan.planType;
+
     try {
       setLoading(planType);
-
-      if (planType === "free") {
-        router.push("/auth/signup");
-        return;
-      }
 
       // Check if user is logged in
       const {
@@ -175,13 +206,15 @@ export default function PricingPage() {
         return;
       }
 
-      // Create checkout session
       const response = await fetch("/api/stripe/checkout", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ planType }),
+        body: JSON.stringify({
+          planType,
+          priceId: selectedPlan.priceId
+        }),
       });
 
       const data = await response.json();
@@ -201,10 +234,13 @@ export default function PricingPage() {
     }
   };
 
-  if (!user) {
+  if (!user || loadingPlans) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-[#000A1F] via-[#001433] to-[#000A1F] flex items-center justify-center">
-        <div className="text-white text-xl">Loading...</div>
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-white flex items-center justify-center">
+        <div className="flex flex-col items-center gap-4">
+          <Loader2 className="h-8 w-8 animate-spin text-yadn-accent-green" />
+          <div className="text-gray-700 text-xl">Loading pricing plans...</div>
+        </div>
       </div>
     );
   }
@@ -227,18 +263,15 @@ export default function PricingPage() {
             </div>
 
             {/* Pricing Cards */}
-            <div className="grid md:grid-cols-3 gap-6 max-w-5xl mx-auto mb-16">
+            <div className="grid md:grid-cols-2 gap-6 max-w-4xl mx-auto mb-16">
               {plans.map((plan) => {
                 const isActive = plan.planType === currentPlan;
-                const isDowngrade = plan.planType === "free" && (currentPlan === "monthly" || currentPlan === "yearly");
                 return (
                   <div
                     key={plan.planType}
                     className={`relative rounded-xl border-2 transition-all duration-200 ${
                       isActive
                         ? "border-yadn-accent-green bg-gradient-to-br from-yadn-accent-green/5 to-yadn-accent-green/10 shadow-lg ring-2 ring-yadn-accent-green/20"
-                        : isDowngrade
-                        ? "border-gray-200 bg-gray-50 opacity-60"
                         : plan.popular
                         ? "border-yadn-accent-green/40 bg-white hover:border-yadn-accent-green/60 hover:shadow-md"
                         : "border-gray-200 bg-white hover:border-gray-300 hover:shadow-sm"
@@ -300,12 +333,10 @@ export default function PricingPage() {
 
                     <Button
                       onClick={() => handlePlanClick(plan)}
-                      disabled={loading !== null || isActive || isDowngrade}
+                      disabled={loading !== null || isActive}
                       className={`w-full py-4 text-base font-semibold transition-all duration-200 ${
                         isActive
                           ? "bg-gray-400 cursor-not-allowed text-white"
-                          : isDowngrade
-                          ? "bg-gray-300 cursor-not-allowed text-gray-500"
                           : plan.popular
                           ? "bg-yadn-accent-green hover:bg-yadn-accent-green/90 text-white shadow-md"
                           : "bg-gray-900 hover:bg-gray-700 text-white"
@@ -313,8 +344,6 @@ export default function PricingPage() {
                     >
                       {isActive ? (
                         "Current Plan"
-                      ) : isDowngrade ? (
-                        "Not Available"
                       ) : loading === plan.planType ? (
                         <span className="flex items-center justify-center">
                           <Loader2 className="w-4 h-4 mr-2 animate-spin" />

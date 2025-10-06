@@ -59,7 +59,7 @@ export async function POST(request: NextRequest) {
         id: subscriptionId,
         user_id: user.id,
         subscription_id: plan.id,
-        stripe_subscription_id: `local_test_${Date.now()}`,
+        stripe_subscription_id: `local_test_${Date.now()}_${planType}`,
         stripe_customer_id: `local_cus_${user.id}`,
         start_date: startDate.toISOString(),
         end_date: endDate.toISOString(),

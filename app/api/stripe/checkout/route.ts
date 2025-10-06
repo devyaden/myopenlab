@@ -4,7 +4,8 @@ import { stripe, STRIPE_CONFIG } from "@/lib/stripe/config";
 import { z } from "zod";
 
 const checkoutSchema = z.object({
-  planType: z.enum(["monthly", "yearly"]),
+  planType: z.string(),
+  priceId: z.string().optional(),
 });
 
 export async function POST(request: NextRequest) {
@@ -32,14 +33,22 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { planType } = result.data;
-    const plan = STRIPE_CONFIG.plans[planType];
+    const { planType, priceId } = result.data;
 
-    if (!plan.stripePriceId) {
-      return NextResponse.json(
-        { error: `Stripe Price ID not configured for plan: ${planType}` },
-        { status: 500 }
-      );
+    console.log("🚀 Checkout API received:", { planType, priceId });
+
+    // Use provided priceId or fall back to config
+    let stripePriceId = priceId;
+
+    if (!stripePriceId) {
+      const plan = STRIPE_CONFIG.plans[planType as keyof typeof STRIPE_CONFIG.plans];
+      if (!plan?.stripePriceId) {
+        return NextResponse.json(
+          { error: `Stripe Price ID not configured for plan: ${planType}` },
+          { status: 500 }
+        );
+      }
+      stripePriceId = plan.stripePriceId;
     }
 
     const baseUrl = process.env.NEXT_PUBLIC_SERVER_URL || request.nextUrl.origin;
@@ -56,7 +65,7 @@ export async function POST(request: NextRequest) {
       customer_email: userEmail,
       line_items: [
         {
-          price: plan.stripePriceId,
+          price: stripePriceId,
           quantity: 1,
         },
       ],

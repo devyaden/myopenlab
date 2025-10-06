@@ -140,17 +140,7 @@ export default function ProfilePage() {
       setLoadingSubscription(true);
       const { data, error } = await supabase
         .from("user_subscription")
-        .select(
-          `
-          *,
-          subscription:subscription_id (
-            id,
-            title,
-            price,
-            duration
-          )
-        `
-        )
+        .select("*")
         .eq("user_id", user?.id)
         .eq("is_active", true)
         .order("created_at", { ascending: false })
@@ -158,6 +148,68 @@ export default function ProfilePage() {
         .single();
 
       if (!error && data) {
+        if (data.stripe_subscription_id && !data.stripe_subscription_id.startsWith('local_test_')) {
+          try {
+            const stripeResponse = await fetch(`/api/stripe/subscription/${data.stripe_subscription_id}`);
+            if (stripeResponse.ok) {
+              const stripeData = await stripeResponse.json();
+              // Add Stripe data to subscription
+              data.stripePrice = stripeData.price;
+              data.stripeCurrency = stripeData.currencySymbol;
+              data.stripeInterval = stripeData.interval;
+            }
+          } catch (error) {
+            console.log("Could not fetch Stripe subscription details");
+          }
+        } else if (data.stripe_subscription_id?.startsWith('local_test_')) {
+          // For local test subscriptions, fetch plan details from products API
+          try {
+            const productsResponse = await fetch('/api/stripe/products');
+            if (productsResponse.ok) {
+              const productsData = await productsResponse.json();
+              // Determine plan type from subscription ID or dates
+              let isYearly = data.stripe_subscription_id.includes('yearly');
+              let isMonthly = data.stripe_subscription_id.includes('monthly');
+
+              // If not in ID, calculate from dates
+              if (!isYearly && !isMonthly) {
+                const startDate = new Date(data.start_date);
+                const endDate = new Date(data.end_date);
+                const monthsDiff = (endDate.getFullYear() - startDate.getFullYear()) * 12 +
+                                   (endDate.getMonth() - startDate.getMonth());
+
+                isYearly = monthsDiff >= 12;
+                isMonthly = monthsDiff < 12;
+              }
+
+              // Find the matching product based on interval
+              const matchingProduct = productsData.products.find((p: any) => {
+                const interval = p.defaultPrice?.interval;
+                if (isYearly && (interval === 'year' || interval === 'yearly')) return true;
+                if (isMonthly && interval === 'month') return true;
+                return false;
+              });
+
+              if (matchingProduct && matchingProduct.defaultPrice) {
+                data.stripePrice = matchingProduct.defaultPrice.amount / 100;
+                data.stripeCurrency = matchingProduct.defaultPrice.currencySymbol;
+                data.stripeInterval = matchingProduct.defaultPrice.interval;
+                data.planName = matchingProduct.name;
+              } else {
+                // If no match found, default to first product (usually monthly)
+                const defaultProduct = productsData.products[0];
+                if (defaultProduct && defaultProduct.defaultPrice) {
+                  data.stripePrice = defaultProduct.defaultPrice.amount / 100;
+                  data.stripeCurrency = defaultProduct.defaultPrice.currencySymbol;
+                  data.stripeInterval = defaultProduct.defaultPrice.interval;
+                  data.planName = defaultProduct.name;
+                }
+              }
+            }
+          } catch (error) {
+            console.log("Could not fetch product details for local test", error);
+          }
+        }
         setSubscription(data);
       }
     } catch (error) {
@@ -577,7 +629,7 @@ export default function ProfilePage() {
                           <div className="flex-1">
                             <div className="flex items-center gap-3 mb-2">
                               <h4 className="text-xl font-bold text-yadn-primary-text">
-                                {subscription.subscription?.title || "Pro Plan"}
+                                {subscription.planName || "Pro Plan"}
                               </h4>
                               <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800 border border-green-200">
                                 Active
@@ -590,9 +642,11 @@ export default function ProfilePage() {
                           <div className="text-right">
                             <div className="flex items-baseline gap-1">
                               <span className="text-3xl font-bold text-yadn-accent-green">
-                                £{(subscription.subscription?.price || 0).toFixed(0)}
+                                {subscription.stripeCurrency}{Math.round(subscription.stripePrice || 0)}
                               </span>
-                              <span className="text-sm text-gray-600">/month</span>
+                              <span className="text-sm text-gray-600">
+                                /{subscription.stripeInterval}
+                              </span>
                             </div>
                           </div>
                         </div>
