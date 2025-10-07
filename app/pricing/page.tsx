@@ -317,7 +317,7 @@ export default function PricingPage() {
                     </div>
 
                     <ul className="space-y-2.5 mb-6 flex-grow">
-                      {plan.features.map((feature, index) => (
+                      {plan.features.map((feature: string, index: number) => (
                         <li key={index} className="flex items-start">
                           <Check
                             className={`w-4 h-4 mr-2 flex-shrink-0 mt-0.5 ${
@@ -415,7 +415,7 @@ export default function PricingPage() {
                       )}
 
                       <div className="pt-4 space-y-3">
-                        {selectedPlan.features.map((feature, index) => (
+                        {selectedPlan.features.map((feature: string, index: number) => (
                           <div key={index} className="flex items-start gap-3">
                             <Check className="w-5 h-5 text-yadn-accent-green flex-shrink-0 mt-0.5" />
                             <span className="text-gray-700">{feature}</span>

@@ -42,7 +42,7 @@ export async function POST(request: NextRequest) {
 
     if (!stripePriceId) {
       const plan = STRIPE_CONFIG.plans[planType as keyof typeof STRIPE_CONFIG.plans];
-      if (!plan?.stripePriceId) {
+      if (!plan || !('stripePriceId' in plan) || !plan.stripePriceId) {
         return NextResponse.json(
           { error: `Stripe Price ID not configured for plan: ${planType}` },
           { status: 500 }

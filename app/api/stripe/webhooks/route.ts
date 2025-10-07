@@ -111,14 +111,14 @@ export async function POST(request: NextRequest) {
           subscriptionId: subscription.id,
           customerId: subscription.customer,
           status: subscription.status,
-          currentPeriodEnd: subscription.current_period_end,
+          currentPeriodEnd: (subscription as any).current_period_end,
           metadata: subscription.metadata,
         });
 
         const userId = subscription.metadata?.userId;
 
         if (userId) {
-          const endDate = new Date(subscription.current_period_end * 1000);
+          const endDate = new Date((subscription as any).current_period_end * 1000);
 
           await supabase
             .from("user_subscription")
@@ -156,9 +156,9 @@ export async function POST(request: NextRequest) {
         const invoice = event.data.object as Stripe.Invoice;
         console.log("Invoice paid:", {
           invoiceId: invoice.id,
-          subscriptionId: invoice.subscription,
+          subscriptionId: (invoice as any).subscription,
           customerId: invoice.customer,
-          amountPaid: invoice.amount_paid,
+          amountPaid: (invoice as any).amount_paid,
         });
         break;
       }
@@ -167,9 +167,9 @@ export async function POST(request: NextRequest) {
         const invoice = event.data.object as Stripe.Invoice;
         console.log("Invoice payment failed:", {
           invoiceId: invoice.id,
-          subscriptionId: invoice.subscription,
+          subscriptionId: (invoice as any).subscription,
           customerId: invoice.customer,
-          attemptCount: invoice.attempt_count,
+          attemptCount: (invoice as any).attempt_count,
         });
 
         // User will lose access on next validation check

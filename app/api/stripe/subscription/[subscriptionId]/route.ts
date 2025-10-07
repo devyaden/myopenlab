@@ -3,7 +3,7 @@ import Stripe from "stripe";
 import { createClient } from "@/lib/supabase/server";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: "2024-11-20.acacia",
+  apiVersion: "2025-09-30.clover",
 });
 
 // Helper function to get currency symbol
@@ -44,7 +44,9 @@ export async function GET(
     console.log("Fetching Stripe subscription:", subscriptionId);
 
     // Fetch subscription from Stripe
-    const subscription = await stripe.subscriptions.retrieve(subscriptionId);
+    const subscription = await stripe.subscriptions.retrieve(subscriptionId, {
+      expand: ['items.data.price']
+    });
 
     console.log("Stripe subscription retrieved:", {
       id: subscription.id,
@@ -73,8 +75,8 @@ export async function GET(
       currencySymbol: getCurrencySymbol(currency),
       interval: interval,
       status: subscription.status,
-      currentPeriodEnd: subscription.current_period_end,
-      cancelAtPeriodEnd: subscription.cancel_at_period_end,
+      currentPeriodEnd: (subscription as any).current_period_end,
+      cancelAtPeriodEnd: (subscription as any).cancel_at_period_end,
     };
 
     console.log("Returning subscription data:", responseData);

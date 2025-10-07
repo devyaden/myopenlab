@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: "2024-11-20.acacia",
+  apiVersion: "2025-09-30.clover",
 });
 
 function getCurrencySymbol(currency: string): string {
@@ -50,7 +50,7 @@ export async function GET(request: NextRequest) {
 
       const excludedKeys = ['plan_type', 'badge'];
       Object.entries(metadata).forEach(([key, value]) => {
-        if (!excludedKeys.includes(key) && value && value !== customUnitLabel) {
+        if (!excludedKeys.includes(key) && value && (customUnitLabel === null || value !== String(customUnitLabel))) {
           features.push(value);
         }
       });
@@ -87,8 +87,8 @@ export async function GET(request: NextRequest) {
     });
 
     const sortedProducts = productsWithPrices.sort((a, b) => {
-      if (a.metadata?.plan_type === "free") return -1;
-      if (b.metadata?.plan_type === "free") return 1;
+      if ((a.metadata as any)?.plan_type === "free") return -1;
+      if ((b.metadata as any)?.plan_type === "free") return 1;
 
       const aPrice = a.defaultPrice?.amount || 0;
       const bPrice = b.defaultPrice?.amount || 0;

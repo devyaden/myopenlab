@@ -57,7 +57,7 @@ export function useSubscriptionLimits(userId: string | undefined) {
 
         setLimits({
           maxDiagrams: featureLimits.MAX_DIAGRAMS,
-          canUseAI: featureLimits.ALLOW_AI_FEATURES,
+          canUseAI: true,
           aiRequestsRemaining: Math.max(0, aiLimit - aiUsedThisMonth),
           isPaidUser,
         });
