@@ -193,18 +193,33 @@ model PromoCode {
 }
 
 model UserSubscription {
-  id              String       @id @default(uuid()) @db.Uuid
-  user_id         String       @db.Uuid
-  subscription_id String       @db.Uuid
-  promo_code_id   String?      @db.Uuid
-  start_date      DateTime     @default(now())
-  end_date        DateTime
-  is_active       Boolean      @default(true)
-  created_at      DateTime     @default(now())
-  updated_at      DateTime     @default(now()) @updatedAt
-  user            User         @relation(fields: [user_id], references: [id])
-  subscription    Subscription @relation(fields: [subscription_id], references: [id])
-  promo_code      PromoCode?   @relation(fields: [promo_code_id], references: [id])
+  id                    String       @id @default(uuid()) @db.Uuid
+  user_id               String       @db.Uuid
+  subscription_id       String       @db.Uuid
+  promo_code_id         String?      @db.Uuid
+  stripe_subscription_id String?     @unique // Stripe subscription ID for validation
+  stripe_customer_id    String?      // Stripe customer ID
+  start_date            DateTime     @default(now())
+  end_date              DateTime
+  is_active             Boolean      @default(true)
+  created_at            DateTime     @default(now())
+  updated_at            DateTime     @default(now()) @updatedAt
+  user                  User         @relation(fields: [user_id], references: [id])
+  subscription          Subscription @relation(fields: [subscription_id], references: [id])
+  promo_code            PromoCode?   @relation(fields: [promo_code_id], references: [id])
 
   @@map("user_subscription")
+}
+
+model AiUsage {
+  id         String   @id @default(uuid()) @db.Uuid
+  user_id    String   @db.Uuid
+  month      Int      // 1-12
+  year       Int
+  count      Int      @default(0)
+  created_at DateTime @default(now())
+  updated_at DateTime @default(now()) @updatedAt
+
+  @@unique([user_id, month, year])
+  @@map("ai_usage")
 }

@@ -39,17 +39,40 @@ export async function POST(request: NextRequest) {
     const input: GenerateCanvasInput = result.data;
 
     // Get the user session
-    // const {
-    //   data: { session },
-    // } = await supabase.auth.getSession();
+    const {
+      checkAiUsageLimit,
+      incrementAiUsage,
+    } = await import("@/lib/services/ai-usage");
+    const { createClient } = await import("@/lib/supabase/server");
+    const supabase = await createClient();
 
-    // // Ensure the user is authenticated
-    // if (!session) {
-    //   return NextResponse.json(
-    //     { error: "Unauthorized - You must be logged in" },
-    //     { status: 401 }
-    //   );
-    // }
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser();
+
+    // Ensure the user is authenticated
+    if (authError || !user) {
+      return NextResponse.json(
+        { error: "Unauthorized - You must be logged in" },
+        { status: 401 }
+      );
+    }
+
+    // Check AI usage limits
+    const usageCheck = await checkAiUsageLimit(user.id);
+
+    if (!usageCheck.allowed) {
+      return NextResponse.json(
+        {
+          error: "AI usage limit reached",
+          message: `You've reached your monthly limit of ${usageCheck.limit} AI requests. Upgrade to a paid plan for unlimited AI generation.`,
+          limit: usageCheck.limit,
+          remaining: 0,
+        },
+        { status: 429 }
+      );
+    }
 
     // Track diagram generation start with PostHog
     // posthog.capture(PostHogEvents.AI_DIAGRAM_GENERATION_STARTED, {
@@ -78,9 +101,12 @@ export async function POST(request: NextRequest) {
       timeoutPromise,
     ]);
 
+    // Increment AI usage count after successful generation
+      await incrementAiUsage(user.id);
+
     // Track successful completion
     // posthog.capture(PostHogEvents.AI_DIAGRAM_GENERATION_COMPLETED, {
-    //   userId: session.user.id,
+    //   userId: user.id,
     //   diagramType: input.diagramType,
     //   industry: input.industry,
     //   language: input.language,
@@ -88,8 +114,15 @@ export async function POST(request: NextRequest) {
     //   responseSize: JSON.stringify(canvasData).length,
     // });
 
-    // Return the generated data
-    return NextResponse.json({ data: canvasData });
+    // Return the generated data with usage info
+    const updatedUsage = await checkAiUsageLimit(user.id);
+    return NextResponse.json({
+      data: canvasData,
+      usage: {
+        remaining: updatedUsage.remaining,
+        limit: updatedUsage.limit,
+      },
+    });
   } catch (error: any) {
     // Log the error
     console.error("Error generating canvas:", error);

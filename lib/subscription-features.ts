@@ -3,34 +3,37 @@ import { supabase } from "@/lib/supabase/client";
 // Feature flags enum for consistency across codebase
 export enum SubscriptionFeatureFlag {
   MAX_DIAGRAMS = "MAX_DIAGRAMS",
+  MAX_AI_REQUESTS = "MAX_AI_REQUESTS",
   MAX_COLLABORATORS = "MAX_COLLABORATORS",
-  ALLOW_EXPORT = "ALLOW_EXPORT",
-  ALLOW_AI_FEATURES = "ALLOW_AI_FEATURES",
-  ALLOW_CUSTOM_THEMES = "ALLOW_CUSTOM_THEMES",
-  ALLOW_PRIVATE_SHARING = "ALLOW_PRIVATE_SHARING",
-  ALLOW_PUBLIC_SHARING = "ALLOW_PUBLIC_SHARING",
+  ALLOW_EXPORT_PNG = "ALLOW_EXPORT_PNG",
+  ALLOW_EXPORT_SVG = "ALLOW_EXPORT_SVG",
+  ALLOW_EXPORT_PDF = "ALLOW_EXPORT_PDF",
+  ALLOW_ADVANCED_COLLABORATION = "ALLOW_ADVANCED_COLLABORATION",
+  ALLOW_PRIORITY_SUPPORT = "ALLOW_PRIORITY_SUPPORT",
 }
 
 // Feature limits interface
 interface FeatureLimits {
   [SubscriptionFeatureFlag.MAX_DIAGRAMS]: number;
+  [SubscriptionFeatureFlag.MAX_AI_REQUESTS]: number;
   [SubscriptionFeatureFlag.MAX_COLLABORATORS]: number;
-  [SubscriptionFeatureFlag.ALLOW_EXPORT]: boolean;
-  [SubscriptionFeatureFlag.ALLOW_AI_FEATURES]: boolean;
-  [SubscriptionFeatureFlag.ALLOW_CUSTOM_THEMES]: boolean;
-  [SubscriptionFeatureFlag.ALLOW_PRIVATE_SHARING]: boolean;
-  [SubscriptionFeatureFlag.ALLOW_PUBLIC_SHARING]: boolean;
+  [SubscriptionFeatureFlag.ALLOW_EXPORT_PNG]: boolean;
+  [SubscriptionFeatureFlag.ALLOW_EXPORT_SVG]: boolean;
+  [SubscriptionFeatureFlag.ALLOW_EXPORT_PDF]: boolean;
+  [SubscriptionFeatureFlag.ALLOW_ADVANCED_COLLABORATION]: boolean;
+  [SubscriptionFeatureFlag.ALLOW_PRIORITY_SUPPORT]: boolean;
 }
 
 // Default free tier limits
 const DEFAULT_FREE_LIMITS: FeatureLimits = {
-  [SubscriptionFeatureFlag.MAX_DIAGRAMS]: 3,
+  [SubscriptionFeatureFlag.MAX_DIAGRAMS]: 1,
+  [SubscriptionFeatureFlag.MAX_AI_REQUESTS]: 5,
   [SubscriptionFeatureFlag.MAX_COLLABORATORS]: 0,
-  [SubscriptionFeatureFlag.ALLOW_EXPORT]: false,
-  [SubscriptionFeatureFlag.ALLOW_AI_FEATURES]: false,
-  [SubscriptionFeatureFlag.ALLOW_CUSTOM_THEMES]: false,
-  [SubscriptionFeatureFlag.ALLOW_PRIVATE_SHARING]: false,
-  [SubscriptionFeatureFlag.ALLOW_PUBLIC_SHARING]: false,
+  [SubscriptionFeatureFlag.ALLOW_EXPORT_PNG]: true,
+  [SubscriptionFeatureFlag.ALLOW_EXPORT_SVG]: true,
+  [SubscriptionFeatureFlag.ALLOW_EXPORT_PDF]: false,
+  [SubscriptionFeatureFlag.ALLOW_ADVANCED_COLLABORATION]: false,
+  [SubscriptionFeatureFlag.ALLOW_PRIORITY_SUPPORT]: false,
 };
 
 // Subscription plans with their feature limits
@@ -93,35 +96,16 @@ export async function getUserFeatureLimits(
     const subscriptionTitle = subscriptionData.subscription.title.toLowerCase();
     let limits: FeatureLimits;
 
-    if (subscriptionTitle.includes("starter")) {
+    if (subscriptionTitle.includes("pro") || subscriptionTitle.includes("monthly") || subscriptionTitle.includes("yearly")) {
       limits = {
-        [SubscriptionFeatureFlag.MAX_DIAGRAMS]: 10,
-        [SubscriptionFeatureFlag.MAX_COLLABORATORS]: 3,
-        [SubscriptionFeatureFlag.ALLOW_EXPORT]: true,
-        [SubscriptionFeatureFlag.ALLOW_AI_FEATURES]: false,
-        [SubscriptionFeatureFlag.ALLOW_CUSTOM_THEMES]: false,
-        [SubscriptionFeatureFlag.ALLOW_PRIVATE_SHARING]: true,
-        [SubscriptionFeatureFlag.ALLOW_PUBLIC_SHARING]: false,
-      };
-    } else if (subscriptionTitle.includes("pro")) {
-      limits = {
-        [SubscriptionFeatureFlag.MAX_DIAGRAMS]: 50,
-        [SubscriptionFeatureFlag.MAX_COLLABORATORS]: 10,
-        [SubscriptionFeatureFlag.ALLOW_EXPORT]: true,
-        [SubscriptionFeatureFlag.ALLOW_AI_FEATURES]: true,
-        [SubscriptionFeatureFlag.ALLOW_CUSTOM_THEMES]: true,
-        [SubscriptionFeatureFlag.ALLOW_PRIVATE_SHARING]: true,
-        [SubscriptionFeatureFlag.ALLOW_PUBLIC_SHARING]: true,
-      };
-    } else if (subscriptionTitle.includes("premium")) {
-      limits = {
-        [SubscriptionFeatureFlag.MAX_DIAGRAMS]: 1000,
-        [SubscriptionFeatureFlag.MAX_COLLABORATORS]: 100,
-        [SubscriptionFeatureFlag.ALLOW_EXPORT]: true,
-        [SubscriptionFeatureFlag.ALLOW_AI_FEATURES]: true,
-        [SubscriptionFeatureFlag.ALLOW_CUSTOM_THEMES]: true,
-        [SubscriptionFeatureFlag.ALLOW_PRIVATE_SHARING]: true,
-        [SubscriptionFeatureFlag.ALLOW_PUBLIC_SHARING]: true,
+        [SubscriptionFeatureFlag.MAX_DIAGRAMS]: 999999, // Unlimited
+        [SubscriptionFeatureFlag.MAX_AI_REQUESTS]: 999999, // Unlimited
+        [SubscriptionFeatureFlag.MAX_COLLABORATORS]: 999999, // Advanced collaboration
+        [SubscriptionFeatureFlag.ALLOW_EXPORT_PNG]: true,
+        [SubscriptionFeatureFlag.ALLOW_EXPORT_SVG]: true,
+        [SubscriptionFeatureFlag.ALLOW_EXPORT_PDF]: true,
+        [SubscriptionFeatureFlag.ALLOW_ADVANCED_COLLABORATION]: true,
+        [SubscriptionFeatureFlag.ALLOW_PRIORITY_SUPPORT]: true,
       };
     } else {
       limits = DEFAULT_FREE_LIMITS;
@@ -170,6 +154,7 @@ export async function getFeatureLimit(
   userId: string,
   feature:
     | SubscriptionFeatureFlag.MAX_DIAGRAMS
+    | SubscriptionFeatureFlag.MAX_AI_REQUESTS
     | SubscriptionFeatureFlag.MAX_COLLABORATORS
 ): Promise<number> {
   const limits = await getUserFeatureLimits(userId);

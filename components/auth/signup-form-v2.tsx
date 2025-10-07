@@ -1361,6 +1361,18 @@ export default function SignupForm({ googleData }: SignupFormProps) {
       return false;
     }
 
+    // Check for disposable email
+    const { validateEmail: checkEmail } = await import("@/lib/utils/disposable-email-checker");
+    const emailValidation = checkEmail(email);
+
+    if (emailValidation.isDisposable) {
+      setErrors((prev: FormErrors) => ({
+        ...prev,
+        email: emailValidation.message || "Temporary email addresses are not allowed",
+      }));
+      return false;
+    }
+
     const emailExists = await checkIfEmailExists(email);
     if (emailExists) {
       setErrors((prev: FormErrors) => ({

@@ -17,6 +17,9 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { getUserFeatureLimits, SubscriptionFeatureFlag } from "@/lib/subscription-features";
+import { Crown, Zap } from "lucide-react";
+import { useRouter } from "next/navigation";
 import {
   Dialog,
   DialogContent,
@@ -386,6 +389,7 @@ LoadingOverlay.displayName = "LoadingOverlay";
 
 export const HomeContent = memo(() => {
   const { user } = useUser();
+  const router = useRouter();
   const { trackCreate, trackFolderCreate, trackSearch } = useOnboarding();
 
   // Local state management
@@ -406,6 +410,8 @@ export const HomeContent = memo(() => {
     isOpen: false,
     item: null,
   });
+  const [planLimits, setPlanLimits] = useState<any>(null);
+  const [aiUsage, setAiUsage] = useState<{ used: number; limit: number }>({ used: 0, limit: 5 });
 
   // Operation state tracking
   const [deletingItems, setDeletingItems] = useState<Set<string>>(new Set());
@@ -491,6 +497,19 @@ export const HomeContent = memo(() => {
     ) => {
       setOperationError(null);
 
+      // Check diagram limit (only count canvases, not folders)
+      if (planLimits) {
+        const totalDiagrams = rootCanvases.length;
+        const maxDiagrams = planLimits[SubscriptionFeatureFlag.MAX_DIAGRAMS];
+
+        if (totalDiagrams >= maxDiagrams) {
+          setOperationError(`You've reached your limit of ${maxDiagrams} diagram(s). Upgrade to create more.`);
+          setCreateNewModalType(null);
+          router.push("/pricing");
+          return false;
+        }
+      }
+
       try {
         const canvasId = await createCanvas(
           name,
@@ -523,7 +542,7 @@ export const HomeContent = memo(() => {
       setCurrentFolderForCreate(null);
       return true;
     },
-    [createCanvas, user?.id, refreshData, trackCreate]
+    [createCanvas, user?.id, refreshData, trackCreate, planLimits, folders.length, rootCanvases.length, router]
   );
 
   const handleEdit = useCallback(
@@ -645,6 +664,34 @@ export const HomeContent = memo(() => {
     refreshData();
   }, [refreshData]);
 
+  // Function to load AI usage
+  const loadAiUsage = useCallback(async () => {
+    try {
+      const response = await fetch("/api/ai/usage");
+      if (response.ok) {
+        const usage = await response.json();
+        setAiUsage({
+          used: usage.used,
+          limit: usage.limit,
+        });
+      }
+    } catch (error) {
+      console.error("Error loading AI usage:", error);
+    }
+  }, []);
+
+  // Load plan limits and AI usage
+  useEffect(() => {
+    const loadPlanData = async () => {
+      if (user?.id) {
+        const limits = await getUserFeatureLimits(user.id);
+        setPlanLimits(limits);
+        await loadAiUsage();
+      }
+    };
+    loadPlanData();
+  }, [user?.id, loadAiUsage]);
+
   // Render content based on state
   const renderContent = useMemo(() => {
     // Show error state if there's a persistent error
@@ -762,6 +809,35 @@ export const HomeContent = memo(() => {
       {/* Loading overlay for folder operations */}
       {folderLoading && <LoadingOverlay message="Processing folders..." />}
 
+      {/* Plan Status Banner */}
+      {planLimits && planLimits[SubscriptionFeatureFlag.MAX_DIAGRAMS] === 1 && (
+        <div className="bg-gradient-to-r from-orange-50 to-amber-50 border-b border-orange-200 px-6 py-3">
+          <div className="flex items-center justify-between max-w-7xl mx-auto">
+            <div className="flex items-center gap-6">
+              <div className="flex items-center gap-3">
+                <Zap className="h-5 w-5 text-orange-600" />
+                <div>
+                  <p className="text-sm font-medium text-gray-900">
+                    Free Plan
+                  </p>
+                  <p className="text-xs text-gray-600">
+                    {rootCanvases.length}/{planLimits[SubscriptionFeatureFlag.MAX_DIAGRAMS]} Diagram • {aiUsage.used}/{aiUsage.limit} AI Requests
+                  </p>
+                </div>
+              </div>
+            </div>
+            <Button
+              size="sm"
+              onClick={() => router.push("/pricing")}
+              className="bg-yadn-accent-green hover:bg-yadn-accent-green/90 text-white gap-2"
+            >
+              <Crown className="h-4 w-4" />
+              Upgrade to Pro
+            </Button>
+          </div>
+        </div>
+      )}
+
       <div className="p-6 flex-shrink-0 bg-white">
         <div className="flex flex-col md:flex-row justify-between md:items-center mb-6">
           <h1 className="text-2xl font-semibold md:w-1/4">
@@ -815,6 +891,8 @@ export const HomeContent = memo(() => {
         onClose={() => {
           setCreateNewModalType(null);
           setCurrentFolderForCreate(null);
+          // Refresh AI usage when modal closes (in case AI was used)
+          loadAiUsage();
         }}
         onCreateFolder={handleCreateFolder}
         // @ts-ignore
@@ -823,6 +901,11 @@ export const HomeContent = memo(() => {
         type={createNewModalType}
         currentFolderId={currentFolderForCreate}
         rootCanvases={rootCanvases}
+        canUseAI={() => aiUsage.used < aiUsage.limit}
+        onAILimitReached={() => {
+          setOperationError(`You've used all ${aiUsage.limit} AI requests this month. Upgrade to Pro for unlimited AI generation.`);
+          router.push("/pricing");
+        }}
       />
 
       <Dialog open={editDialog.isOpen} onOpenChange={handleEditDialogClose}>

@@ -28,7 +28,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { generateUntitledName } from "@/lib/utils";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Wand2 } from "lucide-react";
+import { Wand2, Lock, Crown } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import * as z from "zod";
@@ -59,6 +59,8 @@ interface CreateNewModalProps {
   type: "folder" | "canvas" | null;
   currentFolderId?: string | null;
   rootCanvases?: { id: string; name: string }[];
+  canUseAI?: () => boolean;
+  onAILimitReached?: () => void;
 }
 
 const folderSchema = z.object({
@@ -95,6 +97,8 @@ export function CreateNewModal({
   type,
   currentFolderId,
   rootCanvases,
+  canUseAI,
+  onAILimitReached,
 }: CreateNewModalProps) {
   const [step, setStep] = useState<"select" | "form">("select");
   const [selectedCanvasType, setSelectedCanvasType] = useState<CANVAS_TYPE>(
@@ -197,6 +201,14 @@ export function CreateNewModal({
 
   // Handle AI generation
   const handleOpenAIDialog = () => {
+    // Check if user can use AI
+    if (canUseAI && !canUseAI()) {
+      if (onAILimitReached) {
+        onAILimitReached();
+      }
+      handleClose();
+      return;
+    }
     setIsAIDialogOpen(true);
   };
 
@@ -323,7 +335,8 @@ export function CreateNewModal({
             </span>
           </div>
 
-          <div
+          {/* Document editor disabled per requirements */}
+          {/* <div
             className="flex flex-col items-center justify-center p-6 bg-gray-50 rounded-lg hover:bg-gray-100 cursor-pointer transition-colors onboarding-document-option"
             onClick={() => handleTypeSelect(CANVAS_TYPE.DOCUMENT)}
           >
@@ -347,20 +360,36 @@ export function CreateNewModal({
             <span className="text-xs text-center text-muted-foreground mt-1">
               Document will be the visual document to add content
             </span>
-          </div>
+          </div> */}
 
           <div
-            className="flex flex-col items-center justify-center p-6 bg-gradient-to-br from-yadn-accent-green/10 to-yadn-accent-blue/10 border-2 border-yadn-accent-green/20 rounded-lg hover:border-yadn-accent-green/40 cursor-pointer transition-all onboarding-ai-option"
+            className={`relative flex flex-col items-center justify-center p-6 rounded-lg transition-all onboarding-ai-option ${
+              canUseAI && !canUseAI()
+                ? "bg-gray-50 border-2 border-gray-200 cursor-not-allowed opacity-75"
+                : "bg-gradient-to-br from-yadn-accent-green/10 to-yadn-accent-blue/10 border-2 border-yadn-accent-green/20 hover:border-yadn-accent-green/40 cursor-pointer"
+            }`}
             onClick={handleOpenAIDialog}
           >
+            {canUseAI && !canUseAI() && (
+              <div className="absolute top-2 right-2">
+                <Lock className="h-4 w-4 text-gray-400" />
+              </div>
+            )}
             <div className="mb-4">
-              <Wand2 className="h-6 w-6 text-yadn-accent-green" />
+              <Wand2 className={`h-6 w-6 ${canUseAI && !canUseAI() ? "text-gray-400" : "text-yadn-accent-green"}`} />
             </div>
-            <span className="font-medium text-center text-yadn-accent-green">
+            <span className={`font-medium text-center ${canUseAI && !canUseAI() ? "text-gray-500" : "text-yadn-accent-green"}`}>
               Generate with AI
             </span>
             <span className="text-xs text-center text-gray-600 mt-1">
-              Let AI generate a diagram based on your requirements
+              {canUseAI && !canUseAI() ? (
+                <span className="flex items-center gap-1 text-orange-600">
+                  <Crown className="h-3 w-3" />
+                  Upgrade to Pro
+                </span>
+              ) : (
+                "Let AI generate a diagram based on your requirements"
+              )}
             </span>
           </div>
         </div>
