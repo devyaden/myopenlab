@@ -176,7 +176,9 @@ model PromoCode {
   id                 String             @id @default(uuid()) @db.Uuid
   name               String
   code               String             @unique
-  subscription_id    String             @db.Uuid
+  subscription_id    String?            @db.Uuid
+  stripe_price_id    String?
+  duration_months    Int?
   expiry_date        DateTime
   is_domain_specific Boolean            @default(false)
   allowed_domains    String[]
@@ -186,7 +188,7 @@ model PromoCode {
   active             Boolean            @default(true)
   created_at         DateTime           @default(now())
   updated_at         DateTime           @default(now()) @updatedAt
-  subscription       Subscription       @relation(fields: [subscription_id], references: [id])
+  subscription       Subscription?      @relation(fields: [subscription_id], references: [id])
   user_subscriptions UserSubscription[]
 
   @@map("promo_code")

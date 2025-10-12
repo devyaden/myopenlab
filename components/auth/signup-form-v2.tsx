@@ -1061,7 +1061,7 @@ export default function SignupForm({ googleData }: SignupFormProps) {
 
       const { data, error } = await supabase
         .from("promo_code")
-        .select("*, subscription:subscription_id(*)")
+        .select("*, subscription(*)")
         .eq("code", code)
         .eq("active", true)
         .single();
@@ -1168,10 +1168,42 @@ export default function SignupForm({ googleData }: SignupFormProps) {
         return;
       }
 
+      // Fetch Stripe plan details if stripe_price_id is provided
+      let stripePlanDetails = null;
+      if (data.stripe_price_id) {
+        try {
+          const stripeResponse = await fetch('/api/stripe/products');
+          if (stripeResponse.ok) {
+            const { products } = await stripeResponse.json();
+            // Find the product with the matching price ID
+            for (const product of products) {
+              const matchingPrice = product.prices?.find((p: any) => p.id === data.stripe_price_id);
+              if (matchingPrice) {
+                stripePlanDetails = {
+                  ...product,
+                  selectedPrice: matchingPrice,
+                };
+                break;
+              }
+            }
+          }
+        } catch (err) {
+          console.error('Error fetching Stripe plan details:', err);
+        }
+      }
+
+      const planTitle = stripePlanDetails
+        ? stripePlanDetails.name
+        : data.subscription?.title || 'Premium';
+
+      const durationText = data.duration_months
+        ? `${data.duration_months} month${data.duration_months > 1 ? 's' : ''}`
+        : 'limited time';
+
       setPromoStatus({
         isValid: true,
-        discount: `${data.subscription.title} subscription`,
-        subscription: data.subscription,
+        discount: `${planTitle} subscription (${durationText})`,
+        subscription: stripePlanDetails || data.subscription,
         promoCodeData: data,
         errorType: null,
         error: null,
@@ -1181,7 +1213,7 @@ export default function SignupForm({ googleData }: SignupFormProps) {
         form_name: "signup_form",
         form_step: 3,
         promo_code: code,
-        discount: data.subscription.title,
+        discount: planTitle,
       });
     } catch (error: any) {
       console.error("Error validating promo code:", error);
@@ -1436,16 +1468,71 @@ export default function SignupForm({ googleData }: SignupFormProps) {
         ) {
           const startDate = new Date();
           const endDate = new Date();
-          endDate.setDate(
-            endDate.getDate() + promoStatus.subscription.duration
-          );
+
+          // Get duration from promo code data (in months)
+          const durationInMonths = promoStatus.promoCodeData.duration_months || 1;
+
+          console.log('[Signup] Creating subscription with duration:', durationInMonths, 'months');
+          console.log('[Signup] Promo code data:', {
+            code: promoStatus.promoCodeData.code,
+            duration_months: promoStatus.promoCodeData.duration_months,
+          });
+
+          // Use months for accurate billing cycles aligned with Stripe
+          if (durationInMonths >= 12) {
+            // For 12 months or more, use full years
+            endDate.setFullYear(endDate.getFullYear() + Math.floor(durationInMonths / 12));
+            // Add remaining months
+            const remainingMonths = durationInMonths % 12;
+            if (remainingMonths > 0) {
+              endDate.setMonth(endDate.getMonth() + remainingMonths);
+            }
+          } else {
+            // For less than 12 months, use months
+            endDate.setMonth(endDate.getMonth() + durationInMonths);
+          }
+
+          // Get or create a subscription_id
+          let subscriptionId = promoStatus.promoCodeData.subscription_id;
+
+          // If promo code doesn't have a subscription_id, get/create a default one
+          if (!subscriptionId) {
+            const { data: defaultSub, error: subError } = await supabase
+              .from("subscription")
+              .select("id")
+              .eq("title", "Pro")
+              .single();
+
+            if (defaultSub) {
+              subscriptionId = defaultSub.id;
+            } else {
+              // Create a default Pro subscription if it doesn't exist
+              const { data: newSub, error: createError } = await supabase
+                .from("subscription")
+                .insert({
+                  id: uuidv4(),
+                  title: "Pro",
+                  description: "Pro subscription via promo code",
+                  price: 0,
+                  duration: 30,
+                  features: ["Unlimited diagrams", "Unlimited AI", "All features"],
+                  active: true,
+                })
+                .select("id")
+                .single();
+
+              if (newSub) {
+                subscriptionId = newSub.id;
+              }
+            }
+          }
 
           const { error: subscriptionError } = await supabase
             .from("user_subscription")
             .insert({
               id: uuidv4(),
               user_id: user.id,
-              subscription_id: promoStatus.promoCodeData.subscription_id,
+              subscription_id: subscriptionId,
               promo_code_id: promoStatus.promoCodeData.id,
               start_date: startDate.toISOString(),
               end_date: endDate.toISOString(),

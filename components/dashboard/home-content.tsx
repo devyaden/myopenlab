@@ -684,8 +684,23 @@ export const HomeContent = memo(() => {
   useEffect(() => {
     const loadPlanData = async () => {
       if (user?.id) {
-        const limits = await getUserFeatureLimits(user.id);
-        setPlanLimits(limits);
+        try {
+          // Call the API endpoint which clears the cache and returns fresh subscription data
+          const response = await fetch('/api/subscription/status');
+          if (response.ok) {
+            const data = await response.json();
+            setPlanLimits(data.limits);
+          } else {
+            // Fallback to direct call if API fails
+            const limits = await getUserFeatureLimits(user.id);
+            setPlanLimits(limits);
+          }
+        } catch (error) {
+          console.error('Error loading plan limits:', error);
+          // Fallback to direct call on error
+          const limits = await getUserFeatureLimits(user.id);
+          setPlanLimits(limits);
+        }
         await loadAiUsage();
       }
     };

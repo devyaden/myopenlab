@@ -44,9 +44,8 @@ export const SUBSCRIPTION_PLANS = {
   PREMIUM: "premium",
 };
 
-// Cache for subscription data
-let featureLimitsCache: Record<string, FeatureLimits> = {};
-let cacheExpirationTime = 0;
+// Cache for subscription data with per-user expiration
+let featureLimitsCache: Record<string, { limits: FeatureLimits; expiresAt: number }> = {};
 const CACHE_DURATION = 10 * 60 * 1000; // 10 minutes in milliseconds
 
 /**
@@ -60,10 +59,13 @@ export async function getUserFeatureLimits(
   }
 
   try {
-    // Use cache if available and not expired
-    if (featureLimitsCache[userId] && Date.now() < cacheExpirationTime) {
-      return featureLimitsCache[userId];
+    // Use cache if available and not expired (per-user expiration)
+    const cachedData = featureLimitsCache[userId];
+    if (cachedData && Date.now() < cachedData.expiresAt) {
+      console.log(`[Cache HIT] User ${userId} - returning cached limits`);
+      return cachedData.limits;
     }
+    console.log(`[Cache MISS] User ${userId} - fetching fresh data`);
 
     // Get the user's active subscription
     const { data: subscriptionData, error: subscriptionError } = await supabase
@@ -84,19 +86,40 @@ export async function getUserFeatureLimits(
       .limit(1)
       .single();
 
-    if (
-      subscriptionError ||
-      !subscriptionData ||
-      !subscriptionData.subscription
-    ) {
+    if (subscriptionError || !subscriptionData) {
       return DEFAULT_FREE_LIMITS;
+    }
+
+    // If user has an active subscription (with or without subscription relationship), give them premium features
+    // This handles promo codes that may use stripe_price_id instead of subscription_id
+    if (!subscriptionData.subscription) {
+      // User has active subscription but no subscription relationship (promo code case)
+      return {
+        [SubscriptionFeatureFlag.MAX_DIAGRAMS]: 999999, // Unlimited
+        [SubscriptionFeatureFlag.MAX_AI_REQUESTS]: 999999, // Unlimited
+        [SubscriptionFeatureFlag.MAX_COLLABORATORS]: 999999, // Advanced collaboration
+        [SubscriptionFeatureFlag.ALLOW_EXPORT_PNG]: true,
+        [SubscriptionFeatureFlag.ALLOW_EXPORT_SVG]: true,
+        [SubscriptionFeatureFlag.ALLOW_EXPORT_PDF]: true,
+        [SubscriptionFeatureFlag.ALLOW_ADVANCED_COLLABORATION]: true,
+        [SubscriptionFeatureFlag.ALLOW_PRIORITY_SUPPORT]: true,
+      };
     }
 
     // Based on the subscription title, return appropriate limits
     const subscriptionTitle = subscriptionData.subscription.title.toLowerCase();
     let limits: FeatureLimits;
 
-    if (subscriptionTitle.includes("pro") || subscriptionTitle.includes("monthly") || subscriptionTitle.includes("yearly")) {
+    // Check if it's a paid plan (not free)
+    // Any active subscription that's not explicitly "free" should get premium features
+    const isPaidPlan = !subscriptionTitle.includes("free") &&
+                       (subscriptionTitle.includes("pro") ||
+                        subscriptionTitle.includes("premium") ||
+                        subscriptionTitle.includes("monthly") ||
+                        subscriptionTitle.includes("yearly") ||
+                        subscriptionTitle.includes("starter"));
+
+    if (isPaidPlan) {
       limits = {
         [SubscriptionFeatureFlag.MAX_DIAGRAMS]: 999999, // Unlimited
         [SubscriptionFeatureFlag.MAX_AI_REQUESTS]: 999999, // Unlimited
@@ -111,10 +134,13 @@ export async function getUserFeatureLimits(
       limits = DEFAULT_FREE_LIMITS;
     }
 
-    // Update cache
-    featureLimitsCache[userId] = limits;
-    cacheExpirationTime = Date.now() + CACHE_DURATION;
+    // Update cache with per-user expiration
+    featureLimitsCache[userId] = {
+      limits,
+      expiresAt: Date.now() + CACHE_DURATION,
+    };
 
+    console.log(`[Cache SET] User ${userId} - isPaidPlan:`, isPaidPlan, 'subscription:', subscriptionData.subscription?.title);
     return limits;
   } catch (error) {
     console.error("Error getting user feature limits:", error);
