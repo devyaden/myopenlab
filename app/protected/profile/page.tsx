@@ -148,6 +148,11 @@ export default function ProfilePage() {
         .single();
 
       if (!error && data) {
+        // Set default plan name for promo code subscriptions
+        if (!data.planName && data.promo_code_id) {
+          data.planName = "Pro Plan";
+        }
+
         if (data.stripe_subscription_id && !data.stripe_subscription_id.startsWith('local_test_')) {
           try {
             const stripeResponse = await fetch(`/api/stripe/subscription/${data.stripe_subscription_id}`);
@@ -640,14 +645,29 @@ export default function ProfilePage() {
                             </p>
                           </div>
                           <div className="text-right">
-                            <div className="flex items-baseline gap-1">
-                              <span className="text-3xl font-bold text-yadn-accent-green">
-                                {subscription.stripeCurrency}{Math.round(subscription.stripePrice || 0)}
+                            {subscription.promo_code_id ? (
+                              <div className="flex flex-col items-end">
+                                <span className="text-lg font-bold text-yadn-accent-green">
+                                  Promo Code
+                                </span>
+                                <span className="text-xs text-gray-600">
+                                  Free via promo
+                                </span>
+                              </div>
+                            ) : subscription.stripePrice ? (
+                              <div className="flex items-baseline gap-1">
+                                <span className="text-3xl font-bold text-yadn-accent-green">
+                                  {subscription.stripeCurrency}{Math.round(subscription.stripePrice)}
+                                </span>
+                                <span className="text-sm text-gray-600">
+                                  /{subscription.stripeInterval}
+                                </span>
+                              </div>
+                            ) : (
+                              <span className="text-lg font-bold text-yadn-accent-green">
+                                Free
                               </span>
-                              <span className="text-sm text-gray-600">
-                                /{subscription.stripeInterval}
-                              </span>
-                            </div>
+                            )}
                           </div>
                         </div>
 
@@ -696,30 +716,32 @@ export default function ProfilePage() {
                         </div>
                       </div>
 
-                      {/* Cancel Section */}
-                      <div className="border border-gray-200 rounded-xl p-6 bg-white shadow-sm">
-                        <div className="flex items-start gap-4">
-                          <div className="flex-shrink-0 w-10 h-10 bg-red-100 rounded-full flex items-center justify-center">
-                            <AlertCircle className="h-5 w-5 text-red-600" />
-                          </div>
-                          <div className="flex-1">
-                            <h4 className="font-semibold text-gray-900 mb-2">
-                              Cancel Subscription
-                            </h4>
-                            <p className="text-sm text-gray-600 mb-4">
-                              You'll be downgraded to the free plan at the end of your current billing period and lose access to premium features.
-                            </p>
-                            <Button
-                              variant="outline"
-                              className="border-red-300 text-red-700 hover:bg-red-50 hover:text-red-800 hover:border-red-400"
-                              onClick={() => setShowCancelDialog(true)}
-                              disabled={cancelingSubscription}
-                            >
-                              Cancel Subscription
-                            </Button>
+                      {/* Cancel Section - Only show for paid subscriptions (not promo codes) */}
+                      {!subscription.promo_code_id && (
+                        <div className="border border-gray-200 rounded-xl p-6 bg-white shadow-sm">
+                          <div className="flex items-start gap-4">
+                            <div className="flex-shrink-0 w-10 h-10 bg-red-100 rounded-full flex items-center justify-center">
+                              <AlertCircle className="h-5 w-5 text-red-600" />
+                            </div>
+                            <div className="flex-1">
+                              <h4 className="font-semibold text-gray-900 mb-2">
+                                Cancel Subscription
+                              </h4>
+                              <p className="text-sm text-gray-600 mb-4">
+                                You'll be downgraded to the free plan at the end of your current billing period and lose access to premium features.
+                              </p>
+                              <Button
+                                variant="outline"
+                                className="border-red-300 text-red-700 hover:bg-red-50 hover:text-red-800 hover:border-red-400"
+                                onClick={() => setShowCancelDialog(true)}
+                                disabled={cancelingSubscription}
+                              >
+                                Cancel Subscription
+                              </Button>
+                            </div>
                           </div>
                         </div>
-                      </div>
+                      )}
                     </div>
                   ) : (
                     <div className="py-8">
