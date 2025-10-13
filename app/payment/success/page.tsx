@@ -5,10 +5,6 @@ import { CheckCircle } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState, Suspense } from "react";
 
-// Force dynamic rendering for this page
-export const dynamic = 'force-dynamic';
-export const dynamicParams = true;
-
 function PaymentSuccessContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
