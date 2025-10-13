@@ -3,10 +3,16 @@ import { NextResponse } from 'next/server';
 import { updateSession } from "@/lib/supabase/middleware";
 
 export async function middleware(request: NextRequest) {
+  const pathname = request.nextUrl.pathname;
+
+  // Skip middleware for payment routes to avoid session checks during checkout flow
+  if (pathname.startsWith('/payment/')) {
+    return NextResponse.next();
+  }
+
   const response = await updateSession(request);
 
   const protectedPaths = ['/roadmap', '/feature-request', '/contact', '/'];
-  const pathname = request.nextUrl.pathname;
 
   const isProtected = protectedPaths.includes(pathname);
 

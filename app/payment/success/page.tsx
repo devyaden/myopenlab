@@ -11,34 +11,34 @@ function PaymentSuccessContent() {
   const [isActivating, setIsActivating] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // useEffect(() => {
-  //   const activateSubscription = async () => {
-  //     try {
-  //       // Get plan type from URL params (passed from checkout)
-  //       const planType = searchParams.get("plan") || "monthly";
+  useEffect(() => {
+    const activateSubscription = async () => {
+      try {
+        // Get plan type from URL params (passed from checkout)
+        const planType = searchParams.get("plan") || "monthly";
 
-  //       setIsActivating(false);
+        setIsActivating(false);
 
-  //       const response = await fetch("/api/stripe/activate-subscription", {
-  //         method: "POST",
-  //         headers: { "Content-Type": "application/json" },
-  //         body: JSON.stringify({ planType }),
-  //       });
+        const response = await fetch("/api/stripe/activate-subscription", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ planType }),
+        });
 
-  //       const data = await response.json();
-  //       console.log("Activation response:", data);
+        const data = await response.json();
+        console.log("Activation response:", data);
 
-  //       if (!response.ok) {
-  //         setError(data.error || "Failed to activate");
-  //       }
-  //     } catch (error) {
-  //       console.error("Error activating subscription:", error);
-  //       setError(String(error));
-  //     }
-  //   };
+        if (!response.ok) {
+          setError(data.error || "Failed to activate");
+        }
+      } catch (error) {
+        console.error("Error activating subscription:", error);
+        setError(String(error));
+      }
+    };
 
-  //   activateSubscription();
-  // }, [searchParams]);
+    activateSubscription();
+  }, [searchParams]);
 
   return (
     <div className="min-h-screen bg-white flex items-center justify-center p-4">
