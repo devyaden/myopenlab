@@ -1567,6 +1567,7 @@ export default function SignupForm({ googleData }: SignupFormProps) {
               className="bg-yadn-accent-green hover:bg-yadn-accent-green/90 text-[#000A1F] font-medium"
               disabled={
                 !formData.agreeToTerms ||
+                (formData.promoCode.length > 0 && formData.promoCode.length < 8) ||
                 (formData.promoCode.length === 8 &&
                   promoStatus?.isValid === false)
               }
