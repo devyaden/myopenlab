@@ -497,12 +497,15 @@ export const HomeContent = memo(() => {
     ) => {
       setOperationError(null);
 
-      // Check diagram limit (only count canvases, not folders)
-      if (planLimits) {
-        const totalDiagrams = rootCanvases.length;
+      // Check diagram limit (only count HYBRID canvases, tables are unlimited for free users)
+      if (planLimits && type === CANVAS_TYPE.HYBRID) {
+        // Count only HYBRID type canvases (exclude tables and documents)
+        const totalHybridDiagrams = rootCanvases.filter(
+          (canvas: any) => canvas.canvas_type === "hybrid" || !canvas.canvas_type
+        ).length;
         const maxDiagrams = planLimits[SubscriptionFeatureFlag.MAX_DIAGRAMS];
 
-        if (totalDiagrams >= maxDiagrams) {
+        if (totalHybridDiagrams >= maxDiagrams) {
           setOperationError(`You've reached your limit of ${maxDiagrams} diagram(s). Upgrade to create more.`);
           setCreateNewModalType(null);
           router.push("/pricing");
@@ -836,7 +839,7 @@ export const HomeContent = memo(() => {
                     Free Plan
                   </p>
                   <p className="text-xs text-gray-600">
-                    {rootCanvases.length}/{planLimits[SubscriptionFeatureFlag.MAX_DIAGRAMS]} Diagram • {aiUsage.used}/{aiUsage.limit} AI Requests
+                    {rootCanvases.filter((canvas: any) => canvas.canvas_type === "hybrid" || !canvas.canvas_type).length}/{planLimits[SubscriptionFeatureFlag.MAX_DIAGRAMS]} Diagram • {aiUsage.used}/{aiUsage.limit} AI Calls
                   </p>
                 </div>
               </div>
@@ -916,9 +919,63 @@ export const HomeContent = memo(() => {
         type={createNewModalType}
         currentFolderId={currentFolderForCreate}
         rootCanvases={rootCanvases}
-        canUseAI={() => aiUsage.used < aiUsage.limit}
+        canCreateCanvas={(type?: CANVAS_TYPE) => {
+          // Tables are always allowed for free users, only check HYBRID diagrams
+          if (type === CANVAS_TYPE.TABLE) {
+            return true;
+          }
+
+          // Check diagram limit for HYBRID canvases only
+          const totalHybridDiagrams = planLimits
+            ? rootCanvases.filter(
+                (canvas: any) => canvas.canvas_type === "hybrid" || !canvas.canvas_type
+              ).length
+            : 0;
+          const hasDiagramSlots = planLimits
+            ? totalHybridDiagrams < planLimits[SubscriptionFeatureFlag.MAX_DIAGRAMS]
+            : true;
+
+          return hasDiagramSlots;
+        }}
+        onCanvasLimitReached={() => {
+          const maxDiagrams = planLimits?.[SubscriptionFeatureFlag.MAX_DIAGRAMS] || 1;
+          setOperationError(`You've reached your limit of ${maxDiagrams} diagram(s). Delete a diagram or upgrade to create more.`);
+          router.push("/pricing");
+        }}
+        canUseAI={() => {
+          // Check AI usage limit
+          const hasAIRequests = aiUsage.used < aiUsage.limit;
+
+          // Check diagram limit - AI generates HYBRID diagrams, so count only HYBRID type
+          const totalHybridDiagrams = planLimits
+            ? rootCanvases.filter(
+                (canvas: any) => canvas.canvas_type === "hybrid" || !canvas.canvas_type
+              ).length
+            : 0;
+          const hasDiagramSlots = planLimits
+            ? totalHybridDiagrams < planLimits[SubscriptionFeatureFlag.MAX_DIAGRAMS]
+            : true;
+
+          return hasAIRequests && hasDiagramSlots;
+        }}
         onAILimitReached={() => {
-          setOperationError(`You've used all ${aiUsage.limit} AI requests this month. Upgrade to Pro for unlimited AI generation.`);
+          // Determine which limit was reached
+          const hasAIRequests = aiUsage.used < aiUsage.limit;
+          const totalHybridDiagrams = planLimits
+            ? rootCanvases.filter(
+                (canvas: any) => canvas.canvas_type === "hybrid" || !canvas.canvas_type
+              ).length
+            : 0;
+          const hasDiagramSlots = planLimits
+            ? totalHybridDiagrams < planLimits[SubscriptionFeatureFlag.MAX_DIAGRAMS]
+            : true;
+
+          if (!hasAIRequests) {
+            setOperationError(`You've used all ${aiUsage.limit} AI calls this month. Upgrade to Pro for unlimited AI generation.`);
+          } else if (!hasDiagramSlots) {
+            const maxDiagrams = planLimits?.[SubscriptionFeatureFlag.MAX_DIAGRAMS] || 1;
+            setOperationError(`You've reached your limit of ${maxDiagrams} diagram(s). Delete a diagram or upgrade to create more.`);
+          }
           router.push("/pricing");
         }}
       />
