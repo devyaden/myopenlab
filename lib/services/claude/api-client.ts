@@ -191,15 +191,15 @@ CRITICAL: Ensure the generated diagram follows these data structure requirements
           `Falling back to ${retryModel} for retry due to timeout/server error`
         );
 
-        // Simplify system prompt and user message for retry
+        // Simplify system prompt and user message for retry but still maintain good node count
         systemPrompt =
           systemPrompt.split("\n\n").slice(0, 2).join("\n\n") +
-          "\nCRITICAL: Generate a SIMPLIFIED professional diagram with fewer nodes and connections. Node data must contain ONLY 'label' and 'shape' properties.";
+          "\nCRITICAL: Generate a professional diagram with optimized node count and connections. Node data must contain ONLY 'label' and 'shape' properties.";
 
         userMessage =
           userMessage.split("\n")[0] +
           "\n" +
-          "Create a SIMPLIFIED professional version with 5-7 nodes maximum. Focus on quality over quantity. Ensure clean data structure.";
+          "Create a professional version with appropriate detail level (15-40 nodes based on complexity). Focus on essential elements. Ensure clean data structure.";
       }
 
       return callClaudeAPIWithTools(
