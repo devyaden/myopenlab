@@ -21,7 +21,7 @@ export function constructUserMessage(
   switch (diagramType) {
     case DiagramType.WORKFLOW:
       typeSpecificGuidance =
-        "Design a comprehensive business workflow with 12-16 professionally labeled nodes positioned horizontally with 250px spacing. Use strategic decision points (diamond), data repositories (cylinder), documents (document), quality gates (hexagon), and processes (rectangle). Create a clean, professional layout with proper visual hierarchy and meaningful business terminology. Include decision branches and exception handling paths.";
+        "Design a comprehensive, detailed business workflow positioned horizontally with 250px spacing. Analyze the user's request and create as many nodes as needed to fully capture the workflow - this could be 10 nodes for a simple process or 100+ nodes for a complex enterprise workflow. Use strategic decision points (diamond), data repositories (cylinder), documents (document), quality gates (hexagon), and processes (rectangle). Break down each step, sub-step, validation, checkpoint, approval, notification, data transformation, and error handling into individual nodes as needed. Include decision branches, exception handling paths, parallel processes, audit trails, logging steps, notification triggers, data validations, approval workflows, rollback procedures, monitoring checkpoints, escalation paths, and completion steps - but only include what makes sense for the specific request. DO NOT artificially limit the diagram - if the process requires 80-100 nodes to be properly represented, create them all.";
       break;
     case DiagramType.WEBSITE_WIREFRAME:
       typeSpecificGuidance =
@@ -29,7 +29,7 @@ export function constructUserMessage(
       break;
     case DiagramType.EVENT_VISITOR_EXPERIENCE:
       typeSpecificGuidance =
-        "Design a comprehensive event venue layout with professional space planning and visitor journey optimization. Create multiple detailed visitor personas with distinct, well-planned journey paths through strategically positioned areas. Include registration flows, networking zones, presentation spaces, exhibition areas, catering facilities, and clear wayfinding. Ensure journeys reflect real-world event management best practices.";
+        "Design a comprehensive event venue layout matching the scale and complexity requested by the user. For small events, create 10-20 zones. For medium events, create 30-50 zones. For large conferences/exhibitions, create 60-100+ zones. Include areas like: entrance, security checkpoints, registration desks, badge pickup, lounges, information desks, halls, breakout rooms (number them as needed: Room 1, 2, 3...), exhibition booths (number extensively if it's a large event: Booth 1-50+), sponsor pavilions, VIP areas, speaker rooms, media centers, networking zones, refreshment areas, coffee stations, catering zones, interactive displays, demo stations, workshop rooms, meeting pods, quiet zones, charging stations, restrooms, staff areas, emergency exits, wayfinding points, photo booths, and experience zones. Each distinct area should be a separate node. Let the user's request determine the scale - don't artificially limit it.";
       break;
     case DiagramType.HIERARCHY:
       typeSpecificGuidance =
@@ -37,11 +37,11 @@ export function constructUserMessage(
       break;
     case DiagramType.MINDMAP:
       typeSpecificGuidance =
-        "Develop a strategic concept map with 4-6 primary business domains and 3-4 detailed sub-concepts per domain. Focus on strategic relationships, business dependencies, and conceptual frameworks that demonstrate deep industry knowledge and professional insight.";
+        "Develop a strategic concept map that matches the complexity and depth of the user's request. For simple topics, create 8-15 nodes with 1-2 levels. For moderate topics, create 20-40 nodes with 2-3 levels. For complex strategic topics, create 60-100+ nodes with 3-4 levels of hierarchy. Break down the main concept into primary domains, then sub-concepts, then specific elements as deeply as the topic requires. For example, if the topic is 'Marketing Strategy', you might break it into domains like Digital Marketing, Content Strategy, SEO, SEM, Social Media, Email Campaigns, Brand Management, Analytics - and then break each of those into further detail based on what the user is asking for. Match the granularity to the user's needs.";
       break;
     default:
       typeSpecificGuidance =
-        "Create a comprehensive professional diagram with 12-15 well-connected elements showcasing industry expertise and business acumen.";
+        "Create a comprehensive diagram with the appropriate number of nodes based on the complexity and scope of the user's request. For simple requests, 5-15 nodes may be sufficient. For moderate complexity, create 20-40 nodes. For complex enterprise requirements, create 60-100+ nodes. Break down concepts, processes, or components into individual nodes as needed - don't artificially limit or inflate the count. Match the diagram's detail level to what the user is actually asking for.";
   }
 
   // Include the requirements
@@ -70,6 +70,15 @@ export function createSystemPrompt(
     "You are a senior business analyst and professional diagram architect with expertise in creating enterprise-grade visual documentation for Fortune 500 companies.",
     "Your task is to generate sophisticated, business-quality diagram data that meets professional standards and demonstrates deep industry knowledge.",
     "",
+    "CRITICAL INSTRUCTION - ADAPTIVE COMPLEXITY:",
+    "Analyze the user's prompt carefully and create the APPROPRIATE number of nodes based on what they're asking for:",
+    "- Simple requests (basic process, small event): 8-20 nodes",
+    "- Moderate requests (standard workflow, medium event): 25-50 nodes",
+    "- Complex requests (enterprise process, large conference, detailed system): 60-150+ nodes",
+    "DO NOT artificially limit the diagram if the request requires extensive detail.",
+    "DO NOT over-generate nodes if the request is simple.",
+    "The goal is accuracy and completeness, not hitting a specific number.",
+    "",
     "PROFESSIONAL STANDARDS:",
     commonRequirements,
     "",
@@ -81,13 +90,14 @@ export function createSystemPrompt(
     industryStyles,
     "",
     "CRITICAL QUALITY REQUIREMENTS:",
-    "1. Use the provided tool to return a professionally structured diagram with precise, business-appropriate content",
-    "2. All node labels must use sophisticated, industry-standard terminology",
-    "3. Demonstrate deep understanding of business processes and industry best practices",
-    "4. Create realistic, implementable solutions that add genuine business value",
-    "5. Ensure all content reflects enterprise-level thinking and strategic insight",
-    "6. Node data objects must contain ONLY 'label' and 'shape' properties - no additional properties",
-    "7. Width and height should be set at the node level, not within the data object",
+    "1. Create the RIGHT number of nodes for the request - scale up or down as needed",
+    "2. Use the provided tool to return a professionally structured diagram with precise, business-appropriate content",
+    "3. All node labels must use sophisticated, industry-standard terminology",
+    "4. Demonstrate deep understanding of business processes and industry best practices",
+    "5. Create realistic, implementable solutions that add genuine business value",
+    "6. Ensure all content reflects enterprise-level thinking and strategic insight",
+    "7. Node data objects must contain ONLY 'label' and 'shape' properties - no additional properties",
+    "8. Width and height should be set at the node level, not within the data object",
   ]
     .join("\n")
     .replace(/\n\n+/g, "\n\n")
@@ -194,19 +204,22 @@ function getDiagramTypeRequirements(
   switch (diagramType) {
     case DiagramType.WORKFLOW:
       return `ENTERPRISE WORKFLOW REQUIREMENTS:
-- Create a comprehensive business process with 12-16 strategically important nodes
+- Analyze the user's request and create the appropriate level of detail
+- For simple workflows (basic approval, simple process): Create 8-20 well-defined steps
+- For standard workflows (order processing, onboarding): Create 25-50 detailed steps
+- For complex workflows (enterprise system, regulatory compliance): Create 60-150+ comprehensive steps
+- Break down processes into individual steps as appropriate: start, input validation, data fetch, calculation, decision point, approval step, notification, logging, error check, branch, merge point, data transformation, API call, database operation, status update, audit entry, completion step, and end
 - Use horizontal layout with consistent 250px spacing between nodes for professional appearance
-- Include executive-level decision points with multiple strategic outcomes (diamond shape)
-- Incorporate data repositories and knowledge management systems (cylinder shape)
-- Add compliance checkpoints, approval workflows, and governance processes (document shape)
-- Show exception handling, escalation paths, and risk management procedures
+- Include executive-level decision points with multiple strategic outcomes (diamond shape) where needed
+- Incorporate data repositories and knowledge management systems (cylinder shape) where appropriate
+- Add compliance checkpoints, approval workflows, and governance processes (document shape) as required
+- Show exception handling, escalation paths, and risk management procedures if relevant
 - ALL edges MUST have "animated": true with professional arrow styling
 - Node dimensions: width=180px, height=90px (120px for diamonds and cylinders)
 - CONNECTIONS: ${isRTL ? "For RTL languages, connect left side of source to right side of target" : "For LTR languages, connect right side of source to left side of target"}
 - Organize in logical business sequence with clear strategic flow
-- Position nodes in a single row with decision branches below main flow
+- Position nodes in multiple rows if needed to accommodate larger workflows
 - ALL LABELS must use sophisticated ${language} business terminology that executives would recognize
-- Focus on measurable business outcomes and strategic value creation
 - Use professional color coding: Start/End (rounded), Processes (rectangle), Decisions (diamond), Data (cylinder), Documents (document), Quality Gates (hexagon)`;
 
     case DiagramType.WEBSITE_WIREFRAME:
@@ -225,21 +238,18 @@ function getDiagramTypeRequirements(
 
     case DiagramType.EVENT_VISITOR_EXPERIENCE:
       return `PROFESSIONAL EVENT MANAGEMENT REQUIREMENTS:
-- Design a comprehensive conference/exhibition venue with 10-12 strategically planned zones
-- Include executive areas: VIP lounges, speaker green rooms, media centers, sponsor pavilions
-- Create professional spaces: registration/check-in, main auditorium, breakout rooms, exhibition halls
-- Add business networking areas: cocktail zones, business lounges, one-on-one meeting spaces
-- Use ACTOR shape for different attendee personas (3-4 professional visitor types)
-- Design 3-4 distinct visitor journey paths with strategic touchpoints:
-  * C-Suite Executive path (VIP experiences, strategic sessions)
-  * Technical Professional path (product demos, technical workshops)  
-  * Business Development path (networking events, partnership opportunities)
-  * Industry Analyst path (briefing centers, research sessions)
+- Analyze the event scale in the user's request and create appropriate zones:
+  * Small event (workshop, meetup): 10-20 zones (basic entrance, registration, main room, breakout rooms, refreshments)
+  * Medium event (conference, seminar): 30-50 zones (entrance, multiple registration, halls, breakout rooms 1-8, booths 1-15, lounges, catering)
+  * Large event (exhibition, trade show): 60-150+ zones (extensive booths 1-50+, multiple halls, numerous breakout rooms, VIP areas, etc.)
+- Create individual nodes for distinct areas, numbering them as appropriate for the scale
+- NUMBER areas when there are multiples: Exhibition Booth 1, 2, 3... (as many as needed), Breakout Room 1, 2, 3... (match the event size)
+- Include relevant areas: Main Entrance, Security Checkpoints, Registration Desks, Badge Pickup, Welcome Lounge, Information Desks, Main Halls, Breakout Rooms, Exhibition Booths, Sponsor Pavilions, VIP Lounges, Speaker Green Rooms, Media Center, Press Room, Networking Zones, Cocktail Areas, Coffee Stations, Catering Zones, Interactive Displays, Demo Stations, Workshop Rooms, Meeting Pods, Quiet Zones, Charging Stations, Restrooms, Storage, Staff Areas, Emergency Exits, Wayfinding Points, Photo Booths, Experience Zones
+- Use ACTOR shape for different attendee personas (adjust count based on event complexity)
+- Design visitor journey paths that make sense for the event type
 - Each visitor journey MUST show STRATEGIC MOVEMENT with ANIMATED ARROWS
 - CONNECTION STRATEGY: Arrows indicate purposeful business interactions and value-driven movement
-- Layout should reflect professional event management and corporate hospitality standards
-- ALL LABELS must use sophisticated ${language} event management terminology
-- Focus on business objectives: relationship building, knowledge transfer, and strategic partnerships`;
+- ALL LABELS must use sophisticated ${language} event management terminology`;
 
     case DiagramType.HIERARCHY:
       return `CORPORATE ORGANIZATIONAL REQUIREMENTS:
@@ -275,13 +285,16 @@ function getDiagramTypeRequirements(
 
     default:
       return `PROFESSIONAL BUSINESS DIAGRAM REQUIREMENTS:
-- Create sophisticated business documentation with 12-15 strategic elements
+- Analyze the user's request and create the appropriate number of nodes:
+  * Simple concept: 8-20 nodes with clear, focused elements
+  * Standard business process: 25-50 nodes with detailed breakdown
+  * Complex enterprise system: 60-150+ nodes with comprehensive coverage
+- Break down concepts into individual components as appropriate for the request
 - Use industry-appropriate shapes and professional visual hierarchy
 - Include strategic relationships and business value connections
 - Maintain executive-quality presentation standards
-- Ensure all content demonstrates deep industry expertise
 - ALL TEXT must be in professional ${language} business terminology
-- Focus on measurable business outcomes and strategic value creation`;
+- Match the diagram complexity to the user's actual needs - don't over-simplify or over-complicate`;
   }
 }
 

@@ -41,6 +41,7 @@ import { generateUntitledName } from "@/lib/utils";
 import {
   AlertCircle,
   ArrowLeft,
+  Crown,
   Edit,
   File,
   FileText,
@@ -50,6 +51,7 @@ import {
   Search,
   Trash,
   X,
+  Zap,
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -428,6 +430,7 @@ export const FolderContent = memo(({ folderId }: FolderContentProps) => {
   const [updatingItems, setUpdatingItems] = useState<Set<string>>(new Set());
   const [operationError, setOperationError] = useState<string | null>(null);
   const [aiUsage, setAiUsage] = useState<{ used: number; limit: number }>({ used: 0, limit: 5 });
+  const [planLimits, setPlanLimits] = useState<Record<string, any> | null>(null);
 
   // Custom hooks
   const debouncedSearchQuery = useDebounce(searchQuery, 300);
@@ -489,16 +492,17 @@ export const FolderContent = memo(({ folderId }: FolderContentProps) => {
       const folderIdToUse = folderId === "root" ? null : folderId;
       setOperationError(null);
 
-      // Check diagram limit
-      if (user?.id) {
+      // Check diagram limit (only count HYBRID canvases, tables are unlimited for free users)
+      if (user?.id && type === CANVAS_TYPE.HYBRID) {
         const limits = await getUserFeatureLimits(user.id);
         const maxDiagrams = limits[SubscriptionFeatureFlag.MAX_DIAGRAMS];
 
-        // Get total diagrams count
+        // Get total HYBRID diagrams count only (exclude tables and documents)
         const { count } = await supabase
           .from("canvas")
           .select("*", { count: "exact", head: true })
-          .eq("user_id", user.id);
+          .eq("user_id", user.id)
+          .or("canvas_type.eq.hybrid,canvas_type.is.null");
 
         if (count !== null && count >= maxDiagrams) {
           setOperationError(`You've reached your limit of ${maxDiagrams} diagram(s). Upgrade to create more.`);
@@ -666,11 +670,31 @@ export const FolderContent = memo(({ folderId }: FolderContentProps) => {
     }
   }, []);
 
-  // Load AI usage on mount
+  // Load plan limits and AI usage on mount
   useEffect(() => {
-    if (user?.id) {
-      loadAiUsage();
-    }
+    const loadPlanData = async () => {
+      if (user?.id) {
+        try {
+          // Load subscription limits
+          const response = await fetch('/api/subscription/status');
+          if (response.ok) {
+            const data = await response.json();
+            setPlanLimits(data.limits);
+          } else {
+            // Fallback to direct call if API fails
+            const limits = await getUserFeatureLimits(user.id);
+            setPlanLimits(limits);
+          }
+        } catch (error) {
+          console.error('Error loading plan limits:', error);
+          // Fallback to direct call on error
+          const limits = await getUserFeatureLimits(user.id);
+          setPlanLimits(limits);
+        }
+        await loadAiUsage();
+      }
+    };
+    loadPlanData();
   }, [user?.id, loadAiUsage]);
 
   // Render helpers
@@ -814,6 +838,35 @@ export const FolderContent = memo(({ folderId }: FolderContentProps) => {
       {/* Loading overlay for folder operations */}
       {folderLoading && <LoadingOverlay message="Updating folder..." />}
 
+      {/* Plan Status Banner */}
+      {planLimits && planLimits[SubscriptionFeatureFlag.MAX_DIAGRAMS] === 1 && (
+        <div className="bg-gradient-to-r from-orange-50 to-amber-50 border-b border-orange-200 px-6 py-3">
+          <div className="flex items-center justify-between max-w-7xl mx-auto">
+            <div className="flex items-center gap-6">
+              <div className="flex items-center gap-3">
+                <Zap className="h-5 w-5 text-orange-600" />
+                <div>
+                  <p className="text-sm font-medium text-gray-900">
+                    Free Plan
+                  </p>
+                  <p className="text-xs text-gray-600">
+                    {allCanvases?.filter((canvas: any) => canvas.canvas_type === "hybrid" || !canvas.canvas_type).length || 0}/{planLimits[SubscriptionFeatureFlag.MAX_DIAGRAMS]} Diagram • {aiUsage.used}/{aiUsage.limit} AI Calls
+                  </p>
+                </div>
+              </div>
+            </div>
+            <Button
+              size="sm"
+              onClick={() => router.push("/pricing")}
+              className="bg-yadn-accent-green hover:bg-yadn-accent-green/90 text-white gap-2"
+            >
+              <Crown className="h-4 w-4" />
+              Upgrade to Pro
+            </Button>
+          </div>
+        </div>
+      )}
+
       <div className="p-6 flex-shrink-0 bg-white">
         <div className="flex justify-between items-center mb-6">
           <div className="flex items-center">
@@ -884,9 +937,63 @@ export const FolderContent = memo(({ folderId }: FolderContentProps) => {
         type={createNewModalType}
         currentFolderId={folderId === "root" ? null : folderId}
         rootCanvases={folderId === "root" ? allCanvases : []}
-        canUseAI={() => aiUsage.used < aiUsage.limit}
+        canCreateCanvas={(type?: CANVAS_TYPE) => {
+          // Tables are always allowed for free users, only check HYBRID diagrams
+          if (type === CANVAS_TYPE.TABLE) {
+            return true;
+          }
+
+          // Check diagram limit for HYBRID canvases only
+          const totalHybridDiagrams = planLimits && allCanvases
+            ? allCanvases.filter(
+                (canvas: any) => canvas.canvas_type === "hybrid" || !canvas.canvas_type
+              ).length
+            : 0;
+          const hasDiagramSlots = planLimits
+            ? totalHybridDiagrams < planLimits[SubscriptionFeatureFlag.MAX_DIAGRAMS]
+            : true;
+
+          return hasDiagramSlots;
+        }}
+        onCanvasLimitReached={() => {
+          const maxDiagrams = planLimits?.[SubscriptionFeatureFlag.MAX_DIAGRAMS] || 1;
+          setOperationError(`You've reached your limit of ${maxDiagrams} diagram(s). Delete a diagram or upgrade to create more.`);
+          router.push("/pricing");
+        }}
+        canUseAI={() => {
+          // Check AI usage limit
+          const hasAIRequests = aiUsage.used < aiUsage.limit;
+
+          // Check diagram limit - AI generates HYBRID diagrams, so count only HYBRID type
+          const totalHybridDiagrams = planLimits && allCanvases
+            ? allCanvases.filter(
+                (canvas: any) => canvas.canvas_type === "hybrid" || !canvas.canvas_type
+              ).length
+            : 0;
+          const hasDiagramSlots = planLimits
+            ? totalHybridDiagrams < planLimits[SubscriptionFeatureFlag.MAX_DIAGRAMS]
+            : true;
+
+          return hasAIRequests && hasDiagramSlots;
+        }}
         onAILimitReached={() => {
-          setOperationError(`You've used all ${aiUsage.limit} AI requests this month. Upgrade to Pro for unlimited AI generation.`);
+          // Determine which limit was reached
+          const hasAIRequests = aiUsage.used < aiUsage.limit;
+          const totalHybridDiagrams = planLimits && allCanvases
+            ? allCanvases.filter(
+                (canvas: any) => canvas.canvas_type === "hybrid" || !canvas.canvas_type
+              ).length
+            : 0;
+          const hasDiagramSlots = planLimits
+            ? totalHybridDiagrams < planLimits[SubscriptionFeatureFlag.MAX_DIAGRAMS]
+            : true;
+
+          if (!hasAIRequests) {
+            setOperationError(`You've used all ${aiUsage.limit} AI calls this month. Upgrade to Pro for unlimited AI generation.`);
+          } else if (!hasDiagramSlots) {
+            const maxDiagrams = planLimits?.[SubscriptionFeatureFlag.MAX_DIAGRAMS] || 1;
+            setOperationError(`You've reached your limit of ${maxDiagrams} diagram(s). Delete a diagram or upgrade to create more.`);
+          }
           router.push("/pricing");
         }}
       />

@@ -6,7 +6,6 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import {
   Select,
   SelectContent,
@@ -22,7 +21,6 @@ import {
   ArrowLeft,
   ArrowRight,
   Check,
-  CreditCard,
   EyeIcon,
   EyeOffIcon,
   Tag,
@@ -79,7 +77,6 @@ type FormData = {
   customPosition: string;
   companySize: string;
   customCompanySize: string;
-  paymentMethod: string;
   promoCode: string;
   agreeToTerms: boolean;
   googleAuth?: boolean;
@@ -98,7 +95,6 @@ const initialFormData: FormData = {
   customPosition: "",
   companySize: "",
   customCompanySize: "",
-  paymentMethod: "promo",
   promoCode: "",
   agreeToTerms: false,
   googleAuth: false,
@@ -596,15 +592,6 @@ function PaymentStep({
     );
   };
 
-  const handlePaymentMethodChange = (value: string) => {
-    handleSelectChange("paymentMethod", value);
-    tracker.trackForm(FormEvent.PAYMENT_METHOD_SELECTED, {
-      form_name: "signup_form",
-      form_step: 3,
-      payment_method: value,
-    });
-  };
-
   const handleTermsChange = (checked: boolean) => {
     setFormData((prev) => ({
       ...prev,
@@ -628,125 +615,9 @@ function PaymentStep({
   return (
     <>
       <div className="space-y-4">
-        <Label className="text-yadn-primary-gray/80">Choose an option</Label>
+        <Label className="text-yadn-primary-gray/80">Promo Code (Optional)</Label>
 
-        <RadioGroup
-          value={formData.paymentMethod}
-          onValueChange={handlePaymentMethodChange}
-          className="space-y-3"
-        >
-          <div
-            className={cn(
-              "flex items-center space-x-3 rounded-lg border p-4",
-              formData.paymentMethod === "card"
-                ? "border-yadn-accent-green bg-yadn-accent-green/10"
-                : "border-yadn-primary-gray/10 bg-yadn-primary-gray/5"
-            )}
-          >
-            <RadioGroupItem
-              value="card"
-              id="card"
-              className="border-yadn-primary-gray/30 text-yadn-accent-green"
-            />
-            <Label
-              htmlFor="card"
-              className="flex flex-1 items-center gap-2 cursor-pointer"
-            >
-              <CreditCard className="h-5 w-5 text-yadn-accent-green" />
-              <div>
-                <div className="text-yadn-primary-gray">Add Payment Method</div>
-                <div className="text-xs text-yadn-primary-gray/60">
-                  Add credit card or other payment method
-                </div>
-              </div>
-            </Label>
-          </div>
-
-          <div
-            className={cn(
-              "flex items-center space-x-3 rounded-lg border p-4",
-              formData.paymentMethod === "promo"
-                ? "border-yadn-accent-green bg-yadn-accent-green/10"
-                : "border-yadn-primary-gray/10 bg-yadn-primary-gray/5"
-            )}
-          >
-            <RadioGroupItem
-              value="promo"
-              id="promo"
-              className="border-yadn-primary-gray/30 text-yadn-accent-green"
-            />
-            <Label
-              htmlFor="promo"
-              className="flex flex-1 items-center gap-2 cursor-pointer"
-            >
-              <Tag className="h-5 w-5 text-yadn-accent-green" />
-              <div>
-                <div className="text-yadn-primary-gray">Use Promo Code</div>
-                <div className="text-xs text-yadn-primary-gray/60">
-                  Enter a promo code
-                </div>
-              </div>
-            </Label>
-          </div>
-        </RadioGroup>
-
-        {formData.paymentMethod === "card" && (
-          <div className="rounded-lg border border-yadn-primary-gray/10 bg-yadn-primary-gray/5 p-4">
-            <p className="text-yadn-primary-gray/80 mb-4">
-              Payment details will be collected securely
-            </p>
-
-            <div className="space-y-4">
-              <Input
-                type="text"
-                placeholder="Card Number"
-                className="bg-yadn-primary-gray/5 border-yadn-primary-gray/10 text-yadn-primary-gray placeholder:text-yadn-primary-gray/40 focus:border-yadn-accent-green focus:ring-yadn-accent-green"
-                onFocus={() => {
-                  tracker.trackForm(FormEvent.FIELD_FOCUSED, {
-                    form_name: "signup_form",
-                    field_name: "card_number",
-                    form_step: 3,
-                  });
-                }}
-              />
-
-              <div className="grid grid-cols-2 gap-4">
-                <Input
-                  type="text"
-                  placeholder="MM/YY"
-                  className="bg-yadn-primary-gray/5 border-yadn-primary-gray/10 text-yadn-primary-gray placeholder:text-yadn-primary-gray/40 focus:border-yadn-accent-green focus:ring-yadn-accent-green"
-                  onFocus={() => {
-                    tracker.trackForm(FormEvent.FIELD_FOCUSED, {
-                      form_name: "signup_form",
-                      field_name: "card_expiry",
-                      form_step: 3,
-                    });
-                  }}
-                />
-                <Input
-                  type="text"
-                  placeholder="CVC"
-                  className="bg-yadn-primary-gray/5 border-yadn-primary-gray/10 text-yadn-primary-gray placeholder:text-yadn-primary-gray/40 focus:border-yadn-accent-green focus:ring-yadn-accent-green"
-                  onFocus={() => {
-                    tracker.trackForm(FormEvent.FIELD_FOCUSED, {
-                      form_name: "signup_form",
-                      field_name: "card_cvc",
-                      form_step: 3,
-                    });
-                  }}
-                />
-              </div>
-
-              <p className="text-xs text-yadn-primary-gray/60">
-                Your payment information is processed securely. We do not store
-                your credit card details.
-              </p>
-            </div>
-          </div>
-        )}
-
-        {formData.paymentMethod === "promo" && (
-          <div>
+        <div>
             <div className="mt-4 flex justify-center">
               <div className="inline-block">
                 <table
@@ -847,10 +718,9 @@ function PaymentStep({
             </div>
 
             <p className="text-center text-xs text-yadn-primary-gray/60 mt-4">
-              Enter your promo code
+              Enter your promo code (optional)
             </p>
           </div>
-        )}
       </div>
 
       <div className="flex items-center space-x-2 mt-6">
@@ -1290,10 +1160,9 @@ export default function SignupForm({ googleData }: SignupFormProps) {
   const validateStep3 = () => {
     const newErrors: FormErrors = {};
 
-    if (formData.paymentMethod === "promo") {
-      if (!formData.promoCode) {
-        newErrors.promoCode = "Promo code is required";
-      } else if (formData.promoCode.length < 8) {
+    // Only validate promo code if it was entered
+    if (formData.promoCode) {
+      if (formData.promoCode.length < 8) {
         newErrors.promoCode = "Promo code must be 8 characters";
       } else if (promoStatus && !promoStatus.isValid) {
         newErrors.promoCode = promoStatus.error || "Invalid promo code";
@@ -1426,7 +1295,7 @@ export default function SignupForm({ googleData }: SignupFormProps) {
       form_name: "signup_form",
       form_duration: Date.now() - formStartTime,
       form_step: 3,
-      payment_method: formData.paymentMethod,
+      has_promo_code: !!formData.promoCode,
       promo_code: formData.promoCode,
     });
 
@@ -1462,6 +1331,7 @@ export default function SignupForm({ googleData }: SignupFormProps) {
         // If signup successful and we have a valid promo code with subscription data, create subscription
         if (
           user &&
+          formData.promoCode &&
           promoStatus?.isValid &&
           promoStatus.promoCodeData &&
           promoStatus.subscription
@@ -1569,20 +1439,10 @@ export default function SignupForm({ googleData }: SignupFormProps) {
     }
   };
 
-  // Focus promo input when payment method changes to promo
-  useEffect(() => {
-    if (formData.paymentMethod === "promo" && promoInputRef.current) {
-      setTimeout(() => {
-        promoInputRef.current?.focus();
-      }, 100);
-    }
-  }, [formData.paymentMethod]);
-
   // Validate promo code when email changes and we have a promo code
   useEffect(() => {
     if (
       currentStep === 3 &&
-      formData.paymentMethod === "promo" &&
       formData.promoCode.length === 8
     ) {
       validatePromoCodeInput(formData.promoCode);
@@ -1707,8 +1567,8 @@ export default function SignupForm({ googleData }: SignupFormProps) {
               className="bg-yadn-accent-green hover:bg-yadn-accent-green/90 text-[#000A1F] font-medium"
               disabled={
                 !formData.agreeToTerms ||
-                (formData.paymentMethod === "promo" &&
-                  formData.promoCode.length === 8 &&
+                (formData.promoCode.length > 0 && formData.promoCode.length < 8) ||
+                (formData.promoCode.length === 8 &&
                   promoStatus?.isValid === false)
               }
               onClick={() => {

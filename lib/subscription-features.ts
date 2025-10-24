@@ -27,7 +27,7 @@ interface FeatureLimits {
 // Default free tier limits
 const DEFAULT_FREE_LIMITS: FeatureLimits = {
   [SubscriptionFeatureFlag.MAX_DIAGRAMS]: 1,
-  [SubscriptionFeatureFlag.MAX_AI_REQUESTS]: 5,
+  [SubscriptionFeatureFlag.MAX_AI_REQUESTS]: 5, // 5 AI calls per month for free users
   [SubscriptionFeatureFlag.MAX_COLLABORATORS]: 0,
   [SubscriptionFeatureFlag.ALLOW_EXPORT_PNG]: true,
   [SubscriptionFeatureFlag.ALLOW_EXPORT_SVG]: true,

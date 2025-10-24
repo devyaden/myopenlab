@@ -61,6 +61,8 @@ interface CreateNewModalProps {
   rootCanvases?: { id: string; name: string }[];
   canUseAI?: () => boolean;
   onAILimitReached?: () => void;
+  canCreateCanvas?: (type?: CANVAS_TYPE) => boolean;
+  onCanvasLimitReached?: () => void;
 }
 
 const folderSchema = z.object({
@@ -99,6 +101,8 @@ export function CreateNewModal({
   rootCanvases,
   canUseAI,
   onAILimitReached,
+  canCreateCanvas,
+  onCanvasLimitReached,
 }: CreateNewModalProps) {
   const [step, setStep] = useState<"select" | "form">("select");
   const [selectedCanvasType, setSelectedCanvasType] = useState<CANVAS_TYPE>(
@@ -258,6 +262,15 @@ export function CreateNewModal({
 
   // Update the handleTypeSelect function to immediately create an item without showing the form
   const handleTypeSelect = (selectedType: CANVAS_TYPE) => {
+    // Only check limits for HYBRID canvas - tables are always free and unlimited
+    if (selectedType === CANVAS_TYPE.HYBRID && canCreateCanvas && !canCreateCanvas(selectedType)) {
+      if (onCanvasLimitReached) {
+        onCanvasLimitReached();
+      }
+      handleClose();
+      return;
+    }
+
     // Get all existing canvases from both folders and root
     const allCanvases = [
       ...folders.flatMap((folder) => folder.canvases),
@@ -282,12 +295,31 @@ export function CreateNewModal({
   const renderContent = () => {
     // Step 1: Type selection (only for canvas)
     if (step === "select" && type === "canvas") {
+      // Check limits for HYBRID canvas only - tables are always free and unlimited
+      const canCreateHybrid = canCreateCanvas ? canCreateCanvas(CANVAS_TYPE.HYBRID) : true;
+
       return (
         <div className="grid grid-cols-2 gap-4 py-4">
           <div
-            className="flex flex-col items-center justify-center p-6 bg-gray-50 rounded-lg hover:bg-gray-100 cursor-pointer transition-colors onboarding-canvas-option"
-            onClick={() => handleTypeSelect(CANVAS_TYPE.HYBRID)}
+            className={`relative flex flex-col items-center justify-center p-6 rounded-lg transition-colors onboarding-canvas-option ${
+              !canCreateHybrid
+                ? "bg-gray-50 border-2 border-gray-200 cursor-pointer opacity-75"
+                : "bg-gray-50 hover:bg-gray-100 cursor-pointer"
+            }`}
+            onClick={() => {
+              if (!canCreateHybrid && onCanvasLimitReached) {
+                onCanvasLimitReached();
+                handleClose();
+              } else if (canCreateHybrid) {
+                handleTypeSelect(CANVAS_TYPE.HYBRID);
+              }
+            }}
           >
+            {!canCreateHybrid && (
+              <div className="absolute top-2 right-2">
+                <Lock className="h-4 w-4 text-gray-400" />
+              </div>
+            )}
             <div className="mb-4">
               <svg
                 width="24"
@@ -296,18 +328,28 @@ export function CreateNewModal({
                 fill="none"
                 stroke="currentColor"
                 strokeWidth="2"
-                className="text-gray-600"
+                className={!canCreateHybrid ? "text-gray-400" : "text-gray-600"}
               >
                 <rect x="3" y="3" width="18" height="18" rx="2" />
                 <path d="M9 3v18M3 9h18" />
               </svg>
             </div>
-            <span className="font-medium text-center">New Canvas</span>
-            <span className="text-xs text-center text-muted-foreground mt-1">
-              Canvas will be the drawing board to draw diagram
+            <span className={`font-medium text-center ${!canCreateHybrid ? "text-gray-500" : ""}`}>
+              New Canvas
+            </span>
+            <span className={`text-xs text-center mt-1 ${!canCreateHybrid ? "text-gray-400" : "text-muted-foreground"}`}>
+              {!canCreateHybrid ? (
+                <span className="flex items-center gap-1 text-orange-600 font-medium">
+                  <Crown className="h-3 w-3" />
+                  Upgrade to Pro
+                </span>
+              ) : (
+                "Canvas will be the drawing board to draw diagram"
+              )}
             </span>
           </div>
 
+          {/* Create Table - Always enabled, no validation */}
           <div
             className="flex flex-col items-center justify-center p-6 bg-gray-50 rounded-lg hover:bg-gray-100 cursor-pointer transition-colors onboarding-table-option"
             onClick={() => handleTypeSelect(CANVAS_TYPE.TABLE)}
