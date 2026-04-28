@@ -74,6 +74,7 @@ import {
   useMemo,
   useRef,
   useState,
+  type JSX,
 } from "react";
 import toast from "react-hot-toast";
 import type { Edge, Node } from "reactflow";
@@ -2295,9 +2296,9 @@ const TableView = forwardRef<
                             return (
                               <TableHead
                                 key={column.title}
-                                ref={(el) =>
-                                  (columnRefs.current[column.title] = el)
-                                }
+                                ref={(el) => {
+                                  columnRefs.current[column.title] = el;
+                                }}
                                 className={`border-r border-gray-200 text-center group ${
                                   frozenColumns.has(column.title)
                                     ? "sticky left-16 z-10"

@@ -573,7 +573,7 @@ function PaymentStep({
   errors: FormErrors;
   handleSelectChange: (name: string, value: string | boolean) => void;
   promoStatus: EnhancedPromoCodeStatus | null;
-  promoInputRef: React.RefObject<HTMLInputElement>;
+  promoInputRef: React.RefObject<HTMLInputElement | null>;
   handleChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
   formSubmitted: boolean;
   setFormData: React.Dispatch<React.SetStateAction<FormData>>;

@@ -197,7 +197,9 @@ export default function EngagementSection() {
                 {features.map((feature, index) => (
                   <div
                     key={index}
-                    ref={(el) => (sectionRefs.current[index] = el)}
+                    ref={(el) => {
+                      sectionRefs.current[index] = el;
+                    }}
                     className={`flex flex-col gap-3 cursor-pointer transition-opacity duration-300 ${
                       index === activeIndex ? "opacity-100" : "opacity-40"
                     }`}

@@ -1,7 +1,17 @@
+const path = require("path");
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  turbopack: {
+    root: path.resolve(__dirname),
+  },
   images: {
-    domains: ["irtkurtmlknxxmcfytln.supabase.co"],
+    remotePatterns: [
+      {
+        protocol: "https",
+        hostname: "irtkurtmlknxxmcfytln.supabase.co",
+      },
+    ],
   },
   async rewrites() {
     return [
