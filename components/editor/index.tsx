@@ -197,6 +197,7 @@ const Editor = (
 
   // Initialize editor
   const editor = useEditor({
+    immediatelyRender: false,
     extensions: [
       StarterKit.configure({
         paragraph: {
