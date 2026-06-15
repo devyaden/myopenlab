@@ -275,6 +275,7 @@ const Editor = (
     updateEditorState: updateLexicalState,
     isLoading,
     saveLoading,
+    lastSaved,
     folderCanvases,
     user_id,
     folder,
@@ -458,12 +459,44 @@ const Editor = (
     }, 2000);
   }, [editor, saveDocument, updateLexicalState, readOnly]);
 
-  // Cleanup timeout on unmount
+  // Phase 1: a single flush used by both unmount (SPA navigation) and
+  // beforeunload (hard reload/close). Held in a ref that we refresh every render
+  // so these listeners never capture a stale editor/state. Persisting on the way
+  // out is what makes autosave the contract — "navigate away without Save" keeps
+  // the work.
+  const flushPendingSaveRef = useRef<() => void>(() => {});
+  flushPendingSaveRef.current = () => {
+    if (readOnly || !editor || !hasLoadedRef.current) return;
+    if (!pendingChangesRef.current) return;
+    try {
+      const editorJSON = editor.getJSON();
+      if (canvasId) backupDocument(canvasId, editorJSON);
+      const fullState = {
+        state: editor.getHTML(),
+        json: editorJSON,
+        controls: editorStateRef.current,
+        page: pageSettingsRef.current,
+      };
+      // Push the latest content into the store, then fire the write. The zustand
+      // store outlives this component, so the network save completes even after
+      // unmount. saveDocument() snapshots the store synchronously at its top, so
+      // a sibling document mounting right after can't redirect this write.
+      updateLexicalState(JSON.stringify(fullState));
+      void saveDocument();
+      pendingChangesRef.current = false;
+    } catch (error) {
+      console.error("Error flushing pending document save:", error);
+    }
+  };
+
+  // On unmount: cancel the pending debounce, then flush so the last edits within
+  // the debounce window aren't dropped on navigation.
   useEffect(() => {
     return () => {
       if (saveTimeoutRef.current) {
         clearTimeout(saveTimeoutRef.current);
       }
+      flushPendingSaveRef.current();
     };
   }, []);
 
@@ -1224,36 +1257,18 @@ const Editor = (
   };
 
   useEffect(() => {
-    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
-      if (pendingChangesRef.current && !readOnly) {
-        // Save any pending changes synchronously before unload
-        try {
-          if (editor) {
-            const latestEditorState = editor.getHTML();
-            const editorJSON = editor.getJSON();
-            const fullState = {
-              state: latestEditorState,
-              json: editorJSON,
-              controls: editorState,
-            };
-            updateLexicalState(JSON.stringify(fullState));
-          }
-        } catch (error) {
-          console.error("Error in beforeunload save:", error);
-        }
-
-        // Standard way to show confirmation dialog
-        e.preventDefault();
-        e.returnValue = "";
-        return "";
-      }
+    // Phase 1: autosave is the contract, so we no longer throw the browser's
+    // "unsaved changes" confirmation dialog (no preventDefault / returnValue).
+    // We just best-effort flush the pending save on the way out.
+    const handleBeforeUnload = () => {
+      flushPendingSaveRef.current();
     };
 
     window.addEventListener("beforeunload", handleBeforeUnload);
     return () => {
       window.removeEventListener("beforeunload", handleBeforeUnload);
     };
-  }, [editor, editorState, updateLexicalState, readOnly]);
+  }, []);
 
   // Export to PDF - Server-side rendering
   const handleExportPDF = async () => {
@@ -1548,7 +1563,6 @@ const Editor = (
 
   return (
     <div className="w-full h-full editor-container">
-      {/* {renderSaveStatus()} */}
       {/* {canvasType !== CANVAS_TYPE.HYBRID && ( */}
       <Header
         projectName={name}
@@ -1556,6 +1570,8 @@ const Editor = (
         onBackToDashboard={() => router.push("/protected")}
         onImportCanvas={handleImportCanvas}
         saveLoading={saveLoading || saveStatus === "saving"}
+        saveStatus={saveStatus}
+        lastSaved={lastSaved}
         onSave={handleSave}
         canvasId={canvasId}
         visibility={visibility}

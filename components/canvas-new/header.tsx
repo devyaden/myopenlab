@@ -41,6 +41,10 @@ import type React from "react";
 import { useEffect, useState } from "react";
 import { toast } from "react-hot-toast";
 import { LoadingSpinner } from "../loading-spinner";
+import {
+  SaveStatusIndicator,
+  type SaveStatus,
+} from "../editor/SaveStatusIndicator";
 import { ImportModal } from "./import-modal";
 import { ShareModal } from "./share-modal";
 import { VIEW_MODE, ViewMode } from "./table-view/table.types";
@@ -55,6 +59,8 @@ interface HeaderProps {
   currentState?: any;
   onImportCanvas: (data: any) => void;
   saveLoading: boolean;
+  saveStatus?: SaveStatus;
+  lastSaved?: Date | null;
   canvasId: string;
   visibility: string;
   onVisibilityChange: (visibility: string) => Promise<void>;
@@ -78,6 +84,8 @@ export function Header({
   currentState,
   onImportCanvas,
   saveLoading,
+  saveStatus,
+  lastSaved,
   canvasId,
   visibility,
   onVisibilityChange,
@@ -377,7 +385,20 @@ export function Header({
         <div className="ml-auto flex items-center gap-2 h-10 ">
           {isOwner && (
             <>
-              <Button variant="outline" size="sm" onClick={onSave}>
+              {saveStatus && (
+                <SaveStatusIndicator
+                  status={saveStatus}
+                  lastSaved={lastSaved}
+                  className="mr-1"
+                />
+              )}
+
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={onSave}
+                title="Save a version snapshot now (changes autosave on their own)"
+              >
                 {saveLoading ? (
                   <LoadingSpinner />
                 ) : (

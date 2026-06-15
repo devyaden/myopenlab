@@ -26,6 +26,7 @@ import type { Edge, Node, ReactFlowInstance } from "reactflow";
 import { MarkerType, ReactFlowProvider } from "reactflow";
 import { LoadingSpinner } from "../loading-spinner";
 import { Unauthorized } from "../unauthorized";
+import type { SaveStatus } from "../editor/SaveStatusIndicator";
 import { Header } from "./header";
 import { ImageManagerDialog } from "./image-manager-dialog";
 import "./react-flow-fixes.css";
@@ -138,7 +139,18 @@ export default function CanvasNew({ canvasId }: FigmaInterfaceProps) {
     user_id,
     currentFolder,
     isDirty,
+    lastSaved,
   } = useCanvasStore();
+
+  // Phase 1: unified, quiet autosave status shared by all three editor
+  // surfaces. The canvas store already autosaves via syncChanges(); this just
+  // surfaces that state in the header. `error` is intentionally not mapped here
+  // — it doubles as the load-error field and would show a false "couldn't save".
+  const saveStatus: SaveStatus = saveLoading
+    ? "saving"
+    : isDirty
+      ? "unsaved"
+      : "saved";
 
   // No mobile editing: phones get a readable, read-only view of the playbook.
   const isMobile = useIsMobile();
@@ -446,61 +458,25 @@ export default function CanvasNew({ canvasId }: FigmaInterfaceProps) {
   }, [viewMode, tableViewRef.current]);
 
   useEffect(() => {
-    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
-      // Check if there are unsaved changes and not in read-only mode
+    // Phase 1: autosave is the contract. The canvas store already autosaves via
+    // syncChanges(); we no longer throw the browser's "unsaved changes"
+    // confirmation dialog (no preventDefault / returnValue). On the way out we
+    // best-effort flush any edit still inside the debounce window.
+    const handleBeforeUnload = () => {
       if (isDirty && !isReadOnly && !saveLoading) {
-        // Try to save changes synchronously before unload
         try {
-          // Get current state for potential save
-          const currentCanvasState = {
-            nodes,
-            edges,
-            nodeStyles,
-            name: projectName,
-            description: "", // Add description if you have it in state
-            folder_id: currentFolder?.id,
-          };
-
-          // Note: Synchronous save during beforeunload is limited
-          // Modern browsers may not complete async operations
-          // This is more for showing the confirmation dialog
-
-          console.log("Attempting to save before unload...");
-
-          // Standard way to show confirmation dialog
-          e.preventDefault();
-          e.returnValue =
-            "You have unsaved changes. Are you sure you want to leave?";
-          return "You have unsaved changes. Are you sure you want to leave?";
+          void saveCanvas();
         } catch (error) {
-          console.error("Error in beforeunload save attempt:", error);
-
-          // Still show confirmation even if save attempt failed
-          e.preventDefault();
-          e.returnValue =
-            "You have unsaved changes. Are you sure you want to leave?";
-          return "You have unsaved changes. Are you sure you want to leave?";
+          console.error("Error flushing canvas save before unload:", error);
         }
       }
     };
 
-    // Add the event listener
     window.addEventListener("beforeunload", handleBeforeUnload);
-
-    // Cleanup on unmount
     return () => {
       window.removeEventListener("beforeunload", handleBeforeUnload);
     };
-  }, [
-    isDirty,
-    isReadOnly,
-    saveLoading,
-    nodes,
-    edges,
-    nodeStyles,
-    projectName,
-    currentFolder,
-  ]);
+  }, [isDirty, isReadOnly, saveLoading, saveCanvas]);
 
   const getNodeStyle = useCallback(
     (nodeId: string): NodeStyle => {
@@ -1779,6 +1755,8 @@ export default function CanvasNew({ canvasId }: FigmaInterfaceProps) {
                 onBackToDashboard={() => router.push("/protected")}
                 onImportCanvas={handleImportCanvas}
                 saveLoading={saveLoading}
+                saveStatus={saveStatus}
+                lastSaved={lastSaved}
                 onSave={saveCanvas}
                 canvasId={canvasId}
                 visibility={visibility}

@@ -64,33 +64,91 @@ cross-links. That composite Document, authored and editable by the agent, is the
 
 Goal: a calm console and a table view that doesn't lose data — prerequisites for everything else.
 
-- **Table-view empty-column bug (root-caused).** `lib/canvas/column-data.ts` `addColumn()` seeds the new
-  column onto existing nodes via `nodes.map(...)`, which is a **no-op when `nodes` is empty**, so a column
-  added to a row-less table isn't persisted and the header render collapses until save+reload. Fix:
-  (a) persist column definitions independent of node seeding (they already live in `ColumnDefinition`);
-  (b) when `addNode` runs (`components/canvas-new/index.tsx` ~L738-778) seed from the **current** column
-  list reliably; (c) repair the header/`SortableContext` mismatch in
-  `components/canvas-new/table-view/index.tsx` (~L2592-2596) when `sortedHierarchy` is empty.
-  Also fix the new-column-label-renders-blank case and the flaky cell-edit-open (single vs row click).
-- **`.single()` → `.maybeSingle()`** in `lib/subscription-features.ts:87` (user_subscription) — source of
-  the repeated **406s**. Audit other 0-or-1 `.single()` calls (canvas_settings path already handles PGRST116).
-- **Supabase client / security** — `lib/supabase/client.ts` defines BOTH the browser `supabase` client and
-  a `supabaseAdmin = createClient(..., SERVICE_ROLE_KEY)` in the **same module that is imported client-side**.
-  This is the likely "Multiple GoTrueClient instances" warning (×13 live) AND a **possible service-role-key
-  exposure to the browser** — VERIFY whether that key is bundled client-side (check the env var name; if it
-  reaches the browser it's a critical leak). Move `supabaseAdmin` to a server-only module; keep one browser client.
-- **ReactFlow "new nodeTypes/edgeTypes object" warning (×68 live).** Static analysis says canvas mounts use
-  the hoisted `components/canvas-new/flow-config.ts`, yet the warning fires live — so the offending mounts are
-  elsewhere: most likely the **document embed** (`extensions/ReactFlowNodeView.tsx`) and the table preview /
-  `CanvasTableNodeView`. Grep every `ReactFlow` mount; ensure `nodeTypes`/`edgeTypes` come from the hoisted
-  constant. (Perf: this re-inits ReactFlow on every keystroke in a doc with embeds.)
-- **Logger gate.** ~107 `console.log`s in lib/components (worst: `lib/subscription-features.ts` cache logs,
-  `lib/store/useOnboarding.ts` ×8, `lib/store/useCanvas.ts`). Add a `lib/log.ts` gated on an env flag; replace.
-- **Tutorial auto-start.** `components/onboarding/custom-tooltip.tsx` (~L460-494, L568-596) auto-starts the
-  next tutorial and polls 5s for elements that don't exist on the page → "elements not ready after 5000ms".
-  Make tutorials opt-in; never poll for unmounted targets.
-- **Finish the Playbook rename.** Editor "Insert Views → Insert Canvas" and slash "Canvas" still say *Canvas*
-  (`components/editor/slash-items.tsx`, the Insert menu). One vocabulary everywhere.
+**STATUS: ✅ done + in-browser QA passed (2026-06-15).** All 7 items implemented; `tsc --noEmit` and
+`next build` both pass clean.
+
+**⚠️ Pre-deploy checklist (must do before / as part of the real prod deploy):**
+1. **Rename the Vercel env var** `NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY` → `SUPABASE_SERVICE_ROLE_KEY` (the new
+   server-only code reads the non-public name). NOTE: deploying current `main` (de6ebad, old code) with the var
+   renamed **fails the build** (`Error: supabaseKey is required`) — the build only succeeds once the server-only
+   refactor (Phase 0.3) is on `main`. Verified: `next build` passes locally with the renamed var.
+2. **Rotate the service-role key** in Supabase. It shipped in the public client bundle (the `NEXT_PUBLIC_` leak),
+   so treat it as compromised; moving it server-side does not undo past exposure. Set the new value as
+   `SUPABASE_SERVICE_ROLE_KEY`.
+3. **Fix the Prisma version mismatch before the real deploy.** `package.json` has `prisma@6.17.1` (devDep) vs
+   `@prisma/client@5.22.0` — a major mismatch that makes `prisma generate` fail in Vercel's postinstall. Align
+   both to the same major (both 5.x or both 6.x). Non-blocking at runtime (runtime uses the Supabase client) but
+   it's deploy noise and could surface later.
+
+**In-browser QA results (dev server + Playwright, QA account):**
+- *Table empty-column persistence* — VERIFIED. Created a Table, added column `QA_Owner` to the **row-less**
+  table → a `save_canvas_transaction` RPC fired (200) and the column **survived a full reload**. Pre-fix this
+  RPC would not have fired (early return). ✅
+- *406s* — subscription/usage paths clean (200). QA surfaced **two additional 406 sources not in the original
+  fix list**: `canvas_data` and `canvas_settings` `.single()` loads in `useCanvas.ts` (+ two related-canvas
+  `.single()` in `table-view/index.tsx`) threw real **console errors** (6) on every fresh table/canvas open.
+  Fixed → `.maybeSingle()`; re-verified now 200 with **0 console errors**. ✅
+- *Tutorials opt-in* — the default-flip alone was insufficient: existing profiles persist
+  `autoStartTutorials: true` in localStorage, and a tour DID auto-start. Added an **effect-level gate** (removed
+  the auto-start `useEffect` in `custom-tooltip.tsx`); re-verified **no auto-start** despite the persisted flag,
+  console clean (no "elements not ready"). ✅
+- *Playbook rename* — VERIFIED live: toolbar "Insert Playbook", slash-menu "Playbook — Embed a playbook flow /
+  diagram". QA surfaced **two more "New Canvas" labels** (`dashboard/folder-content.tsx`,
+  `dashboard-sidebar/user-sidebar.tsx` create menus) → renamed to "New Playbook". ✅
+- *ReactFlow 002 warning* — confirmed **dev-only**: a React StrictMode artifact (the `useNodeOrEdgeTypes` purity
+  re-invoke emits `002` via the store's default logger before our `onError` prop propagates), gated by
+  `NODE_ENV==='development'` in ReactFlow, hence **absent from the production bundle** (build clean). Benign,
+  already documented in `flow-config.ts`; not a real bug. Dashboard/table/document pages show 0 console warnings.
+- *Service-role key* — verified the key value appears in **0** client-static bundle files (anon key in 1).
+- Pre-existing unrelated issue noted (out of Phase 0 scope): avatar fetches to `.../avatars/null|undefined`
+  fail (ERR_BLOCKED_BY_ORB) for users without an avatar — a null/undefined URL construction bug.
+
+- **✅ Table-view empty-column bug.** Real root cause differed from the original hypothesis: `column-data.ts`
+  `addColumn()` already persists the column def independent of node seeding (`columns: [...columns, newColumn]`),
+  and the header renders from `columns` state — so the column shows in-session. The bug was that
+  `useCanvas.ts` `saveCanvas()` **returned early when `nodes.length === 0 && edges.length === 0`**, so a column
+  added to a row-less table was never written to `column_definition` and vanished on reload. **Fix:** relaxed
+  that guard to also require `columns.length === 0` before skipping (columns now count as content). The
+  `SortableContext`/header-mismatch hypothesis (c) was a symptom of this persistence bug, not a separate render
+  bug. (`lib/store/useCanvas.ts` saveCanvas guard.) Secondary cases — blank new-column label, flaky single-vs-row
+  cell-edit — to be confirmed during in-browser QA.
+- **✅ `.single()` → `.maybeSingle()`.** Fixed `lib/subscription-features.ts:87` plus every other 0-or-1-row
+  query that legitimately returns 0 rows (free users / no AI usage / invalid promo): `app/pricing/page.tsx`,
+  `lib/hooks/useSubscriptionLimits.ts` (×2), `app/api/subscription/status/route.ts`,
+  `app/api/debug/subscription/route.ts`, `app/protected/profile/page.tsx`,
+  `components/auth/signup-form-v2.tsx`, `components/auth/promo-code-signup.tsx`. Canvas/doc-by-id `.single()`
+  calls left as-is (a 0-row there is a genuine 404, handled).
+- **✅ Supabase client / security (CRITICAL leak fixed).** The service-role key was exposed as
+  `NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY` (inlined into the browser bundle) and `supabaseAdmin` was called
+  directly from a **client** zustand store (`lib/store/users.ts`, used by the admin panel). **Fix:** moved
+  `supabaseAdmin` to a new server-only module `lib/supabase/admin.ts` (`import "server-only"`), keyed on the
+  non-public `SUPABASE_SERVICE_ROLE_KEY`; added admin-gated API routes `app/api/admin/users/route.ts`
+  (GET list / POST invite) and `app/api/admin/users/[id]/route.ts` (DELETE / PATCH status) behind
+  `lib/auth/require-admin.ts`; rewrote `lib/store/users.ts` to call those routes via `fetch`; removed the admin
+  client from the browser-imported `lib/supabase/client.ts` (this also resolves the "Multiple GoTrueClient
+  instances" warning — now a single browser client). Renamed the var in `.env.local`. **⚠️ Rename it in
+  production env (Vercel) too**, else server admin ops break.
+- **✅ ReactFlow nodeTypes/edgeTypes warning.** Confirmed via the installed `@reactflow/core@11.11.4` source
+  that this warning is emitted through `onError('002', …)`, and the hoisted `flow-config.ts` `onReactFlowError`
+  already swallows code `002`. All 6 live `<ReactFlow>` mounts already pass both the hoisted `nodeTypes/edgeTypes`
+  constants **and** `onError` (incl. the doc flow-embed, which renders via `ReactFlowCanvas`), so the root cause
+  (unstable refs / re-init) is already addressed. The only mounts lacking it were two **dead-code** components
+  (`CanvasRenderer.tsx`, `StandaloneFlowChart.tsx`, no importers, no `nodeTypes` at all) — wired them to the
+  hoisted config + `onError` for completeness. Confirm ×0 live in QA.
+- **✅ Logger gate.** Added `lib/log.ts` (silent unless `NEXT_PUBLIC_DEBUG_LOGS=true`; `log.error` always
+  surfaces). Routed `console.log/warn` → `log.debug/warn` in the noisy files: `subscription-features.ts`,
+  `store/useCanvas.ts`, `store/useDocument.ts`, `store/useOnboarding.ts`, `posthog/utils.ts`, `posthog/index.ts`,
+  `supabase/realtime-sync.ts`, `services/claude/api-client.ts`, `services/ai-usage.ts`,
+  `extensions/ReactFlowNodeView.tsx`, `onboarding/custom-tooltip.tsx` (~78 calls; `console.error` left intact).
+  Remaining scattered `console.log`s in less-hot components can be migrated opportunistically.
+- **✅ Tutorial auto-start.** Made tutorials opt-in: defaulted `autoStartTutorials` to `false` in
+  `lib/store/useOnboarding.ts` (the existing flag already gates `shouldAutoStartTutorial`, which also drives the
+  completion-dialog auto-suggest). Replaced the 5s multi-element poll in `custom-tooltip.tsx`
+  `waitForTutorialElements` with a single first-target wait (≤2s) so we never poll for targets that live on
+  other routes — killing the "elements not ready after 5000ms" spam.
+- **✅ Finish the Playbook rename.** `slash-items.tsx` "Canvas" → "Playbook" (kept `canvas` keyword for search);
+  `EditorToolbar.tsx` "Insert Canvas" → "Insert Playbook"; `TableSelectorDialog.tsx` "Insert Canvas Table" →
+  "Insert Table". (Phase 3 will further split these into Embed Flow / Table / Document.)
 
 ---
 
@@ -103,6 +161,47 @@ Goal: kill the two-models surprise (canvas auto-syncs; tables/docs need manual S
   all three views. Keep the manual Save button as an explicit version snapshot, not the contract.
 - Reuse the existing transactional save (`database-functions/save-canvas-transaction.sql`) and the
   `document_data` upsert in `components/editor/hooks/useDocument.ts`.
+
+**STATUS: ✅ done + in-browser QA passed (2026-06-15).** `tsc --noEmit` clean.
+
+**Key finding during implementation:** autosave already existed for *both* surfaces, and all three views
+already render the **same** header (`components/canvas-new/header.tsx`). The file `components/editor/Header.tsx`
+is **dead code** (zero importers) — do not wire new UI there. So the real Phase 1 delta was the indicator + the
+`beforeunload` cleanup, not the autosave plumbing.
+- Table view shares the canvas store; `setColumns`/`setNodes` already call `syncChanges()` (2s debounce).
+- Document editor (`components/editor/index.tsx`) already had `triggerAutoSave()` (2s debounce) + a
+  `saveStatus` state machine; its old `renderSaveStatus()` was commented out.
+
+**What was implemented:**
+- **New shared `SaveStatusIndicator`** (`components/editor/SaveStatusIndicator.tsx`): quiet, `role="status"`,
+  states `saved | saving | unsaved | error` ("All changes saved" / "Saving…" / "Unsaved changes" / "Couldn't
+  save") with a last-saved hover hint. Wired into the single shared header next to the Save button, fed by:
+  the document editor's existing `saveStatus` + store `lastSaved`; and for canvas/table a derived
+  `saveLoading ? "saving" : isDirty ? "unsaved" : "saved"` + store `lastSaved` (the store `error` field is
+  intentionally *not* mapped — it doubles as the load-error field and would show a false "couldn't save").
+- **Killed the `beforeunload` confirmation-dialog surprise** in `components/editor/index.tsx` and
+  `components/canvas-new/index.tsx` (removed `preventDefault()` / `returnValue`); replaced with a silent
+  best-effort flush. Autosave is now the contract.
+- **Flush-on-unmount for the document editor**: the unmount cleanup used to only `clearTimeout` the pending
+  debounce (dropping the last <2s of edits on SPA navigation). Now a `flushPendingSaveRef` (refreshed each
+  render to avoid stale closures) pushes the latest content into the store + fires `saveDocument()` —
+  fire-and-forget; the zustand store outlives the component so the write completes. `saveDocument()` snapshots
+  the store synchronously at its top, so a sibling document mounting right after can't redirect the write.
+- Kept the manual Save buttons (now tooltip'd as an explicit version snapshot).
+
+**In-browser QA (dev server + Playwright, QA account):**
+- *Indicator on all three surfaces* — VERIFIED. Table, Document, and Canvas/diagram views all render the
+  shared `role="status"` indicator ("All changes saved" + "Saved just now" hover). ✅
+- *Table autosave + navigate-away-persists* — VERIFIED. Added column `QA_Phase1` to a row-less table (no rows),
+  navigated to the dashboard **without clicking Save**, reopened from a fresh load → column persisted; indicator
+  showed saved; **no "unsaved changes" dialog** blocked navigation. ✅
+- *Document autosave + navigate-away-persists* — VERIFIED. Typed text, typed a trailing `EDIT2` and immediately
+  navigated away via the in-app breadcrumb (SPA unmount) **without Save** → reopened doc contained the full
+  `"...autosave EDIT2"` including the last edit, proving the flush/debounce captured it. ✅ (Test note: Playwright
+  `.fill()` on the ProseMirror contenteditable does **not** register as editor input — focus the `.tiptap.ProseMirror`
+  element and use `pressSequentially`/slow type, else only structural deletes persist and the doc looks empty.)
+- *Console* — 0 errors across all flows; the only warnings are the **known dev-only** ReactFlow `002`
+  (documented benign in Phase 0, absent from the prod build). ✅
 
 ---
 
@@ -228,15 +327,29 @@ No automated tests exist for these areas; verification is manual via the dev ser
 
 ## Known-bug appendix (file:line checklist)
 
-- `lib/subscription-features.ts:87` — `.single()` → `.maybeSingle()` (406s).
-- `lib/canvas/column-data.ts` `addColumn()` — no-op seeding on empty `nodes`; `components/canvas-new/index.tsx`
-  ~L738-778 `addNode` column seeding; `components/canvas-new/table-view/index.tsx` ~L2592-2596 header vs
-  `SortableContext` mismatch.
-- `lib/supabase/client.ts` — `supabaseAdmin` (service-role) in a client-imported module: GoTrueClient ×13 +
-  possible key exposure. Move server-only.
-- ReactFlow nodeTypes/edgeTypes ×68 — audit `extensions/ReactFlowNodeView.tsx`, `CanvasTableNodeView.tsx`, and
-  any non-`flow-config` mount.
-- `components/onboarding/custom-tooltip.tsx:~460-494,568-596` — tutorial 5s element-poll / auto-start.
-- `app/api/ai/agent/apply/route.ts` — writes `canvas_data` only; no `document_data` path (Phase 4).
-- `lib/agent/tools.ts` — canvas-only tools; no document/embed tools (Phase 4).
-- `components/editor/slash-items.tsx` + Insert menu — "Canvas" labels not yet "Playbook".
+Phase 0 items below are ✅ DONE (2026-06-15); corrected root causes noted inline. Phase 4 items remain open.
+
+- ✅ `.single()` → `.maybeSingle()` (406s): fixed `lib/subscription-features.ts:87` + pricing/profile/status/debug
+  subscription queries, `lib/hooks/useSubscriptionLimits.ts` (ai_usage + subscription), promo lookups. **Plus
+  (found in QA):** `lib/store/useCanvas.ts` canvas_data + canvas_settings loads and the related-canvas
+  `canvas_data` loads in `components/canvas-new/table-view/index.tsx` — these threw real console-error 406s on
+  every fresh table/canvas open.
+- ✅ Table empty-column bug: real cause was `lib/store/useCanvas.ts` `saveCanvas()` early-returning on
+  0 nodes/edges (dropping column-only changes), NOT `column-data.ts`/`addColumn` (which already persists the def)
+  nor the `SortableContext` header (a symptom). Guard relaxed to also require `columns.length === 0`. QA-verified
+  the column survives reload on a row-less table.
+- ✅ `lib/supabase/client.ts` — `supabaseAdmin` moved to server-only `lib/supabase/admin.ts`; admin ops via
+  `app/api/admin/users/*` behind `lib/auth/require-admin.ts`; env var de-`NEXT_PUBLIC_`'d. Key verified absent
+  from client bundle. (⚠️ rename the prod/Vercel env var too.)
+- ✅ ReactFlow nodeTypes/edgeTypes — all live mounts already use the hoisted `flow-config` constants + `onError`;
+  the `002` warning is a **dev-only** React StrictMode artifact (absent from prod build). Two dead-code mounts
+  (`CanvasRenderer.tsx`, `StandaloneFlowChart.tsx`) hardened for completeness.
+- ✅ `components/onboarding/custom-tooltip.tsx` — removed the auto-start `useEffect` (tutorials opt-in; covers
+  existing profiles with persisted `autoStartTutorials: true`), and replaced the 5s multi-element poll in
+  `waitForTutorialElements` with a single first-target wait. `autoStartTutorials` default also flipped to `false`.
+- ✅ Logger gate `lib/log.ts` (gated on `NEXT_PUBLIC_DEBUG_LOGS`); ~78 `console.log/warn` routed through it.
+- ✅ Playbook rename: `slash-items.tsx` ("Playbook"), `EditorToolbar.tsx` ("Insert Playbook"),
+  `TableSelectorDialog.tsx` ("Insert Table"); **plus (found in QA)** "New Canvas" → "New Playbook" in
+  `dashboard/folder-content.tsx` and `dashboard-sidebar/user-sidebar.tsx` create menus. QA-verified live.
+- ⏳ `app/api/ai/agent/apply/route.ts` — writes `canvas_data` only; no `document_data` path (Phase 4).
+- ⏳ `lib/agent/tools.ts` — canvas-only tools; no document/embed tools (Phase 4).
