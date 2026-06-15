@@ -10,6 +10,7 @@ import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
 import { supabase } from "../supabase/client";
 import { ALL_SHAPES } from "../types/flow-table.types";
+import { log } from "@/lib/log";
 
 // Helper function to determine the correct dataKey for a column
 const getColumnDataKey = (column: any): string => {
@@ -335,7 +336,7 @@ export const useCanvasStore = create<CanvasStore>()(
                 .in("id", rollupIds);
               if (rollupError) throw rollupError;
               rollupColumnDefs = rollupData;
-              console.log(
+              log.debug(
                 "🚀 ~ refreshColumnsData: ~ rollupColumnDefs:",
                 rollupColumnDefs
               );
@@ -421,8 +422,16 @@ export const useCanvasStore = create<CanvasStore>()(
 
           set({ saveLoading: true });
 
-          if (state.nodes.length === 0 && state.edges.length === 0) {
-            console.log("No changes to save");
+          // Skip only when there is genuinely nothing to persist. A table can
+          // legitimately have columns but no rows (nodes); previously this guard
+          // returned early in that case, so a column added to a row-less table
+          // was never saved and vanished on reload. Columns count as content.
+          if (
+            state.nodes.length === 0 &&
+            state.edges.length === 0 &&
+            state.columns.length === 0
+          ) {
+            log.debug("No changes to save");
             set({ saveLoading: false });
             return;
           }
@@ -557,7 +566,7 @@ export const useCanvasStore = create<CanvasStore>()(
                   (aiData.data.nodes?.length > 0 ||
                     aiData.data.edges?.length > 0)
                 ) {
-                  console.log("Skipping server load - AI data pending");
+                  log.debug("Skipping server load - AI data pending");
                   // Only load metadata, not the canvas data
                   set({ isLoading: true, error: null });
 
@@ -616,7 +625,7 @@ export const useCanvasStore = create<CanvasStore>()(
               .from("canvas_data")
               .select("*")
               .eq("canvas_id", canvasId)
-              .single();
+              .maybeSingle();
 
             if (dataError && dataError.code !== "PGRST116") throw dataError;
 
@@ -670,12 +679,12 @@ export const useCanvasStore = create<CanvasStore>()(
                 .from("canvas_settings")
                 .select("*")
                 .eq("canvas_id", canvasId)
-                .single();
+                .maybeSingle();
 
             if (settingsError) {
               if (settingsError.code === "PGRST116") {
                 // This is expected for new canvases - no settings exist yet
-                console.log(
+                log.debug(
                   "No settings found for this canvas, using defaults"
                 );
               } else {
@@ -943,7 +952,7 @@ export const useCanvasStore = create<CanvasStore>()(
           relationValue: any[]
         ) => {
           try {
-            console.log(
+            log.debug(
               `🔄 Updating reciprocal relation in canvas ${canvasId} for node ${nodeId}`
             );
 
@@ -953,7 +962,7 @@ export const useCanvasStore = create<CanvasStore>()(
                 .from("canvas_data")
                 .select("nodes, version")
                 .eq("canvas_id", canvasId)
-                .single();
+                .maybeSingle();
 
             if (canvasError && canvasError.code !== "PGRST116") {
               console.error("Error fetching target canvas:", canvasError);
@@ -966,7 +975,7 @@ export const useCanvasStore = create<CanvasStore>()(
             // Update the specific node's relation data
             const updatedNodes = targetNodes.map((node: any) => {
               if (node.id === nodeId) {
-                console.log(
+                log.debug(
                   `📝 Updating node ${nodeId} with new relations:`,
                   relationValue
                 );
@@ -996,7 +1005,7 @@ export const useCanvasStore = create<CanvasStore>()(
               return false;
             }
 
-            console.log(
+            log.debug(
               `✅ Successfully updated reciprocal relation in canvas ${canvasId}`
             );
             return true;
@@ -1013,7 +1022,7 @@ export const useCanvasStore = create<CanvasStore>()(
           currentColumnTitle: string
         ) => {
           try {
-            console.log(
+            log.debug(
               `🔍 Looking for reciprocal column in canvas ${relatedCanvasId} that points back to ${currentCanvasId}`
             );
 
@@ -1036,11 +1045,11 @@ export const useCanvasStore = create<CanvasStore>()(
             );
 
             if (reciprocalColumn) {
-              console.log(
+              log.debug(
                 `🔗 Found reciprocal column: "${reciprocalColumn.title}" in canvas ${relatedCanvasId}`
               );
             } else {
-              console.log(
+              log.debug(
                 `❌ No reciprocal column found in canvas ${relatedCanvasId}`
               );
             }

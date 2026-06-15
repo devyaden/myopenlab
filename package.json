@@ -120,6 +120,7 @@
     "react-joyride": "2.5.1",
     "react-textarea-autosize": "^8.5.8",
     "reactflow": "^11.11.4",
+    "server-only": "^0.0.1",
     "stripe": "^19.1.0",
     "tippy.js": "^6.3.7",
     "tiptap-extension-font-size": "latest",

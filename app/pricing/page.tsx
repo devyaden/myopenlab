@@ -147,7 +147,7 @@ export default function PricingPage() {
         .gte("end_date", new Date().toISOString())
         .order("created_at", { ascending: false })
         .limit(1)
-        .single();
+        .maybeSingle();
 
       if (data) {
         console.log("🚀 Pricing page - Subscription data:", data);

@@ -869,7 +869,7 @@ export default function EditorToolbar({
 
                 <DropdownMenuItem onClick={() => onInsert("canvas")}>
                   <Layers2 className="mr-2 h-4 w-4" />
-                  <span>Insert Canvas</span>
+                  <span>Insert Playbook</span>
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>

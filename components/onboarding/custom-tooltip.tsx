@@ -12,6 +12,7 @@ import { TUTORIALS, useOnboardingStore } from "@/lib/store/useOnboarding";
 import { usePathname, useRouter } from "next/navigation";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import Joyride, { ACTIONS, CallBackProps, EVENTS, STATUS } from "react-joyride";
+import { log } from "@/lib/log";
 
 interface CustomTooltipProps {
   continuous: boolean;
@@ -204,7 +205,7 @@ export const OnboardingManager: React.FC<OnboardingManagerProps> = ({
   // Initial sync with database when user is available and store is hydrated
   useEffect(() => {
     if (user?.id && isHydrated && !isSyncing) {
-      console.log("Syncing onboarding data with database...");
+      log.debug("Syncing onboarding data with database...");
       // Use force: true on initial sync to ensure we get the latest data
       syncWithDatabase(user.id, true).catch((error) => {
         console.error("Failed to sync with database:", error);
@@ -227,7 +228,7 @@ export const OnboardingManager: React.FC<OnboardingManagerProps> = ({
       if (!isOnCorrectPage) {
         const targetPath = tutorial.context.routes[0];
         if (targetPath && currentPath !== targetPath) {
-          console.log(`Navigating to ${targetPath} for tutorial ${tutorialId}`);
+          log.debug(`Navigating to ${targetPath} for tutorial ${tutorialId}`);
 
           // Store pending tutorial before navigation
           sessionStorage.setItem("pendingTutorial", tutorialId);
@@ -261,7 +262,7 @@ export const OnboardingManager: React.FC<OnboardingManagerProps> = ({
               if (target) {
                 const element = document.querySelector(target) as HTMLElement;
                 if (element) {
-                  console.log(`Clicking element: ${target}`);
+                  log.debug(`Clicking element: ${target}`);
                   element.click();
 
                   // Wait for modal or UI to open
@@ -270,14 +271,14 @@ export const OnboardingManager: React.FC<OnboardingManagerProps> = ({
                   }
                   await new Promise((resolve) => setTimeout(resolve, 500));
                 } else {
-                  console.warn(`Element not found: ${target}`);
+                  log.warn(`Element not found: ${target}`);
                   return false;
                 }
               }
               break;
 
             case "open_modal":
-              console.log("Opening modal for tutorial");
+              log.debug("Opening modal for tutorial");
               const createButton = document.querySelector(
                 ".onboarding-create-new-btn"
               ) as HTMLElement;
@@ -306,7 +307,7 @@ export const OnboardingManager: React.FC<OnboardingManagerProps> = ({
         if (step.triggerAction) {
           const result = await step.triggerAction();
           if (!result) {
-            console.warn("Trigger action failed");
+            log.warn("Trigger action failed");
             return false;
           }
         }
@@ -315,7 +316,7 @@ export const OnboardingManager: React.FC<OnboardingManagerProps> = ({
         if (step.waitForElement) {
           const elementReady = await waitForElement(step.waitForElement, 10000);
           if (!elementReady) {
-            console.warn(`Element not ready: ${step.waitForElement}`);
+            log.warn(`Element not ready: ${step.waitForElement}`);
             return false;
           }
         }
@@ -350,7 +351,7 @@ export const OnboardingManager: React.FC<OnboardingManagerProps> = ({
         await new Promise((resolve) => setTimeout(resolve, 100));
       }
 
-      console.warn(`Element ${selector} not found within ${timeout}ms`);
+      log.warn(`Element ${selector} not found within ${timeout}ms`);
       return false;
     },
     []
@@ -367,7 +368,7 @@ export const OnboardingManager: React.FC<OnboardingManagerProps> = ({
         !activeTutorial &&
         pendingTutorial === navigationPending
       ) {
-        console.log(
+        log.debug(
           "Starting pending tutorial after navigation:",
           pendingTutorial
         );
@@ -398,62 +399,13 @@ export const OnboardingManager: React.FC<OnboardingManagerProps> = ({
     isTutorialAvailable,
   ]);
 
-  // Auto-start onboarding for qualified users
-  useEffect(() => {
-    if (
-      !user ||
-      !isHydrated ||
-      isSyncing ||
-      isRunning ||
-      activeTutorial ||
-      navigationPending
-    ) {
-      return;
-    }
-
-    // Don't auto-start if welcome hasn't been seen
-    if (!hasSeenWelcome) {
-      return;
-    }
-
-    // Don't auto-start if there's a pending tutorial
-    if (sessionStorage.getItem("pendingTutorial")) {
-      return;
-    }
-
-    const nextTutorial = getNextSuggestedTutorial(pathname);
-    if (nextTutorial && shouldAutoStartTutorial(nextTutorial, pathname)) {
-      console.log("Auto-starting suggested tutorial:", nextTutorial);
-
-      const timer = setTimeout(async () => {
-        // Check if navigation is needed
-        const didNavigate = await navigateIfNeeded(nextTutorial);
-
-        if (!didNavigate) {
-          // Wait for elements to be available
-          const elementsReady = await waitForTutorialElements(nextTutorial);
-          if (elementsReady && !isRunning && !activeTutorial) {
-            startTutorial(nextTutorial);
-          }
-        }
-      }, 2000); // Increased delay for better stability
-
-      return () => clearTimeout(timer);
-    }
-  }, [
-    user,
-    isHydrated,
-    isSyncing,
-    hasSeenWelcome,
-    pathname,
-    isRunning,
-    activeTutorial,
-    navigationPending,
-    getNextSuggestedTutorial,
-    shouldAutoStartTutorial,
-    startTutorial,
-    navigateIfNeeded,
-  ]);
+  // Tutorials are OPT-IN: we deliberately do NOT auto-start a suggested tutorial
+  // on page load. The previous auto-start effect fired ~2s after load and polled
+  // for elements (spamming "elements not ready after 5000ms") and surprised users
+  // by launching tours. Users now start tutorials explicitly via the "Tutorials"
+  // button; the pending-tutorial (user-initiated) and completion-dialog paths
+  // below still work. (Disabling here also covers existing profiles whose
+  // persisted `autoStartTutorials` flag is still `true`.)
 
   // Wait for tutorial elements to be available
   const waitForTutorialElements = useCallback(
@@ -470,27 +422,16 @@ export const OnboardingManager: React.FC<OnboardingManagerProps> = ({
         return true;
       }
 
-      const maxWaitTime = 5000;
-      const checkInterval = 100;
-      const maxChecks = maxWaitTime / checkInterval;
-
-      for (let i = 0; i < maxChecks; i++) {
-        const allElementsReady = tutorial.steps.every((step) => {
-          const element: any = document.querySelector(step.target);
-          return element && element.offsetParent !== null;
-        });
-
-        if (allElementsReady) {
-          return true;
-        }
-
-        await new Promise((resolve) => setTimeout(resolve, checkInterval));
+      // Only wait for the FIRST step's target to mount. Don't poll for every
+      // step's element: many targets live on other routes and would never
+      // appear, which is what produced the old "elements not ready after
+      // 5000ms" console spam. Joyride resolves the remaining targets as the
+      // user advances through the tour.
+      const firstStep = tutorial.steps[0];
+      if (firstStep?.target) {
+        return await waitForElement(firstStep.target, 2000);
       }
-
-      console.warn(
-        `Tutorial ${tutorialId} elements not ready after ${maxWaitTime}ms`
-      );
-      return false;
+      return true;
     },
     [waitForElement]
   );
@@ -507,7 +448,7 @@ export const OnboardingManager: React.FC<OnboardingManagerProps> = ({
 
       if (!activeTutorial || !currentTutorial) return;
 
-      console.log("Joyride callback:", { status, action, index, type });
+      log.debug("Joyride callback:", { status, action, index, type });
 
       // Handle step progression
       if (type === EVENTS.STEP_AFTER && action === ACTIONS.NEXT) {
@@ -518,7 +459,7 @@ export const OnboardingManager: React.FC<OnboardingManagerProps> = ({
           // Handle interactive step before proceeding
           const success = await handleInteractiveStep(nextStep, nextStepIndex);
           if (!success) {
-            console.warn("Interactive step failed, stopping tutorial");
+            log.warn("Interactive step failed, stopping tutorial");
             stopTutorial();
             return;
           }
@@ -580,7 +521,7 @@ export const OnboardingManager: React.FC<OnboardingManagerProps> = ({
             startTutorial(suggestedTutorialId);
           }, 500);
         } else {
-          console.warn(
+          log.warn(
             `Cannot start ${suggestedTutorialId} - elements not ready`
           );
         }
@@ -745,13 +686,13 @@ export const useOnboarding = () => {
     async (tutorialId: string) => {
       // Don't start if not hydrated
       if (!isHydrated) {
-        console.warn("Store not hydrated yet, cannot start tutorial");
+        log.warn("Store not hydrated yet, cannot start tutorial");
         return false;
       }
 
       const tutorial = TUTORIALS[tutorialId];
       if (!tutorial) {
-        console.warn(`Tutorial ${tutorialId} not found`);
+        log.warn(`Tutorial ${tutorialId} not found`);
         return false;
       }
 
@@ -765,7 +706,7 @@ export const useOnboarding = () => {
         // Navigate to appropriate page
         const targetRoute = tutorial.context.routes[0];
         if (targetRoute) {
-          console.log(
+          log.debug(
             `Navigating to ${targetRoute} for tutorial ${tutorialId}`
           );
 

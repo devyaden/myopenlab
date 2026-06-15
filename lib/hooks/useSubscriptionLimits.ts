@@ -40,7 +40,7 @@ export function useSubscriptionLimits(userId: string | undefined) {
           .eq("user_id", userId)
           .eq("month", currentMonth)
           .eq("year", currentYear)
-          .single();
+          .maybeSingle();
 
         // Check if user has active subscription
         const { data: subscription } = await supabase
@@ -49,7 +49,7 @@ export function useSubscriptionLimits(userId: string | undefined) {
           .eq("user_id", userId)
           .eq("is_active", true)
           .gte("end_date", now.toISOString())
-          .single();
+          .maybeSingle();
 
         const isPaidUser = !!subscription;
         const aiUsedThisMonth = aiUsage?.count || 0;

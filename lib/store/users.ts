@@ -1,7 +1,12 @@
 import { create } from "zustand";
 
 import type { User } from "@/types/auth";
-import { supabaseAdmin } from "../supabase/client";
+
+// Admin user management store. All privileged operations go through the
+// server-side /api/admin/users routes (gated by requireAdmin) so the Supabase
+// service-role key is never exposed to the browser. Previously this store
+// imported `supabaseAdmin` directly, which bundled the service-role key client
+// side — a critical leak that is now removed.
 
 interface UsersState {
   users: User[];
@@ -16,6 +21,15 @@ interface UsersState {
   updateUserStatus: (id: string, isActive: boolean) => Promise<void>;
 }
 
+async function parseError(response: Response): Promise<string> {
+  try {
+    const data = await response.json();
+    return data?.error || `Request failed (${response.status})`;
+  } catch {
+    return `Request failed (${response.status})`;
+  }
+}
+
 export const useUsersStore = create<UsersState>((set, get) => ({
   users: [],
   isLoading: false,
@@ -27,32 +41,22 @@ export const useUsersStore = create<UsersState>((set, get) => ({
   fetchUsers: async (page = 1, limit = 10) => {
     set({ isLoading: true, error: null });
     try {
-      const { data, error } = await supabaseAdmin.auth.admin.listUsers({
-        page,
-        perPage: limit,
-      });
+      const response = await fetch(
+        `/api/admin/users?page=${page}&perPage=${limit}`
+      );
+      if (!response.ok) throw new Error(await parseError(response));
 
-      if (error) throw error;
-
-      const totalUsers = data.total;
-      const hasNextPage = data.nextPage !== null;
-      const hasPreviousPage = page > 1;
-
-      const formattedUsers: User[] = data.users?.map((user) => ({
-        id: user.id,
-        email: user.email!,
-        role: user.user_metadata?.role || "User",
-        application: user.user_metadata?.application || "Human Resource",
-        lastActive: new Date(user.last_sign_in_at || user.created_at),
-        // @ts-ignore
-        isActive: !user.banned_until,
+      const data = await response.json();
+      const formattedUsers: User[] = (data.users || []).map((user: any) => ({
+        ...user,
+        lastActive: user.lastActive ? new Date(user.lastActive) : undefined,
       }));
 
       set({
         users: formattedUsers,
-        totalUsers,
-        hasNextPage,
-        hasPreviousPage,
+        totalUsers: data.totalUsers,
+        hasNextPage: data.hasNextPage,
+        hasPreviousPage: data.hasPreviousPage,
       });
     } catch (error) {
       set({ error: (error as Error).message });
@@ -64,43 +68,25 @@ export const useUsersStore = create<UsersState>((set, get) => ({
   inviteUser: async (email: string, role: string) => {
     set({ isLoading: true, error: null });
     try {
-      const { data, error } = await supabaseAdmin.auth.admin.inviteUserByEmail(
-        email,
-        {
-          data: {
-            role,
-            application: "Human Resource",
-          },
-        }
-      );
+      const response = await fetch("/api/admin/users", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, role }),
+      });
+      if (!response.ok) throw new Error(await parseError(response));
 
-      if (error) throw error;
-
-      // Add the new user to the state if we're on the first page
+      const { user } = await response.json();
       const newUser: User = {
-        id: data.user.id,
-        email: data.user.email!,
-        role,
-        application: "Human Resource",
-        lastActive: new Date(),
-        isActive: true,
+        ...user,
+        lastActive: user.lastActive ? new Date(user.lastActive) : new Date(),
       };
 
-      // Update total count
-      const { totalUsers } = get();
+      const { totalUsers, users } = get();
       if (totalUsers !== null) {
         set({ totalUsers: totalUsers + 1 });
       }
-
-      // Refresh the current page to show accurate data
-      const currentUsers = get().users;
-      if (currentUsers.length < 10) {
-        set((state) => ({
-          users: [...state.users, newUser],
-        }));
-      } else {
-        // Just update the count but don't add to the current page
-        // The user can be seen when navigating to the appropriate page
+      if (users.length < 10) {
+        set((state) => ({ users: [...state.users, newUser] }));
       }
     } catch (error) {
       set({ error: (error as Error).message });
@@ -113,10 +99,11 @@ export const useUsersStore = create<UsersState>((set, get) => ({
   deleteUser: async (id: string) => {
     set({ isLoading: true, error: null });
     try {
-      const { error } = await supabaseAdmin.auth.admin.deleteUser(id);
-      if (error) throw error;
+      const response = await fetch(`/api/admin/users/${id}`, {
+        method: "DELETE",
+      });
+      if (!response.ok) throw new Error(await parseError(response));
 
-      // Remove the user from state
       set((state) => ({
         users: state.users.filter((user) => user.id !== id),
         totalUsers: state.totalUsers !== null ? state.totalUsers - 1 : null,
@@ -132,13 +119,13 @@ export const useUsersStore = create<UsersState>((set, get) => ({
   updateUserStatus: async (id: string, isActive: boolean) => {
     set({ isLoading: true, error: null });
     try {
-      const { error } = await supabaseAdmin.auth.admin.updateUserById(id, {
-        ban_duration: isActive ? "none" : "876000h",
+      const response = await fetch(`/api/admin/users/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ isActive }),
       });
+      if (!response.ok) throw new Error(await parseError(response));
 
-      if (error) throw error;
-
-      // Update user status in state
       set((state) => ({
         users: state.users.map((user) =>
           user.id === id ? { ...user, isActive } : user

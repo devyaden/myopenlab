@@ -5,6 +5,7 @@ import { persist } from "zustand/middleware";
 import { supabase } from "@/lib/supabase/client";
 import toast from "react-hot-toast";
 import { Folder } from "@/types/sidebar";
+import { log } from "@/lib/log";
 
 interface DocumentState {
   id: string;
@@ -91,7 +92,7 @@ export const useDocumentStore = create<DocumentState>()(
         loadDocument: async (canvasId) => {
           set({ isLoading: true, error: null, canvas_id: canvasId });
           try {
-            console.log(`Loading document with ID: ${canvasId}`);
+            log.debug(`Loading document with ID: ${canvasId}`);
 
             const { data: canvas, error: canvasError } = await supabase
               .from("canvas")
@@ -106,23 +107,23 @@ export const useDocumentStore = create<DocumentState>()(
               throw canvasError;
             }
 
-            console.log(`Canvas loaded: ${canvas.name}`);
+            log.debug(`Canvas loaded: ${canvas.name}`);
 
             const documentData =
               canvas?.document_data && canvas?.document_data?.length > 0
                 ? canvas?.document_data[0]
                 : null;
 
-            console.log(`Document data found: ${documentData ? "yes" : "no"}`);
+            log.debug(`Document data found: ${documentData ? "yes" : "no"}`);
 
             if (documentData && documentData.lexical_state) {
               // Validate that the JSON is parseable before storing
               try {
                 JSON.parse(documentData.lexical_state);
-                console.log("Document state is valid JSON");
+                log.debug("Document state is valid JSON");
               } catch (e) {
                 console.error("Invalid document state JSON:", e);
-                console.warn("Resetting document state due to invalid JSON");
+                log.warn("Resetting document state due to invalid JSON");
                 documentData.lexical_state = JSON.stringify({
                   state: "<p>Document content could not be loaded.</p>",
                   controls: {},
@@ -205,7 +206,7 @@ export const useDocumentStore = create<DocumentState>()(
 
             // Ensure editor_state is valid before saving
             if (!state.editor_state) {
-              console.warn("Attempting to save without editor state");
+              log.warn("Attempting to save without editor state");
               set({ saveLoading: false });
               return Promise.reject(new Error("No editor state to save"));
             }
@@ -219,7 +220,7 @@ export const useDocumentStore = create<DocumentState>()(
               return Promise.reject(new Error("Invalid editor state format"));
             }
 
-            console.log(`Saving document for canvas ID: ${state.canvas_id}`);
+            log.debug(`Saving document for canvas ID: ${state.canvas_id}`);
 
             // First check if document exists
             const { data: existingDocs, error: checkError } = await supabase
@@ -233,13 +234,13 @@ export const useDocumentStore = create<DocumentState>()(
             }
 
             const documentExists = existingDocs && existingDocs.length > 0;
-            console.log(`Document exists: ${documentExists}`);
+            log.debug(`Document exists: ${documentExists}`);
 
             const latestEditorState = state.editor_state;
 
             // Save document data
             if (documentExists) {
-              console.log("Updating existing document");
+              log.debug("Updating existing document");
               const { error: updateError } = await supabase
                 .from("document_data")
                 .update({
@@ -254,7 +255,7 @@ export const useDocumentStore = create<DocumentState>()(
                 throw updateError;
               }
             } else {
-              console.log("Creating new document");
+              log.debug("Creating new document");
               const { error: insertError } = await supabase
                 .from("document_data")
                 .insert({
@@ -271,7 +272,7 @@ export const useDocumentStore = create<DocumentState>()(
             }
 
             // Update canvas metadata
-            console.log("Updating canvas metadata");
+            log.debug("Updating canvas metadata");
             const { error: canvasError } = await supabase
               .from("canvas")
               .update({
@@ -286,7 +287,7 @@ export const useDocumentStore = create<DocumentState>()(
               throw canvasError;
             }
 
-            console.log("Document saved successfully");
+            log.debug("Document saved successfully");
             set({
               isDirty: false,
               lastSaved: new Date(),

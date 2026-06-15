@@ -1,4 +1,5 @@
 import { supabase } from "@/lib/supabase/client";
+import { log } from "@/lib/log";
 
 // Feature flags enum for consistency across codebase
 export enum SubscriptionFeatureFlag {
@@ -62,10 +63,10 @@ export async function getUserFeatureLimits(
     // Use cache if available and not expired (per-user expiration)
     const cachedData = featureLimitsCache[userId];
     if (cachedData && Date.now() < cachedData.expiresAt) {
-      console.log(`[Cache HIT] User ${userId} - returning cached limits`);
+      log.debug(`[Cache HIT] User ${userId} - returning cached limits`);
       return cachedData.limits;
     }
-    console.log(`[Cache MISS] User ${userId} - fetching fresh data`);
+    log.debug(`[Cache MISS] User ${userId} - fetching fresh data`);
 
     // Get the user's active subscription
     const { data: subscriptionData, error: subscriptionError } = await supabase
@@ -84,7 +85,7 @@ export async function getUserFeatureLimits(
       .gte("end_date", new Date().toISOString())
       .order("created_at", { ascending: false })
       .limit(1)
-      .single();
+      .maybeSingle();
 
     if (subscriptionError || !subscriptionData) {
       return DEFAULT_FREE_LIMITS;
@@ -140,7 +141,7 @@ export async function getUserFeatureLimits(
       expiresAt: Date.now() + CACHE_DURATION,
     };
 
-    console.log(`[Cache SET] User ${userId} - isPaidPlan:`, isPaidPlan, 'subscription:', subscriptionData.subscription?.title);
+    log.debug(`[Cache SET] User ${userId} - isPaidPlan:`, isPaidPlan, 'subscription:', subscriptionData.subscription?.title);
     return limits;
   } catch (error) {
     console.error("Error getting user feature limits:", error);

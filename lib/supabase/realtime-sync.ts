@@ -1,6 +1,7 @@
 import type { RealtimeChannel } from "@supabase/supabase-js";
 import { toast } from "react-hot-toast";
 import { supabase } from "./client";
+import { log } from "@/lib/log";
 
 interface SyncCallbacks {
   onCanvasUpdate?: (data: any) => void;
@@ -32,7 +33,7 @@ export class RealtimeSync {
           filter: `id=eq.${canvasId}`,
         },
         (payload) => {
-          console.log("Canvas changed:", payload);
+          log.debug("Canvas changed:", payload);
           if (this.callbacks.onCanvasUpdate) {
             this.callbacks.onCanvasUpdate(payload.new);
           }
@@ -47,7 +48,7 @@ export class RealtimeSync {
           filter: `canvas_id=eq.${canvasId}`,
         },
         (payload) => {
-          console.log("Canvas data changed:", payload);
+          log.debug("Canvas data changed:", payload);
           if (this.callbacks.onCanvasUpdate) {
             this.callbacks.onCanvasUpdate(payload.new);
           }
@@ -55,9 +56,9 @@ export class RealtimeSync {
       )
       .subscribe((status) => {
         if (status === "SUBSCRIBED") {
-          console.log("Subscribed to canvas changes");
+          log.debug("Subscribed to canvas changes");
         } else if (status === "CLOSED") {
-          console.log("Subscription closed");
+          log.debug("Subscription closed");
           if (this.callbacks.onError) {
             this.callbacks.onError(new Error("Subscription closed"));
           }
@@ -86,7 +87,7 @@ export class RealtimeSync {
           filter: `id=eq.${folderId}`,
         },
         (payload) => {
-          console.log("Folder changed:", payload);
+          log.debug("Folder changed:", payload);
           if (this.callbacks.onFolderUpdate) {
             this.callbacks.onFolderUpdate(payload.new);
           }

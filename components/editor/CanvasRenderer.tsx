@@ -5,6 +5,11 @@
 import { useEffect, useState } from "react";
 import ReactFlow, { Background, Controls, MiniMap } from "reactflow";
 import "reactflow/dist/style.css";
+import {
+  edgeTypes,
+  nodeTypes,
+  onReactFlowError,
+} from "../canvas-new/flow-config";
 
 interface CanvasRendererProps {
   canvasData: string;
@@ -37,6 +42,9 @@ export default function CanvasRenderer({ canvasData }: CanvasRendererProps) {
       <ReactFlow
         nodes={nodes}
         edges={edges}
+        nodeTypes={nodeTypes}
+        edgeTypes={edgeTypes}
+        onError={onReactFlowError}
         fitView
         attributionPosition="bottom-right"
         nodesDraggable={false}

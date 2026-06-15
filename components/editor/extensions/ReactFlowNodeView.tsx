@@ -7,6 +7,7 @@ import { useEdgesState, useNodesState } from "reactflow";
 import "reactflow/dist/style.css";
 import ReactFlowCanvas from "../ReactFlowCanvas";
 import { Button } from "@/components/ui";
+import { log } from "@/lib/log";
 
 function ReactFlowNodeView({
   node,
@@ -83,7 +84,7 @@ function ReactFlowNodeView({
 
       const data = await response.json();
 
-      console.log("Fetched canvas data:", {
+      log.debug("Fetched canvas data:", {
         nodes: data.nodes?.length || 0,
         edges: data.edges?.length || 0,
         styles: Object.keys(data.styles || {}).length,
@@ -103,7 +104,7 @@ function ReactFlowNodeView({
       setStyles(data.styles || {});
     } catch (error: any) {
       if (error.name === "AbortError") {
-        console.log("Canvas data fetch was aborted (timeout)");
+        log.debug("Canvas data fetch was aborted (timeout)");
       } else {
         console.error("Error fetching canvas data:", error);
         setError((error as Error).message);
@@ -128,12 +129,12 @@ function ReactFlowNodeView({
         try {
           styleData = JSON.parse(node.attrs.styles);
         } catch (e) {
-          console.warn("Error parsing styles, using empty object:", e);
+          log.warn("Error parsing styles, using empty object:", e);
           styleData = {};
         }
       }
 
-      console.log("Initializing ReactFlow node with:", {
+      log.debug("Initializing ReactFlow node with:", {
         nodes: nodeData.length,
         edges: edgeData.length,
         styles: Object.keys(styleData).length,
@@ -151,7 +152,7 @@ function ReactFlowNodeView({
         canvasId &&
         (nodeData.length === 0 || Object.keys(styleData).length === 0)
       ) {
-        console.log(
+        log.debug(
           "Fetching fresh data because real-time enabled and missing content"
         );
         setTimeout(() => {
@@ -182,22 +183,22 @@ function ReactFlowNodeView({
         try {
           styleData = JSON.parse(node.attrs.styles);
         } catch (e) {
-          console.warn("Error parsing updated styles:", e);
+          log.warn("Error parsing updated styles:", e);
           styleData = {};
         }
       }
 
       // Only update if data actually changed
       if (JSON.stringify(nodeData) !== JSON.stringify(nodes)) {
-        console.log("Updating nodes data");
+        log.debug("Updating nodes data");
         setNodes(nodeData);
       }
       if (JSON.stringify(edgeData) !== JSON.stringify(edges)) {
-        console.log("Updating edges data");
+        log.debug("Updating edges data");
         setEdges(edgeData);
       }
       if (JSON.stringify(styleData) !== JSON.stringify(styles)) {
-        console.log(
+        log.debug(
           "Updating styles data:",
           Object.keys(styleData).length,
           "styles"

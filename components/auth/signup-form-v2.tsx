@@ -934,7 +934,7 @@ export default function SignupForm({ googleData }: SignupFormProps) {
         .select("*, subscription(*)")
         .eq("code", code)
         .eq("active", true)
-        .single();
+        .maybeSingle();
 
       if (error || !data) {
         setPromoStatus({

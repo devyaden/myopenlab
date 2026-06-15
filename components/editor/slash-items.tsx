@@ -192,10 +192,10 @@ export function getSlashItems(onInsert: (type: string) => void): SlashItem[] {
       command: viaInsert("canvas-table"),
     },
     {
-      title: "Canvas",
-      description: "Embed a canvas / diagram",
+      title: "Playbook",
+      description: "Embed a playbook flow / diagram",
       icon: LayoutGrid,
-      keywords: ["canvas", "diagram", "flow", "board"],
+      keywords: ["playbook", "canvas", "diagram", "flow", "board"],
       group: "Embeds",
       command: viaInsert("canvas"),
     },

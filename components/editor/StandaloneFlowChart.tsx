@@ -1,6 +1,7 @@
 "use client"
 import ReactFlow, { Background, Controls, MiniMap, useNodesState, useEdgesState } from "reactflow"
 import "reactflow/dist/style.css"
+import { edgeTypes, nodeTypes, onReactFlowError } from "../canvas-new/flow-config"
 
 interface StandaloneFlowChartProps {
   nodes: any[]
@@ -19,6 +20,9 @@ export default function StandaloneFlowChart({ nodes, edges, title }: StandaloneF
         <ReactFlow
           nodes={flowNodes}
           edges={flowEdges}
+          nodeTypes={nodeTypes}
+          edgeTypes={edgeTypes}
+          onError={onReactFlowError}
           onNodesChange={onNodesChange}
           onEdgesChange={onEdgesChange}
           fitView

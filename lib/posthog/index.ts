@@ -1,4 +1,5 @@
 // Safe lazy loading of tracking modules to avoid SSR issues
+import { log } from "@/lib/log";
 
 // Type-only imports that are safe for SSR
 export type {
@@ -74,7 +75,7 @@ export const safeTrackEvent = async (
     const tracker = await getTracker();
     if (tracker) {
       // This would need to be implemented based on the specific event type
-      console.log("Event tracked:", eventName, properties);
+      log.debug("Event tracked:", eventName, properties);
     }
   } catch {
     // Silently fail
@@ -180,7 +181,7 @@ export const initializePostHogTracking = async () => {
   if (typeof window === "undefined") return false;
 
   try {
-    console.log("🚀 Initializing PostHog tracking system...");
+    log.debug("🚀 Initializing PostHog tracking system...");
 
     // Initialize all components
     const [tracker, sessionManager, errorTracker] = await Promise.all([
@@ -201,10 +202,10 @@ export const initializePostHogTracking = async () => {
       errorTracker.initializeInBrowser();
     }
 
-    console.log("✅ PostHog tracking system initialized successfully");
+    log.debug("✅ PostHog tracking system initialized successfully");
     return true;
   } catch (error) {
-    console.warn("⚠️ Failed to initialize PostHog tracking:", error);
+    log.warn("⚠️ Failed to initialize PostHog tracking:", error);
     return false;
   }
 };

@@ -1,5 +1,4 @@
 import { createBrowserClient } from "@supabase/ssr";
-import { createClient } from "@supabase/supabase-js";
 
 export const supabase = createBrowserClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -29,7 +28,6 @@ export const supabase = createBrowserClient(
   }
 );
 
-export const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY!
-);
+// NOTE: the service-role admin client lives in lib/supabase/admin.ts (server
+// only). It must never be imported here — this module is bundled into the
+// browser.

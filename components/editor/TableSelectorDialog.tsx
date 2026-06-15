@@ -938,7 +938,7 @@ export default function TableSelectorDialog({
     <Dialog open={isOpen} onOpenChange={handleOpenChange}>
       <DialogContent className="sm:max-w-[650px] max-h-[85vh] overflow-hidden flex flex-col">
         <DialogHeader className="sticky top-0 z-20 bg-white pt-4 pb-2 border-b">
-          <DialogTitle>Insert Canvas Table</DialogTitle>
+          <DialogTitle>Insert Table</DialogTitle>
         </DialogHeader>
 
         <div className="flex-1 overflow-y-auto px-1 py-2">

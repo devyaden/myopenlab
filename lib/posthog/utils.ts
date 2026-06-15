@@ -1,5 +1,6 @@
 import React from "react";
 import { AuthEvent } from "./events";
+import { log } from "@/lib/log";
 
 // Safe PostHog access functions
 const safePostHogReset = (): void => {
@@ -113,7 +114,7 @@ const safeTrackAuth = (event: AuthEvent, properties: any = {}): void => {
 export const resetPostHogIdentity = (): void => {
   if (typeof window === "undefined") return;
 
-  console.log("🔄 Resetting PostHog identity for new anonymous session");
+  log.debug("🔄 Resetting PostHog identity for new anonymous session");
   safePostHogReset();
 
   // Track that we've started a new anonymous session
@@ -164,7 +165,7 @@ export const isUserIdentified = async (): Promise<boolean> => {
 export const forceCleanLogout = (): void => {
   if (typeof window === "undefined") return;
 
-  console.log("🧹 Forcing clean logout and PostHog reset");
+  log.debug("🧹 Forcing clean logout and PostHog reset");
 
   // Clear session manager
   import("./session")
@@ -200,16 +201,16 @@ export const debugTrackingState = async (): Promise<void> => {
   if (process.env.NODE_ENV !== "development") return;
 
   console.group("🐛 PostHog Tracking Debug Info");
-  console.log("PostHog Ready:", await isPostHogReady());
-  console.log("Distinct ID:", await getCurrentDistinctId());
-  console.log("User Identified:", await isUserIdentified());
+  log.debug("PostHog Ready:", await isPostHogReady());
+  log.debug("Distinct ID:", await getCurrentDistinctId());
+  log.debug("User Identified:", await isUserIdentified());
 
   try {
     const [{ sessionManager }] = await Promise.all([import("./session")]);
-    console.log("Session Data:", sessionManager.getSessionData());
-    console.log("Session Summary:", sessionManager.getSessionSummary());
+    log.debug("Session Data:", sessionManager.getSessionData());
+    log.debug("Session Summary:", sessionManager.getSessionSummary());
   } catch {
-    console.log("Session Data: Not available");
+    log.debug("Session Data: Not available");
   }
 
   console.groupEnd();
@@ -224,7 +225,7 @@ export const manuallyIdentifyUser = (
 ): void => {
   if (typeof window === "undefined") return;
 
-  console.log(`🔍 Manually identifying user: ${userId}`);
+  log.debug(`🔍 Manually identifying user: ${userId}`);
 
   import("./session")
     .then(({ sessionManager }) => {
@@ -313,11 +314,11 @@ export const validateTrackingSetup = async (): Promise<boolean> => {
   const allChecksPass = Object.values(checks).every(Boolean);
 
   if (process.env.NODE_ENV === "development") {
-    console.log("🔍 Tracking Setup Validation:", checks);
+    log.debug("🔍 Tracking Setup Validation:", checks);
     if (!allChecksPass) {
-      console.warn("⚠️ Some tracking validation checks failed");
+      log.warn("⚠️ Some tracking validation checks failed");
     } else {
-      console.log("✅ All tracking validation checks passed");
+      log.debug("✅ All tracking validation checks passed");
     }
   }
 
@@ -334,7 +335,7 @@ export const initializeTracking = (): void => {
   // Wait for PostHog to be ready
   const checkReady = async () => {
     if (await isPostHogReady()) {
-      console.log("🚀 PostHog tracking initialized");
+      log.debug("🚀 PostHog tracking initialized");
       await validateTrackingSetup();
     } else {
       setTimeout(checkReady, 100);

@@ -38,7 +38,7 @@ export async function GET(request: NextRequest) {
       .gte("end_date", new Date().toISOString())
       .order("created_at", { ascending: false })
       .limit(1)
-      .single();
+      .maybeSingle();
 
     // Get feature limits (fresh, after cache clear)
     const limits = await getUserFeatureLimits(user.id);

@@ -56,7 +56,7 @@ export function PromoCodeSignup() {
         .select("*, subscription:subscription_id(*)")
         .eq("code", promoCode.trim())
         .eq("active", true)
-        .single();
+        .maybeSingle();
 
       if (promoError || !promoData) {
         setErrors({ promoCode: "Invalid or expired promo code" });

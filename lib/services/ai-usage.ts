@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { getUserFeatureLimits, SubscriptionFeatureFlag } from "@/lib/subscription-features";
+import { log } from "@/lib/log";
 
 /**
  * Check if user has AI requests remaining for the current month
@@ -79,7 +80,7 @@ export async function incrementAiUsage(userId: string): Promise<void> {
     if (updateError) {
       console.error("Error updating AI usage:", updateError);
     } else {
-      console.log("AI usage incremented to:", existing.count + 1);
+      log.debug("AI usage incremented to:", existing.count + 1);
     }
   } else {
     // Create new record with generated ID
@@ -94,7 +95,7 @@ export async function incrementAiUsage(userId: string): Promise<void> {
     if (insertError) {
       console.error("Error creating AI usage record:", insertError);
     } else {
-      console.log("AI usage record created with count: 1");
+      log.debug("AI usage record created with count: 1");
     }
   }
 }

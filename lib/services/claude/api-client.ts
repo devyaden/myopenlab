@@ -5,6 +5,7 @@ import {
   LanguageType,
 } from "@/lib/types/diagram-types";
 import { createDiagramToolSchema } from "./tool-schemas";
+import { log } from "@/lib/log";
 
 export const PRIMARY_MODEL = "claude-sonnet-4-6";
 export const FALLBACK_MODEL = "claude-haiku-4-5-20251001";
@@ -111,7 +112,7 @@ export async function callClaudeAPIWithTools(
       // Calculate backoff time: 3 seconds for first retry, 6 for second
       const backoffTime = (retryCount + 1) * 3000;
 
-      console.warn(
+      log.warn(
         `Claude API call failed with ${error.status || "network/timeout error"}, retrying in ${backoffTime / 1000}s (${retryCount + 1}/2)...`
       );
 
@@ -124,7 +125,7 @@ export async function callClaudeAPIWithTools(
       // For timeouts or server errors, fall back to a faster model.
       if (isServerError || isTimeoutError) {
         retryModel = FALLBACK_MODEL;
-        console.log(
+        log.debug(
           `Falling back to ${retryModel} for retry due to timeout/server error`
         );
       }

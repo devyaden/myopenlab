@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
 import { supabase } from "../supabase/client";
+import { log } from "@/lib/log";
 
 export interface TutorialStep {
   target: string;
@@ -370,8 +371,10 @@ const mergeOnboardingStates = (localState: any, dbState: any) => {
       localState.hasSeenWelcome || dbState.hasSeenWelcome || false,
     lastCompletedAt:
       localTime > dbTime ? localState.lastCompletedAt : dbState.lastCompletedAt,
+    // Tutorials are opt-in: default to NOT auto-starting. A user (or a settings
+    // toggle) can flip this on; we never auto-launch a tutorial on page load.
     autoStartTutorials:
-      localState.autoStartTutorials ?? dbState.autoStartTutorials ?? true,
+      localState.autoStartTutorials ?? dbState.autoStartTutorials ?? false,
     showAdvancedTips:
       localState.showAdvancedTips ?? dbState.showAdvancedTips ?? true,
     userBehavior: mergedBehavior,
@@ -394,7 +397,7 @@ export const useOnboardingStore = create<OnboardingState>()(
       isRunning: false,
       currentStep: 0,
       waitingForAction: false,
-      autoStartTutorials: true,
+      autoStartTutorials: false, // opt-in: never auto-start tutorials
       showAdvancedTips: true,
       userBehavior: {
         createdItems: 0,
@@ -407,7 +410,7 @@ export const useOnboardingStore = create<OnboardingState>()(
       startTutorial: (tutorialId: string) => {
         const tutorial = TUTORIALS[tutorialId];
         if (!tutorial) {
-          console.warn(`Tutorial ${tutorialId} not found`);
+          log.warn(`Tutorial ${tutorialId} not found`);
           return;
         }
 
@@ -415,10 +418,10 @@ export const useOnboardingStore = create<OnboardingState>()(
 
         // Stop any currently running tutorial
         if (state.isRunning && state.activeTutorial) {
-          console.log(`Stopping current tutorial: ${state.activeTutorial}`);
+          log.debug(`Stopping current tutorial: ${state.activeTutorial}`);
         }
 
-        console.log(`Starting tutorial: ${tutorialId}`);
+        log.debug(`Starting tutorial: ${tutorialId}`);
         set({
           activeTutorial: tutorialId,
           isRunning: true,
@@ -763,7 +766,7 @@ export const useOnboardingStore = create<OnboardingState>()(
 
         // Prevent multiple simultaneous syncs
         if (state.isSyncing && !force) {
-          console.log("Sync already in progress, skipping...");
+          log.debug("Sync already in progress, skipping...");
           return;
         }
 
@@ -775,7 +778,7 @@ export const useOnboardingStore = create<OnboardingState>()(
         const fiveMinutes = 5 * 60 * 1000;
 
         if (!force && now - lastSync < fiveMinutes) {
-          console.log("Recent sync found, skipping...");
+          log.debug("Recent sync found, skipping...");
           return;
         }
 
@@ -821,7 +824,7 @@ export const useOnboardingStore = create<OnboardingState>()(
               JSON.stringify(mergedState) !== JSON.stringify(currentLocalState);
 
             if (hasChanges) {
-              console.log("Merging database state with local state");
+              log.debug("Merging database state with local state");
               set({
                 ...mergedState,
                 lastSyncAt: new Date().toISOString(),
@@ -865,7 +868,7 @@ export const useOnboardingStore = create<OnboardingState>()(
             })
             .eq("id", userId);
 
-          console.log("Onboarding data saved to database");
+          log.debug("Onboarding data saved to database");
         } catch (error) {
           console.error("Failed to save onboarding data to database:", error);
         }
@@ -885,7 +888,7 @@ export const useOnboardingStore = create<OnboardingState>()(
         lastSyncAt: state.lastSyncAt,
       }),
       onRehydrateStorage: () => (state) => {
-        console.log("Onboarding store hydrated from localStorage");
+        log.debug("Onboarding store hydrated from localStorage");
         if (state) {
           state.setHydrated(true);
         }
@@ -897,7 +900,7 @@ export const useOnboardingStore = create<OnboardingState>()(
 // logs
 if (process.env.NODE_ENV === "development") {
   useOnboardingStore.subscribe((state) => {
-    console.log("Onboarding store state changed:", {
+    log.debug("Onboarding store state changed:", {
       completedTutorials: state.completedTutorials,
       skippedTutorials: state.skippedTutorials,
       isHydrated: state.isHydrated,

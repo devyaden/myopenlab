@@ -30,7 +30,7 @@ export async function GET(request: NextRequest) {
       .gte("end_date", new Date().toISOString())
       .order("created_at", { ascending: false })
       .limit(1)
-      .single();
+      .maybeSingle();
 
     // Get all subscriptions for this user (active or not)
     const { data: allSubscriptions } = await supabase

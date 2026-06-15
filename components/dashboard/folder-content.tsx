@@ -721,7 +721,7 @@ export const FolderContent = memo(({ folderId }: FolderContentProps) => {
             className="onboarding-canvas-option"
           >
             <File className="mr-2 h-4 w-4" />
-            New Canvas
+            New Playbook
           </DropdownMenuItem>
           <DropdownMenuItem
             onClick={() => handleQuickCreate(CANVAS_TYPE.TABLE)}

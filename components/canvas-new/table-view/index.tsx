@@ -1277,7 +1277,7 @@ const TableView = forwardRef<
                         .from("canvas_data")
                         .select("nodes")
                         .eq("canvas_id", columnDef.related_canvas_id)
-                        .single();
+                        .maybeSingle();
 
                       const targetNodes = targetCanvasData?.nodes || [];
                       const targetNode = targetNodes.find(
@@ -1335,7 +1335,7 @@ const TableView = forwardRef<
                         .from("canvas_data")
                         .select("nodes")
                         .eq("canvas_id", columnDef.related_canvas_id)
-                        .single();
+                        .maybeSingle();
 
                       const targetNodes = targetCanvasData?.nodes || [];
                       const targetNode = targetNodes.find(
