@@ -415,7 +415,7 @@ export function ShareModal({
     let shareUrl = "";
     const encodedUrl = encodeURIComponent(shareLink);
     const encodedTitle = encodeURIComponent(
-      `Check out my canvas: ${canvasName}`
+      `Check out my playbook: ${canvasName}`
     );
     const encodedDescription = encodeURIComponent(
       "I created this diagram with OLAB"
@@ -510,7 +510,7 @@ export function ShareModal({
       ) {
         try {
           navigator.share({
-            title: `Check out my canvas: ${canvasName}`,
+            title: `Check out my playbook: ${canvasName}`,
             text: "I created this diagram with OLAB!",
             url: shareLink,
           });

@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/dialog";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { HeaderSidebar } from "@/components/header-dashboard";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Check, Loader2, CreditCard, Shield, Lock } from "lucide-react";
 import { supabase } from "@/lib/supabase/client";
 import { useUser } from "@/lib/contexts/userContext";
@@ -236,10 +237,29 @@ export default function PricingPage() {
 
   if (!user || loadingPlans) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-white flex items-center justify-center">
-        <div className="flex flex-col items-center gap-4">
-          <Loader2 className="h-8 w-8 animate-spin text-yadn-accent-green" />
-          <div className="text-gray-700 text-xl">Loading pricing plans...</div>
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-white">
+        <div className="container mx-auto px-4 py-16">
+          <div className="mb-16 flex flex-col items-center gap-3">
+            <Skeleton className="h-10 w-96 max-w-full" />
+            <Skeleton className="h-5 w-[28rem] max-w-full" />
+          </div>
+          <div className="mx-auto grid max-w-4xl gap-6 md:grid-cols-2">
+            {[0, 1].map((i) => (
+              <div
+                key={i}
+                className="rounded-xl border-2 border-gray-100 p-8"
+              >
+                <Skeleton className="h-6 w-32" />
+                <Skeleton className="mt-4 h-10 w-40" />
+                <div className="mt-8 space-y-3">
+                  {[0, 1, 2, 3].map((j) => (
+                    <Skeleton key={j} className="h-4 w-full" />
+                  ))}
+                </div>
+                <Skeleton className="mt-8 h-11 w-full rounded-md" />
+              </div>
+            ))}
+          </div>
         </div>
       </div>
     );
@@ -255,10 +275,11 @@ export default function PricingPage() {
             {/* Page Title */}
             <div className="text-center mb-16">
               <h1 className="text-5xl font-bold mb-4 text-gray-900">
-                Choose Your Plan
+                Pricing that grows with your playbooks
               </h1>
               <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-                Unlock unlimited diagrams and AI-powered features. Select the plan that fits your needs.
+                Unlimited playbooks and an AI co-pilot that knows how your company
+                works. Pick the plan that fits your team.
               </p>
             </div>
 

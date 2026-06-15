@@ -1,316 +1,228 @@
-import { jsPDF } from "jspdf";
-import html2canvas from "html2canvas";
-import type { PaperSize, PaperOrientation } from "@/types/paper";
+import type { PaperOrientation, PaperSize } from "@/types/paper";
 import { getPaperDimensions } from "./paper-sizes";
 
-// Convert pixels to mm (assuming 96 DPI)
-const pxToMm = (px: number) => px * 0.264583;
-
-export async function exportToPDF(
-  editorContent: HTMLElement,
-  fileName = "document.pdf",
-  paperSize: PaperSize = "A4",
-  orientation: PaperOrientation = "portrait"
-): Promise<void> {
-  if (!editorContent) return;
-
-  try {
-    // Get all pages or the editor content itself if no pages are found
-    const pages = editorContent.querySelectorAll(".tiptap-page");
-
-    if (!pages.length) {
-      // If no pages are found, use the editor content as a single page
-      console.log("No pages found, using editor content as a single page");
-
-      // Get paper dimensions in mm
-      const dimensions = getPaperDimensions(paperSize, orientation);
-      const widthMm = pxToMm(dimensions.width);
-      const heightMm = pxToMm(dimensions.height);
-
-      // Create PDF with the correct dimensions
-      const pdf = new jsPDF({
-        orientation: orientation,
-        unit: "mm",
-        format: [widthMm, heightMm],
-      });
-
-      // Render the entire editor content to canvas
-      const canvas = await html2canvas(editorContent, {
-        scale: 2, // Higher scale for better quality
-        useCORS: true,
-        logging: false,
-        allowTaint: true,
-        backgroundColor: "#ffffff",
-        onclone: (clonedDoc, element) => {
-          // Minimal changes - only ensure overflow is visible
-          const reactFlowElements = element.querySelectorAll(".react-flow");
-          reactFlowElements.forEach((el) => {
-            (el as HTMLElement).style.overflow = "visible";
-          });
-        },
-      });
-
-      // Add the canvas as an image to the PDF
-      const imgData = canvas.toDataURL("image/png");
-      pdf.addImage(imgData, "PNG", 0, 0, widthMm, heightMm);
-
-      // Save the PDF
-      pdf.save(fileName);
-      return;
-    }
-
-    const dimensions = getPaperDimensions(paperSize, orientation);
-    const widthMm = pxToMm(dimensions.width);
-    const heightMm = pxToMm(dimensions.height);
-
-    const pdf = new jsPDF({
-      orientation: orientation,
-      unit: "mm",
-      format: [widthMm, heightMm],
-    });
-
-    for (let i = 0; i < pages.length; i++) {
-      const page = pages[i] as HTMLElement;
-
-      if (i > 0) {
-        pdf.addPage([widthMm, heightMm]);
-      }
-
-      const canvas = await html2canvas(page, {
-        scale: 2,
-        useCORS: true,
-        logging: false,
-        allowTaint: true,
-        backgroundColor: "#ffffff",
-        onclone: (clonedDoc, element) => {
-          // Minimal changes - only ensure overflow is visible
-          const reactFlowElements = element.querySelectorAll(".react-flow");
-          reactFlowElements.forEach((el) => {
-            (el as HTMLElement).style.overflow = "visible";
-          });
-        },
-      });
-
-      const imgData = canvas.toDataURL("image/png");
-      pdf.addImage(imgData, "PNG", 0, 0, widthMm, heightMm);
-    }
-
-    pdf.save(fileName);
-    return;
-  } catch (error) {
-    console.error("Error exporting to PDF:", error);
-    throw error;
-  }
+export interface PrintToPDFOptions {
+  /** The .ProseMirror element (or any element wrapping the document
+   * content) that should be cloned into the print window. */
+  editorContent: HTMLElement;
+  /** Used as the print window's <title>; some browsers default the saved
+   * PDF's filename to it. */
+  title?: string;
+  pageSize: PaperSize;
+  orientation: PaperOrientation;
+  /** Margins in millimetres. */
+  margins: {
+    top: number;
+    right: number;
+    bottom: number;
+    left: number;
+  };
+  /** Document-level text direction. Set on <html dir>. */
+  textDirection?: "ltr" | "rtl";
 }
 
+/**
+ * Open a print window styled with the user's exact paper geometry, then
+ * call window.print(). The browser's native print engine handles the
+ * actual page splitting, margin boxes, and font rasterisation — we just
+ * supply correct CSS.
+ *
+ * Why this is simple: our editor surface is a continuous flow (Phase
+ * 2.5), so the print pipeline doesn't need to know about per-page node
+ * structure. It only needs:
+ *   1. @page { size: <mm> <mm>; margin: <mm> <mm> <mm> <mm>; }
+ *   2. Cloned editor styles + the user-fonts <style id="user-fonts">.
+ *   3. document.fonts.ready before window.print() so custom fonts have
+ *      been fetched and decoded.
+ *   4. <html dir> for RTL.
+ */
 export async function browserPrintToPDF(
-  editorContent: HTMLElement,
-  title = "Document"
+  opts: PrintToPDFOptions
 ): Promise<void> {
-  // Create a new window for printing
+  const {
+    editorContent,
+    title = "Document",
+    pageSize,
+    orientation,
+    margins,
+    textDirection = "ltr",
+  } = opts;
+
+  if (!editorContent) return;
+
   const printWindow = window.open("", "_blank");
   if (!printWindow) {
-    alert("Please allow pop-ups to use print functionality");
+    alert("Allow pop-ups to print this document.");
     return;
   }
 
-  // Get the editor content
-  if (!editorContent) return;
+  const dims = getPaperDimensions(pageSize, orientation);
+  const baseHref = `${window.location.origin}/`;
 
-  // Create a copy of the editor content
+  // Clone the editor's content. The clone is a static snapshot of the
+  // current DOM, including NodeView wrappers (FloatBlock, ResizableImage,
+  // etc.). React isn't running in the print window, but the snapshot
+  // already has all CSS classes attached, which is what print layout
+  // needs.
   const contentClone = editorContent.cloneNode(true) as HTMLElement;
 
-  const styleElement = document.createElement("style");
-  styleElement.textContent = `
-    @media print {
-      @page {
-        margin: 2mm;
-        size: auto;
-        counter-increment: page;
+  // Carry over every <style> and <link rel="stylesheet"> from the main
+  // document. <link> hrefs may be relative — we add a <base> tag below so
+  // they resolve correctly inside the new window's about:blank context.
+  const styleTags = Array.from(
+    document.querySelectorAll('style, link[rel="stylesheet"]')
+  )
+    .map((el) => el.outerHTML)
+    .join("\n");
 
-        @top-center { 
-          content: "Page " counter(page);
-          font-family: Arial, sans-serif;
-          font-size: 8pt;
-          color: #555;
+  // The custom-fonts <style id="user-fonts"> element (Phase 5) carries
+  // the user's @font-face rules. It's already included in styleTags above
+  // (as a regular <style>), but list it explicitly so we can confirm
+  // presence in code review.
+  // — no extra work needed.
+
+  const printStyles = buildPrintStyles({
+    pageSize,
+    orientation,
+    margins,
+    pageWidthMm: dims.width,
+    pageHeightMm: dims.height,
+  });
+
+  const html = `<!DOCTYPE html>
+<html lang="en" dir="${textDirection}">
+  <head>
+    <meta charset="utf-8" />
+    <base href="${escapeHtml(baseHref)}" />
+    <title>${escapeHtml(title)}</title>
+    ${styleTags}
+    <style>${printStyles}</style>
+  </head>
+  <body>
+    <div class="print-root">${contentClone.outerHTML}</div>
+    <script>
+      (async () => {
+        try {
+          // Wait for fonts to load (custom user fonts hosted on Supabase
+          // need a network round-trip). 3-second cap so a stuck font
+          // doesn't block printing forever.
+          if (document.fonts && document.fonts.ready) {
+            await Promise.race([
+              document.fonts.ready,
+              new Promise(function(r) { setTimeout(r, 3000); })
+            ]);
+          }
+        } catch (e) {
+          console.warn("font load wait failed", e);
         }
-      }
+        // Small extra tick for layout to settle after late-loaded fonts.
+        await new Promise(function(r) { requestAnimationFrame(function() { setTimeout(r, 50); }); });
+        window.focus();
+        window.print();
+        // Some browsers fire afterprint, others don't. Close once printed.
+        const close = function() { try { window.close(); } catch (e) {} };
+        window.addEventListener("afterprint", close);
+        setTimeout(close, 60_000);
+      })();
+    </script>
+  </body>
+</html>`;
 
-      html, body {
-        height: auto;
-        margin: 0;
-        padding: 0;
-        counter-reset: page;
-      }
+  printWindow.document.open();
+  printWindow.document.write(html);
+  printWindow.document.close();
+}
 
-      body {
-        font-family: Arial, sans-serif;
-        font-size: 12pt;
-        color: black;
-        padding-bottom: 8mm;
-      }
+interface PrintStyleOpts {
+  pageSize: PaperSize;
+  orientation: PaperOrientation;
+  margins: { top: number; right: number; bottom: number; left: number };
+  pageWidthMm: number;
+  pageHeightMm: number;
+}
 
-      .page-footer {
-        position: fixed;
-        bottom: 0;
-        left: 0;
-        right: 0;
-        height: 8mm;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 8pt;
-        color: #555;
-        background-color: white;
-        padding: 0 2mm;
-      }
+function buildPrintStyles(opts: PrintStyleOpts): string {
+  const { margins, pageWidthMm, pageHeightMm } = opts;
+  const { top, right, bottom, left } = margins;
 
-      .page-footer img {
-        max-height: 5mm;
-        margin-right: 5px;
-      }
+  return `
+    @page {
+      size: ${pageWidthMm}mm ${pageHeightMm}mm;
+      margin: ${top}mm ${right}mm ${bottom}mm ${left}mm;
+    }
 
-      .editor-export-container {
-        width: 100%;
-        margin: 0;
-        padding: 0;
-      }
+    /* Strip the editor surface chrome — the browser's print engine adds
+       margins via @page; we don't need padding or shadow on the surface
+       (it would compound with the @page margins and double-margin the
+       output). */
+    html, body {
+      margin: 0;
+      padding: 0;
+      background: white;
+    }
+    .print-root {
+      width: 100%;
+    }
+    .editor-page-surface {
+      width: auto !important;
+      min-height: 0 !important;
+      margin: 0 !important;
+      padding: 0 !important;
+      background: white !important;
+      box-shadow: none !important;
+      background-image: none !important;
+    }
 
-      /* Simplified ReactFlow styling - remove borders but keep background */
-      .react-flow-node-wrapper {
-        page-break-inside: avoid;
-        margin: 10px 0;
-        width: 100%;
-        border: none;
-        background: none;
-      }
+    /* Hide the visible chrome that has no business in print. */
+    .editor-toolbar,
+    .float-block__toolbar,
+    .canvas-table-editor-controls,
+    [data-print-hidden] {
+      display: none !important;
+    }
 
-      .react-flow {
-        width: 100%;
-        border: none;
-        page-break-inside: avoid;
-        overflow: visible !important;
-      }
+    /* The repeating page-break gradient is gone (Phase 2.6) but defend
+       against any stale styles. */
 
-      .react-flow__pane {
-        overflow: visible !important;
-      }
+    /* Forced page breaks: any <hr> in the document acts as a page
+       break. Authors insert these via Insert > Page Break. */
+    .ProseMirror hr {
+      visibility: hidden;
+      height: 0;
+      margin: 0;
+      border: 0;
+      page-break-after: always;
+      break-after: page;
+    }
 
-      /* Hide ReactFlow controls in print */
-      .react-flow__controls,
-      .react-flow__minimap,
-      .react-flow__attribution {
-        display: none;
-      }
+    /* Avoid breaking inside floats and tables when possible. */
+    .float-block,
+    table {
+      page-break-inside: avoid;
+      break-inside: avoid;
+    }
 
-      /* Clean node styling without borders but keep content styling */
-      .react-flow__node {
-        border: none;
-        padding: 8px;
-        font-size: 12px;
-        box-shadow: none;
-        border-radius: 0;
-      }
+    /* File-mention chips: print as text colour with a thin border so the
+       link relationship is visible on paper. */
+    .file-mention {
+      background: transparent !important;
+      color: #1f2937 !important;
+      border: 1px solid #cbd5e1 !important;
+    }
 
-      .react-flow__edge-path {
-        stroke: #333;
-        stroke-width: 2px;
-      }
-
-      /* General print optimizations */
-      img, table {
-        page-break-inside: avoid;
-        max-width: 100%;
-      }
-
-      /* Hide loading indicators */
-      .animate-spin,
-      .loading-indicator {
-        display: none;
-      }
+    /* React Flow canvases inside documents: keep their content visible
+       and avoid clipping. */
+    .react-flow {
+      overflow: visible !important;
     }
   `;
+}
 
-  // Get existing styles
-  const existingStyles = Array.from(
-    document.querySelectorAll('style, link[rel="stylesheet"]')
-  ).map((style) => style.cloneNode(true) as HTMLElement);
-
-  // Write content to the print window
-  printWindow.document.write(`
-    <!DOCTYPE html>
-    <html>
-      <head>
-        <title>${title}</title>
-        <meta charset="utf-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1">
-        ${styleElement.outerHTML}
-        ${existingStyles.map((style) => style.outerHTML).join("")}
-      </head>
-      <body>
-        <div class="editor-export-container">
-          ${contentClone.innerHTML}
-        </div>
-
-        <div class="page-footer">
-          <img src="/assets/global/app-logo.svg" alt="OLAB Logo">
-          <span>Created with OLAB</span>
-        </div>
-
-        <script>
-          // ReactFlow enhancement - minimal changes, preserve original layout
-          function enhanceReactFlowNodes() {
-            const reactFlowContainers = document.querySelectorAll('.react-flow');
-            
-            reactFlowContainers.forEach((container) => {
-              // Only remove borders and ensure overflow is visible - don't touch height
-              container.style.border = 'none';
-              container.style.overflow = 'visible';
-              
-              // Hide controls but keep background
-              const controls = container.querySelector('.react-flow__controls');
-              const minimap = container.querySelector('.react-flow__minimap');
-              const attribution = container.querySelector('.react-flow__attribution');
-              
-              if (controls) controls.style.display = 'none';
-              if (minimap) minimap.style.display = 'none';
-              if (attribution) attribution.style.display = 'none';
-              
-              // Only set overflow on pane - preserve original height
-              const pane = container.querySelector('.react-flow__pane');
-              if (pane) {
-                pane.style.overflow = 'visible';
-              }
-
-              // Remove borders from nodes but keep their backgrounds
-              const nodes = container.querySelectorAll('.react-flow__node');
-              nodes.forEach(node => {
-                node.style.border = 'none';
-                node.style.boxShadow = 'none';
-                node.style.borderRadius = '0';
-              });
-            });
-
-            // Clean up wrapper borders only
-            const wrappers = document.querySelectorAll('.react-flow-node-wrapper');
-            wrappers.forEach(wrapper => {
-              wrapper.style.border = 'none';
-              wrapper.style.boxShadow = 'none';
-            });
-          }
-
-          // Wait for content to load then enhance and print
-          setTimeout(() => {
-            enhanceReactFlowNodes();
-            setTimeout(() => {
-              window.print();
-              setTimeout(() => window.close(), 1000);
-            }, 300);
-          }, 500);
-        </script>
-      </body>
-    </html>
-  `);
-
-  printWindow.document.close();
+function escapeHtml(s: string): string {
+  return s
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
 }

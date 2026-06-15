@@ -68,7 +68,7 @@ const initialUndoableState: UndoableState = {
       order: 2,
     },
   ],
-  name: "Untitled Canvas",
+  name: "Untitled Playbook",
   description: "",
   folder_id: undefined,
 };
@@ -97,7 +97,11 @@ const initialState: Omit<CanvasStore, keyof CanvasActions> = {
     table_settings: {},
     backgroundColor: "#ffffff",
   },
+  recentColors: { fill: [], border: [], text: [], edge: [] },
+  isTextEditing: false,
 };
+
+const RECENT_COLORS_LIMIT = 10;
 
 const initialHistoryState: HistoryState = {
   past: [],
@@ -215,6 +219,39 @@ export const useCanvasStore = create<CanvasStore>()(
 
           set({ nodeStyles: newStyles });
           updateStateAndSync();
+        },
+
+        // Apply the same style partial to many nodes in a single history entry.
+        updateNodeStyles: (nodeIds, style) => {
+          if (!nodeIds || nodeIds.length === 0) return;
+          const currentStyles = get().nodeStyles;
+          const newStyles = { ...currentStyles };
+          for (const nodeId of nodeIds) {
+            newStyles[nodeId] = { ...newStyles[nodeId], ...style };
+          }
+
+          const currentState = getUndoableState();
+          const newState = { ...currentState, nodeStyles: newStyles };
+          addToHistory(newState);
+
+          set({ nodeStyles: newStyles });
+          updateStateAndSync();
+        },
+
+        // Track most-recently-used colors per slot. Persisted across sessions.
+        pushRecentColor: (slot, color) => {
+          if (!color) return;
+          const current = get().recentColors;
+          const slotList = current[slot] || [];
+          const dedup = [color, ...slotList.filter((c) => c !== color)].slice(
+            0,
+            RECENT_COLORS_LIMIT
+          );
+          set({ recentColors: { ...current, [slot]: dedup } });
+        },
+
+        setIsTextEditing: (editing) => {
+          if (get().isTextEditing !== editing) set({ isTextEditing: editing });
         },
 
         updateCanvasSettings: (settings: any) => {
@@ -1030,6 +1067,7 @@ export const useCanvasStore = create<CanvasStore>()(
         description: state.description,
         folder_id: state.folder_id,
         version: state.version,
+        recentColors: state.recentColors,
       }),
     }
   )

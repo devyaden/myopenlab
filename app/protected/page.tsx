@@ -4,6 +4,9 @@ import { HomeContent } from "@/components/dashboard/home-content";
 import { RecentDocuments } from "@/components/dashboard/recent-documents";
 import { HeaderSidebar } from "@/components/header-dashboard";
 import { SidebarProvider } from "@/components/ui/sidebar";
+import { AgentChat } from "@/components/agent/AgentChat";
+import { AgentLauncher } from "@/components/agent/AgentLauncher";
+import { FeedbackPrompt } from "@/components/feedback/FeedbackPrompt";
 import { useRef } from "react";
 
 export default function Dashboard() {
@@ -21,6 +24,9 @@ export default function Dashboard() {
           <RecentDocuments />
         </div>
       </div>
+      <AgentLauncher />
+      <AgentChat />
+      <FeedbackPrompt />
     </SidebarProvider>
   );
 }

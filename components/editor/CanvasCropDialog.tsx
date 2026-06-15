@@ -29,11 +29,11 @@ import ReactFlow, {
   useReactFlow,
 } from "reactflow";
 import "reactflow/dist/style.css";
-import CustomEdge from "../canvas-new/custom-edge";
-import { GenericNode } from "../canvas-new/nodes/generic-node";
-import { ImageNode } from "../canvas-new/nodes/image-node";
-import { SwimlaneNode } from "../canvas-new/nodes/swimlane-node";
-import { TextNode } from "../canvas-new/nodes/text-node";
+import {
+  edgeTypes,
+  nodeTypes,
+  onReactFlowError,
+} from "../canvas-new/flow-config";
 
 interface CanvasCropDialogProps {
   isOpen: boolean;
@@ -41,17 +41,6 @@ interface CanvasCropDialogProps {
   onInsertCroppedCanvas: (croppedData: any) => void;
   canvasData: any;
 }
-
-const nodeTypes = {
-  genericNode: GenericNode,
-  swimlaneNode: SwimlaneNode,
-  textNode: TextNode,
-  imageNode: ImageNode,
-};
-
-const edgeTypes = {
-  custom: CustomEdge,
-};
 
 function FlowWithCropping({
   canvasData,
@@ -333,6 +322,7 @@ function FlowWithCropping({
           edges={optimizedEdges}
           nodeTypes={nodeTypes}
           edgeTypes={edgeTypes}
+          onError={onReactFlowError}
           fitView
           proOptions={{ hideAttribution: true }}
           nodesDraggable={false}

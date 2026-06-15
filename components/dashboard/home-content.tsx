@@ -532,7 +532,7 @@ export const HomeContent = memo(() => {
           const href =
             type === CANVAS_TYPE.DOCUMENT
               ? `/protected/document-editor/${canvasId}`
-              : `/protected/canvas-new/${canvasId}`;
+              : `/protected/playbook/${canvasId}`;
 
           window.location.href = href;
         }

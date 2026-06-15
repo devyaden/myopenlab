@@ -45,7 +45,7 @@ export function ImportModal({ isOpen, onClose, onImport }: ImportModalProps) {
             onImport(json);
             onClose();
           } else {
-            setError("Invalid canvas JSON structure.");
+            setError("Invalid playbook JSON structure.");
           }
         } catch (err) {
           setError("Invalid JSON file.");
@@ -59,7 +59,7 @@ export function ImportModal({ isOpen, onClose, onImport }: ImportModalProps) {
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Import Canvas</DialogTitle>
+          <DialogTitle>Import Playbook</DialogTitle>
         </DialogHeader>
         <div className="grid gap-4 py-4">
           <div className="grid grid-cols-4 items-center gap-4">

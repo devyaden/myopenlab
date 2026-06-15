@@ -103,7 +103,7 @@ export function RecentDocuments() {
     if (canvasType === "document") {
       window.location.href = `/protected/document-editor/${id}`;
     } else {
-      window.location.href = `/protected/canvas-new/${id}`;
+      window.location.href = `/protected/playbook/${id}`;
     }
   };
 

@@ -5,16 +5,17 @@ import ReactFlow, {
   applyEdgeChanges,
   applyNodeChanges,
   Background,
+  Controls,
   useEdgesState,
   useNodesState,
   type Viewport,
 } from "reactflow";
 import "reactflow/dist/style.css";
-import CustomEdge from "../canvas-new/custom-edge";
-import { GenericNode } from "../canvas-new/nodes/generic-node";
-import { ImageNode } from "../canvas-new/nodes/image-node";
-import { SwimlaneNode } from "../canvas-new/nodes/swimlane-node";
-import { TextNode } from "../canvas-new/nodes/text-node";
+import {
+  edgeTypes,
+  nodeTypes,
+  onReactFlowError,
+} from "../canvas-new/flow-config";
 
 interface ReactFlowCanvasProps {
   canvasData: any;
@@ -24,18 +25,12 @@ interface ReactFlowCanvasProps {
   initialViewport?: Viewport;
   onViewportChange?: (viewport: Viewport) => void;
   height?: number;
+  /** When true, the embed is frozen at its saved viewport — pan/zoom
+   * interactions are disabled (Phase C2). */
+  lockViewport?: boolean;
+  /** Show the +/- zoom + fit controls. Defaults on for interactive embeds. */
+  showControls?: boolean;
 }
-
-const nodeTypes = {
-  genericNode: GenericNode,
-  swimlaneNode: SwimlaneNode,
-  textNode: TextNode,
-  imageNode: ImageNode,
-};
-
-const edgeTypes = {
-  custom: CustomEdge,
-};
 
 export default function ReactFlowCanvas({
   canvasData,
@@ -45,6 +40,8 @@ export default function ReactFlowCanvas({
   initialViewport,
   onViewportChange,
   height,
+  lockViewport = false,
+  showControls = true,
 }: ReactFlowCanvasProps) {
   const [nodes, setNodes, onNodesChangeInternalOriginal] = useNodesState(
     canvasData.nodes || []
@@ -140,20 +137,33 @@ export default function ReactFlowCanvas({
         }))}
         nodeTypes={nodeTypes}
         edgeTypes={edgeTypes}
+        onError={onReactFlowError}
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
         onMove={handleViewportChange}
         defaultViewport={initialViewport}
         attributionPosition="bottom-right"
-        nodesDraggable={!readOnly}
+        nodesDraggable={!readOnly && !lockViewport}
         nodesConnectable={!readOnly}
         elementsSelectable={!readOnly}
-        zoomOnScroll={false}
+        /* Widened zoom range (was the default 0.5–2) so embeds can zoom
+         * much further in and out. */
+        minZoom={0.1}
+        maxZoom={4}
+        /* Locked embeds freeze at the saved viewport; interactive embeds
+         * allow scroll-zoom + drag-pan. */
+        zoomOnScroll={!lockViewport}
+        zoomOnPinch={!lockViewport}
+        zoomOnDoubleClick={!lockViewport}
+        panOnDrag={!lockViewport}
         panOnScroll={false}
-        fitView={!initialViewport}
+        fitView={!initialViewport && !lockViewport}
         proOptions={{ hideAttribution: true }}
       >
         <Background size={1} color="#fff" />
+        {showControls && !lockViewport && (
+          <Controls showInteractive={false} />
+        )}
       </ReactFlow>
     </div>
   );

@@ -29,30 +29,21 @@ import ReactFlow, {
 import "reactflow/dist/style.css";
 
 import { findBestParentNode, getHelperLines } from "@/lib/canvas.utils";
+import { enhanceNodesWithConnectionData } from "@/lib/canvas/connections";
+import { stripConnectionKeys } from "@/lib/canvas/column-data";
 import { useCanvasStore } from "@/lib/store/useCanvas";
 import { CANVAS_TYPE, CanvasSettings } from "@/types/store";
-import CustomEdge from "./custom-edge";
+import {
+  edgeTypes,
+  nodeTypes,
+  onReactFlowError,
+} from "./flow-config";
 import HelperLinesRenderer from "./HelperLines";
 import MeasureRuler from "./measure-ruler";
 import { NodePropertiesSidebar } from "./node-properties-sidebar";
-import { GenericNode } from "./nodes/generic-node";
-import { ImageNode } from "./nodes/image-node";
-import { SwimlaneNode } from "./nodes/swimlane-node";
-import { TextNode } from "./nodes/text-node";
 import TableView from "./table-view";
 import { VIEW_MODE, ViewMode } from "./table-view/table.types";
 import { UMLToolbar } from "./uml-toolbar";
-
-const nodeTypes = {
-  genericNode: GenericNode,
-  swimlaneNode: SwimlaneNode,
-  textNode: TextNode,
-  imageNode: ImageNode,
-};
-
-const edgeTypes = {
-  custom: CustomEdge,
-};
 
 interface UMLEditorProps {
   nodes: Node[];
@@ -156,6 +147,7 @@ export function UMLEditor({
   const [reactFlowInstance, setReactFlowInstance] =
     useState<ReactFlowInstance | null>(null);
   const { zoomIn, zoomOut, fitView } = useReactFlow();
+  const isTextEditing = useCanvasStore((s) => s.isTextEditing);
   const [showRulers, setShowRulers] = useState(false);
   const [background, setBackground] = useState<BackgroundVariant>(
     BackgroundVariant.Dots
@@ -191,6 +183,16 @@ export function UMLEditor({
   const handleFitToScreen = useCallback(() => {
     fitView();
   }, [fitView]);
+
+  // Select and center a node (used by the side panel's connection chips).
+  const handleFocusNode = useCallback(
+    (nodeId: string) => {
+      if (!nodes.some((n) => n.id === nodeId)) return;
+      onNodeSelect?.([nodeId]);
+      fitView({ nodes: [{ id: nodeId }], duration: 300, maxZoom: 1.2 });
+    },
+    [nodes, onNodeSelect, fitView]
+  );
 
   const customApplyNodeChanges = useCallback(
     (changes: NodeChange[], nodes: Node[]): Node[] => {
@@ -301,49 +303,55 @@ export function UMLEditor({
     [edges, onEdgesChange, onEdgeSelect]
   );
 
+  // Canonical edge factory — used for both hand-drawn connections and ones
+  // created from the node side panel, so they are identical. memoizedEdges
+  // remaps type->"custom" and injects onLabelChange at render time.
+  const buildConnectionEdge = useCallback(
+    (source: string, target: string, sourceHandle = "g", targetHandle = "d") => ({
+      source,
+      target,
+      sourceHandle,
+      targetHandle,
+      type: "floating",
+      data: { type: "default", label: "" },
+      markerEnd: { type: MarkerType.Arrow },
+    }),
+    []
+  );
+
   const handleConnect = useCallback(
     (params: Connection) => {
-      // Assign default handles if they're not already defined
-      if (!params.sourceHandle) params.sourceHandle = "g"; // right
-      if (!params.targetHandle) params.targetHandle = "d"; // left
-
-      const newEdge = {
-        ...params,
-        type: "floating",
-        data: { type: "default", label: "", onLabelChange: onChangeEdgeLabel },
-        markerEnd: { type: MarkerType.Arrow },
-        // Ensure handles are explicitly set
-        sourceHandle: params.sourceHandle,
-        targetHandle: params.targetHandle,
-      };
-      const updatedEdges = addEdge(newEdge, edges);
-      onEdgesChange?.(updatedEdges);
-
-      // Update the nodes to reflect the new connection
-      const updatedNodes = nodes.map((node) => {
-        if (node.id === params.source) {
-          return {
-            ...node,
-            data: {
-              ...node.data,
-              to: params.target,
-            },
-          };
-        }
-        if (node.id === params.target) {
-          return {
-            ...node,
-            data: {
-              ...node.data,
-              from: params.source,
-            },
-          };
-        }
-        return node;
-      });
-      onNodesChange?.(updatedNodes);
+      const newEdge = buildConnectionEdge(
+        params.source as string,
+        params.target as string,
+        params.sourceHandle || "g",
+        params.targetHandle || "d"
+      );
+      onEdgesChange?.(addEdge(newEdge, edges));
     },
-    [edges, onEdgesChange, nodes, onNodesChange, onChangeEdgeLabel]
+    [edges, onEdgesChange, buildConnectionEdge]
+  );
+
+  // Create an edge source->target from the side panel. Guards self-connection
+  // and an existing identical edge so the panel can't make duplicates.
+  const handleConnectNodes = useCallback(
+    (source: string, target: string) => {
+      if (!source || !target || source === target) return;
+      const exists = edges.some(
+        (e) => e.source === source && e.target === target
+      );
+      if (exists) return;
+      onEdgesChange?.(addEdge(buildConnectionEdge(source, target), edges));
+    },
+    [edges, onEdgesChange, buildConnectionEdge]
+  );
+
+  // Remove a specific edge by id (from the side panel chip's × button).
+  const handleRemoveEdge = useCallback(
+    (edgeId: string) => {
+      onEdgesChange?.(edges.filter((e) => e.id !== edgeId));
+    },
+    [edges, onEdgesChange]
   );
 
   const onNodeDragStop = useCallback(
@@ -402,73 +410,6 @@ export function UMLEditor({
   );
 
   // Enhance nodes with connection data
-  const enhanceNodesWithConnectionData = useCallback(
-    (nodes: Node[], edges: Edge[]): Node[] => {
-      // Create a map of node IDs to their labels for quick lookup
-      const nodeLabelsMap = new Map(
-        nodes.map((node) => [node.id, node.data.label || node.id])
-      );
-
-      return nodes.map((node) => {
-        // Find incoming and outgoing edges
-        const incomingEdges = edges.filter((edge) => edge.target === node.id);
-        const outgoingEdges = edges.filter((edge) => edge.source === node.id);
-
-        // Find parent and child nodes
-        const parentNodeId = node.parentNode;
-        const childNodeIds = nodes
-          .filter((n) => n.parentNode === node.id)
-          .map((n) => n.id);
-
-        // Get parent node label if it exists
-        const parentLabel = parentNodeId
-          ? nodeLabelsMap.get(parentNodeId) || parentNodeId
-          : "";
-
-        // Get child node labels if they exist
-        const childrenLabels = childNodeIds
-          .map((id) => nodeLabelsMap.get(id) || id)
-          .join(", ");
-
-        // Format edge information with labels
-        const fromInfo = incomingEdges
-          .map((edge) => {
-            const sourceLabel = nodeLabelsMap.get(edge.source) || edge.source;
-            const edgeLabel = edge.data?.label ? ` (${edge.data.label})` : "";
-            return `${sourceLabel}${edgeLabel}`;
-          })
-          .join(", ");
-
-        const toInfo = outgoingEdges
-          .map((edge) => {
-            const targetLabel = nodeLabelsMap.get(edge.target) || edge.target;
-            const edgeLabel = edge.data?.label ? ` (${edge.data.label})` : "";
-            return `${targetLabel}${edgeLabel}`;
-          })
-          .join(", ");
-
-        // Prepare enhanced data with only properties that have values
-        const enhancedData = {
-          ...node.data,
-          incoming: incomingEdges.map((edge) => edge.source),
-          outgoing: outgoingEdges.map((edge) => edge.target),
-        };
-
-        // Only add these properties if they have actual values
-        if (fromInfo) enhancedData.from = fromInfo;
-        if (toInfo) enhancedData.to = toInfo;
-        if (parentNodeId) enhancedData.parent = parentLabel;
-        if (childNodeIds.length > 0) enhancedData.children = childrenLabels;
-
-        return {
-          ...node,
-          data: enhancedData,
-        };
-      });
-    },
-    []
-  );
-
   const handleTableNodesChange = useCallback(
     (updatedNodes: Node[]) => {
       // Check if any nodes were deleted
@@ -483,54 +424,35 @@ export function UMLEditor({
         );
         onNodesChange?.(newNodes);
       } else {
-        // Update existing nodes or add new nodes
-        const enhancedNodes = enhanceNodesWithConnectionData(nodes, edges);
-        const nodeLookup = new Map(
-          enhancedNodes.map((node) => [node.id, node])
-        );
+        // Update existing nodes or add new nodes. Connection keys (from/to/
+        // parent/children/incoming/outgoing) are derived and must never be
+        // persisted, so we always strip them from the node data we save.
+        const nodeLookup = new Map(nodes.map((node) => [node.id, node]));
 
         const newNodes = updatedNodes.map((updatedNode) => {
-          const existingNode =
-            nodeLookup.get(updatedNode.id) ||
-            nodes.find((node) => node.id === updatedNode.id);
+          const existingNode = nodeLookup.get(updatedNode.id);
           if (existingNode) {
-            // Update existing node but preserve the enhanced data properties
-            const newNode = {
+            return {
               ...existingNode,
-              data: {
+              data: stripConnectionKeys({
                 ...existingNode.data,
                 ...updatedNode.data,
                 shape: updatedNode.data.shape || existingNode.data.shape,
-              },
+              }),
               type: updatedNode?.type || existingNode?.type,
             };
-
-            // Preserve relationship properties only if they exist in the source node
-            if (existingNode.data.from)
-              newNode.data.from = existingNode.data.from;
-            if (existingNode.data.to) newNode.data.to = existingNode.data.to;
-            if (existingNode.data.parent)
-              newNode.data.parent = existingNode.data.parent;
-            if (existingNode.data.children)
-              newNode.data.children = existingNode.data.children;
-            if (existingNode.data.incoming)
-              newNode.data.incoming = existingNode.data.incoming;
-            if (existingNode.data.outgoing)
-              newNode.data.outgoing = existingNode.data.outgoing;
-
-            return newNode;
-          } else {
-            // Add new node
-            return {
-              ...updatedNode,
-              position: { x: Math.random() * 500, y: Math.random() * 500 },
-            };
           }
+          // Add new node
+          return {
+            ...updatedNode,
+            data: stripConnectionKeys(updatedNode.data),
+            position: { x: Math.random() * 500, y: Math.random() * 500 },
+          };
         });
         onNodesChange?.(newNodes);
       }
     },
-    [nodes, edges, onNodesChange, enhanceNodesWithConnectionData]
+    [nodes, onNodesChange]
   );
 
   const handleTableEdgesChange = useCallback(
@@ -803,6 +725,9 @@ export function UMLEditor({
               setColumns={setColumns || (() => {})}
               nodes={nodes}
               edges={edges}
+              onFocusNode={handleFocusNode}
+              onConnectNodes={handleConnectNodes}
+              onRemoveEdge={handleRemoveEdge}
             />
           )}
 
@@ -840,10 +765,17 @@ export function UMLEditor({
             onDrop={onDrop}
             nodeTypes={nodeTypes}
             edgeTypes={edgeTypes}
+            onError={onReactFlowError}
             fitView
             className="bg-white"
             multiSelectionKeyCode={["Meta", "Shift"]}
             selectNodesOnDrag={false}
+            // Miro/Figma gesture model: drag the empty pane = marquee select;
+            // hold Space (or use middle/right mouse) = pan the canvas.
+            selectionOnDrag={!isTextEditing}
+            panOnDrag={isTextEditing ? true : [1, 2]}
+            panActivationKeyCode="Space"
+            nodesDraggable={!isTextEditing}
             elementsSelectable={!readOnly}
             edgeUpdaterRadius={10}
             onEdgeUpdate={onEdgeUpdate}

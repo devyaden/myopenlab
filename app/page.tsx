@@ -36,6 +36,27 @@ export default function Home() {
     setIsVisible(true);
   }, []);
 
+  // A/B test the hero line via a PostHog feature flag ("landing-hero").
+  // control = "Where your company's playbooks live"
+  // variant = "The playbook OS for growing teams"
+  const [heroVariant, setHeroVariant] = useState<"control" | "variant">(
+    "control"
+  );
+  useEffect(() => {
+    import("posthog-js")
+      .then((m) => {
+        const ph: any = m.default;
+        const apply = () => {
+          const flag = ph?.getFeatureFlag?.("landing-hero");
+          if (flag === "variant" || flag === "test") setHeroVariant("variant");
+          ph?.capture?.("landing.viewed", { heroVariant: flag ?? "control" });
+        };
+        if (ph?.onFeatureFlags) ph.onFeatureFlags(apply);
+        else apply();
+      })
+      .catch(() => {});
+  }, []);
+
   return (
     <main className="min-h-screen text-yadn-foreground bg-yadn-background">
       <Navbar />
@@ -57,12 +78,22 @@ export default function Home() {
               }`}
             >
               <h1 className="text-4xl md:text-6xl font-bold mb-6">
-                Transform Your Ideas Into{" "}
-                <span className="gradient-text">Visual Clarity</span>
+                {heroVariant === "variant" ? (
+                  <>
+                    The <span className="gradient-text">playbook OS</span> for
+                    growing teams
+                  </>
+                ) : (
+                  <>
+                    Where your company&apos;s{" "}
+                    <span className="gradient-text">playbooks</span> live
+                  </>
+                )}
               </h1>
               <p className="text-xl md:text-2xl text-yadn-foreground/80 mb-8 max-w-2xl mx-auto">
-                Create, connect, and collaborate with our powerful diagramming
-                tool that brings your thoughts to life.
+                The playbook OS for growing teams. Capture how your company
+                actually works in living playbooks — connected by AI, always
+                current as you grow.
               </p>
             </div>
 
@@ -74,16 +105,17 @@ export default function Home() {
               }`}
             >
               <Link
-                href="/signup"
+                href="/try"
                 className="px-8 py-3 bg-yadn-accent-green text-yadn-background rounded-md hover:bg-yadn-accent-green/90 transition-colors font-medium flex items-center justify-center"
               >
-                Get Started <ArrowRight size={18} className="ml-2" />
+                Build a playbook in 30 seconds{" "}
+                <ArrowRight size={18} className="ml-2" />
               </Link>
               <Link
-                href="/features"
+                href="/auth/signup"
                 className="px-8 py-3 bg-foreground/10 text-yadn-foreground rounded-md hover:bg-foreground/20 transition-colors font-medium flex items-center justify-center"
               >
-                Explore Features
+                Get started free
               </Link>
             </div>
           </div>
@@ -133,11 +165,11 @@ export default function Home() {
           <AnimateOnScroll>
             <div className="text-center mb-16">
               <h2 className="text-3xl md:text-4xl font-bold mb-4">
-                Powerful Features for Complex Ideas
+                One home for how your company works
               </h2>
               <p className="text-lg text-yadn-foreground/70 max-w-2xl mx-auto">
-                Everything you need to visualize, organize, and connect your
-                thoughts in one seamless experience.
+                Processes, policies, and know-how — documented, connected, and
+                kept current in one place your whole team can trust.
               </p>
             </div>
           </AnimateOnScroll>
@@ -163,11 +195,11 @@ export default function Home() {
           <AnimateOnScroll>
             <div className="text-center mb-16">
               <h2 className="text-3xl md:text-4xl font-bold mb-4">
-                How Olab Works
+                Why growing teams switch
               </h2>
               <p className="text-lg text-yadn-foreground/70 max-w-2xl mx-auto">
-                A seamless experience from idea to visualization in just a few
-                steps.
+                Stop running on tribal knowledge. Get how your company works out
+                of people&apos;s heads and into living playbooks.
               </p>
             </div>
           </AnimateOnScroll>
@@ -180,12 +212,10 @@ export default function Home() {
                     1
                   </span>
                 </div>
-                <h3 className="text-xl font-semibold mb-2">
-                  Create Your Canvas
-                </h3>
+                <h3 className="text-xl font-semibold mb-2">Living diagrams</h3>
                 <p className="text-yadn-foreground/70">
-                  Start with a blank canvas and add shapes, connections, and
-                  nested elements to visualize your ideas.
+                  Describe a process in a sentence and get a clear flow — one
+                  that updates everywhere when the process changes.
                 </p>
               </div>
             </AnimateOnScroll>
@@ -197,10 +227,10 @@ export default function Home() {
                     2
                   </span>
                 </div>
-                <h3 className="text-xl font-semibold mb-2">Switch Views</h3>
+                <h3 className="text-xl font-semibold mb-2">AI co-pilot</h3>
                 <p className="text-yadn-foreground/70">
-                  Toggle between canvas, table, and document views to see your
-                  data from different perspectives.
+                  Generate, edit, and ask across everything your company
+                  knows — without leaving the page you&apos;re working on.
                 </p>
               </div>
             </AnimateOnScroll>
@@ -213,11 +243,11 @@ export default function Home() {
                   </span>
                 </div>
                 <h3 className="text-xl font-semibold mb-2">
-                  Share & Collaborate
+                  Stays current as you grow
                 </h3>
                 <p className="text-yadn-foreground/70">
-                  Generate share links to collaborate with team members or
-                  export your work in various formats.
+                  Your playbooks don&apos;t go stale. The AI keeps them honest
+                  as your team, tools, and processes change.
                 </p>
               </div>
             </AnimateOnScroll>
@@ -232,20 +262,20 @@ export default function Home() {
             <div className="max-w-4xl mx-auto bg-yadn-accent-green/5 border border-yadn-accent-green/20 rounded-2xl p-8 md:p-12">
               <div className="text-center mb-8">
                 <h2 className="text-3xl md:text-4xl font-bold mb-4">
-                  Ready to Transform Your Ideas?
+                  Get your first playbook out of your head
                 </h2>
                 <p className="text-lg text-yadn-foreground/70 max-w-2xl mx-auto">
-                  Join thousands of users who are already visualizing their
-                  thoughts with Olab.
+                  Describe one process. See it become a living playbook in
+                  seconds. No signup required.
                 </p>
               </div>
 
               <div className="flex flex-col sm:flex-row justify-center gap-4">
                 <Link
-                  href="/signup"
+                  href="/try"
                   className="px-8 py-3 bg-yadn-accent-green text-yadn-background rounded-md hover:bg-yadn-accent-green/90 transition-colors font-medium flex items-center justify-center"
                 >
-                  Get Started Free
+                  Try it free
                 </Link>
                 <Link
                   href="/contact"

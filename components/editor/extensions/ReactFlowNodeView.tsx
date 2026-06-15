@@ -313,8 +313,18 @@ function ReactFlowNodeView({
 
     const startX = e.clientX;
     const startY = e.clientY;
-    const startWidth = wrapperRef.current?.offsetWidth || 570;
+    const startWidth = wrapperRef.current?.offsetWidth || 600;
     const startHeight = wrapperRef.current?.offsetHeight || 300;
+
+    // Upper bound = the editor page surface's inner width (so an embed can
+    // grow to full page width) with a sane fallback. Previously hard-capped
+    // at 570px, which is why embeds couldn't be made bigger.
+    const surface = wrapperRef.current?.closest(
+      ".editor-page-surface"
+    ) as HTMLElement | null;
+    const maxWidth = surface
+      ? Math.max(300, surface.clientWidth)
+      : 2000;
 
     const resize = (moveEvent: MouseEvent) => {
       const deltaX = (moveEvent.clientX - startX) * directionX;
@@ -324,7 +334,7 @@ function ReactFlowNodeView({
       let newHeight = startHeight;
 
       if (directionX !== 0) {
-        newWidth = Math.min(570, Math.max(200, startWidth + deltaX));
+        newWidth = Math.min(maxWidth, Math.max(200, startWidth + deltaX));
       }
 
       if (directionY !== 0) {

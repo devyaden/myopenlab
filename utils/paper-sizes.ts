@@ -4,91 +4,106 @@ import type {
   PaperDimensions,
 } from "@/types/paper";
 
-// Paper dimensions in pixels at 96 DPI
+// Paper dimensions in millimetres, in canonical PORTRAIT orientation
+// (width = short side, height = long side). Use getPaperDimensions to get
+// orientation-adjusted values.
+//
+// Previous version of this table was labeled "pixels at 96 DPI" but the
+// values were actually PostScript points and were stored in landscape
+// orientation, so getPaperDimensions("A4","portrait") returned a landscape
+// shape and PDF export was off by ~6%.
 export const PAPER_DIMENSIONS: Record<any, any> = {
-  // A series
-  "4A0": { width: 4768, height: 6741 },
-  "2A0": { width: 3370, height: 4768 },
-  A0: { width: 3370, height: 2384 },
-  "A0+": { width: 3648, height: 2384 },
-  A1: { width: 2384, height: 1684 },
-  "A1+": { width: 2592, height: 1684 },
-  A2: { width: 1684, height: 1191 },
-  A3: { width: 1191, height: 842 },
-  "A3+": { width: 1328, height: 932 },
-  A4: { width: 842, height: 595 },
-  A5: { width: 595, height: 420 },
-  A6: { width: 420, height: 298 },
-  A7: { width: 298, height: 210 },
-  A8: { width: 210, height: 148 },
-  A9: { width: 148, height: 105 },
-  A10: { width: 105, height: 74 },
-  A11: { width: 74, height: 52 },
-  A12: { width: 52, height: 37 },
-  A13: { width: 37, height: 26 },
+  // A series (ISO 216)
+  "4A0": { width: 1682, height: 2378 },
+  "2A0": { width: 1189, height: 1682 },
+  A0: { width: 841, height: 1189 },
+  "A0+": { width: 914, height: 1292 },
+  A1: { width: 594, height: 841 },
+  "A1+": { width: 624, height: 880 },
+  A2: { width: 420, height: 594 },
+  A3: { width: 297, height: 420 },
+  "A3+": { width: 329, height: 483 },
+  A4: { width: 210, height: 297 },
+  A5: { width: 148, height: 210 },
+  A6: { width: 105, height: 148 },
+  A7: { width: 74, height: 105 },
+  A8: { width: 52, height: 74 },
+  A9: { width: 37, height: 52 },
+  A10: { width: 26, height: 37 },
+  A11: { width: 18, height: 26 },
+  A12: { width: 13, height: 18 },
+  A13: { width: 9, height: 13 },
 
-  // B series
-  B0: { width: 4015, height: 2835 },
-  "B0+": { width: 4354, height: 2835 },
-  B1: { width: 2835, height: 2004 },
-  "B1+": { width: 3090, height: 2004 },
-  B2: { width: 2004, height: 1417 },
-  "B2+": { width: 2188, height: 1417 },
-  B3: { width: 1417, height: 1001 },
-  B4: { width: 1001, height: 709 },
-  B5: { width: 709, height: 499 },
-  B6: { width: 499, height: 354 },
-  B7: { width: 354, height: 249 },
-  B8: { width: 249, height: 176 },
-  B9: { width: 176, height: 125 },
-  B10: { width: 125, height: 88 },
-  B11: { width: 88, height: 62 },
-  B12: { width: 62, height: 44 },
-  B13: { width: 44, height: 31 },
+  // B series (ISO 216)
+  B0: { width: 1000, height: 1414 },
+  "B0+": { width: 1118, height: 1580 },
+  B1: { width: 707, height: 1000 },
+  "B1+": { width: 720, height: 1020 },
+  B2: { width: 500, height: 707 },
+  "B2+": { width: 520, height: 720 },
+  B3: { width: 353, height: 500 },
+  B4: { width: 250, height: 353 },
+  B5: { width: 176, height: 250 },
+  B6: { width: 125, height: 176 },
+  B7: { width: 88, height: 125 },
+  B8: { width: 62, height: 88 },
+  B9: { width: 44, height: 62 },
+  B10: { width: 31, height: 44 },
+  B11: { width: 22, height: 31 },
+  B12: { width: 15, height: 22 },
+  B13: { width: 11, height: 15 },
 
-  // C series
-  C0: { width: 3694, height: 2607 },
-  C1: { width: 2607, height: 1842 },
-  C2: { width: 1842, height: 1302 },
-  C3: { width: 1302, height: 921 },
-  C4: { width: 921, height: 649 },
-  C5: { width: 649, height: 459 },
-  C6: { width: 459, height: 323 },
-  C7: { width: 323, height: 228 },
-  C8: { width: 228, height: 162 },
-  C9: { width: 162, height: 114 },
-  C10: { width: 114, height: 81 },
+  // C series (ISO 269)
+  C0: { width: 917, height: 1297 },
+  C1: { width: 648, height: 917 },
+  C2: { width: 458, height: 648 },
+  C3: { width: 324, height: 458 },
+  C4: { width: 229, height: 324 },
+  C5: { width: 162, height: 229 },
+  C6: { width: 114, height: 162 },
+  C7: { width: 81, height: 114 },
+  C8: { width: 57, height: 81 },
+  C9: { width: 40, height: 57 },
+  C10: { width: 28, height: 40 },
 
-  // US sizes
-  Letter: { width: 816, height: 1056 },
-  Legal: { width: 816, height: 1344 },
-  Tabloid: { width: 1056, height: 1632 },
-  Ledger: { width: 1632, height: 1056 },
-  "Junior Legal": { width: 576, height: 912 },
-  "Half Letter": { width: 528, height: 816 },
-  "Government Letter": { width: 792, height: 1224 },
-  "Government Legal": { width: 816, height: 1296 },
-  "ANSI A": { width: 816, height: 1056 },
-  "ANSI B": { width: 1056, height: 1632 },
-  "ANSI C": { width: 1632, height: 2112 },
-  "ANSI D": { width: 2112, height: 3264 },
-  "ANSI E": { width: 3264, height: 4224 },
-  "Arch A": { width: 864, height: 1104 },
-  "Arch B": { width: 1104, height: 1728 },
-  "Arch C": { width: 1728, height: 2208 },
-  "Arch D": { width: 2208, height: 3456 },
-  "Arch E": { width: 3456, height: 4608 },
-  "Arch E1": { width: 3648, height: 4800 },
-  "Arch E2": { width: 3648, height: 5424 },
-  "Arch E3": { width: 3648, height: 6912 },
+  // US sizes (ANSI/ARCH, all converted from inches to mm)
+  Letter: { width: 216, height: 279 },
+  Legal: { width: 216, height: 356 },
+  Tabloid: { width: 279, height: 432 },
+  Ledger: { width: 432, height: 279 },
+  "Junior Legal": { width: 127, height: 203 },
+  "Half Letter": { width: 140, height: 216 },
+  "Government Letter": { width: 203, height: 267 },
+  "Government Legal": { width: 216, height: 330 },
+  "ANSI A": { width: 216, height: 279 },
+  "ANSI B": { width: 279, height: 432 },
+  "ANSI C": { width: 432, height: 559 },
+  "ANSI D": { width: 559, height: 864 },
+  "ANSI E": { width: 864, height: 1118 },
+  "Arch A": { width: 229, height: 305 },
+  "Arch B": { width: 305, height: 457 },
+  "Arch C": { width: 457, height: 610 },
+  "Arch D": { width: 610, height: 914 },
+  "Arch E": { width: 914, height: 1219 },
+  "Arch E1": { width: 762, height: 1067 },
+  "Arch E2": { width: 660, height: 965 },
+  "Arch E3": { width: 686, height: 991 },
 };
 
-// Default margins in pixels (1 inch = 96px)
+// Conversion helpers; pagination plugin and PDF export use millimetres.
+export const PX_PER_MM = 3.7795275591; // 96 DPI / 25.4 mm per inch
+export const mmToPx = (mm: number) => mm * PX_PER_MM;
+export const pxToMm = (px: number) => px / PX_PER_MM;
+
+// Default margins: 1 inch = 25.4 mm. Stored in pixels for backward-compat
+// with the existing paginationSettings shape (which other code still treats
+// as px); the pagination plugin's commands receive the value divided by
+// PX_PER_MM.
 export const DEFAULT_MARGINS = {
-  top: 96,
-  right: 96,
-  bottom: 96,
-  left: 96,
+  top: mmToPx(25.4),
+  right: mmToPx(25.4),
+  bottom: mmToPx(25.4),
+  left: mmToPx(25.4),
 };
 
 // Get dimensions for a paper size with orientation

@@ -7,6 +7,17 @@ import toast from "react-hot-toast";
 import { debounce } from "lodash";
 import { Folder } from "@/types/sidebar";
 
+/**
+ * Detects an expired/invalid Supabase auth token. PostgREST returns
+ * PGRST303 for an expired JWT; the message also contains "JWT".
+ */
+function isAuthError(error: unknown): boolean {
+  if (!error || typeof error !== "object") return false;
+  const e = error as { code?: string; message?: string };
+  if (e.code === "PGRST303") return true;
+  return typeof e.message === "string" && /jwt|token|expired/i.test(e.message);
+}
+
 interface DocumentState {
   id: string;
   name: string;
@@ -68,6 +79,24 @@ export const useDocumentStore = create<DocumentState>()(
           await get().saveDocument();
         }
       }, 3000);
+
+      // Throttle the save-error toast/log so an expired session or dropped
+      // network doesn't flood the console on every keystroke-triggered save.
+      let lastSaveErrorAt = 0;
+      const reportSaveError = (error: unknown) => {
+        const now = Date.now();
+        if (now - lastSaveErrorAt > 8000) {
+          lastSaveErrorAt = now;
+          console.error("Error saving document:", error);
+          const msg =
+            error instanceof Error ? error.message : String(error ?? "");
+          if (isAuthError(error)) {
+            toast.error("Your session expired — please reload to sign back in.");
+          } else {
+            toast.error("Failed to save document");
+          }
+        }
+      };
 
       return {
         ...initialState,
@@ -151,7 +180,9 @@ export const useDocumentStore = create<DocumentState>()(
           if (!state.canvas_id) return;
           set({ saveLoading: true });
 
-          try {
+          // Performs the actual upserts. Returns the resulting version so the
+          // caller can update store state. Throws on any Supabase error.
+          const performWrite = async (): Promise<number> => {
             const now = new Date().toISOString();
             const { data: existingDocs, error: checkError } = await supabase
               .from("document_data")
@@ -194,23 +225,42 @@ export const useDocumentStore = create<DocumentState>()(
               .eq("id", state.canvas_id);
             if (canvasError) throw canvasError;
 
+            return documentExists ? state.version + 1 : 1;
+          };
+
+          try {
+            let newVersion: number;
+            try {
+              newVersion = await performWrite();
+            } catch (error) {
+              // An expired token is recoverable: refresh the session once and
+              // retry the write rather than dropping the save.
+              if (isAuthError(error)) {
+                const { error: refreshError } =
+                  await supabase.auth.refreshSession();
+                if (refreshError) throw error; // refresh failed → bubble up
+                newVersion = await performWrite();
+              } else {
+                throw error;
+              }
+            }
+
             set({
               isDirty: false,
               lastSaved: new Date(),
-              version: documentExists ? state.version + 1 : 1,
+              version: newVersion,
               saveLoading: false,
+              error: null,
             });
-
-            // toast.success("Document saved");
           } catch (error) {
-            console.error("Error saving document:", error);
-            toast.error("Failed to save document");
+            reportSaveError(error);
             set({
               error:
                 error instanceof Error
                   ? error.message
                   : "Failed to save document",
               saveLoading: false,
+              // Leave isDirty=true so the next edit retries the save.
             });
           }
         },
@@ -224,7 +274,10 @@ export const useDocumentStore = create<DocumentState>()(
           set(initialState);
         },
         loadFolderCanvases: async (folderId: string | null) => {
-          set({ isLoading: true, error: null });
+          // NOTE: do not touch the shared `error` field here. This is a
+          // secondary fetch (the insert-picker list); a failure must not be
+          // mistaken for a document-load failure, which would block autosave.
+          set({ isLoading: true });
 
           // if (!folderId) {
           //   set({ folderCanvases: [] });
@@ -280,8 +333,8 @@ export const useDocumentStore = create<DocumentState>()(
             });
           } catch (error) {
             console.error("Error loading folder canvases:", error);
-            set({ error: "Failed to load folder canvases" });
-            // toast.error("Failed to load folder canvases");
+            // Intentionally NOT setting the shared `error` field — see note
+            // above. The insert-picker list staying empty is non-fatal.
           } finally {
             set({ isLoading: false });
           }

@@ -3,7 +3,14 @@ import {
   IndustryType,
   LanguageType,
 } from "@/lib/types/diagram-types";
-import { CanvasData } from "./types";
+import { CanvasData, FallbackReason } from "./types";
+
+function withFallbackMeta(
+  data: CanvasData,
+  reason: FallbackReason
+): CanvasData {
+  return { ...data, meta: { fallback: true, reason } };
+}
 
 /**
  * Process and validate Claude API tool response
@@ -28,11 +35,14 @@ export function processClaudeToolResponse(
 
     if (toolCalls.length === 0) {
       console.error("No tool calls found in Claude response");
-      return generateFallbackData(
-        diagramType,
-        industry,
-        "No valid diagram data in response",
-        language
+      return withFallbackMeta(
+        generateFallbackData(
+          diagramType,
+          industry,
+          "No valid diagram data in response",
+          language
+        ),
+        "no-tool-call"
       );
     }
 
@@ -41,11 +51,14 @@ export function processClaudeToolResponse(
 
     if (!diagramData || !diagramData.input) {
       console.error("No diagram data found in tool call");
-      return generateFallbackData(
-        diagramType,
-        industry,
-        "No valid diagram data in tool call",
-        language
+      return withFallbackMeta(
+        generateFallbackData(
+          diagramType,
+          industry,
+          "No valid diagram data in tool call",
+          language
+        ),
+        "no-tool-input"
       );
     }
 
@@ -66,20 +79,26 @@ export function processClaudeToolResponse(
       return improvedData;
     } else {
       console.error("Generated canvas data failed validation");
-      return generateFallbackData(
-        diagramType,
-        industry,
-        "Invalid diagram structure",
-        language
+      return withFallbackMeta(
+        generateFallbackData(
+          diagramType,
+          industry,
+          "Invalid diagram structure",
+          language
+        ),
+        "invalid-structure"
       );
     }
   } catch (error) {
     console.error("Error processing Claude tool response:", error);
-    return generateFallbackData(
-      diagramType,
-      industry,
-      "Error processing response",
-      language
+    return withFallbackMeta(
+      generateFallbackData(
+        diagramType,
+        industry,
+        "Error processing response",
+        language
+      ),
+      "processing-error"
     );
   }
 }
@@ -398,72 +417,27 @@ export function improveEdgeHandles(canvasData: any): any {
   // Get language type for direction-specific handling (default to English/LTR)
   const isRTL = canvasData.language === LanguageType.ARABIC;
 
-  // For RTL languages like Arabic, adjust the node positions for workflow diagrams
-  if (isRTL && canvasData.diagramType === DiagramType.WORKFLOW) {
-    // Find the maximum x-coordinate to help with repositioning
-    let maxX = 0;
-    canvasData.nodes.forEach((node: any) => {
-      const nodeRight = node.position.x + (node.width || 150);
-      if (nodeRight > maxX) maxX = nodeRight;
-    });
-
-    // Reposition nodes to mirror the x-coordinates in RTL layout
-    canvasData.nodes = canvasData.nodes.map((node: any) => {
-      const nodeWidth = node.width || 150;
-      // Mirror the node position horizontally
-      return {
-        ...node,
-        position: {
-          ...node.position,
-          x: maxX - node.position.x - nodeWidth,
-        },
-      };
-    });
-  }
-
   // Build a node lookup map for faster access
   const nodeMap = new Map();
   canvasData.nodes.forEach((node: any) => {
     nodeMap.set(node.id, node);
   });
 
-  // Process each edge
+  // Process each edge — always re-derive handles from current node positions
+  // so they cannot drift out of sync with the layout.
   canvasData.edges = canvasData.edges.map((edge: any) => {
-    // Define default handles if not already set
-    if (!edge.sourceHandle) edge.sourceHandle = "";
-    if (!edge.targetHandle) edge.targetHandle = "";
-
-    // If edge already has valid handles defined and they're different, keep them
-    if (
-      edge.sourceHandle &&
-      edge.targetHandle &&
-      edge.sourceHandle !== edge.targetHandle
-    ) {
-      return edge;
-    }
-
     // Get source and target nodes
     const sourceNode = nodeMap.get(edge.source);
     const targetNode = nodeMap.get(edge.target);
 
     // Skip if we can't find the nodes
     if (!sourceNode || !targetNode) {
-      // Set default handles even if nodes aren't found to avoid invisible edges
-      if (isRTL) {
-        return {
-          ...edge,
-          sourceHandle: "h", // left for RTL
-          targetHandle: "c", // right for RTL
-          type: "smoothstep",
-        };
-      } else {
-        return {
-          ...edge,
-          sourceHandle: "g", // right for LTR
-          targetHandle: "d", // left for LTR
-          type: "smoothstep",
-        };
-      }
+      return {
+        ...edge,
+        sourceHandle: edge.sourceHandle || "g",
+        targetHandle: edge.targetHandle || "d",
+        type: edge.type || "smoothstep",
+      };
     }
 
     // Calculate node centers
@@ -487,7 +461,7 @@ export function improveEdgeHandles(canvasData: any): any {
 
     // Apply type-specific edge configurations
     switch (canvasData.diagramType) {
-      case DiagramType.WORKFLOW:
+      case DiagramType.WORKFLOW: {
         // Workflows always use animated arrows for all connections
         edgeProps.animated = true;
         edgeProps.markerEnd = { type: "arrowclosed" };
@@ -506,17 +480,27 @@ export function improveEdgeHandles(canvasData: any): any {
           edgeProps.style.strokeDasharray = "5,5";
         }
 
-        // For LTR (English) connect right→left
-        // For RTL (Arabic) connect left→right
-        if (isRTL) {
-          // In RTL workflow, edges should go from left to right (opposite of LTR)
-          edgeProps.sourceHandle = "h"; // left
-          edgeProps.targetHandle = "c"; // right
+        // Derive handles from actual node positions so RTL/LTR layouts are
+        // both supported without language-specific branches.
+        const dxw = targetCenter.x - sourceCenter.x;
+        const dyw = targetCenter.y - sourceCenter.y;
+        if (Math.abs(dxw) >= Math.abs(dyw)) {
+          if (dxw >= 0) {
+            edgeProps.sourceHandle = "g"; // right
+            edgeProps.targetHandle = "d"; // left
+          } else {
+            edgeProps.sourceHandle = "h"; // left
+            edgeProps.targetHandle = "c"; // right
+          }
+        } else if (dyw >= 0) {
+          edgeProps.sourceHandle = "f"; // bottom
+          edgeProps.targetHandle = "a"; // top
         } else {
-          edgeProps.sourceHandle = "g"; // right
-          edgeProps.targetHandle = "d"; // left
+          edgeProps.sourceHandle = "e"; // top
+          edgeProps.targetHandle = "b"; // bottom
         }
         break;
+      }
 
       case DiagramType.EVENT_VISITOR_EXPERIENCE:
         // Event experience uses animated arrows for visitor journeys

@@ -572,9 +572,14 @@ export default function CanvasTableNodeView({
         const data = generateTableData();
         setTableData(data);
 
-        // Update the lastUpdated timestamp
+        // Update the lastUpdated timestamp. Deferred to a macrotask because
+        // updateAttributes dispatches a Tiptap transaction (flushSync inside),
+        // and React 19 forbids flushSync during a commit phase. This effect
+        // fires from a useEffect on mount, which counts as a commit phase.
         if (savedConfig.isDynamic) {
-          updateAttributes({ lastUpdated: new Date().toISOString() });
+          setTimeout(() => {
+            updateAttributes({ lastUpdated: new Date().toISOString() });
+          }, 0);
         }
 
         console.log("Table data loaded:", data.length, "rows");

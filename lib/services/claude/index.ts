@@ -6,10 +6,7 @@ import {
 } from "@/lib/types/diagram-types";
 import { CanvasData } from "./types";
 import { constructUserMessage, createSystemPrompt } from "./prompts";
-import {
-  determineAppropriateModel,
-  callClaudeAPIWithTools,
-} from "./api-client";
+import { callClaudeAPIWithTools, PRIMARY_MODEL } from "./api-client";
 import { processClaudeToolResponse } from "./response-processor";
 import { generateFallbackData } from "./fallback-generators";
 
@@ -52,13 +49,10 @@ export class ClaudeService {
         prompt
       );
 
-      // Determine the appropriate model based on diagram complexity
-      const model = determineAppropriateModel(diagramType, prompt);
-
       // Call the Claude API with robust error handling and retry logic
       const response = await callClaudeAPIWithTools(
         this.client,
-        model,
+        PRIMARY_MODEL,
         systemPrompt,
         userMessage,
         diagramType,
@@ -79,7 +73,10 @@ export class ClaudeService {
     } catch (error) {
       console.error("Error in Claude service:", error);
       // Always return a valid diagram even if an error occurs
-      return this.generateFallbackData(diagramType, industry, prompt, language);
+      return {
+        ...this.generateFallbackData(diagramType, industry, prompt, language),
+        meta: { fallback: true, reason: "claude-error" },
+      };
     }
   }
 

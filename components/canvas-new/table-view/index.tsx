@@ -94,17 +94,7 @@ import {
   TableViewProps,
 } from "./table.types";
 import { validationSchemas } from "./validations";
-
-// Simplified helper function for column data mapping
-const getDataKey = (column: any): string => {
-  // Use the dataKey if it exists, otherwise fall back to title
-  return column.dataKey || column.title;
-};
-
-const isSpecialColumn = (column: any): boolean => {
-  const dataKey = getDataKey(column);
-  return ["label", "shape", "id"].includes(dataKey);
-};
+import { getDataKey, isSpecialColumn } from "@/lib/canvas/column-data";
 
 const TableView = forwardRef<
   { exportToCSV: () => void; exportToExcel: () => void },
@@ -1409,6 +1399,15 @@ const TableView = forwardRef<
           return;
         }
 
+        // Coerce Number columns to a real number (empty stays empty) so the
+        // stored value type matches the side panel.
+        if (columnDef.type === "Number") {
+          value =
+            value === "" || value === null || value === undefined
+              ? ""
+              : Number(value);
+        }
+
         // Handle non-relation columns (existing code remains the same)
         const { isValid, errorMessage } = validateField(columnDef?.type, value);
 
@@ -1436,7 +1435,7 @@ const TableView = forwardRef<
                   newData.id = value;
                   break;
                 default:
-                  newData[column] = value;
+                  newData[dataKey] = value;
               }
 
               return { ...node, data: newData };

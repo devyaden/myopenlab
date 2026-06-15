@@ -1,5 +1,6 @@
 "use client";
 import { useCanvasStore } from "@/lib/store/useCanvas";
+import { getNodeConnections } from "@/lib/canvas/connections";
 import { SHAPES } from "@/lib/types/flow-table.types";
 import type React from "react";
 import { memo, useCallback, useEffect, useMemo, useState } from "react";
@@ -19,6 +20,7 @@ interface GenericNodeProps {
     style?: React.CSSProperties & {
       fontFamily?: string;
       fontSize?: number;
+      fontSizeIsExplicit?: boolean;
       isBold?: boolean;
       isItalic?: boolean;
       isUnderline?: boolean;
@@ -117,8 +119,10 @@ export const GenericNode = memo(
     const reactFlowInstance = useReactFlow();
     const [isEditing, setIsEditing] = useState(false);
     const [labelValue, setLabelValue] = useState(data.label);
+    const [isHovered, setIsHovered] = useState(false);
 
     const { canvasSettings } = useCanvasStore();
+    const setIsTextEditing = useCanvasStore((s) => s.setIsTextEditing);
 
     // Initialize nodeSize from node dimensions first, data.width/height second, or defaults last
     // We need to handle dimensions at both the node level and data level
@@ -144,28 +148,31 @@ export const GenericNode = memo(
     const handleDoubleClick = useCallback(() => {
       if (!data.style?.locked) {
         setIsEditing(true);
+        setIsTextEditing(true);
       }
-    }, [data.style?.locked]);
+    }, [data.style?.locked, setIsTextEditing]);
 
     // Handle blur to exit editing mode
     const handleBlur = useCallback(() => {
       setIsEditing(false);
+      setIsTextEditing(false);
       if (data.onLabelChange) {
         data.onLabelChange(id, labelValue);
       }
-    }, [data, id, labelValue]);
+    }, [data, id, labelValue, setIsTextEditing]);
 
     // Handle Enter key to exit editing mode
     const handleKeyDown = useCallback(
       (event: React.KeyboardEvent<HTMLInputElement>) => {
         if (event.key === "Enter") {
           setIsEditing(false);
+          setIsTextEditing(false);
           if (data.onLabelChange) {
             data.onLabelChange(id, labelValue);
           }
         }
       },
-      [data, id, labelValue]
+      [data, id, labelValue, setIsTextEditing]
     );
 
     // Update node size on resize with smoother handling and persist to node data
@@ -219,26 +226,28 @@ export const GenericNode = memo(
       [id, data, reactFlowInstance]
     );
 
-    // Calculate font size based on node dimensions
+    // Calculate font size. When the user has explicitly chosen a size
+    // (fontSizeIsExplicit), we render exactly that size — matching Figma /
+    // Miro / Lucidchart, where typing 24pt and resizing the shape does not
+    // silently change the font. Otherwise we keep the legacy auto-scale
+    // behavior so default text grows with the shape.
     const calculateFontSize = useCallback(
-      (baseFontSize: number) => {
-        // Get the average dimension to use for scaling
-        const avgDimension = (nodeSize.width + nodeSize.height) / 2;
-
-        // Calculate scale factor based on the ratio of current size to base size
-        const scaleFactor = Math.sqrt(avgDimension / BASE_NODE_SIZE);
-
-        // Apply the scale factor to the base font size with limits
+      (_baseFontSize: number) => {
         const userFontSize = data.style?.fontSize || BASE_FONT_SIZE;
+
+        if (data.style?.fontSizeIsExplicit) {
+          return userFontSize;
+        }
+
+        const avgDimension = (nodeSize.width + nodeSize.height) / 2;
+        const scaleFactor = Math.sqrt(avgDimension / BASE_NODE_SIZE);
         const scaledFontSize = userFontSize * scaleFactor;
 
-        // Set minimum and maximum font sizes
         const minFontSize = 8;
         const maxFontSize = 36;
-
         return Math.min(Math.max(scaledFontSize, minFontSize), maxFontSize);
       },
-      [nodeSize, data.style?.fontSize]
+      [nodeSize, data.style?.fontSize, data.style?.fontSizeIsExplicit]
     );
 
     // Define consistent text styles with dynamic font sizing
@@ -309,18 +318,24 @@ export const GenericNode = memo(
       [data.style]
     );
 
-    // Handle styles - improved visibility when selected
+    // Handle styles. We now reveal handles on hover (semi-visible) so users
+    // can discover where to drag from without selecting first; selection
+    // brings them to full opacity. The hit target is larger than the visible
+    // dot so clicking is forgiving — width/height are scaled up while the
+    // dot stays small via inset shadow.
+    const handleVisible = selected || isHovered;
     const handleStyle = useMemo(
       () => ({
-        opacity: selected ? 1 : 0,
-        width: "0.75rem",
-        height: "0.75rem",
+        opacity: handleVisible ? (selected ? 1 : 0.55) : 0,
+        width: "1rem",
+        height: "1rem",
         backgroundColor: "#09BC8A",
-        border: "1px solid white",
+        border: "2px solid white",
+        boxShadow: "0 0 0 1px rgba(0,0,0,0.1)",
         zIndex: 20,
-        // transition: "opacity 0.2s ease",
+        transition: "opacity 0.12s ease",
       }),
-      [selected]
+      [handleVisible, selected]
     );
 
     // Helper function to check if a property should be excluded
@@ -339,32 +354,17 @@ export const GenericNode = memo(
       return false;
     };
 
-    // Helper function to populate from and to labels (same as sidebar)
+    // Connection labels via the shared single source of truth (same data the
+    // side panel and table view use).
     const populateFromAndTo = useCallback(() => {
-      const edges = reactFlowInstance.getEdges();
-      const nodes = reactFlowInstance.getNodes();
-
-      const from = edges
-        ?.filter((edge) => edge.target === id)
-        .map((edge) => edge.source);
-
-      const to = edges
-        ?.filter((edge) => edge.source === id)
-        .map((edge) => edge.target);
-
-      const fromLabels = from.map((sourceId) => {
-        const node = nodes.find((node) => node.id === sourceId);
-        return node ? node.data.label : "";
-      });
-
-      const toLabels = to.map((targetId) => {
-        const node = nodes.find((node) => node.id === targetId);
-        return node ? node.data.label : "";
-      });
-
+      const { from, to } = getNodeConnections(
+        id,
+        reactFlowInstance.getNodes(),
+        reactFlowInstance.getEdges()
+      );
       return {
-        fromLabels: fromLabels || [],
-        toLabels: toLabels || [],
+        fromLabels: from.map((ref) => ref.label),
+        toLabels: to.map((ref) => ref.label),
       };
     }, [reactFlowInstance, id]);
 
@@ -1197,6 +1197,8 @@ export const GenericNode = memo(
           }}
         />
         <div
+          onMouseEnter={() => setIsHovered(true)}
+          onMouseLeave={() => setIsHovered(false)}
           style={{
             ...nodeStyle,
             ...shapeStyle,

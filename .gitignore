@@ -32,6 +32,12 @@ yarn-error.log*
 # vercel
 .vercel
 
+# claude code (local trust/permission settings — keep .mcp.json committed)
+.claude/settings.local.json
+
+# playwright mcp browser-testing artifacts (snapshots/screenshots)
+.playwright-mcp/
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts

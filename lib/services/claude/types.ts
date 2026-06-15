@@ -4,6 +4,18 @@ import {
   LanguageType,
 } from "@/lib/types/diagram-types";
 
+export type FallbackReason =
+  | "claude-error"
+  | "no-tool-call"
+  | "no-tool-input"
+  | "invalid-structure"
+  | "processing-error";
+
+export interface CanvasMeta {
+  fallback?: boolean;
+  reason?: FallbackReason;
+}
+
 export interface CanvasData {
   nodes: any[];
   edges: any[];
@@ -11,6 +23,7 @@ export interface CanvasData {
   diagramType: DiagramType;
   industry: IndustryType;
   language: LanguageType;
+  meta?: CanvasMeta;
 }
 
 export interface NodeData {

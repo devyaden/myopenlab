@@ -245,7 +245,7 @@ const CanvasCard = memo(
     const href = useMemo(() => {
       return canvas.canvas_type === CANVAS_TYPE.DOCUMENT
         ? `/protected/document-editor/${canvas.id}`
-        : `/protected/canvas-new/${canvas.id}`;
+        : `/protected/playbook/${canvas.id}`;
     }, [canvas.id, canvas.canvas_type]);
 
     const iconBgColor = useMemo(() => {
@@ -266,7 +266,7 @@ const CanvasCard = memo(
         case CANVAS_TYPE.TABLE:
           return "Table";
         default:
-          return "Canvas";
+          return "Playbook";
       }
     }, [canvas.canvas_type]);
 
@@ -527,13 +527,13 @@ export const FolderContent = memo(({ folderId }: FolderContentProps) => {
           const href =
             type === CANVAS_TYPE.DOCUMENT
               ? `/protected/document-editor/${canvasId}`
-              : `/protected/canvas-new/${canvasId}`;
+              : `/protected/playbook/${canvasId}`;
 
           window.location.href = href;
         }
       } catch (error) {
         console.error("Failed to create canvas:", error);
-        setOperationError("Failed to create canvas. Please try again.");
+        setOperationError("Failed to create playbook. Please try again.");
       }
 
       setCreateNewModalType(null);
@@ -579,7 +579,7 @@ export const FolderContent = memo(({ folderId }: FolderContentProps) => {
         await refreshData();
       } catch (error) {
         console.error("Failed to update canvas:", error);
-        setOperationError("Failed to update canvas. Please try again.");
+        setOperationError("Failed to update playbook. Please try again.");
       } finally {
         setUpdatingItems((prev) => {
           const newSet = new Set(prev);
@@ -613,7 +613,7 @@ export const FolderContent = memo(({ folderId }: FolderContentProps) => {
         await refreshData();
       } catch (error) {
         console.error("Failed to delete canvas:", error);
-        setOperationError("Failed to delete canvas. Please try again.");
+        setOperationError("Failed to delete playbook. Please try again.");
       } finally {
         setDeletingItems((prev) => {
           const newSet = new Set(prev);

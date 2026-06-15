@@ -44,6 +44,7 @@ import {
   Palette,
   Plus,
   RotateCcw,
+  Settings2,
   Strikethrough,
   Subscript,
   Superscript,
@@ -83,8 +84,6 @@ interface EditorToolbarProps {
   orientation: string;
   onPageSizeChange: (size: string) => void;
   onOrientationChange: (orientation: string) => void;
-  showPageMargins: boolean;
-  onTogglePageMargins: () => void;
   paginationSettings: {
     marginTop: number;
     marginRight: number;
@@ -104,6 +103,13 @@ interface EditorToolbarProps {
   onViewModeChange: (viewMode: "canvas" | "table" | "document") => void;
   canvasType: CANVAS_TYPE;
   isOwner: boolean;
+  onOpenPageSettings?: () => void;
+  /** Custom font families uploaded by the user; rendered after the
+   * built-ins in the font dropdown. */
+  userFontFamilies?: string[];
+  /** Opens the font upload + manage dialog. Renders the "Manage fonts…"
+   * dropdown item only when provided. */
+  onOpenFontUpload?: () => void;
 }
 
 export default function EditorToolbar({
@@ -121,8 +127,6 @@ export default function EditorToolbar({
   orientation,
   onPageSizeChange,
   onOrientationChange,
-  showPageMargins,
-  onTogglePageMargins,
   paginationSettings,
   setPaginationSettings,
   editor,
@@ -130,6 +134,9 @@ export default function EditorToolbar({
   onViewModeChange,
   canvasType,
   isOwner,
+  onOpenPageSettings,
+  userFontFamilies = [],
+  onOpenFontUpload,
 }: EditorToolbarProps) {
   // Extract numeric value from fontSize (which might be in the format "15px")
   const parseFontSize = (fontSizeStr: string | undefined) => {
@@ -333,22 +340,10 @@ export default function EditorToolbar({
     }
   };
 
-  // Update margin settings
-  const updateMargin = (side: string, value: number) => {
-    if (isNaN(value) || value < 0) return;
-
-    const newSettings = {
-      ...paginationSettings,
-      [`margin${side.charAt(0).toUpperCase() + side.slice(1)}`]: value,
-    };
-
-    setPaginationSettings(newSettings);
-
-    // Apply the change immediately to the editor
-    if (editor && editor.commands.setDocumentPageMargin) {
-      editor.commands.setDocumentPageMargin(side, value / 3.78);
-    }
-  };
+  // (Phase 2.5: removed `updateMargin` — pagination plugin is gone, page
+  // margins are CSS variables set by PageSettingsDialog through the
+  // setPaginationSettings prop. Nothing called this helper from rendered
+  // UI anyway.)
 
   return (
     <div className="editor-toolbar sticky z-20">
@@ -436,6 +431,31 @@ export default function EditorToolbar({
                         {option}
                       </DropdownMenuItem>
                     ))}
+                    {userFontFamilies.length > 0 && (
+                      <>
+                        <DropdownMenuSeparator />
+                        <div className="px-2 py-1 text-[11px] uppercase tracking-wider text-muted-foreground">
+                          Your fonts
+                        </div>
+                        {userFontFamilies.map((family) => (
+                          <DropdownMenuItem
+                            key={`user-${family}`}
+                            onClick={() => onSetFontFamily(family)}
+                            style={{ fontFamily: family }}
+                          >
+                            {family}
+                          </DropdownMenuItem>
+                        ))}
+                      </>
+                    )}
+                    {onOpenFontUpload && (
+                      <>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem onClick={onOpenFontUpload}>
+                          Manage fonts…
+                        </DropdownMenuItem>
+                      </>
+                    )}
                   </ScrollArea>
                 </DropdownMenuContent>
               </DropdownMenu>
@@ -747,6 +767,10 @@ export default function EditorToolbar({
                   <Columns3 className="mr-2 h-4 w-4" />
                   <span>Columns Layout</span>
                 </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => onInsert("float-block")}>
+                  <AlignRight className="mr-2 h-4 w-4" />
+                  <span>Floating Box</span>
+                </DropdownMenuItem>
                 <DropdownMenuItem
                   onClick={() => onInsert("collapsible-container")}
                 >
@@ -849,6 +873,21 @@ export default function EditorToolbar({
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
+
+            <Separator orientation="vertical" className="h-8" />
+
+            {onOpenPageSettings && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-8 gap-1 px-2"
+                onClick={onOpenPageSettings}
+                aria-label="Page setup"
+              >
+                <Settings2 className="h-4 w-4" />
+                <span className="hidden sm:inline">Page setup</span>
+              </Button>
+            )}
 
             <Separator orientation="vertical" className="h-8" />
           </>

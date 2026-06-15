@@ -186,10 +186,6 @@ export function AIGenerationDialog({
 
   const handleDiagramTypeChange = (value: string) => {
     setSelectedDiagramType(value);
-    // Don't overwrite existing prompt if user has already started typing
-    if (!form.getValues("prompt") || form.getValues("prompt") === "") {
-      form.setValue("prompt", examplePrompts[value as DiagramType] || "");
-    }
   };
 
   const handleSubmit = async (data: FormValues) => {
@@ -226,7 +222,15 @@ export function AIGenerationDialog({
 
       const result = await response.json();
       onGenerateCanvas(result.data);
-      toast.success("Canvas generated successfully!");
+      if (result.meta?.fallback) {
+        console.warn("AI generation fell back:", result.meta.reason);
+        toast(
+          "Generated using a default template — the AI service was unavailable. Please try again.",
+          { icon: "⚠️", duration: 6000 }
+        );
+      } else {
+        toast.success("Canvas generated successfully!");
+      }
       onClose();
     } catch (error) {
       console.error("Error generating canvas:", error);
@@ -410,32 +414,38 @@ export function AIGenerationDialog({
             <FormField
               control={form.control}
               name="prompt"
-              render={({ field }) => (
-                <FormItem className="prompt">
-                  <div className="flex items-center justify-between">
-                    <FormLabel>Prompt</FormLabel>
-                    {selectedDiagramType && (
-                      <div className="text-xs text-muted-foreground flex items-center">
-                        <InfoIcon className="h-3 w-3 mr-1" />
-                        Example prompt provided
-                      </div>
-                    )}
-                  </div>
-                  <FormControl>
-                    <Textarea
-                      placeholder="Describe what you want to create in detail..."
-                      className="min-h-32 text-sm"
-                      disabled={isLoading}
-                      {...field}
-                    />
-                  </FormControl>
-                  <div className="text-xs text-muted-foreground mt-1">
-                    Be specific about entities, relationships, process steps,
-                    layout preferences, and level of detail.
-                  </div>
-                  <FormMessage />
-                </FormItem>
-              )}
+              render={({ field }) => {
+                const placeholder =
+                  (selectedDiagramType &&
+                    examplePrompts[selectedDiagramType as DiagramType]) ||
+                  "Describe what you want to create in detail...";
+                return (
+                  <FormItem className="prompt">
+                    <div className="flex items-center justify-between">
+                      <FormLabel>Prompt</FormLabel>
+                      {selectedDiagramType && (
+                        <div className="text-xs text-muted-foreground flex items-center">
+                          <InfoIcon className="h-3 w-3 mr-1" />
+                          Example shown — type your own
+                        </div>
+                      )}
+                    </div>
+                    <FormControl>
+                      <Textarea
+                        placeholder={placeholder}
+                        className="min-h-32 text-sm"
+                        disabled={isLoading}
+                        {...field}
+                      />
+                    </FormControl>
+                    <div className="text-xs text-muted-foreground mt-1">
+                      Be specific about entities, relationships, process steps,
+                      layout preferences, and level of detail.
+                    </div>
+                    <FormMessage />
+                  </FormItem>
+                );
+              }}
             />
 
             <DialogFooter>

@@ -33,7 +33,7 @@ export function generateUntitledName(
       ? "Document"
       : type === CANVAS_TYPE.TABLE
         ? "Table"
-        : "Canvas";
+        : "Playbook";
 
   // Filter existing items to find those with similar names
   const itemsWithSimilarNames = existingItems.filter((canvas) =>

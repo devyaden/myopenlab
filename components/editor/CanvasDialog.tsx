@@ -22,11 +22,11 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useInView } from "react-intersection-observer";
 import ReactFlow, { Background } from "reactflow";
 import "reactflow/dist/style.css";
-import CustomEdge from "../canvas-new/custom-edge";
-import { GenericNode } from "../canvas-new/nodes/generic-node";
-import { ImageNode } from "../canvas-new/nodes/image-node";
-import { SwimlaneNode } from "../canvas-new/nodes/swimlane-node";
-import { TextNode } from "../canvas-new/nodes/text-node";
+import {
+  edgeTypes,
+  nodeTypes,
+  onReactFlowError,
+} from "../canvas-new/flow-config";
 
 interface CanvasDialogProps {
   isOpen: boolean;
@@ -34,17 +34,6 @@ interface CanvasDialogProps {
   onInsertCanvas: (canvasData: any) => void;
   canvases?: any[];
 }
-
-const nodeTypes = {
-  genericNode: GenericNode,
-  swimlaneNode: SwimlaneNode,
-  textNode: TextNode,
-  imageNode: ImageNode,
-};
-
-const edgeTypes = {
-  custom: CustomEdge,
-};
 
 const CanvasPreview = React.memo(
   ({
@@ -144,6 +133,7 @@ const CanvasPreview = React.memo(
                     edges={optimizedEdges}
                     nodeTypes={nodeTypes}
                     edgeTypes={edgeTypes}
+                    onError={onReactFlowError}
                     fitView
                     nodesDraggable={false}
                     nodesConnectable={false}
@@ -164,7 +154,7 @@ const CanvasPreview = React.memo(
             </div>
           </TooltipTrigger>
           <TooltipContent>
-            <p>Click to select this canvas</p>
+            <p>Click to select this playbook</p>
           </TooltipContent>
         </Tooltip>
       </TooltipProvider>
@@ -235,10 +225,10 @@ export default function CanvasDialog({
     <Dialog open={isOpen} onOpenChange={handleOpenChange}>
       <DialogContent className="sm:max-w-4xl">
         <DialogHeader>
-          <DialogTitle className="text-xl">Insert Canvas</DialogTitle>
+          <DialogTitle className="text-xl">Insert Playbook</DialogTitle>
           <DialogDescription>
-            Select a canvas to insert into your document. You can preview each
-            canvas before selecting.
+            Select a playbook to insert into your document. You can preview each
+            playbook before selecting.
           </DialogDescription>
         </DialogHeader>
         <div className="max-h-[60vh] overflow-y-auto pr-2">
@@ -246,7 +236,7 @@ export default function CanvasDialog({
             <div className="flex flex-col items-center justify-center h-[300px] space-y-4">
               <Loader2 className="h-8 w-8 animate-spin text-primary" />
               <p className="text-sm text-muted-foreground">
-                Loading canvases...
+                Loading playbooks...
               </p>
             </div>
           ) : canvases.length > 0 ? (
@@ -266,9 +256,9 @@ export default function CanvasDialog({
                 <PlusCircle className="h-8 w-8 text-slate-400" />
               </div>
               <div className="space-y-2">
-                <p className="text-lg font-medium">No canvases found</p>
+                <p className="text-lg font-medium">No playbooks found</p>
                 <p className="text-sm text-muted-foreground max-w-sm">
-                  Create a new canvas to get started. You can then insert it
+                  Create a new playbook to get started. You can then insert it
                   into your document.
                 </p>
               </div>
@@ -329,7 +319,7 @@ export default function CanvasDialog({
             disabled={!selectedCanvas}
             className="min-w-[100px]"
           >
-            {selectedCanvas ? "Insert Canvas" : "Select a Canvas"}
+            {selectedCanvas ? "Insert Playbook" : "Select a Playbook"}
           </Button>
         </DialogFooter>
       </DialogContent>

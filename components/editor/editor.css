@@ -711,6 +711,341 @@
   height: auto !important;
 }
 
+/*
+ * Phase 2.5/2.6 paper-page styling.
+ *
+ * The editor surface is a clean continuous column shaped like a sheet of
+ * paper. Width matches the chosen paper; padding implements the four
+ * margins. CSS variables are set on the wrapper from React (pageSize,
+ * orientation, margins). No virtual page-break hints, no margin-guide
+ * overlay — the editor surface is uncluttered while editing. Real
+ * pagination and per-page geometry only manifest at print/export time
+ * via @page CSS rules.
+ */
+.editor-page-surface {
+  position: relative;
+  width: var(--page-width-mm, 210mm);
+  min-height: var(--page-height-mm, 297mm);
+  margin: 24px auto;
+  padding-top: var(--margin-top-mm, 25.4mm);
+  padding-right: var(--margin-right-mm, 25.4mm);
+  padding-bottom: var(--margin-bottom-mm, 25.4mm);
+  padding-left: var(--margin-left-mm, 25.4mm);
+  background: white;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  box-sizing: border-box;
+}
+
+.editor-page-surface .ProseMirror {
+  outline: none;
+  min-height: calc(
+    var(--page-height-mm, 297mm) - var(--margin-top-mm, 25.4mm) -
+      var(--margin-bottom-mm, 25.4mm)
+  );
+}
+
+/* Page-break-on-print — Phase 7 (PDF export) will add a print-only rule
+   so `.ProseMirror hr` translates to a real `break-after: page`. */
+
+/* ====================================================================
+ * Floating inline elements (Phase 5.5)
+ *
+ * `.float-block` is a Tiptap node that floats inside the body so adjacent
+ * paragraphs wrap around it. Sizes are percentages of the body width;
+ * sides are left/right.
+ * ==================================================================== */
+
+.float-block {
+  position: relative;
+  margin-bottom: 1em;
+  padding: 8px 10px;
+  border: 1px solid rgba(99, 102, 241, 0.2);
+  background: rgba(99, 102, 241, 0.04);
+  border-radius: 6px;
+  box-sizing: border-box;
+  /* Allow text selection but prevent drag-drop unless on the body. */
+  break-inside: avoid;
+}
+.float-block--left {
+  float: left;
+  margin-right: 16px;
+}
+.float-block--right {
+  float: right;
+  margin-left: 16px;
+}
+.float-block--small {
+  width: 25%;
+  min-width: 120px;
+}
+.float-block--medium {
+  width: 40%;
+  min-width: 160px;
+}
+.float-block--large {
+  width: 60%;
+  min-width: 220px;
+}
+.float-block.is-selected {
+  border-color: rgba(99, 102, 241, 0.7);
+  box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.15);
+}
+.float-block__content > p:first-child {
+  margin-top: 0;
+}
+.float-block__content > p:last-child {
+  margin-bottom: 0;
+}
+.float-block__content img {
+  max-width: 100%;
+  height: auto;
+  display: block;
+  margin: 0 auto;
+}
+
+.float-block__toolbar {
+  position: absolute;
+  top: -34px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: none;
+  align-items: center;
+  gap: 2px;
+  padding: 3px 4px;
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  box-shadow: 0 6px 18px rgba(15, 23, 42, 0.12);
+  white-space: nowrap;
+  z-index: 5;
+}
+.float-block:hover .float-block__toolbar,
+.float-block.is-selected .float-block__toolbar,
+.float-block:focus-within .float-block__toolbar {
+  display: inline-flex;
+}
+.float-block__btn {
+  all: unset;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 4px;
+  color: #475569;
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 600;
+}
+.float-block__btn:hover {
+  background: rgba(99, 102, 241, 0.08);
+  color: #3730a3;
+}
+.float-block__btn.is-active {
+  background: rgba(99, 102, 241, 0.16);
+  color: #3730a3;
+}
+.float-block__btn--text {
+  width: 22px;
+}
+.float-block__btn--danger:hover {
+  background: rgba(239, 68, 68, 0.1);
+  color: rgb(185, 28, 28);
+}
+.float-block__divider {
+  display: inline-block;
+  width: 1px;
+  height: 16px;
+  background: #e5e7eb;
+  margin: 0 2px;
+}
+
+/* When the float block contains an image only, drop the chrome padding so
+ * the image hits the border. */
+.float-block__content > p:only-child > img:only-child {
+  margin: -8px -10px;
+}
+
+/* ====================================================================
+ * Slash command menu (Phase A)
+ * ==================================================================== */
+
+.tippy-box[data-theme~="slash-menu"] {
+  background: white;
+  color: inherit;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.12);
+  overflow: hidden;
+  padding: 0;
+}
+.tippy-box[data-theme~="slash-menu"] .tippy-content {
+  padding: 0;
+}
+
+.slash-menu {
+  display: flex;
+  flex-direction: column;
+  width: 300px;
+  max-height: 340px;
+  overflow-y: auto;
+  padding: 4px;
+}
+.slash-menu--empty {
+  padding: 14px;
+  text-align: center;
+  color: #94a3b8;
+  font-size: 13px;
+}
+.slash-menu__group {
+  padding: 6px 8px 2px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #94a3b8;
+}
+.slash-menu__item {
+  all: unset;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 8px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.slash-menu__item.is-selected,
+.slash-menu__item:hover {
+  background: rgba(99, 102, 241, 0.08);
+}
+.slash-menu__icon {
+  display: flex;
+  flex: 0 0 auto;
+  width: 30px;
+  height: 30px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  color: #475569;
+  background: #f8fafc;
+}
+.slash-menu__text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.slash-menu__title {
+  font-size: 13px;
+  font-weight: 500;
+  color: #1e293b;
+}
+.slash-menu__desc {
+  font-size: 11px;
+  color: #94a3b8;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 240px;
+}
+
+/* ====================================================================
+ * @-mention chip + suggestion popup (Phase 4)
+ * ==================================================================== */
+
+.file-mention {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 1px 8px;
+  margin: 0 1px;
+  border-radius: 9999px;
+  background: rgba(99, 102, 241, 0.08);
+  color: rgb(67, 56, 202);
+  font-weight: 500;
+  font-size: 0.95em;
+  line-height: 1.4;
+  cursor: pointer;
+  user-select: none;
+  border: 1px solid rgba(99, 102, 241, 0.18);
+  transition: background 120ms ease, border-color 120ms ease;
+  white-space: nowrap;
+}
+.file-mention:hover {
+  background: rgba(99, 102, 241, 0.16);
+  border-color: rgba(99, 102, 241, 0.4);
+}
+
+/* Suggestion popup container (rendered into document.body by tippy.js) */
+.tippy-box[data-theme~="file-mention"] {
+  background: white;
+  color: inherit;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.12);
+  overflow: hidden;
+  padding: 0;
+}
+.tippy-box[data-theme~="file-mention"] .tippy-content {
+  padding: 0;
+}
+
+.mention-list {
+  display: flex;
+  flex-direction: column;
+  width: 280px;
+  max-height: 320px;
+  overflow-y: auto;
+}
+.mention-list--empty {
+  padding: 14px;
+  text-align: center;
+  color: #94a3b8;
+  font-size: 13px;
+}
+.mention-list__item {
+  all: unset;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  cursor: pointer;
+  font-size: 13px;
+  color: #1e293b;
+}
+.mention-list__item.is-selected,
+.mention-list__item:hover {
+  background: rgba(99, 102, 241, 0.08);
+}
+.mention-list__icon {
+  display: flex;
+  flex: 0 0 auto;
+  width: 20px;
+  height: 20px;
+  align-items: center;
+  justify-content: center;
+}
+.mention-list__label {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.mention-list__name {
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 220px;
+}
+.mention-list__folder {
+  font-size: 11px;
+  color: #94a3b8;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 220px;
+}
+
 /* Print styles */
 @media print {
   .editor-toolbar,

@@ -251,8 +251,30 @@ const CustomEdge = (params: any) => {
         </marker>
       </defs>
 
+      {/* Wider invisible hit-area path on top of the visible edge so the user
+          can click anywhere along the edge, not just the thin stroke. */}
+      {edgeType !== "double" && (
+        <path
+          d={edgePathData as string}
+          fill="none"
+          stroke="transparent"
+          strokeWidth={20}
+          style={{ pointerEvents: "stroke", cursor: "pointer" }}
+          onDoubleClick={handleDoubleClick}
+        />
+      )}
+
       {edgeType === "double" ? (
         <g style={{ isolation: "isolate" }}>
+          {/* Invisible hit-area overlay that covers both lines. */}
+          <path
+            d={edgePathData.path1}
+            fill="none"
+            stroke="transparent"
+            strokeWidth={20}
+            style={{ pointerEvents: "stroke", cursor: "pointer" }}
+            onDoubleClick={handleDoubleClick}
+          />
           <path
             id={`${id}-1`}
             d={edgePathData.path1}

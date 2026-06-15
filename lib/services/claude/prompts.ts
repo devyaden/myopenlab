@@ -5,7 +5,8 @@ import {
 } from "@/lib/types/diagram-types";
 
 /**
- * Constructs user message for Claude
+ * Constructs user message for Claude. The user's free-form prompt is the
+ * primary directive — everything else is fallback guidance.
  */
 export function constructUserMessage(
   language: LanguageType,
@@ -13,50 +14,52 @@ export function constructUserMessage(
   industry: IndustryType,
   prompt: string
 ): string {
-  // Create a directive that clearly emphasizes what we want
-  const directive = `Create a professional, enterprise-grade ${language} ${diagramType} diagram for the ${industry} industry: "${prompt}"`;
+  return [
+    `USER REQUEST (this is the primary instruction — follow it literally):`,
+    `"${prompt}"`,
+    ``,
+    `Render this as a ${diagramType} diagram in ${language}.`,
+    industry !== IndustryType.GENERAL
+      ? `Context: ${industry} industry (use only if the user did not specify their own context).`
+      : ``,
+    ``,
+    getDiagramTypeUserGuidance(diagramType),
+    ``,
+    `Important:`,
+    `- Match the scale, content, and tone of the user's request. Do not pad with generic enterprise content if they asked for something simple.`,
+    `- If the user named specific steps, entities, or labels, use those exact names. Do not substitute "industry-standard" terminology unless they asked for it.`,
+    `- Use the provided generateDiagram tool to return the structured result.`,
+  ]
+    .filter(Boolean)
+    .join("\n");
+}
 
-  // Add diagram-specific guidance based on type
-  let typeSpecificGuidance = "";
+function getDiagramTypeUserGuidance(diagramType: DiagramType): string {
   switch (diagramType) {
     case DiagramType.WORKFLOW:
-      typeSpecificGuidance =
-        "Design a comprehensive, detailed business workflow positioned horizontally with 250px spacing. Analyze the user's request and create as many nodes as needed to fully capture the workflow - this could be 10 nodes for a simple process or 100+ nodes for a complex enterprise workflow. Use strategic decision points (diamond), data repositories (cylinder), documents (document), quality gates (hexagon), and processes (rectangle). Break down each step, sub-step, validation, checkpoint, approval, notification, data transformation, and error handling into individual nodes as needed. Include decision branches, exception handling paths, parallel processes, audit trails, logging steps, notification triggers, data validations, approval workflows, rollback procedures, monitoring checkpoints, escalation paths, and completion steps - but only include what makes sense for the specific request. DO NOT artificially limit the diagram - if the process requires 80-100 nodes to be properly represented, create them all.";
-      break;
+      return `Workflow: lay nodes out horizontally with ~250px spacing. Use rectangle for processes, diamond for decisions, cylinder for data, document for documents, hexagon for quality gates, rounded for start/end. Pick the node count from the user's request — three steps means three nodes; a complex enterprise process may need 60+. Do not invent extra steps the user did not ask for.`;
     case DiagramType.WEBSITE_WIREFRAME:
-      typeSpecificGuidance =
-        "Create a sophisticated, modern website wireframe layout with professional UI/UX principles. Design realistic component hierarchies, proper information architecture, and contemporary web design patterns. Include navigation systems, content zones, interactive elements, and responsive design considerations. Focus on user experience and conversion optimization.";
-      break;
+      return `Website wireframe: rectangle shapes for all UI containers. NO edges between elements. Match the pages/sections the user asked for; do not add hero/testimonials/pricing sections unless requested.`;
     case DiagramType.EVENT_VISITOR_EXPERIENCE:
-      typeSpecificGuidance =
-        "Design a comprehensive event venue layout matching the scale and complexity requested by the user. For small events, create 10-20 zones. For medium events, create 30-50 zones. For large conferences/exhibitions, create 60-100+ zones. Include areas like: entrance, security checkpoints, registration desks, badge pickup, lounges, information desks, halls, breakout rooms (number them as needed: Room 1, 2, 3...), exhibition booths (number extensively if it's a large event: Booth 1-50+), sponsor pavilions, VIP areas, speaker rooms, media centers, networking zones, refreshment areas, coffee stations, catering zones, interactive displays, demo stations, workshop rooms, meeting pods, quiet zones, charging stations, restrooms, staff areas, emergency exits, wayfinding points, photo booths, and experience zones. Each distinct area should be a separate node. Let the user's request determine the scale - don't artificially limit it.";
-      break;
+      return `Event layout: each distinct area is its own node. Use the actor shape for visitor personas. Match the scale to the request — a small workshop has fewer zones than a trade show. Connect visitor actors to the areas they visit with animated edges.`;
     case DiagramType.HIERARCHY:
-      typeSpecificGuidance =
-        "Create a sophisticated organizational structure with 4-5 hierarchical levels reflecting modern corporate governance. Include C-suite positions, department heads, team leads, and specialized roles. Use proper business titles and organizational relationships that reflect industry standards and corporate best practices.";
-      break;
+      return `Hierarchy: tree-shaped, top-to-bottom. Use the structure the user described. If they did not specify, a 3-5 level corporate org chart is a reasonable default — but do not impose C-suite titles if the user described something different (a school, a sports team, a family tree, etc.).`;
     case DiagramType.MINDMAP:
-      typeSpecificGuidance =
-        "Develop a strategic concept map that matches the complexity and depth of the user's request. For simple topics, create 8-15 nodes with 1-2 levels. For moderate topics, create 20-40 nodes with 2-3 levels. For complex strategic topics, create 60-100+ nodes with 3-4 levels of hierarchy. Break down the main concept into primary domains, then sub-concepts, then specific elements as deeply as the topic requires. For example, if the topic is 'Marketing Strategy', you might break it into domains like Digital Marketing, Content Strategy, SEO, SEM, Social Media, Email Campaigns, Brand Management, Analytics - and then break each of those into further detail based on what the user is asking for. Match the granularity to the user's needs.";
-      break;
+      return `Mind map: capsule shapes, central node radiating outward. Depth and breadth should match the user's topic — a focused topic may need only 8-15 nodes, a broad strategic theme may need 60+. Do not force generic strategic pillars (Market, Operations, Finance, etc.) unless the user asked for them.`;
     default:
-      typeSpecificGuidance =
-        "Create a comprehensive diagram with the appropriate number of nodes based on the complexity and scope of the user's request. For simple requests, 5-15 nodes may be sufficient. For moderate complexity, create 20-40 nodes. For complex enterprise requirements, create 60-100+ nodes. Break down concepts, processes, or components into individual nodes as needed - don't artificially limit or inflate the count. Match the diagram's detail level to what the user is actually asking for.";
+      return `Choose a node count that matches the user's request. Use industry-appropriate shapes.`;
   }
-
-  // Include the requirements
-  return `${directive}\n\n${typeSpecificGuidance}\n\nCRITICAL REQUIREMENTS:\n- Generate enterprise-quality, professional-grade content\n- Use industry-standard terminology and best practices\n- Ensure all labels are business-appropriate and sophisticated\n- Create realistic, implementable solutions\n- Focus on practical business value and professional utility\n\nGenerate this as a complete JSON structure using the provided tool with all required properties.`;
 }
 
 /**
- * Creates a comprehensive system prompt for Claude
+ * Creates the system prompt. Keeps the structural / technical rules; relaxes
+ * the content rules so the user's prompt is the source of truth.
  */
 export function createSystemPrompt(
   language: LanguageType,
   diagramType: DiagramType,
   industry: IndustryType
 ): string {
-  // Get all prompt components
   const commonRequirements = getCommonRequirements(language);
   const diagramTypeRequirements = getDiagramTypeRequirements(
     diagramType,
@@ -65,236 +68,149 @@ export function createSystemPrompt(
   const connectionHandles = getConnectionHandlesRequirements();
   const industryStyles = getIndustryStyleRequirements(industry);
 
-  // Combine into a professional and comprehensive prompt
   return [
-    "You are a senior business analyst and professional diagram architect with expertise in creating enterprise-grade visual documentation for Fortune 500 companies.",
-    "Your task is to generate sophisticated, business-quality diagram data that meets professional standards and demonstrates deep industry knowledge.",
+    "You are a diagram generator. Your job is to translate the user's request into a structured diagram using the generateDiagram tool.",
     "",
-    "CRITICAL INSTRUCTION - ADAPTIVE COMPLEXITY:",
-    "Analyze the user's prompt carefully and create the APPROPRIATE number of nodes based on what they're asking for:",
-    "- Simple requests (basic process, small event): 8-20 nodes",
-    "- Moderate requests (standard workflow, medium event): 25-50 nodes",
-    "- Complex requests (enterprise process, large conference, detailed system): 60-150+ nodes",
-    "DO NOT artificially limit the diagram if the request requires extensive detail.",
-    "DO NOT over-generate nodes if the request is simple.",
-    "The goal is accuracy and completeness, not hitting a specific number.",
+    "PRIORITY ORDER:",
+    "1. Follow the user's specific request literally — labels, scale, structure, and tone all come from them.",
+    "2. The guidance below is fallback only — apply it where the user did not specify, and override it where they did.",
+    "3. Never invent content the user did not ask for to make a diagram look more 'professional' or 'complete'.",
     "",
-    "PROFESSIONAL STANDARDS:",
+    "STRUCTURAL REQUIREMENTS:",
     commonRequirements,
     "",
     diagramTypeRequirements,
     "",
-    // Only include connection handles when the diagram type needs edges
     diagramType !== DiagramType.WEBSITE_WIREFRAME ? connectionHandles : "",
     "",
     industryStyles,
     "",
-    "CRITICAL QUALITY REQUIREMENTS:",
-    "1. Create the RIGHT number of nodes for the request - scale up or down as needed",
-    "2. Use the provided tool to return a professionally structured diagram with precise, business-appropriate content",
-    "3. All node labels must use sophisticated, industry-standard terminology",
-    "4. Demonstrate deep understanding of business processes and industry best practices",
-    "5. Create realistic, implementable solutions that add genuine business value",
-    "6. Ensure all content reflects enterprise-level thinking and strategic insight",
-    "7. Node data objects must contain ONLY 'label' and 'shape' properties - no additional properties",
-    "8. Width and height should be set at the node level, not within the data object",
+    "DATA SHAPE (enforced by tool schema):",
+    "- All nodes use type \"genericNode\".",
+    "- Node data must contain ONLY 'label' and 'shape'. Width and height go on the node, not in data.",
+    "- Edges must include sourceHandle and targetHandle.",
   ]
+    .filter(Boolean)
     .join("\n")
     .replace(/\n\n+/g, "\n\n")
     .trim();
 }
 
 /**
- * Get common requirements for all diagram types
+ * Common requirements for all diagram types.
  */
 function getCommonRequirements(language: LanguageType): string {
-  // Determine text direction based on language
   const isRTL = language === LanguageType.ARABIC;
 
-  // Generate language-specific instructions
   let languageInstructions = "";
   switch (language) {
     case LanguageType.ENGLISH:
-      languageInstructions = "English with professional business terminology";
+      languageInstructions = "English";
       break;
     case LanguageType.SPANISH:
-      languageInstructions =
-        "Spanish (Español) using formal business language and proper grammar";
+      languageInstructions = "Spanish (Español), proper grammar";
       break;
     case LanguageType.FRENCH:
-      languageInstructions =
-        "French (Français) with sophisticated business vocabulary and proper grammar";
+      languageInstructions = "French (Français), proper grammar";
       break;
     case LanguageType.GERMAN:
-      languageInstructions =
-        "German (Deutsch) using formal business language and proper grammar";
+      languageInstructions = "German (Deutsch), proper grammar";
       break;
     case LanguageType.PORTUGUESE:
-      languageInstructions =
-        "Portuguese (Português) with professional business terminology and proper grammar";
+      languageInstructions = "Portuguese (Português), proper grammar";
       break;
     case LanguageType.JAPANESE:
-      languageInstructions =
-        "Japanese (日本語) using appropriate business honorifics and formal language";
+      languageInstructions = "Japanese (日本語), appropriate honorifics";
       break;
     case LanguageType.CHINESE:
-      languageInstructions =
-        "Chinese (中文) with formal business language using simplified characters";
+      languageInstructions = "Chinese (中文), simplified characters";
       break;
     case LanguageType.ARABIC:
-      languageInstructions =
-        "Arabic (العربية) using formal business terminology with proper RTL formatting";
+      languageInstructions = "Arabic (العربية), proper grammar";
       break;
     default:
-      languageInstructions = "English with professional business terminology";
+      languageInstructions = "English";
   }
 
-  return `Create an enterprise-grade professional diagram with these critical requirements:
-- LANGUAGE: ${languageInstructions}
-- All nodes MUST use "genericNode" as the type
-- All nodes MUST have "data" object with ONLY "label" and "shape" properties (no additional properties)
-- All edges MUST have sourceHandle and targetHandle properties set
-- Flow direction: ${isRTL ? "right-to-left (RTL)" : "left-to-right (LTR)"}
-- All content MUST be in ${language} using professional, business-appropriate language
-- Demonstrate deep industry expertise and strategic thinking
-- Use sophisticated terminology that reflects executive-level understanding`;
+  return [
+    `- LANGUAGE: write all labels in ${languageInstructions}.`,
+    `- All nodes MUST use "genericNode" as the type.`,
+    `- All nodes MUST have a "data" object with ONLY "label" and "shape" properties.`,
+    `- All edges MUST have sourceHandle and targetHandle properties.`,
+    isRTL
+      ? `- For Arabic workflows, lay nodes out right-to-left natively: place earlier steps at higher x-coordinates and later steps at lower x-coordinates so the flow reads naturally in Arabic.`
+      : `- For horizontal flows, lay nodes out left-to-right: earlier steps at lower x-coordinates, later steps at higher x-coordinates.`,
+    `- Match the user's tone. Do not impose formal/executive language unless they asked for it.`,
+  ].join("\n");
 }
 
 /**
- * Get connection handles requirements
+ * Connection handle legend.
  */
 function getConnectionHandlesRequirements(): string {
-  return `CONNECTION HANDLES - MANDATORY:
-- Every edge MUST have both sourceHandle and targetHandle values from this list:
-  * TARGET HANDLES: "a" (top), "b" (bottom), "c" (right), "d" (left)
-  * SOURCE HANDLES: "e" (top), "f" (bottom), "g" (right), "h" (left)
-- For horizontal flow (L→R): source="g", target="d"
-- For horizontal flow (R→L): source="h", target="c"
-- For vertical flow (T→B): source="f", target="a"
-- For vertical flow (B→T): source="e", target="b"
-- Ensure logical flow direction that reflects real business processes`;
+  return `CONNECTION HANDLES:
+- TARGET HANDLES: "a" (top), "b" (bottom), "c" (right), "d" (left)
+- SOURCE HANDLES: "e" (top), "f" (bottom), "g" (right), "h" (left)
+- Pick handles that match the actual relative positions of the connected nodes.`;
 }
 
 /**
- * Get industry-specific styling requirements
+ * Industry styling — color palette only. Tone is the user's call.
  */
 function getIndustryStyleRequirements(industry: IndustryType): string {
-  // Get color palette
   const palette = getColorPalette(industry);
-
-  return `PROFESSIONAL STYLING REQUIREMENTS:
-- Use this sophisticated ${industry} industry color palette: ${JSON.stringify(palette)}
-- Apply premium design principles that reflect corporate standards
-- EVERY node MUST have professional styling with strategic color usage
-- Style decision nodes (diamond) and data repositories (cylinder) with business-appropriate differentiation
-- The "nodeStyles" object MUST be keyed by node ID with executive-quality aesthetics
-- Ensure visual hierarchy reflects business importance and strategic relationships`;
+  return `STYLING:
+- Color palette to draw from: ${JSON.stringify(palette)}.
+- "nodeStyles" object keyed by node ID. Visual hierarchy is fine but not required.
+- Differentiate decision nodes (diamond) and data repositories (cylinder) with color where it helps clarity.`;
 }
 
 /**
- * Gets diagram type specific requirements with professional focus
+ * Diagram-type-specific structural requirements. Content guidance lives in
+ * getDiagramTypeUserGuidance() and is presented in the user message instead.
  */
 function getDiagramTypeRequirements(
   diagramType: DiagramType,
-  language: LanguageType
+  _language: LanguageType
 ): string {
-  // Determine if the language is RTL for connection instructions
-  const isRTL = language === LanguageType.ARABIC;
-
   switch (diagramType) {
     case DiagramType.WORKFLOW:
-      return `ENTERPRISE WORKFLOW REQUIREMENTS:
-- Analyze the user's request and create the appropriate level of detail
-- For simple workflows (basic approval, simple process): Create 8-20 well-defined steps
-- For standard workflows (order processing, onboarding): Create 25-50 detailed steps
-- For complex workflows (enterprise system, regulatory compliance): Create 60-150+ comprehensive steps
-- Break down processes into individual steps as appropriate: start, input validation, data fetch, calculation, decision point, approval step, notification, logging, error check, branch, merge point, data transformation, API call, database operation, status update, audit entry, completion step, and end
-- Use horizontal layout with consistent 250px spacing between nodes for professional appearance
-- Include executive-level decision points with multiple strategic outcomes (diamond shape) where needed
-- Incorporate data repositories and knowledge management systems (cylinder shape) where appropriate
-- Add compliance checkpoints, approval workflows, and governance processes (document shape) as required
-- Show exception handling, escalation paths, and risk management procedures if relevant
-- ALL edges MUST have "animated": true with professional arrow styling
-- Node dimensions: width=180px, height=90px (120px for diamonds and cylinders)
-- CONNECTIONS: ${isRTL ? "For RTL languages, connect left side of source to right side of target" : "For LTR languages, connect right side of source to left side of target"}
-- Organize in logical business sequence with clear strategic flow
-- Position nodes in multiple rows if needed to accommodate larger workflows
-- ALL LABELS must use sophisticated ${language} business terminology that executives would recognize
-- Use professional color coding: Start/End (rounded), Processes (rectangle), Decisions (diamond), Data (cylinder), Documents (document), Quality Gates (hexagon)`;
+      return `WORKFLOW STRUCTURE:
+- Horizontal layout, ~250px spacing between nodes.
+- Shapes: rectangle (process), diamond (decision), cylinder (data), document (document), hexagon (quality gate), rounded (start/end).
+- Node dimensions: width=180px, height=90px (use 120x120 for diamonds and cylinders).
+- All edges should have "animated": true.
+- Match the node count to the user's request. Do not pad.`;
 
     case DiagramType.WEBSITE_WIREFRAME:
-      return `PROFESSIONAL WEBSITE WIREFRAME REQUIREMENTS:
-- Create a sophisticated, modern web application interface design
-- Design enterprise-grade user experience with conversion optimization focus
-- Include advanced navigation systems, search functionality, and user account management
-- Incorporate modern UI patterns: hero sections, call-to-action areas, testimonials, feature showcases
-- Add professional elements: pricing tables, contact forms, resource libraries, dashboard interfaces
-- Use "rectangle" shape for all UI containers and components
-- NO connections/edges between elements (this is a wireframe layout)
-- Implement responsive design principles with mobile-first thinking
-- ALL UI LABELS must be in sophisticated ${language} using professional web terminology
-- For ${isRTL ? "RTL languages, align content right-to-left with proper localization" : "LTR languages, use left-to-right alignment with professional typography"}
-- Focus on business goals: lead generation, user engagement, and conversion optimization`;
+      return `WIREFRAME STRUCTURE:
+- All elements use the "rectangle" shape.
+- NO edges between elements.
+- Build the pages and sections the user asked for. Do not auto-add hero/testimonials/pricing/etc. unless requested.`;
 
     case DiagramType.EVENT_VISITOR_EXPERIENCE:
-      return `PROFESSIONAL EVENT MANAGEMENT REQUIREMENTS:
-- Analyze the event scale in the user's request and create appropriate zones:
-  * Small event (workshop, meetup): 10-20 zones (basic entrance, registration, main room, breakout rooms, refreshments)
-  * Medium event (conference, seminar): 30-50 zones (entrance, multiple registration, halls, breakout rooms 1-8, booths 1-15, lounges, catering)
-  * Large event (exhibition, trade show): 60-150+ zones (extensive booths 1-50+, multiple halls, numerous breakout rooms, VIP areas, etc.)
-- Create individual nodes for distinct areas, numbering them as appropriate for the scale
-- NUMBER areas when there are multiples: Exhibition Booth 1, 2, 3... (as many as needed), Breakout Room 1, 2, 3... (match the event size)
-- Include relevant areas: Main Entrance, Security Checkpoints, Registration Desks, Badge Pickup, Welcome Lounge, Information Desks, Main Halls, Breakout Rooms, Exhibition Booths, Sponsor Pavilions, VIP Lounges, Speaker Green Rooms, Media Center, Press Room, Networking Zones, Cocktail Areas, Coffee Stations, Catering Zones, Interactive Displays, Demo Stations, Workshop Rooms, Meeting Pods, Quiet Zones, Charging Stations, Restrooms, Storage, Staff Areas, Emergency Exits, Wayfinding Points, Photo Booths, Experience Zones
-- Use ACTOR shape for different attendee personas (adjust count based on event complexity)
-- Design visitor journey paths that make sense for the event type
-- Each visitor journey MUST show STRATEGIC MOVEMENT with ANIMATED ARROWS
-- CONNECTION STRATEGY: Arrows indicate purposeful business interactions and value-driven movement
-- ALL LABELS must use sophisticated ${language} event management terminology`;
+      return `EVENT STRUCTURE:
+- One node per distinct area.
+- Use the "actor" shape for visitor personas.
+- Connect visitor actors to areas they visit with animated edges.
+- Number repeated areas (Booth 1, 2, 3...) only when the user implies multiples.`;
 
     case DiagramType.HIERARCHY:
-      return `CORPORATE ORGANIZATIONAL REQUIREMENTS:
-- Create a sophisticated corporate structure with 4-5 executive levels
-- Top tier: C-Suite positions (CEO, COO, CTO, CFO, CMO, CHRO)
-- Second tier: Senior Vice Presidents and Division Heads
-- Third tier: Vice Presidents and Department Directors  
-- Fourth tier: Senior Managers and Practice Leaders
-- Fifth tier: Team Leads and Principal Contributors
-- CONNECTIONS: Always connect from executive level downward using proper corporate reporting lines
-- Use proper business titles that reflect modern corporate governance
-- Include cross-functional relationships and matrix reporting where appropriate
-- ALL TITLES must be in professional ${language} using standard corporate terminology
-- Layout should reflect organizational power structure and strategic decision-making flow
-- Focus on executive accountability, strategic oversight, and operational excellence`;
+      return `HIERARCHY STRUCTURE:
+- Tree-shaped, top-to-bottom.
+- Edges connect parent (top, source) to child (bottom, target).
+- Use whatever roles/titles the user described. If they did not specify, a 3-5 level corporate org chart is a reasonable default.`;
 
     case DiagramType.MINDMAP:
-      return `STRATEGIC BUSINESS CONCEPT MAP REQUIREMENTS:
-- Create a comprehensive business strategy framework with central strategic theme
-- Use pill/capsule shapes for all strategic concepts and business domains
-- Central concept: Primary business objective or strategic initiative
-- 4-6 primary strategic pillars with 3-4 tactical elements each:
-  * Market Strategy & Competitive Positioning
-  * Operational Excellence & Process Innovation
-  * Financial Performance & Value Creation
-  * Technology Innovation & Digital Transformation
-  * Human Capital & Organizational Development
-  * Customer Experience & Market Expansion
-- ALL connections represent strategic relationships and business dependencies
-- Use sophisticated ${language} strategic planning and business development terminology
-- For ${isRTL ? "RTL languages, expand strategically from right to left" : "LTR languages, expand strategically from left to right"}
-- Focus on executive-level strategic thinking and business transformation initiatives`;
+      return `MINDMAP STRUCTURE:
+- Use capsule shapes.
+- Central node in the middle, sub-concepts radiating outward.
+- Depth and breadth should match the user's topic — do not force a fixed set of "strategic pillars".`;
 
     default:
-      return `PROFESSIONAL BUSINESS DIAGRAM REQUIREMENTS:
-- Analyze the user's request and create the appropriate number of nodes:
-  * Simple concept: 8-20 nodes with clear, focused elements
-  * Standard business process: 25-50 nodes with detailed breakdown
-  * Complex enterprise system: 60-150+ nodes with comprehensive coverage
-- Break down concepts into individual components as appropriate for the request
-- Use industry-appropriate shapes and professional visual hierarchy
-- Include strategic relationships and business value connections
-- Maintain executive-quality presentation standards
-- ALL TEXT must be in professional ${language} business terminology
-- Match the diagram complexity to the user's actual needs - don't over-simplify or over-complicate`;
+      return `GENERAL STRUCTURE:
+- Choose shapes appropriate to the user's content.
+- Edges should reflect the relationships described in the prompt.`;
   }
 }
 
@@ -376,14 +292,9 @@ export function getColorPalette(industry: IndustryType): string[] {
  * Get appropriate text color based on background color
  */
 export function getTextColorForBackground(backgroundColor: string): string {
-  // Convert hex to RGB
   const r = parseInt(backgroundColor.slice(1, 3), 16);
   const g = parseInt(backgroundColor.slice(3, 5), 16);
   const b = parseInt(backgroundColor.slice(5, 7), 16);
-
-  // Calculate luminance
   const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
-
-  // Return white for dark backgrounds, dark gray for light backgrounds
   return luminance > 0.5 ? "#1F2937" : "#FFFFFF";
 }

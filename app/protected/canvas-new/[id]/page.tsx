@@ -1,13 +1,12 @@
-import CanvasNew from "@/components/canvas-new";
-import { Metadata } from "next";
+import { redirect } from "next/navigation";
 
 interface PageProps {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }
 
-export default async function Canvas({ params, searchParams }: PageProps) {
+// Legacy route — playbooks now live at /protected/playbook/[id].
+// Redirect any stale links or bookmarks to the new path.
+export default async function LegacyCanvasRedirect({ params }: PageProps) {
   const { id } = await params;
-  const resolvedSearchParams = await searchParams;
-  return <CanvasNew canvasId={id} />;
+  redirect(`/protected/playbook/${id}`);
 }

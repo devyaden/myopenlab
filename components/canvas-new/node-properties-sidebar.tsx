@@ -58,7 +58,29 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
 import { ALL_SHAPES } from "@/lib/types/flow-table.types";
+import {
+  CONNECTION_KEYS,
+  addColumn,
+  deleteColumn,
+  getDataKey,
+  getNodeValue,
+  isSpecialColumn,
+  mapColumnTypeToPropertyType,
+  mapPropertyTypeToColumnType,
+  renameColumn,
+  setColumnOptions,
+  updateNodeValue,
+} from "@/lib/canvas/column-data";
+import { getNodeConnections } from "@/lib/canvas/connections";
 import { format } from "date-fns";
 
 interface NodePropertiesSidebarProps {
@@ -68,6 +90,12 @@ interface NodePropertiesSidebarProps {
   setColumns: (val: any) => void;
   edges: any[];
   nodes: any[];
+  // Select + center a connected node when its connection chip is clicked.
+  onFocusNode?: (nodeId: string) => void;
+  // Create an edge source->target (used by the from/to "+ Connect" picker).
+  onConnectNodes?: (sourceId: string, targetId: string) => void;
+  // Remove a specific edge by id (used by a connection chip's × button).
+  onRemoveEdge?: (edgeId: string) => void;
 }
 
 type PropertyType =
@@ -92,53 +120,13 @@ interface Property {
   isEditable?: boolean;
   dataKey?: string;
   columnType?: string; // Store the original column type
+  // "connection" marks the derived from/to fields, rendered as clickable chips
+  // rather than the generic read-only box.
+  kind?: "connection";
 }
 
-// Helper functions for column data mapping (same as table)
-const getDataKey = (column: any): string => {
-  return column.dataKey || column.title;
-};
-
-const isSpecialColumn = (column: any): boolean => {
-  const dataKey = getDataKey(column);
-  return ["label", "shape", "id"].includes(dataKey);
-};
-
-const getNodeValue = (node: Node, column: any): any => {
-  const dataKey = getDataKey(column);
-
-  switch (dataKey) {
-    case "label":
-      return node.data?.label;
-    case "shape":
-      return node.data?.shape;
-    case "id":
-      return node.id;
-    default:
-      return node.data?.[column.title];
-  }
-};
-
-const updateNodeValue = (node: Node, column: any, value: any): any => {
-  const dataKey = getDataKey(column);
-  const updatedData = { ...node.data };
-
-  switch (dataKey) {
-    case "label":
-      updatedData.label = value;
-      break;
-    case "shape":
-      updatedData.shape = value;
-      break;
-    case "id":
-      // ID should not be editable
-      break;
-    default:
-      updatedData[column.title] = value;
-  }
-
-  return updatedData;
-};
+// Column data mapping + mutation helpers are shared with the table view and
+// add-column sidebar via lib/canvas/column-data.ts (imported above).
 
 // List of system properties that should not be editable
 // Note: Relation and Rollup properties are also made non-editable via type check
@@ -286,6 +274,9 @@ export function NodePropertiesSidebar({
   setColumns,
   edges,
   nodes,
+  onFocusNode,
+  onConnectNodes,
+  onRemoveEdge,
 }: NodePropertiesSidebarProps) {
   const [title, setTitle] = useState("");
   const [properties, setProperties] = useState<Property[]>([]);
@@ -312,6 +303,11 @@ export function NodePropertiesSidebar({
   const [tempPropertyName, setTempPropertyName] = useState("");
   const [tempPropertyValue, setTempPropertyValue] = useState("");
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
+
+  // Which connection picker ("from" | "to") is open, if any.
+  const [openConnectPicker, setOpenConnectPicker] = useState<string | null>(
+    null
+  );
 
   // State for new property options
   const [newPropertyOptions, setNewPropertyOptions] = useState<string[]>([]);
@@ -342,56 +338,26 @@ export function NodePropertiesSidebar({
     {}
   );
 
-  // Function to populate from and to connections (same as table view)
+  // Connections (from/to) come from the shared single source of truth so the
+  // panel, on-canvas node, and table view never diverge.
   const populateFromAndTo = () => {
     if (!selectedNode) {
       return { fromLabels: [], toLabels: [] };
     }
-
-    const from = edges
-      .filter((edge) => edge.target === selectedNode.id)
-      .map((edge) => edge.source);
-
-    const to = edges
-      .filter((edge) => edge.source === selectedNode.id)
-      .map((edge) => edge.target);
-
-    const fromLabels = from.map((id) => {
-      const node = nodes.find((node) => node.id === id);
-      return node
-        ? { id: node.id, label: node.data.label || node.id }
-        : { id, label: id };
-    });
-
-    const toLabels = to.map((id) => {
-      const node = nodes.find((node) => node.id === id);
-      return node
-        ? { id: node.id, label: node.data.label || node.id }
-        : { id, label: id };
-    });
-
+    const { from, to } = getNodeConnections(selectedNode.id, nodes, edges);
     return {
-      fromLabels: fromLabels || [],
-      toLabels: toLabels || [],
+      fromLabels: from.map((ref) => ({ id: ref.id, label: ref.label })),
+      toLabels: to.map((ref) => ({ id: ref.id, label: ref.label })),
     };
   };
 
   // Update rollup cache when relevant data changes (EXACT same logic as table view)
   useEffect(() => {
-    console.log("Building rollup cache...", {
-      selectedNode: selectedNode?.id,
-      columnsCount: columns?.length,
-    });
-
     const newRollupCache: Record<string, any> = {};
     const newRelationCache: Record<string, any> = {};
 
     // Process rollup columns
     const rollupColumns = columns?.filter((col) => col?.type === "Rollup");
-    console.log(
-      "Found rollup columns:",
-      rollupColumns?.map((c) => c.title)
-    );
 
     if (rollupColumns?.length) {
       // Create a map of relation columns to easily lookup by related canvas ID
@@ -421,18 +387,12 @@ export function NodePropertiesSidebar({
           const relatedCanvasId = column?.rollup_column?.canvas?.id;
 
           if (!relatedCanvasId) {
-            console.log(
-              `No related canvas ID for rollup column ${column.title}`
-            );
             return;
           }
 
           const relationColumn = relationColumnMap.get(relatedCanvasId);
 
           if (!relationColumn) {
-            console.log(
-              `No relation column found for canvas ${relatedCanvasId}`
-            );
             return;
           }
 
@@ -452,7 +412,6 @@ export function NodePropertiesSidebar({
           const rollupColumnTargetTitle = column?.rollup_column?.title;
 
           if (!rollupColumnTargetTitle) {
-            console.log(`No target column title for rollup ${column.title}`);
             return;
           }
 
@@ -502,59 +461,18 @@ export function NodePropertiesSidebar({
           });
 
           // Store in cache
-          console.log(
-            `Setting rollup data for ${node.id}-${column.title}:`,
-            rollupData
-          );
           newRollupCache[`${node.id}-${column.title}`] = rollupData;
         });
       });
     }
 
     // Set both caches with the new data
-    console.log("Final rollup cache:", newRollupCache);
     setRollupCache(newRollupCache);
     setRelationCache(newRelationCache);
   }, [nodes, columns]);
 
-  // Helper function to map column types to property types
-  const mapColumnTypeToPropertyType = (columnType: string): PropertyType => {
-    const typeMap: Record<string, PropertyType> = {
-      Text: "text",
-      Number: "number",
-      Select: "select",
-      Multiselect: "multiselect",
-      Checkbox: "checkbox",
-      Date: "date",
-      "Created Time": "date",
-      "Last edited time": "date",
-      "Long Text": "longtext",
-      URL: "url",
-      Email: "email",
-      Relation: "relation",
-      Rollup: "rollup",
-    };
-    return typeMap[columnType] || "text";
-  };
-
-  // Helper function to map property types to column types
-  const mapPropertyTypeToColumnType = (propType: PropertyType): string => {
-    const typeMap: Record<PropertyType, string> = {
-      text: "Text",
-      number: "Number",
-      select: "Select",
-      multiselect: "Multiselect",
-      checkbox: "Checkbox",
-      date: "Date",
-      color: "Text",
-      url: "URL",
-      longtext: "Long Text",
-      email: "Email",
-      relation: "Relation",
-      rollup: "Rollup",
-    };
-    return typeMap[propType] || "Text";
-  };
+  // mapColumnTypeToPropertyType / mapPropertyTypeToColumnType are imported from
+  // lib/canvas/column-data.ts (shared with the table view).
 
   // Find the task column (used for title)
   const getTaskColumn = () => {
@@ -576,11 +494,14 @@ export function NodePropertiesSidebar({
 
       const nodeProperties: Property[] = [];
 
-      // Get all columns except "id" and the task column (to avoid duplication with title)
+      // Get all columns except "id", the task column (shown as title), and any
+      // derived connection keys (from/to/parent/children/...) which are handled
+      // separately as connection chips and must never render as editable props.
       const availableColumns = columns.filter(
         (column) =>
           column.title !== "id" && // Exclude id column
-          !(taskColumn && column.title === taskColumn.title) // Exclude task column since it's shown as title
+          !(taskColumn && column.title === taskColumn.title) && // task = title
+          !(CONNECTION_KEYS as readonly string[]).includes(column.title)
       );
 
       // Add properties based on all available columns
@@ -592,15 +513,6 @@ export function NodePropertiesSidebar({
         if (column.type === "Rollup") {
           const rollupKey = `${selectedNode.id}-${column.title}`;
           actualValue = rollupCache[rollupKey] || [];
-          // Debug: Log rollup data
-          console.log(
-            `Rollup data for ${column.title}:`,
-            actualValue,
-            "Cache key:",
-            rollupKey,
-            "Full cache:",
-            rollupCache
-          );
         } else if (column.type === "Relation") {
           actualValue =
             relationCache[`${selectedNode.id}-${column.title}`] ||
@@ -640,35 +552,30 @@ export function NodePropertiesSidebar({
         });
       });
 
-      // Add connection-based properties (from/to) - same as table view
+      // Connection chips (from/to) are computed from edges, never from a column.
+      // Always surface both rows so the user can add a first connection via the
+      // "+ Connect" picker; chips render only for existing edges.
       const { fromLabels, toLabels } = populateFromAndTo();
 
-      // Add "from" property if there are incoming connections
-      if (
-        fromLabels.length > 0 ||
-        columns.some((col) => col.title === "from")
-      ) {
-        nodeProperties.push({
-          name: "from",
-          value: fromLabels,
-          type: "relation",
-          isEditable: false,
-          dataKey: "from",
-          columnType: "Relation",
-        });
-      }
+      nodeProperties.push({
+        name: "from",
+        value: fromLabels,
+        type: "relation",
+        isEditable: false,
+        dataKey: "from",
+        columnType: "Relation",
+        kind: "connection",
+      });
 
-      // Add "to" property if there are outgoing connections
-      if (toLabels.length > 0 || columns.some((col) => col.title === "to")) {
-        nodeProperties.push({
-          name: "to",
-          value: toLabels,
-          type: "relation",
-          isEditable: false,
-          dataKey: "to",
-          columnType: "Relation",
-        });
-      }
+      nodeProperties.push({
+        name: "to",
+        value: toLabels,
+        type: "relation",
+        isEditable: false,
+        dataKey: "to",
+        columnType: "Relation",
+        kind: "connection",
+      });
 
       setProperties(nodeProperties);
     }
@@ -799,8 +706,11 @@ export function NodePropertiesSidebar({
   const handleAddProperty = () => {
     if (!selectedNode || !newPropertyName.trim()) return;
 
-    // Check for duplicate property name
-    if (properties.some((prop) => prop.name === newPropertyName)) {
+    // Check for duplicate property name (against both properties and columns)
+    if (
+      properties.some((prop) => prop.name === newPropertyName) ||
+      columns.some((col) => col.title === newPropertyName)
+    ) {
       setValidationErrors({
         ...validationErrors,
         newProperty: "A property with this name already exists",
@@ -814,90 +724,29 @@ export function NodePropertiesSidebar({
       setValidationErrors(rest);
     }
 
-    // Create default value based on type
-    let defaultValue: any = "";
-    switch (newPropertyType) {
-      case "checkbox":
-        defaultValue = false;
-        break;
-      case "number":
-        defaultValue = 0;
-        break;
-      case "multiselect":
-        defaultValue = [];
-        break;
-      case "date":
-        defaultValue = new Date().toISOString();
-        break;
-      default:
-        defaultValue = "";
-    }
-
-    // Create new property with dataKey
-    const newProperty: Property = {
-      name: newPropertyName,
-      value: defaultValue,
-      type: newPropertyType,
+    const newColumn = {
+      title: newPropertyName,
+      type: mapPropertyTypeToColumnType(newPropertyType),
       options:
         newPropertyType === "select" || newPropertyType === "multiselect"
           ? [...newPropertyOptions]
           : undefined,
-      isEditable: true,
       dataKey: newPropertyName,
-      columnType: mapPropertyTypeToColumnType(newPropertyType),
     };
 
-    // Update properties state
-    const updatedProperties = [...properties, newProperty];
-    setProperties(updatedProperties);
-
-    // Find matching column
-    const matchingColumn = columns.find(
-      (col) => col.title === newProperty.name
+    // Add the column and seed node.data on ALL nodes via the shared helper, so
+    // it behaves identically to adding a column from the table. setNodes first,
+    // then setColumns (which refetches), to keep node data consistent.
+    const { columns: nextColumns, nodes: nextNodes } = addColumn(
+      columns,
+      useCanvasStore.getState().nodes,
+      newColumn,
+      newPropertyType
     );
+    useCanvasStore.getState().setNodes(nextNodes);
+    setColumns(nextColumns);
 
-    if (matchingColumn) {
-      // Update existing column data
-      const updatedData = updateNodeValue(
-        selectedNode,
-        matchingColumn,
-        newProperty.value
-      );
-
-      // Update node in store
-      const updatedNodes = useCanvasStore
-        .getState()
-        .nodes.map((node) =>
-          node.id === selectedNode.id ? { ...node, data: updatedData } : node
-        );
-
-      useCanvasStore.getState().setNodes(updatedNodes);
-    } else {
-      // Add new column to table columns
-      const newColumn = {
-        title: newProperty.name,
-        type: mapPropertyTypeToColumnType(newPropertyType),
-        options: newProperty.options,
-        dataKey: newProperty.name,
-      };
-
-      setColumns([...columns, newColumn]);
-
-      // Update node data
-      const updatedData = { ...selectedNode.data };
-      updatedData[newProperty.name] = newProperty.value;
-
-      // Update node in store
-      const updatedNodes = useCanvasStore
-        .getState()
-        .nodes.map((node) =>
-          node.id === selectedNode.id ? { ...node, data: updatedData } : node
-        );
-
-      useCanvasStore.getState().setNodes(updatedNodes);
-    }
-
-    // Reset form
+    // Reset form (the load effect rebuilds the displayed properties)
     setNewPropertyName("");
     setShowPropertyTypeSelect(false);
     setNewPropertyOptions([]);
@@ -910,8 +759,8 @@ export function NodePropertiesSidebar({
     const property = properties[index];
     const oldName = property.name;
 
-    // Don't update if name hasn't changed
-    if (oldName === newName) return;
+    // Don't update if name hasn't changed or is empty
+    if (oldName === newName || !newName.trim()) return;
 
     // Check for duplicate property name
     if (properties.some((prop) => prop.name === newName)) {
@@ -928,53 +777,30 @@ export function NodePropertiesSidebar({
       setValidationErrors(rest);
     }
 
-    // Update properties state
-    const updatedProperties = [...properties];
-    updatedProperties[index] = {
-      ...updatedProperties[index],
-      name: newName,
-    };
-    setProperties(updatedProperties);
-
-    // Find the column for this property
     const matchingColumn = columns.find((col) => col.title === oldName);
+    if (!matchingColumn) return;
 
-    if (matchingColumn) {
-      // Update column title
-      const updatedColumns = columns.map((col) =>
-        col.title === oldName
-          ? {
-              ...col,
-              title: newName,
-              dataKey: isSpecialColumn(col) ? col.dataKey : newName,
-            }
-          : col
-      );
-      setColumns(updatedColumns);
+    // Rename the column and migrate node.data[old]->node.data[new] on ALL nodes
+    // via the shared helper (identical to renaming from the table header).
+    const { columns: nextColumns, nodes: nextNodes } = renameColumn(
+      columns,
+      useCanvasStore.getState().nodes,
+      oldName,
+      newName
+    );
+    useCanvasStore.getState().setNodes(nextNodes);
+    setColumns(nextColumns);
 
-      // For regular properties (not special ones), update node data
-      if (!isSpecialColumn(matchingColumn)) {
-        const updatedData = { ...selectedNode.data };
-        updatedData[newName] = updatedData[oldName];
-        delete updatedData[oldName];
-
-        // Update node in store
-        const updatedNodes = useCanvasStore
-          .getState()
-          .nodes.map((node) =>
-            node.id === selectedNode.id ? { ...node, data: updatedData } : node
-          );
-
-        useCanvasStore.getState().setNodes(updatedNodes);
-      }
-    }
-
-    // Update hidden columns if needed
-    if (hiddenColumns.includes(oldName)) {
+    // Migrate the hidden-column entry, keyed by dataKey (matches the table).
+    const oldKey = getDataKey(matchingColumn);
+    const newKey = isSpecialColumn(matchingColumn)
+      ? matchingColumn.dataKey
+      : newName;
+    if (hiddenColumns.includes(oldKey)) {
       const updatedHiddenColumns = hiddenColumns.filter(
-        (col: string) => col !== oldName
+        (col: string) => col !== oldKey
       );
-      updatedHiddenColumns.push(newName);
+      updatedHiddenColumns.push(newKey);
 
       updateCanvasSettings({
         ...canvasSettings,
@@ -1053,30 +879,23 @@ export function NodePropertiesSidebar({
     if (!deleteConfirmation || !selectedNode) return;
 
     const propertyName = deleteConfirmation.propertyName;
-    const index = deleteConfirmation.propertyIndex;
+    const delColumn = columns.find((col) => col.title === propertyName);
+    const delKey = delColumn ? getDataKey(delColumn) : propertyName;
 
-    // Update properties state
-    const updatedProperties = properties.filter((_, i) => i !== index);
-    setProperties(updatedProperties);
+    // Delete the column and remove its key from EVERY node via the shared
+    // helper. The load effect rebuilds the displayed properties.
+    const { columns: nextColumns, nodes: nextNodes } = deleteColumn(
+      columns,
+      useCanvasStore.getState().nodes,
+      propertyName
+    );
+    useCanvasStore.getState().setNodes(nextNodes);
+    setColumns(nextColumns);
 
-    // Remove from columns array
-    const updatedColumns = columns.filter((col) => col.title !== propertyName);
-    setColumns(updatedColumns);
-
-    // Update all nodes in the store to remove this property
-    const allNodes = useCanvasStore.getState().nodes;
-    const updatedNodes = allNodes.map((node) => {
-      const updatedData = { ...node.data };
-      delete updatedData[propertyName];
-      return { ...node, data: updatedData };
-    });
-
-    useCanvasStore.getState().setNodes(updatedNodes);
-
-    // Remove property from hiddenColumns if it exists
-    if (hiddenColumns.includes(propertyName)) {
+    // Remove from hiddenColumns if it exists (keyed by dataKey)
+    if (hiddenColumns.includes(delKey)) {
       const updatedHiddenColumns = hiddenColumns.filter(
-        (col: string) => col !== propertyName
+        (col: string) => col !== delKey
       );
 
       updateCanvasSettings({
@@ -1095,23 +914,19 @@ export function NodePropertiesSidebar({
     if (!selectedNode) return;
 
     const property = properties[index];
-    const isCurrentlyHidden = hiddenColumns.includes(
-      property.dataKey || property.name
-    );
+    // Key visibility by dataKey only — the table filters hidden columns by
+    // column.dataKey, so using the same key keeps the two surfaces in sync.
+    const key = property.dataKey || property.name;
+    const isCurrentlyHidden = hiddenColumns.includes(key);
 
     // Update hiddenColumns array
     let updatedHiddenColumns;
     if (isCurrentlyHidden) {
       // Show the column by removing it from hiddenColumns
-      updatedHiddenColumns = hiddenColumns.filter(
-        (col: string) => col !== (property.dataKey || property.name)
-      );
+      updatedHiddenColumns = hiddenColumns.filter((col: string) => col !== key);
     } else {
       // Hide the column by adding it to hiddenColumns
-      updatedHiddenColumns = [
-        ...hiddenColumns,
-        property.dataKey || property.name,
-      ];
+      updatedHiddenColumns = [...hiddenColumns, key];
     }
 
     updateCanvasSettings({
@@ -1143,18 +958,10 @@ export function NodePropertiesSidebar({
     setProperties(updatedProperties);
     setEditingOptions({ ...editingOptions, options: updatedOptions });
 
-    // Update column options
-    const columnIndex = columns.findIndex(
-      (col) => col.title === editingOptions.propertyName
+    // Update column options via the shared helper
+    setColumns(
+      setColumnOptions(columns, editingOptions.propertyName, updatedOptions)
     );
-    if (columnIndex !== -1) {
-      const updatedColumns = [...columns];
-      updatedColumns[columnIndex] = {
-        ...updatedColumns[columnIndex],
-        options: updatedOptions,
-      };
-      setColumns(updatedColumns);
-    }
   };
 
   const handleRemoveOption = (optionIndex: number) => {
@@ -1178,18 +985,10 @@ export function NodePropertiesSidebar({
     };
     setProperties(updatedProperties);
 
-    // Update column options
-    const columnIndex = columns.findIndex(
-      (col) => col.title === editingOptions.propertyName
+    // Update column options via the shared helper
+    setColumns(
+      setColumnOptions(columns, editingOptions.propertyName, updatedOptions)
     );
-    if (columnIndex !== -1) {
-      const updatedColumns = [...columns];
-      updatedColumns[columnIndex] = {
-        ...updatedColumns[columnIndex],
-        options: updatedOptions,
-      };
-      setColumns(updatedColumns);
-    }
   };
 
   const handleDuplicateProperty = (index: number) => {
@@ -1213,42 +1012,32 @@ export function NodePropertiesSidebar({
       return;
     }
 
-    // Create new property
-    const newProperty: Property = {
-      ...propertyToDuplicate,
-      name: newName,
+    // Add the duplicated column (seeds all nodes with the type default), then
+    // copy the original value onto the selected node only.
+    const newColumn = {
+      title: newName,
+      type:
+        propertyToDuplicate.columnType ||
+        mapPropertyTypeToColumnType(propertyToDuplicate.type),
+      options: propertyToDuplicate.options,
       dataKey: newName,
     };
 
-    // Update properties state
-    const updatedProperties = [...properties];
-    updatedProperties.splice(index + 1, 0, newProperty);
-    setProperties(updatedProperties);
+    const { columns: nextColumns, nodes: seededNodes } = addColumn(
+      columns,
+      useCanvasStore.getState().nodes,
+      newColumn,
+      propertyToDuplicate.type
+    );
 
-    // Add new column to table columns
-    const newColumn = {
-      title: newProperty.name,
-      type:
-        newProperty.columnType || mapPropertyTypeToColumnType(newProperty.type),
-      options: newProperty.options,
-      dataKey: newProperty.name,
-    };
+    const nextNodes = seededNodes.map((node) =>
+      node.id === selectedNode.id
+        ? { ...node, data: updateNodeValue(node, newColumn, propertyToDuplicate.value) }
+        : node
+    );
 
-    setColumns([...columns, newColumn]);
-
-    // Update node data
-    const originalValue = newProperty.value;
-    const updatedData = { ...selectedNode.data };
-    updatedData[newProperty.name] = originalValue;
-
-    // Update node in store
-    const updatedNodes = useCanvasStore
-      .getState()
-      .nodes.map((node) =>
-        node.id === selectedNode.id ? { ...node, data: updatedData } : node
-      );
-
-    useCanvasStore.getState().setNodes(updatedNodes);
+    useCanvasStore.getState().setNodes(nextNodes);
+    setColumns(nextColumns);
   };
 
   const startEditingPropertyName = (index: number) => {
@@ -1309,17 +1098,115 @@ export function NodePropertiesSidebar({
   const renderPropertyValue = (property: Property, index: number) => {
     const valueStyle = getPropertyValueStyle(property.name, property.value);
 
-    // If property is not editable, just display the value with special styling
+    // Connection fields (from/to): editable, clickable chips. Click a chip to
+    // focus the connected node; hover to reveal × to disconnect; use "+ Connect"
+    // to pick another shape in the canvas and create the edge.
+    if (property.kind === "connection") {
+      const direction = property.name; // "from" (incoming) | "to" (outgoing)
+      const refs: { id: string; label: string; edgeId?: string }[] =
+        Array.isArray(property.value) ? property.value : [];
+      const connectedIds = new Set(refs.map((r) => r.id));
+      const candidates = nodes.filter(
+        (n: any) => n.id !== selectedNode?.id && !connectedIds.has(n.id)
+      );
+
+      const handlePick = (pickedId: string) => {
+        if (!selectedNode) return;
+        if (direction === "to") {
+          onConnectNodes?.(selectedNode.id, pickedId);
+        } else {
+          onConnectNodes?.(pickedId, selectedNode.id);
+        }
+        setOpenConnectPicker(null);
+      };
+
+      return (
+        <div className="flex flex-wrap items-center gap-1 py-0.5">
+          {refs.map((item, itemIndex) => (
+            <span
+              key={item.edgeId || item.id || itemIndex}
+              className="group text-xs text-[#003F91] bg-[#5DA9E9]/15 hover:bg-[#5DA9E9]/30 transition-colors rounded-md pl-2 pr-1 py-1 flex items-center gap-1"
+            >
+              <button
+                type="button"
+                onClick={() => item.id && onFocusNode?.(item.id)}
+                title={`Go to ${item.label}`}
+                className="flex items-center gap-1 cursor-pointer"
+              >
+                <File className="h-3 w-3" />
+                {item.label || item.id}
+              </button>
+              {onRemoveEdge && item.edgeId && (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onRemoveEdge(item.edgeId as string);
+                  }}
+                  title="Remove connection"
+                  className="opacity-0 group-hover:opacity-100 text-[#003F91]/60 hover:text-red-600 transition-all"
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              )}
+            </span>
+          ))}
+
+          {onConnectNodes && (
+            <Popover
+              open={openConnectPicker === direction}
+              onOpenChange={(open) =>
+                setOpenConnectPicker(open ? direction : null)
+              }
+            >
+              <PopoverTrigger asChild>
+                <button
+                  type="button"
+                  className="text-xs text-gray-500 hover:text-[#09BC8A] flex items-center gap-0.5 px-2 py-1 border border-dashed border-gray-300 hover:border-[#09BC8A]/50 rounded-md transition-colors"
+                >
+                  <Plus className="h-3 w-3" />
+                  Connect
+                </button>
+              </PopoverTrigger>
+              <PopoverContent className="w-[220px] p-0" align="start">
+                <Command>
+                  <CommandInput placeholder="Search shapes..." className="h-8" />
+                  <CommandList>
+                    <CommandEmpty>No shapes available</CommandEmpty>
+                    <CommandGroup>
+                      {candidates.map((n: any) => (
+                        <CommandItem
+                          key={n.id}
+                          value={`${n.data?.label || n.id} ${n.id}`}
+                          onSelect={() => handlePick(n.id)}
+                          className="text-sm"
+                        >
+                          <File className="h-3 w-3 mr-2 text-[#5DA9E9]" />
+                          {n.data?.label || n.id}
+                        </CommandItem>
+                      ))}
+                    </CommandGroup>
+                  </CommandList>
+                </Command>
+              </PopoverContent>
+            </Popover>
+          )}
+        </div>
+      );
+    }
+
+    // Other non-editable properties (genuine relations / rollups): compact,
+    // muted display without the heavy gray "Read-only" box.
     if (!property.isEditable) {
       return (
-        <div className="px-2 py-1 text-gray-500 italic bg-gray-50 rounded border-l-2 border-gray-300">
+        <div className="px-2 py-1">
           {property.type === "rollup" ? (
             <div className="flex flex-wrap gap-1">
               {Array.isArray(property.value) && property.value.length > 0 ? (
                 property.value.map((item: any, itemIndex: number) => (
                   <span
                     key={itemIndex}
-                    className="text-xs text-gray-600 bg-gray-200 rounded-md px-2 py-1"
+                    className="text-xs text-gray-600 bg-gray-100 rounded-md px-2 py-1"
                     title={`From: ${item.label || "Unknown source"}`}
                   >
                     {typeof item === "object" && item !== null
@@ -1330,7 +1217,7 @@ export function NodePropertiesSidebar({
                   </span>
                 ))
               ) : (
-                <span className="text-gray-400 text-sm">No rollup data</span>
+                <span className="text-gray-400 text-sm">—</span>
               )}
             </div>
           ) : property.type === "relation" ? (
@@ -1339,18 +1226,18 @@ export function NodePropertiesSidebar({
                 property.value.map((item: any, itemIndex: number) => (
                   <span
                     key={itemIndex}
-                    className="text-xs text-gray-600 bg-blue-100 rounded-md px-2 py-1 flex items-center gap-1"
+                    className="text-xs text-gray-600 bg-blue-50 rounded-md px-2 py-1 flex items-center gap-1"
                   >
                     <File className="h-3 w-3" />
                     {item.label || item.id || String(item)}
                   </span>
                 ))
               ) : (
-                <span className="text-gray-400 text-sm">No relations</span>
+                <span className="text-gray-400 text-sm">—</span>
               )}
             </div>
           ) : (
-            <span style={valueStyle} className="text-sm">
+            <span style={valueStyle} className="text-sm text-gray-500">
               {Array.isArray(property.value)
                 ? property.value.join(", ")
                 : property.value !== undefined && property.value !== null
@@ -1358,7 +1245,6 @@ export function NodePropertiesSidebar({
                   : "—"}
             </span>
           )}
-          <div className="text-xs text-gray-400 mt-1">Read-only</div>
         </div>
       );
     }
@@ -1403,23 +1289,6 @@ export function NodePropertiesSidebar({
               }}
               className="h-8 px-2 py-1 text-sm focus-visible:ring-1 focus:border-[#09BC8A] focus:ring-[#09BC8A]/20"
               placeholder="https://example.com"
-              autoFocus
-            />
-          );
-          return (
-            <Input
-              ref={propertyValueInputRef}
-              value={tempPropertyValue}
-              onChange={(e) => setTempPropertyValue(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  handleUpdatePropertyValue(index, tempPropertyValue);
-                  setEditingPropertyValue(null);
-                } else if (e.key === "Escape") {
-                  setEditingPropertyValue(null);
-                }
-              }}
-              className="h-8 px-2 py-1 text-sm focus-visible:ring-1 focus:border-[#09BC8A] focus:ring-[#09BC8A]/20"
               autoFocus
             />
           );
@@ -1781,18 +1650,6 @@ export function NodePropertiesSidebar({
                     </span>
                   ))
                 : null}
-              <button
-                onClick={() => {
-                  // Placeholder for relation picker
-                  alert(
-                    "Relation picker would open here. This requires the relation picker component to be implemented."
-                  );
-                }}
-                className="text-gray-400 hover:text-[#09BC8A] flex items-center text-xs px-2 py-1 border border-dashed border-gray-300 hover:border-[#09BC8A]/50 rounded-md transition-colors"
-              >
-                <Plus className="h-3 w-3 mr-1" />
-                Add relation
-              </button>
             </div>
           </div>
         );
@@ -1895,19 +1752,14 @@ export function NodePropertiesSidebar({
                     className={`text-gray-600 truncate block ${
                       property.isEditable
                         ? "cursor-pointer hover:text-[#09BC8A] hover:underline transition-colors"
-                        : "cursor-default italic opacity-75"
+                        : "cursor-default"
                     }`}
                     onClick={() =>
                       property.isEditable && startEditingPropertyName(index)
                     }
-                    title={`${property.name}${!property.isEditable ? " (Read-only)" : ""}`}
+                    title={property.name}
                   >
                     {property.name}
-                    {!property.isEditable && (
-                      <span className="text-xs text-gray-400 ml-1">
-                        (Read-only)
-                      </span>
-                    )}
                   </span>
                 )}
               </div>

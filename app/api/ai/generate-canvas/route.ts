@@ -75,13 +75,14 @@ export async function POST(request: NextRequest) {
     }
 
     // Track diagram generation start with PostHog
-    // posthog.capture(PostHogEvents.AI_DIAGRAM_GENERATION_STARTED, {
-    //   userId: session.user.id,
-    //   diagramType: input.diagramType,
-    //   industry: input.industry,
-    //   language: input.language,
-    //   promptLength: input.prompt.length,
-    // });
+    const { captureServer } = await import("@/lib/posthog/server-capture");
+    const startedAt = Date.now();
+    await captureServer(user.id, "ai.generate.requested", {
+      diagramType: input.diagramType,
+      industry: input.industry,
+      language: input.language,
+      promptLength: input.prompt.length,
+    });
 
     // Initialize Claude service
     const claudeService = new ClaudeService();
@@ -91,7 +92,7 @@ export async function POST(request: NextRequest) {
       setTimeout(() => reject(new Error("Canvas generation timed out")), 50000);
     });
 
-    const canvasData = await Promise.race([
+    const canvasData: any = await Promise.race([
       claudeService.generateCanvas(
         input.language,
         input.diagramType,
@@ -101,23 +102,31 @@ export async function POST(request: NextRequest) {
       timeoutPromise,
     ]);
 
+    // Extract diagnostic meta so it doesn't get persisted as part of the canvas.
+    const { meta, ...canvasPayload } = canvasData ?? {};
+
     // Increment AI usage count after successful generation
       await incrementAiUsage(user.id);
 
     // Track successful completion
-    // posthog.capture(PostHogEvents.AI_DIAGRAM_GENERATION_COMPLETED, {
-    //   userId: user.id,
-    //   diagramType: input.diagramType,
-    //   industry: input.industry,
-    //   language: input.language,
-    //   promptLength: input.prompt.length,
-    //   responseSize: JSON.stringify(canvasData).length,
-    // });
+    await captureServer(
+      user.id,
+      meta?.fallback ? "ai.generate.fallback" : "ai.generate.succeeded",
+      {
+        diagramType: input.diagramType,
+        industry: input.industry,
+        language: input.language,
+        promptLength: input.prompt.length,
+        latency_ms: Date.now() - startedAt,
+        nodeCount: canvasPayload?.nodes?.length ?? 0,
+      }
+    );
 
     // Return the generated data with usage info
     const updatedUsage = await checkAiUsageLimit(user.id);
     return NextResponse.json({
-      data: canvasData,
+      data: canvasPayload,
+      meta: meta ?? null,
       usage: {
         remaining: updatedUsage.remaining,
         limit: updatedUsage.limit,
@@ -128,10 +137,14 @@ export async function POST(request: NextRequest) {
     console.error("Error generating canvas:", error);
 
     // Track error with PostHog
-    // posthog.capture(PostHogEvents.AI_DIAGRAM_GENERATION_ERROR, {
-    //   errorMessage: error instanceof Error ? error.message : "Unknown error",
-    //   errorStack: error instanceof Error ? error.stack : undefined,
-    // });
+    try {
+      const { captureServer } = await import("@/lib/posthog/server-capture");
+      await captureServer("anonymous", "ai.generate.error", {
+        errorMessage: error instanceof Error ? error.message : "Unknown error",
+      });
+    } catch {
+      // ignore
+    }
 
     // Return an appropriate error response
     const errorMessage =

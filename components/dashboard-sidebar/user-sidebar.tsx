@@ -145,7 +145,7 @@ export function UserSidebar() {
       canvasId &&
       (type === CANVAS_TYPE.HYBRID || type === CANVAS_TYPE.TABLE)
     ) {
-      window.location.href = `/protected/canvas-new/${canvasId}`;
+      window.location.href = `/protected/playbook/${canvasId}`;
     } else if (canvasId && type === CANVAS_TYPE.DOCUMENT) {
       window.location.href = `/protected/document-editor/${canvasId}`;
     }
@@ -332,7 +332,7 @@ export function UserSidebar() {
                       href={
                         canvas.canvas_type === CANVAS_TYPE.DOCUMENT
                           ? `/protected/document-editor/${canvas.id}`
-                          : `/protected/canvas-new/${canvas.id}`
+                          : `/protected/playbook/${canvas.id}`
                       }
                       className="flex items-center flex-grow text-sm text-gray-700"
                     >
@@ -455,7 +455,7 @@ export function UserSidebar() {
                           href={
                             canvas.canvas_type === CANVAS_TYPE.DOCUMENT
                               ? `/protected/document-editor/${canvas.id}`
-                              : `/protected/canvas-new/${canvas.id}`
+                              : `/protected/playbook/${canvas.id}`
                           }
                           className="flex items-center flex-grow text-sm text-gray-700"
                         >
@@ -602,7 +602,7 @@ export function UserSidebar() {
               Edit{" "}
               {editingItemId && folders.some((f) => f.id === editingItemId)
                 ? "Folder"
-                : "Canvas"}{" "}
+                : "Playbook"}{" "}
               Name
             </DialogTitle>
           </DialogHeader>
@@ -625,11 +625,12 @@ export function UserSidebar() {
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>
-              Are you sure you want to delete this {itemToDelete?.type}?
+              Are you sure you want to delete this{" "}
+              {itemToDelete?.type === "folder" ? "folder" : "playbook"}?
             </AlertDialogTitle>
             <AlertDialogDescription>
               {itemToDelete?.type === "folder"
-                ? "This will delete the folder and all canvases inside it."
+                ? "This will delete the folder and all playbooks inside it."
                 : "This action cannot be undone."}
             </AlertDialogDescription>
           </AlertDialogHeader>

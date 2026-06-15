@@ -31,7 +31,6 @@ import Typography from "@tiptap/extension-typography";
 import Underline from "@tiptap/extension-underline";
 import { EditorContent, useEditor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
-import debounce from "lodash/debounce";
 import { Minus, Plus, RefreshCw } from "lucide-react";
 import { useRouter } from "next/navigation";
 import {
@@ -42,28 +41,33 @@ import {
   useMemo,
   useRef,
   useState,
+  type CSSProperties,
 } from "react";
 import toast from "react-hot-toast";
 import FontSize from "tiptap-extension-font-size";
-import PaginationExtension, {
-  BodyNode,
-  HeaderFooterNode,
-  PageNode,
-} from "tiptap-extension-pagination";
 import { Header } from "../canvas-new/header";
 import { Unauthorized } from "../unauthorized";
 import CanvasDialog from "./CanvasDialog";
 import "./editor.css";
 import EditorToolbar from "./EditorToolbar";
 import CanvasTableNode from "./extensions/CanvasTableNode";
+import { createFileMentionConfig } from "./extensions/FileMention";
+import { createSlashCommandsConfig } from "./extensions/SlashCommands";
+import FloatBlock from "./extensions/FloatBlock";
 import { ReactFlowNode } from "./extensions/ReactFlowNode";
 import ResizableImageNode from "./extensions/ResizableImageNode";
 import { TextDirection } from "./extensions/TextDirection";
 import { useDocumentStore } from "./hooks/useDocument";
 import ImageDialog from "./ImageDialog";
+import { backupDocument } from "@/lib/document-backup";
+import FontUploadDialog from "./FontUploadDialog";
 import LinkDialog from "./LinkDialog";
+import PageSettingsDialog, {
+  type PageSettingsValue,
+} from "./PageSettingsDialog";
 import TableDialog from "./TableDialog";
 import TableSelectorDialog from "./TableSelectorDialog";
+import { useUserFonts } from "./hooks/useUserFonts";
 
 interface EditorState {
   isBold: boolean;
@@ -78,6 +82,57 @@ interface EditorState {
   characterCount: number;
   wordCount: number;
   textDirection: "ltr" | "rtl";
+}
+
+/**
+ * Removes the legacy `tiptap-extension-pagination` wrapper structure from a
+ * stored Tiptap document JSON.
+ *
+ * Pre-2.5 docs were saved as `Doc → Page → [HeaderFooter, Body, HeaderFooter]
+ * → [paragraphs…]`. Without the plugin in the schema, ProseMirror would
+ * reject those nodes on load. We unwrap them in-place: each Page is replaced
+ * by its Body's children; HeaderFooter content is dropped (header/footer
+ * config is persisted separately under `page.headerConfig`/`footerConfig`).
+ *
+ * The next autosave persists the cleaned shape, so this is a one-time-per-doc
+ * cost.
+ */
+function flattenLegacyPagination(node: any): any {
+  if (!node || typeof node !== "object") return node;
+
+  if (Array.isArray(node.content)) {
+    const flattened: any[] = [];
+    for (const child of node.content) {
+      if (!child || typeof child !== "object") {
+        flattened.push(child);
+        continue;
+      }
+      if (child.type === "page") {
+        // Extract the body's content; discard header/footer wrappers.
+        const body = Array.isArray(child.content)
+          ? child.content.find((c: any) => c?.type === "body")
+          : null;
+        if (body && Array.isArray(body.content)) {
+          for (const grandchild of body.content) {
+            flattened.push(flattenLegacyPagination(grandchild));
+          }
+        }
+      } else if (child.type === "body") {
+        if (Array.isArray(child.content)) {
+          for (const grandchild of child.content) {
+            flattened.push(flattenLegacyPagination(grandchild));
+          }
+        }
+      } else if (child.type === "header-footer") {
+        // Discard — config persists separately.
+      } else {
+        flattened.push(flattenLegacyPagination(child));
+      }
+    }
+    return { ...node, content: flattened };
+  }
+
+  return node;
 }
 
 const Editor = (
@@ -106,6 +161,8 @@ const Editor = (
   const [tableDialogOpen, setTableDialogOpen] = useState(false);
   const [linkDialogOpen, setLinkDialogOpen] = useState(false);
   const [inlineImageMode, setInlineImageMode] = useState(false);
+  const [pageSettingsOpen, setPageSettingsOpen] = useState(false);
+  const [fontUploadOpen, setFontUploadOpen] = useState(false);
 
   const [zoom, setZoom] = useState("100%");
   const [canvasDialogOpen, setCanvasDialogOpen] = useState(false);
@@ -121,6 +178,8 @@ const Editor = (
 
   const { user } = useUser();
 
+  const userFonts = useUserFonts(user?.id ?? null);
+
   const router = useRouter();
 
   // Refs
@@ -129,12 +188,27 @@ const Editor = (
   const zoomWrapperRef = useRef<HTMLDivElement>(null);
   const saveTimeoutRef = useRef<any>(null);
   const pendingChangesRef = useRef<boolean>(false);
+  // Tracks which canvas the editor instance has already loaded; gates the
+  // one-shot content loader so subsequent editor_state writes from our own
+  // autosave never re-apply content mid-typing (the "flinch").
+  const loadedCanvasIdRef = useRef<string | null>(null);
+  // Set to true while we programmatically apply content; onUpdate skips
+  // autosave during this window to avoid loops.
+  const isApplyingRemoteRef = useRef<boolean>(false);
+  // Indirection so the slash-command extension (created at useEditor time,
+  // before insertContent is defined below) can call the latest handler.
+  const insertContentRef = useRef<(type: string) => void>(() => {});
+  // DATA-LOSS GUARD: only true once the document has loaded cleanly into the
+  // editor. Autosave is blocked until then so a failed/incomplete load (e.g.
+  // expired auth → empty editor) can never overwrite the stored content with
+  // an empty document.
+  const hasLoadedRef = useRef<boolean>(false);
 
   // Paper settings
   const [pageSize, setPageSize] = useState<PaperSize>("A4");
   const [orientation, setOrientation] = useState<PaperOrientation>("portrait");
-  const [showPageMargins, setShowPageMargins] = useState(true);
-  const [editorKey, setEditorKey] = useState(0);
+  // (Phase 2.6: dropped the show-margins toggle — the editor is now a clean
+  // paper surface without overlay clutter. Margins still apply as padding.)
 
   // Editor state
   const [editorState, setEditorState] = useState<EditorState>({
@@ -152,10 +226,21 @@ const Editor = (
     textDirection: "ltr",
   });
 
-  // Add new state variable for tracking editor key change time
-  const [editorKeyChangeTime, setEditorKeyChangeTime] = useState<number>(
-    Date.now()
-  );
+  // Ref mirror of editorState so triggerAutoSave can read the latest value
+  // without re-binding on every selection/keystroke (which would defeat the
+  // debounce by recreating the timer).
+  const editorStateRef = useRef<EditorState | null>(null);
+
+  // Ref mirror of page settings (pageSize, orientation, margins) so
+  // triggerAutoSave can serialize them without binding to those values.
+  const pageSettingsRef = useRef<{
+    pageSize: PaperSize;
+    orientation: PaperOrientation;
+    marginTop: number;
+    marginRight: number;
+    marginBottom: number;
+    marginLeft: number;
+  } | null>(null);
 
   // Get dimensions based on current paper size and orientation
   const getDimensions = useCallback(() => {
@@ -193,6 +278,7 @@ const Editor = (
     folderCanvases,
     user_id,
     folder,
+    error: loadError,
   } = useDocumentStore();
 
   // Initialize editor
@@ -287,32 +373,13 @@ const Editor = (
       TaskItem.configure({
         nested: true,
       }),
-      PaginationExtension.configure({
-        defaultPaperSize: pageSize,
-        defaultPaperOrientation: orientation,
-        defaultMarginConfig: {
-          top: paginationSettings.marginTop / 3.78,
-          right: paginationSettings.marginRight / 3.78,
-          bottom: paginationSettings.marginBottom / 3.78,
-          left: paginationSettings.marginLeft / 3.78,
-        },
-        defaultPageBorders: {
-          top: 0,
-          right: 0,
-          bottom: 0,
-          left: 0,
-        },
-        pageAmendmentOptions: {
-          enableHeader: false,
-          enableFooter: false,
-        },
-      }),
-
-      PageNode,
-      HeaderFooterNode,
-      BodyNode,
       ReactFlowNode,
       CanvasTableNode,
+      FloatBlock,
+      createFileMentionConfig({}),
+      createSlashCommandsConfig({
+        onInsert: (type) => insertContentRef.current(type),
+      }),
     ],
     editable: !readOnly,
     content: "",
@@ -322,73 +389,74 @@ const Editor = (
       }
     },
     onUpdate: ({ editor }) => {
-      if (editor) {
-        updateEditorState(editor);
-
-        triggerAutoSave();
-      }
+      if (!editor) return;
+      // Skip autosave + state sync while we're applying server content; otherwise
+      // the load itself races with autosave and we round-trip through the store.
+      if (isApplyingRemoteRef.current) return;
+      updateEditorState(editor);
+      triggerAutoSave();
     },
     editorProps: {
       attributes: {
         class: "editor-content",
       },
     },
-    autofocus: true,
+    // Focus is placed at end of content after the one-shot load completes.
+    // Using `true` here would focus the empty doc before content arrives.
+    autofocus: false,
   });
 
-  // Enhanced auto-save mechanism with proper debouncing
+  // Auto-save: stable callback that doesn't re-bind on every keystroke.
+  // editorState is read through a ref (editorStateRef) so changes to formatting
+  // controls don't recreate this function and break the debounce.
   const triggerAutoSave = useCallback(() => {
-    if (readOnly) return; // Don't save in read-only mode
+    if (readOnly) return;
     if (!editor) return;
+    // DATA-LOSS GUARD: never autosave before the document has loaded cleanly.
+    // Prevents an empty/partial editor (failed load) from overwriting the
+    // stored content.
+    if (!hasLoadedRef.current) return;
 
-    // Mark as unsaved immediately for UI feedback
     setSaveStatus("unsaved");
     pendingChangesRef.current = true;
 
-    // Clear any existing timeout
     if (saveTimeoutRef.current) {
       clearTimeout(saveTimeoutRef.current);
     }
 
-    // Set up a new timeout for saving
     saveTimeoutRef.current = setTimeout(async () => {
       if (!pendingChangesRef.current) return;
 
       try {
         setSaveStatus("saving");
 
-        // Get the latest editor state
         const latestEditorState = editor.getHTML();
         const editorJSON = editor.getJSON();
 
-        // Save the complete state including HTML and JSON
+        // Local safety-net backup before the network write (no-op for empty
+        // docs). Survives even if the server save later fails or clobbers.
+        if (canvasId) backupDocument(canvasId, editorJSON);
+
         const fullState = {
           state: latestEditorState,
           json: editorJSON,
-          controls: editorState,
+          controls: editorStateRef.current,
+          page: pageSettingsRef.current,
         };
 
-        // Update the state in the document store
         updateLexicalState(JSON.stringify(fullState));
-
-        // Save the document to the database
         await saveDocument();
 
-        // Mark as saved
         pendingChangesRef.current = false;
         setSaveStatus("saved");
       } catch (error) {
         setSaveStatus("error");
-
-        // Retry once after a short delay if there was an error
-        setTimeout(() => {
-          if (pendingChangesRef.current) {
-            triggerAutoSave();
-          }
-        }, 5000);
+        // No recursive retry: the next user edit will retrigger the debounce
+        // naturally. The previous setTimeout-retry could compound if saves kept
+        // failing, multiplying stale-state writes.
       }
-    }, 2000); // 2-second debounce
-  }, [editor, editorState, saveDocument, updateLexicalState, readOnly]);
+    }, 2000);
+  }, [editor, saveDocument, updateLexicalState, readOnly]);
 
   // Cleanup timeout on unmount
   useEffect(() => {
@@ -399,44 +467,9 @@ const Editor = (
     };
   }, []);
 
-  // Create a debounced save function
-  const debouncedSave = useCallback(
-    debounce(() => {
-      if (readOnly) return; // Don't save in read-only mode
-      if (!editor) return;
-
-      try {
-        // Get the latest editor state
-        const latestEditorState = editor.getHTML();
-
-        // Find all ReactFlow nodes in the editor and ensure their data is preserved
-        const editorJSON = editor.getJSON();
-
-        // Save the complete state including HTML and JSON
-        const fullState = {
-          state: latestEditorState,
-          json: editorJSON,
-          controls: editorState,
-        };
-
-        // Update the Lexical state in the document store
-        updateLexicalState(JSON.stringify(fullState));
-
-        // Save the document to the database
-        saveDocument();
-      } catch (error) {
-        console.error("Error saving document:", error);
-      }
-    }, 1000),
-    [editor, editorState, saveDocument, updateLexicalState, readOnly]
-  );
-
-  // Cleanup debounced function on unmount
-  useEffect(() => {
-    return () => {
-      debouncedSave.cancel();
-    };
-  }, [debouncedSave]);
+  // (Removed: a separate `debouncedSave` previously duplicated triggerAutoSave
+  // but was never wired to onUpdate; both flowed to the same Supabase upsert
+  // and racing the two only created stale writes.)
 
   // Load document on mount
   useEffect(() => {
@@ -471,138 +504,148 @@ const Editor = (
       localStorage.setItem("recentDocuments", JSON.stringify(recentDocuments));
     }
   }, [canvasId, name]);
-  // Update the useEffect that handles editor initialization and content loading
+  // Mirror local toolbar state into a ref so triggerAutoSave reads the
+  // latest value without re-binding (which would break debouncing).
   useEffect(() => {
-    if (!editor) return;
+    editorStateRef.current = editorState;
+  }, [editorState]);
 
-    // Apply page dimensions and margins immediately when editor is created
-    const initializeEditor = async () => {
-      if (editor && !editor.isDestroyed) {
-        try {
-          // First apply page settings
-          editor.commands.setDocumentPaperSize(pageSize);
-          editor.commands.setDocumentPaperOrientation(orientation);
-
-          // Then apply margins
-          editor.commands.setDocumentPageMargin(
-            "left",
-            paginationSettings.marginLeft / 3.78
-          );
-          editor.commands.setDocumentPageMargin(
-            "right",
-            paginationSettings.marginRight / 3.78
-          );
-          editor.commands.setDocumentPageMargin(
-            "top",
-            paginationSettings.marginTop / 3.78
-          );
-          editor.commands.setDocumentPageMargin(
-            "bottom",
-            paginationSettings.marginBottom / 3.78
-          );
-
-          // Load content if available - with improved error handling
-          if (editor_state) {
-            try {
-              const parsedState = JSON.parse(editor_state);
-              const { state, controls, json } = parsedState;
-
-              // If we have the full JSON structure, use it for better data preservation
-              if (json) {
-                editor.commands.setContent(json);
-              } else if (state) {
-                // Fallback to HTML content
-                editor.commands.setContent(state);
-              } else {
-              }
-
-              if (controls) {
-                setEditorState(controls);
-              }
-
-              // Mark as saved after initial load
-              setSaveStatus("saved");
-              pendingChangesRef.current = false;
-            } catch (error) {
-              toast.error("Failed to load document content - reload may help");
-
-              // Recovery attempt - try to set empty content
-              editor.commands.setContent("");
-              setSaveStatus("error");
-            }
-          } else {
-            editor.commands.setContent("");
-          }
-        } catch (error) {
-          toast.error("Editor initialization failed");
-        }
-      }
+  useEffect(() => {
+    pageSettingsRef.current = {
+      pageSize,
+      orientation,
+      marginTop: paginationSettings.marginTop,
+      marginRight: paginationSettings.marginRight,
+      marginBottom: paginationSettings.marginBottom,
+      marginLeft: paginationSettings.marginLeft,
     };
-
-    // Delay initialization slightly to ensure editor is fully mounted
-    const timer = setTimeout(initializeEditor, 100);
-
-    return () => clearTimeout(timer);
   }, [
-    editor,
-    editorKey,
-    editor_state,
     pageSize,
     orientation,
-    paginationSettings.marginLeft,
-    paginationSettings.marginRight,
     paginationSettings.marginTop,
+    paginationSettings.marginRight,
     paginationSettings.marginBottom,
+    paginationSettings.marginLeft,
   ]);
-  // Keep the existing useEffect for editor_state changes, but modify to prevent duplicate state updates
+
+  // One-shot content loader. Runs exactly once per canvasId — gated by
+  // loadedCanvasIdRef. Subsequent editor_state writes from autosave do NOT
+  // re-enter this effect, which is what previously caused the "flinch":
+  // the user's keystrokes round-tripped through the store and were re-applied
+  // mid-typing.
+  //
+  // The actual load runs in a microtask (via setTimeout 0) to escape React's
+  // commit phase. Tiptap's setContent internally calls flushSync, which React
+  // 19 forbids during a render — without the deferral we get a
+  // "flushSync was called from inside a lifecycle method" warning.
   useEffect(() => {
-    if (!editor || !editor_state) return;
+    if (!editor || editor.isDestroyed) return;
+    if (!canvasId) return;
+    if (isLoading) return; // wait for store to finish loadDocument
+    if (loadedCanvasIdRef.current === canvasId) return;
 
-    // Skip this effect if the editor was just recreated (avoid double loading)
-    const lastKeyChange = Date.now() - editorKeyChangeTime;
-    if (lastKeyChange <= 500) return;
+    // DATA-LOSS GUARD: if the store reports a load error (e.g. expired auth,
+    // network failure), DO NOT mount empty content and DO NOT enable
+    // autosave. The stored document is still intact in the DB; mounting empty
+    // here and letting autosave fire would overwrite it with nothing. Leave
+    // the gate unclaimed so a later successful load (after session refresh /
+    // reconnection) retries cleanly.
+    if (loadError) {
+      hasLoadedRef.current = false;
+      setSaveStatus("error");
+      return;
+    }
 
-    // Use a small delay to ensure the editor is ready and avoid conflicts
+    // Claim the gate immediately so a re-run before the deferred work fires
+    // doesn't enqueue a second load. If we abort below (editor destroyed
+    // mid-defer), we release it.
+    loadedCanvasIdRef.current = canvasId;
+
     const timer = setTimeout(() => {
-      try {
-        if (editor.isDestroyed) {
-          return;
-        }
-
-        const parsedState = JSON.parse(editor_state);
-        const { state, controls, json } = parsedState;
-
-        // Important: get the current editor content for comparison
-        const currentContent = JSON.stringify(editor.getJSON());
-        const incomingContent = JSON.stringify(json || state);
-
-        // Only update if content is different to avoid loops and cursor jumps
-        if (currentContent !== incomingContent) {
-          // If we have the full JSON structure, use it for better data preservation
-          if (json) {
-            editor.commands.setContent(json);
-          } else if (state) {
-            // Fallback to HTML content
-            editor.commands.setContent(state);
-          }
-
-          if (controls) {
-            setEditorState(controls);
-          }
-
-          // Mark as saved after content update from store
-          setSaveStatus("saved");
-          pendingChangesRef.current = false;
-        } else {
-          console.log("Content unchanged, skipping update");
-        }
-      } catch (error) {
-        toast.error("Failed to update document content");
+      if (!editor || editor.isDestroyed) {
+        loadedCanvasIdRef.current = null;
+        return;
       }
-    }, 100);
+
+      isApplyingRemoteRef.current = true;
+      try {
+        if (editor_state) {
+          try {
+            const parsedState = JSON.parse(editor_state);
+            const { state, controls, json, page } = parsedState ?? {};
+            // Migrate legacy pagination wrappers (Page/Body/HeaderFooter)
+            // produced by the now-removed tiptap-extension-pagination, so
+            // ProseMirror doesn't reject the doc on load. Idempotent — a
+            // doc that's already flat passes through unchanged.
+            const migratedJson = json ? flattenLegacyPagination(json) : null;
+            if (migratedJson) {
+              editor.commands.setContent(migratedJson, false);
+            } else if (state) {
+              editor.commands.setContent(state, false);
+            } else {
+              editor.commands.setContent("", false);
+            }
+            if (controls) {
+              setEditorState(controls);
+            }
+            if (page) {
+              // Restore persisted page geometry. (Phase 2.6: showMargins
+              // dropped from the model — silently ignored on load if a
+              // legacy save still has it.)
+              if (page.pageSize) setPageSize(page.pageSize);
+              if (page.orientation) setOrientation(page.orientation);
+              const hasMargins =
+                typeof page.marginTop === "number" ||
+                typeof page.marginRight === "number" ||
+                typeof page.marginBottom === "number" ||
+                typeof page.marginLeft === "number";
+              if (hasMargins) {
+                setPaginationSettings((prev) => ({
+                  ...prev,
+                  marginTop: page.marginTop ?? prev.marginTop,
+                  marginRight: page.marginRight ?? prev.marginRight,
+                  marginBottom: page.marginBottom ?? prev.marginBottom,
+                  marginLeft: page.marginLeft ?? prev.marginLeft,
+                }));
+              }
+            }
+          } catch (err) {
+            editor.commands.setContent("", false);
+            setSaveStatus("error");
+            toast.error("Failed to load document content");
+          }
+        } else {
+          editor.commands.setContent("", false);
+        }
+        pendingChangesRef.current = false;
+        setSaveStatus("saved");
+        // The document loaded cleanly — autosave is now safe to run.
+        hasLoadedRef.current = true;
+        // Place caret at the end after the document is mounted; replaces the
+        // previous `autofocus: true` which fired on the empty doc.
+        editor.commands.focus("end");
+      } finally {
+        isApplyingRemoteRef.current = false;
+      }
+    }, 0);
 
     return () => clearTimeout(timer);
-  }, [editor_state, editor, editorKeyChangeTime]);
+  }, [editor, canvasId, editor_state, isLoading, loadError]);
+
+  // Reset the load + autosave gates when the user navigates to a different
+  // canvas, so the new doc must load cleanly before it can autosave.
+  useEffect(() => {
+    return () => {
+      if (loadedCanvasIdRef.current !== canvasId) {
+        loadedCanvasIdRef.current = null;
+        hasLoadedRef.current = false;
+      }
+    };
+  }, [canvasId]);
+
+  // (Phase 2.5: removed the pagination-command effect. Page geometry now
+  // flows entirely through CSS variables on the .editor-page-surface
+  // wrapper — see the JSX render below. No editor commands needed.)
 
   const updateEditorState = useCallback(
     (editor: any) => {
@@ -674,230 +717,38 @@ const Editor = (
     [editorState]
   );
 
-  const togglePageMargins = () => {
-    setShowPageMargins(!showPageMargins);
+  // (Phase 2.5 removed: dimension-watcher effect.
+  //  Phase 2.6 removed: show-margins toggle.
+  //  Page geometry is now driven entirely by CSS variables on the
+  //  .editor-page-surface wrapper — see the JSX below. The editor itself no
+  //  longer knows about pages.)
 
-    // Apply visualization to the editor pages
-    if (pagesContainerRef.current) {
-      const pages = pagesContainerRef.current.querySelectorAll(".tiptap-page");
-      pages.forEach((page) => {
-        if (!showPageMargins) {
-          page.classList.add("show-margins");
-        } else {
-          page.classList.remove("show-margins");
-        }
-      });
-    }
-  };
-
-  // Update the useEffect that watches for page dimensions changes
+  // Sync paginationSettings.pageWidth / pageHeight with the chosen paper
+  // (now in mm). Some downstream code still reads these — keep them
+  // accurate without firing any plugin commands.
   useEffect(() => {
-    if (!editor) return; // Skip if editor isn't initialized yet
-
     const dimensions = getDimensions();
-
-    if (
-      dimensions.width !== paginationSettings.pageWidth ||
-      dimensions.height !== paginationSettings.pageHeight
-    ) {
-      // Store current editor content
-      const editorJSON = editor.getJSON();
-
-      // Update pagination settings
-      setPaginationSettings((prev) => ({
+    setPaginationSettings((prev) => {
+      if (
+        prev.pageWidth === dimensions.width &&
+        prev.pageHeight === dimensions.height
+      ) {
+        return prev;
+      }
+      return {
         ...prev,
         pageWidth: dimensions.width,
         pageHeight: dimensions.height,
-      }));
+      };
+    });
+  }, [pageSize, orientation, getDimensions]);
 
-      // Force recreation of the editor
-      setEditorKey((prevKey) => {
-        setEditorKeyChangeTime(Date.now());
-        return prevKey + 1;
-      });
-
-      // After editor is recreated, restore content and apply settings
-      requestAnimationFrame(() => {
-        setTimeout(() => {
-          if (editor && !editor.isDestroyed) {
-            // Set content first
-            editor.commands.setContent(editorJSON);
-
-            // Then apply the new page size to the editor
-            editor.commands.setDocumentPaperSize(pageSize);
-            editor.commands.setDocumentPaperOrientation(orientation);
-
-            // Apply the margins to the editor (convert from px to mm for the pagination extension)
-            editor.commands.setDocumentPageMargin(
-              "left",
-              paginationSettings.marginLeft / 3.78
-            );
-            editor.commands.setDocumentPageMargin(
-              "right",
-              paginationSettings.marginRight / 3.78
-            );
-            editor.commands.setDocumentPageMargin(
-              "top",
-              paginationSettings.marginTop / 3.78
-            );
-            editor.commands.setDocumentPageMargin(
-              "bottom",
-              paginationSettings.marginBottom / 3.78
-            );
-          }
-        }, 100);
-      });
-    }
-  }, [
-    pageSize,
-    orientation,
-    editor,
-    getDimensions,
-    paginationSettings.marginBottom,
-    paginationSettings.marginLeft,
-    paginationSettings.marginRight,
-    paginationSettings.marginTop,
-    paginationSettings.pageWidth,
-    paginationSettings.pageHeight,
-  ]);
-
-  // Apply margin visualization after editor is initialized
-  useEffect(() => {
-    if (editor && showPageMargins) {
-      setTimeout(() => {
-        if (pagesContainerRef.current) {
-          const pages =
-            pagesContainerRef.current.querySelectorAll(".tiptap-page");
-          pages.forEach((page) => {
-            page.classList.add("show-margins");
-          });
-        }
-      }, 100);
-    }
-  }, [editor, showPageMargins]);
-
-  // A complete approach to handle page size changes that forces a full editor recreation
   const handlePageSizeChange = (newSize: PaperSize) => {
-    if (!editor) return;
-
-    // Store the current content state before changing dimensions
-    const editorJSON = editor.getJSON();
-
-    // Update the page size state
     setPageSize(newSize);
-
-    // Update the pagination settings with new dimensions
-    const newDimensions = PAPER_DIMENSIONS[newSize];
-    const dimensions =
-      orientation === "landscape"
-        ? { width: newDimensions.height, height: newDimensions.width }
-        : newDimensions;
-
-    setPaginationSettings((prev) => ({
-      ...prev,
-      pageWidth: dimensions.width,
-      pageHeight: dimensions.height,
-    }));
-
-    setEditorKey((prevKey) => {
-      setEditorKeyChangeTime(Date.now());
-      return prevKey + 1;
-    });
-
-    // After editor is recreated, restore its content in the next animation frame
-    requestAnimationFrame(() => {
-      // Use setTimeout to ensure the editor is fully initialized
-      setTimeout(() => {
-        if (editor && !editor.isDestroyed) {
-          // Set content first to ensure all nodes are present
-          editor.commands.setContent(editorJSON);
-
-          // Then apply the page settings
-          editor.commands.setDocumentPaperSize(newSize);
-          editor.commands.setDocumentPaperOrientation(orientation);
-
-          // Apply margins after content is set
-          editor.commands.setDocumentPageMargin(
-            "left",
-            paginationSettings.marginLeft / 3.78
-          );
-          editor.commands.setDocumentPageMargin(
-            "right",
-            paginationSettings.marginRight / 3.78
-          );
-          editor.commands.setDocumentPageMargin(
-            "top",
-            paginationSettings.marginTop / 3.78
-          );
-          editor.commands.setDocumentPageMargin(
-            "bottom",
-            paginationSettings.marginBottom / 3.78
-          );
-        }
-      }, 100);
-    });
   };
 
-  // Similarly update the orientation change handler
   const handleOrientationChange = (newOrientation: PaperOrientation) => {
-    if (!editor) return;
-
-    // Store the current content state before changing dimensions
-    const editorJSON = editor.getJSON();
-
-    // Update the orientation state
     setOrientation(newOrientation);
-
-    // Update pagination settings with new dimensions based on orientation
-    const newDimensions = PAPER_DIMENSIONS[pageSize];
-    const dimensions =
-      newOrientation === "landscape"
-        ? { width: newDimensions.height, height: newDimensions.width }
-        : newDimensions;
-
-    setPaginationSettings((prev) => ({
-      ...prev,
-      pageWidth: dimensions.width,
-      pageHeight: dimensions.height,
-    }));
-
-    // Force a complete editor recreation
-    setEditorKey((prevKey) => {
-      setEditorKeyChangeTime(Date.now());
-      return prevKey + 1;
-    });
-
-    // After editor is recreated, restore its content
-    requestAnimationFrame(() => {
-      setTimeout(() => {
-        if (editor && !editor.isDestroyed) {
-          // Set content first
-          editor.commands.setContent(editorJSON);
-
-          // Then apply page settings
-          editor.commands.setDocumentPaperSize(pageSize);
-          editor.commands.setDocumentPaperOrientation(newOrientation);
-
-          // Apply margins after content is set
-          editor.commands.setDocumentPageMargin(
-            "left",
-            paginationSettings.marginLeft / 3.78
-          );
-          editor.commands.setDocumentPageMargin(
-            "right",
-            paginationSettings.marginRight / 3.78
-          );
-          editor.commands.setDocumentPageMargin(
-            "top",
-            paginationSettings.marginTop / 3.78
-          );
-          editor.commands.setDocumentPageMargin(
-            "bottom",
-            paginationSettings.marginBottom / 3.78
-          );
-        }
-      }, 100);
-    });
   };
 
   // Apply formatting from toolbar
@@ -1302,6 +1153,9 @@ const Editor = (
       case "page-break":
         handlePageBreak();
         break;
+      case "float-block":
+        editor.chain().focus().insertFloatBlock({ side: "right" }).run();
+        break;
       case "columns-layout":
         editor
           .chain()
@@ -1330,6 +1184,9 @@ const Editor = (
         break;
     }
   };
+  // Keep the ref the slash-command extension calls pointed at the latest
+  // insertContent closure (recreated each render).
+  insertContentRef.current = insertContent;
 
   // Header action handlers
   const handleSave = async () => {
@@ -1404,7 +1261,8 @@ const Editor = (
     handleBrowserPrintToPDF();
   };
 
-  // Export to PDF using browser's print functionality - better for ReactFlow diagrams
+  // Export to PDF using browser's print engine. Phase 7: forwards full
+  // page geometry + text direction so the printed PDF matches the editor.
   const handleBrowserPrintToPDF = async () => {
     if (!editor) {
       toast.error("Editor content not available");
@@ -1412,15 +1270,41 @@ const Editor = (
     }
 
     try {
-      // Get the editor DOM element
-      const editorElement = document.querySelector(".ProseMirror");
-
+      // Prefer the page surface so the cloned tree includes float blocks
+      // and other editor-side wrappers, not just the bare ProseMirror.
+      const surface = document.querySelector(".editor-page-surface");
+      const editorElement =
+        (surface as HTMLElement | null) ??
+        (document.querySelector(".ProseMirror") as HTMLElement | null);
       if (!editorElement) {
         throw new Error("Editor element not found");
       }
 
-      // Use the browser print to PDF function
-      await browserPrintToPDF(editorElement as HTMLElement, name || "Document");
+      // Determine the document's predominant text direction by inspecting
+      // the first non-empty top-level block's `dir` attribute (set by the
+      // TextDirection extension). Default to ltr.
+      let dir: "ltr" | "rtl" = "ltr";
+      const doc = editor.state.doc;
+      doc.forEach((node) => {
+        if (dir !== "ltr") return; // first non-default wins
+        if (node.attrs?.dir === "rtl") {
+          dir = "rtl";
+        }
+      });
+
+      await browserPrintToPDF({
+        editorContent: editorElement,
+        title: name || "Document",
+        pageSize,
+        orientation,
+        margins: {
+          top: paginationSettings.marginTop / 3.78,
+          right: paginationSettings.marginRight / 3.78,
+          bottom: paginationSettings.marginBottom / 3.78,
+          left: paginationSettings.marginLeft / 3.78,
+        },
+        textDirection: dir,
+      });
 
       toast.success(
         "Print dialog opened. Select 'Save as PDF' from your browser's print options to complete the export.",
@@ -1431,7 +1315,6 @@ const Editor = (
         "Failed to open print dialog: " +
           ((error as Error)?.message || "Unknown error")
       );
-    } finally {
     }
   };
   // Update the handleZoomChange function
@@ -1462,46 +1345,9 @@ const Editor = (
       }
     }
 
-    // If resetting to 100%, refresh the editor to ensure all elements are rendered correctly
-    if (newZoom === "100%" && editor) {
-      // Store current content
-      const editorJSON = editor.getJSON();
-
-      // Force editor recreation
-      setEditorKey((prevKey) => {
-        setEditorKeyChangeTime(Date.now());
-        return prevKey + 1;
-      });
-
-      // Restore content after editor recreation
-      requestAnimationFrame(() => {
-        setTimeout(() => {
-          if (editor && !editor.isDestroyed) {
-            editor.commands.setContent(editorJSON);
-
-            // Apply page settings
-            editor.commands.setDocumentPaperSize(pageSize);
-            editor.commands.setDocumentPaperOrientation(orientation);
-            editor.commands.setDocumentPageMargin(
-              "left",
-              paginationSettings.marginLeft / 3.78
-            );
-            editor.commands.setDocumentPageMargin(
-              "right",
-              paginationSettings.marginRight / 3.78
-            );
-            editor.commands.setDocumentPageMargin(
-              "top",
-              paginationSettings.marginTop / 3.78
-            );
-            editor.commands.setDocumentPageMargin(
-              "bottom",
-              paginationSettings.marginBottom / 3.78
-            );
-          }
-        }, 100);
-      });
-    }
+    // (Phase 2.5: removed the editor-recreation dance on zoom reset.
+    // Without the pagination plugin there's nothing to "rebuild" — zoom is
+    // just a CSS transform on the wrapper.)
 
     triggerAutoSave();
   };
@@ -1563,14 +1409,12 @@ const Editor = (
 
   const handlePageBreak = () => {
     if (!editor) return;
-
-    // Use the command from the pagination extension
-    editor
-      .chain()
-      .focus()
-      .insertContent('<div class="pagination-page-break">Page Break</div>')
-      .run();
-
+    // Inserts a regular <hr>. At PDF/print time (Phase 7) we'll emit a
+    // `break-after: page` rule for all `.ProseMirror hr` so any horizontal
+    // rule acts as a page break — which matches the typical print
+    // convention. A dedicated PageBreak node can come later if we want
+    // separate semantics from a section divider.
+    editor.chain().focus().setHorizontalRule().run();
     handleSave();
   };
 
@@ -1759,8 +1603,6 @@ const Editor = (
           onOrientationChange={(orientation) =>
             handleOrientationChange(orientation as PaperOrientation)
           }
-          showPageMargins={showPageMargins}
-          onTogglePageMargins={togglePageMargins}
           paginationSettings={{
             marginTop: paginationSettings.marginTop,
             marginRight: paginationSettings.marginRight,
@@ -1780,6 +1622,13 @@ const Editor = (
           viewMode={viewMode ?? "document"}
           canvasType={canvasType ?? CANVAS_TYPE.DOCUMENT}
           isOwner={isOwner}
+          onOpenPageSettings={
+            isOwner && !readOnly ? () => setPageSettingsOpen(true) : undefined
+          }
+          userFontFamilies={userFonts.families}
+          onOpenFontUpload={
+            !readOnly ? () => setFontUploadOpen(true) : undefined
+          }
         />
       </div>
 
@@ -1788,7 +1637,51 @@ const Editor = (
           <div className="editor-zoom-wrapper" ref={zoomWrapperRef}>
             <div className="editor-content-scroll-container">
               <div ref={editorContentRef}>
-                <EditorContent key={editorKey} editor={editor} />
+                {/*
+                 * Phase 2.5: the .editor-page-surface wrapper applies
+                 * paper-style geometry purely via CSS variables. Page size,
+                 * orientation, and the four margins flow in from React
+                 * state below; the editor itself is one continuous column.
+                 * Real page splitting only happens at print time via the
+                 * @page rules emitted by the PDF export pipeline.
+                 */}
+                <div
+                  className="editor-page-surface"
+                  style={
+                    {
+                      "--page-width-mm": `${getDimensions().width}mm`,
+                      "--page-height-mm": `${getDimensions().height}mm`,
+                      "--margin-top-mm": `${
+                        paginationSettings.marginTop / 3.78
+                      }mm`,
+                      "--margin-right-mm": `${
+                        paginationSettings.marginRight / 3.78
+                      }mm`,
+                      "--margin-bottom-mm": `${
+                        paginationSettings.marginBottom / 3.78
+                      }mm`,
+                      "--margin-left-mm": `${
+                        paginationSettings.marginLeft / 3.78
+                      }mm`,
+                    } as CSSProperties
+                  }
+                  onClick={(e) => {
+                    // Navigate when a file-mention chip is clicked. The
+                    // chip is a span inside the editor; matching by class
+                    // lets us avoid wiring a per-instance click handler
+                    // on every NodeView.
+                    const target = (e.target as HTMLElement).closest(
+                      ".file-mention"
+                    ) as HTMLElement | null;
+                    if (!target) return;
+                    const id = target.getAttribute("data-file-id");
+                    if (!id) return;
+                    e.preventDefault();
+                    router.push(`/protected/playbook/${id}`);
+                  }}
+                >
+                  <EditorContent editor={editor} />
+                </div>
               </div>
             </div>
           </div>
@@ -1900,6 +1793,40 @@ const Editor = (
         onInsertTable={handleInsertCanvasTable}
         tableData={selectedTableData}
         tables={filteredTables}
+      />
+
+      <PageSettingsDialog
+        isOpen={pageSettingsOpen}
+        onClose={() => setPageSettingsOpen(false)}
+        value={{
+          pageSize,
+          orientation,
+          marginTop: paginationSettings.marginTop,
+          marginRight: paginationSettings.marginRight,
+          marginBottom: paginationSettings.marginBottom,
+          marginLeft: paginationSettings.marginLeft,
+        }}
+        onApply={(next) => {
+          setPageSize(next.pageSize);
+          setOrientation(next.orientation);
+          setPaginationSettings((prev) => ({
+            ...prev,
+            marginTop: next.marginTop,
+            marginRight: next.marginRight,
+            marginBottom: next.marginBottom,
+            marginLeft: next.marginLeft,
+          }));
+          // Persist the new geometry so reload restores it.
+          triggerAutoSave();
+        }}
+      />
+
+      <FontUploadDialog
+        isOpen={fontUploadOpen}
+        onClose={() => setFontUploadOpen(false)}
+        fonts={userFonts.fonts}
+        onUpload={userFonts.upload}
+        onRemove={userFonts.remove}
       />
     </div>
   );

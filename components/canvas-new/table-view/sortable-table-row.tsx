@@ -33,27 +33,33 @@ import type React from "react";
 import { Checkbox } from "../../ui/checkbox";
 import AddTableCellTrigger from "../add-table-cell-relation-trigger";
 import { HierarchyNode } from "./table.types";
+import { getDataKey, getNodeValue } from "@/lib/canvas/column-data";
+import { format } from "date-fns";
 
-// Simplified helper function for column data mapping
-const getDataKey = (column: any): string => {
-  // Use the dataKey if it exists, otherwise fall back to title
-  return column.dataKey || column.title;
+// Convert a stored date (ISO) to the value a <input type="datetime-local">
+// expects ("YYYY-MM-DDTHH:mm" in local time). Accepts either ISO or an
+// already-datetime-local string; returns "" for empty/invalid.
+const toDatetimeLocal = (value: any): string => {
+  if (!value) return "";
+  const d = new Date(value);
+  if (isNaN(d.getTime())) return "";
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(
+    d.getHours()
+  )}:${pad(d.getMinutes())}`;
 };
 
-const getCellValue = (node: any, column: any) => {
-  const dataKey = getDataKey(column);
-
-  switch (dataKey) {
-    case "label":
-      return node.data.label;
-    case "shape":
-      return node.data.shape;
-    case "id":
-      return node.id;
-    default:
-      return node.data[column.title];
-  }
+// Convert a datetime-local input value back to an ISO string for storage,
+// matching the side panel's date.toISOString(). Empty/invalid -> "".
+const fromDatetimeLocal = (value: any): string => {
+  if (!value) return "";
+  const d = new Date(value);
+  return isNaN(d.getTime()) ? "" : d.toISOString();
 };
+
+// Read a node's value for a column using the shared read contract (keyed on
+// dataKey, so renamed/relation columns resolve identically to the side panel).
+const getCellValue = (node: any, column: any) => getNodeValue(node, column);
 
 // Component for sortable table rows (for row reordering)
 const SortableTableRow: React.FC<{
@@ -197,7 +203,10 @@ const SortableTableRow: React.FC<{
                 <SelectValue placeholder="Select an option" />
               </SelectTrigger>
               <SelectContent>
-                {column.options?.map((option: string) => (
+                {(getDataKey(column) === "shape"
+                  ? shapeOptions
+                  : column.options || []
+                ).map((option: string) => (
                   <SelectItem key={option} value={option}>
                     {option}
                   </SelectItem>
@@ -297,12 +306,22 @@ const SortableTableRow: React.FC<{
           return (
             <Input
               type="datetime-local"
-              value={editedValue}
+              value={toDatetimeLocal(editedValue)}
               onChange={(e) => setEditedValue(e.target.value)}
-              onBlur={() => handleSave(node.id, column.title, editedValue)}
+              onBlur={() =>
+                handleSave(
+                  node.id,
+                  column.title,
+                  fromDatetimeLocal(editedValue)
+                )
+              }
               onKeyDown={(e) => {
                 if (e.key === "Enter") {
-                  handleSave(node.id, column.title, editedValue);
+                  handleSave(
+                    node.id,
+                    column.title,
+                    fromDatetimeLocal(editedValue)
+                  );
                 }
               }}
               autoFocus
@@ -322,27 +341,6 @@ const SortableTableRow: React.FC<{
                 />
               </div>
             </div>
-          );
-        case "type":
-          return (
-            <Select
-              value={editedValue}
-              onValueChange={(value) => {
-                setEditedValue(value);
-                handleSave(node.id, column.title, value);
-              }}
-            >
-              <SelectTrigger className="h-8 focus-visible:ring-0 focus-visible:ring-offset-0 border-0 p-0">
-                <SelectValue placeholder="Select shape type" />
-              </SelectTrigger>
-              <SelectContent>
-                {shapeOptions.map((shape) => (
-                  <SelectItem key={shape} value={shape}>
-                    {shape}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
           );
         default:
           return (
@@ -483,7 +481,7 @@ const SortableTableRow: React.FC<{
               column?.type === "Created Time" ||
               column?.type === "Last edited time" ? (
               cellValue && !isNaN(new Date(cellValue).getTime()) ? (
-                new Date(cellValue).toLocaleString()
+                format(new Date(cellValue), "PPP")
               ) : (
                 <span className="text-gray-400"></span>
               )

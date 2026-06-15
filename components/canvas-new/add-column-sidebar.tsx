@@ -315,9 +315,9 @@ export const AddColumnSidebar: React.FC<AddColumnSidebarProps> = ({
       if (!columnData.related_canvas_id) {
         if (otherCanvases.length === 0) {
           newFieldErrors.relation =
-            "No canvases found. Create a new canvas to create a relation.";
+            "No playbooks found. Create a new playbook to create a relation.";
         } else {
-          newFieldErrors.relation = "Please select a canvas to relate to";
+          newFieldErrors.relation = "Please select a playbook to relate to";
         }
       }
     }

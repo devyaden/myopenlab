@@ -9,16 +9,26 @@ import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { SHAPES } from "@/lib/types/flow-table.types";
 import { CANVAS_TYPE } from "@/types/store";
+import { ColorPickerPopover } from "./color-picker-popover";
 import {
   AlignCenter,
+  AlignCenterHorizontal,
   AlignCenterVertical,
+  AlignEndHorizontal,
   AlignEndVertical,
+  AlignHorizontalDistributeCenter,
   AlignJustify,
   AlignLeft,
   AlignRight,
+  AlignStartHorizontal,
   AlignStartVertical,
+  AlignVerticalDistributeCenter,
+  ArrowDownToLine,
+  ArrowUpToLine,
   Bold,
   ChevronDown,
+  ChevronsDown,
+  ChevronsUp,
   Clipboard,
   Copy,
   CornerUpLeft,
@@ -49,6 +59,8 @@ interface ToolbarProps {
   verticalAlign: "top" | "middle" | "bottom"; // Add this line
   setVerticalAlign: (align: "top" | "middle" | "bottom") => void;
   selectedNode: string | null;
+  selectedNodes: string[];
+  mixedKeys?: Set<string>;
   onUndo: () => void;
   onRedo: () => void;
   onCopy: () => void;
@@ -86,6 +98,19 @@ interface ToolbarProps {
   selectedNodeHasParent?: boolean;
   areMultipleSelected?: boolean;
   handleMultiNodeGrouping?: () => void;
+  onAlign?: (
+    axis:
+      | "left"
+      | "hcenter"
+      | "right"
+      | "top"
+      | "vcenter"
+      | "bottom"
+  ) => void;
+  onDistribute?: (axis: "h" | "v") => void;
+  onZOrder?: (
+    direction: "front" | "forward" | "backward" | "back"
+  ) => void;
 }
 
 export const Toolbar = React.memo(function Toolbar({
@@ -104,6 +129,8 @@ export const Toolbar = React.memo(function Toolbar({
   verticalAlign,
   setVerticalAlign,
   selectedNode,
+  selectedNodes,
+  mixedKeys,
   onUndo,
   onRedo,
   onCopy,
@@ -140,6 +167,9 @@ export const Toolbar = React.memo(function Toolbar({
   onDetachNode,
   areMultipleSelected,
   handleMultiNodeGrouping,
+  onAlign,
+  onDistribute,
+  onZOrder,
 }: ToolbarProps) {
   const fontFamilies = [
     "Arial",
@@ -158,7 +188,8 @@ export const Toolbar = React.memo(function Toolbar({
 
   const fontSizes = [8, 9, 10, 11, 12, 14, 16, 18, 20, 24, 30, 36];
 
-  const isStyleDisabled = selectedNode === null;
+  const isStyleDisabled = selectedNodes.length === 0;
+  const isMixed = (key: string) => !!mixedKeys?.has(key);
 
   const borderStyles = [
     { name: "Solid", value: "solid" },
@@ -424,7 +455,7 @@ export const Toolbar = React.memo(function Toolbar({
               className="gap-1 px-3 hidden sm:flex rounded-lg"
               disabled={isStyleDisabled}
             >
-              {fontFamily}
+              {isMixed("fontFamily") ? "Mixed" : fontFamily}
               <ChevronDown className="h-3 w-3" />
             </Button>
           </DropdownMenuTrigger>
@@ -446,7 +477,7 @@ export const Toolbar = React.memo(function Toolbar({
               className="gap-1 px-2"
               disabled={isStyleDisabled}
             >
-              {fontSize}pt
+              {isMixed("fontSize") ? "Mixed" : `${fontSize}pt`}
               <ChevronDown className="h-3 w-3" />
             </Button>
           </DropdownMenuTrigger>
@@ -492,29 +523,15 @@ export const Toolbar = React.memo(function Toolbar({
           <Underline className="h-4 w-4" />
         </Button>
 
-        {/* text color change */}
-        <div className="relative">
-          <Button
-            variant="outline"
-            size="sm"
-            className="h-8 w-8 relative rounded-lg"
-            disabled={isStyleDisabled}
-            onClick={() => document?.getElementById("colorPicker")?.click()}
-          >
-            <span className="text-base font-semibold">A</span>
-            <span
-              className="absolute bottom-1 left-1/2 transform -translate-x-1/2 w-4 h-0.5"
-              style={{ backgroundColor: textColor }}
-            />
-          </Button>
-          <Input
-            id="colorPicker"
-            type="color"
-            value={textColor}
-            onChange={(e) => setTextColor(e.target.value)}
-            className="hidden"
-          />
-        </div>
+        {/* text color */}
+        <ColorPickerPopover
+          slot="text"
+          value={textColor}
+          onChange={setTextColor}
+          mixed={isMixed("textColor")}
+          disabled={isStyleDisabled}
+          label="Text color"
+        />
 
         {/* text align dropdown */}
         <DropdownMenu>
@@ -623,35 +640,35 @@ export const Toolbar = React.memo(function Toolbar({
 
       {/* Unified controls for shape/edge properties */}
       <div className="flex items-center gap-2">
-        {/* Background color for shapes - only visible when node selected */}
+        {/* Background color (fill) — only visible when a node is selected. */}
         {!selectedEdge && (
-          <div className="flex items-center justify-center h-9 w-10 border rounded-md overflow-hidden">
-            <Input
-              type="color"
-              value={backgroundColor}
-              className="!w-full !h-full !p-0 [&::-webkit-color-swatch-wrapper]:p-0 [&::-webkit-color-swatch]:border-none"
-              disabled={isStyleDisabled}
-              onChange={(e) => setBackgroundColor(e.target.value)}
-            />
-          </div>
+          <ColorPickerPopover
+            slot="fill"
+            value={backgroundColor}
+            onChange={setBackgroundColor}
+            mixed={isMixed("backgroundColor")}
+            disabled={isStyleDisabled}
+            allowTransparent
+            label="Fill"
+          />
         )}
 
-        {/* Border/Edge color */}
-        <div className="flex items-center justify-center h-9 w-10 border rounded-md overflow-hidden">
-          <Input
-            type="color"
-            value={selectedEdge ? edgeColor : borderColor}
-            className="!w-full !h-full !p-0 [&::-webkit-color-swatch-wrapper]:p-0 [&::-webkit-color-swatch]:border-none"
-            disabled={isStyleDisabled && !selectedEdge}
-            onChange={(e) => {
-              if (selectedEdge) {
-                setEdgeColor(e.target.value);
-              } else if (selectedNode) {
-                setBorderColor(e.target.value);
-              }
-            }}
-          />
-        </div>
+        {/* Border (or edge) color */}
+        <ColorPickerPopover
+          slot={selectedEdge ? "edge" : "border"}
+          value={selectedEdge ? edgeColor : borderColor}
+          onChange={(c) => {
+            if (selectedEdge) {
+              setEdgeColor(c);
+            } else {
+              setBorderColor(c);
+            }
+          }}
+          mixed={!selectedEdge && isMixed("borderColor")}
+          disabled={isStyleDisabled && !selectedEdge}
+          allowTransparent
+          label={selectedEdge ? "Edge color" : "Border color"}
+        />
 
         {/* Width control */}
         <div className="border rounded-md overflow-hidden">
@@ -784,10 +801,131 @@ export const Toolbar = React.memo(function Toolbar({
           size="sm"
           className="rounded-lg"
           onClick={onDelete}
-          disabled={!selectedNode && !selectedEdge}
+          disabled={selectedNodes.length === 0 && !selectedEdge}
         >
           <Trash2 className="h-4 w-4" />
         </Button>
+      </div>
+
+      <Separator orientation="vertical" className="h-6 hidden sm:block" />
+
+      {/* Arrange / align / distribute / z-order. Gated on having at least
+          one node selected; align needs >=2, distribute needs >=3. */}
+      <div className="flex items-center gap-2">
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-9 rounded-lg gap-1 px-2"
+              disabled={isStyleDisabled}
+              title="Align & Distribute"
+            >
+              <AlignStartHorizontal className="h-4 w-4" />
+              <ChevronDown className="h-3 w-3" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent className="min-w-[200px]">
+            <DropdownMenuItem
+              disabled={selectedNodes.length < 2}
+              onSelect={() => onAlign?.("left")}
+            >
+              <AlignLeft className="mr-2 h-4 w-4" />
+              Align left
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              disabled={selectedNodes.length < 2}
+              onSelect={() => onAlign?.("hcenter")}
+            >
+              <AlignCenterVertical className="mr-2 h-4 w-4" />
+              Align horizontal centers
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              disabled={selectedNodes.length < 2}
+              onSelect={() => onAlign?.("right")}
+            >
+              <AlignRight className="mr-2 h-4 w-4" />
+              Align right
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              disabled={selectedNodes.length < 2}
+              onSelect={() => onAlign?.("top")}
+            >
+              <AlignStartHorizontal className="mr-2 h-4 w-4" />
+              Align top
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              disabled={selectedNodes.length < 2}
+              onSelect={() => onAlign?.("vcenter")}
+            >
+              <AlignCenterHorizontal className="mr-2 h-4 w-4" />
+              Align vertical centers
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              disabled={selectedNodes.length < 2}
+              onSelect={() => onAlign?.("bottom")}
+            >
+              <AlignEndHorizontal className="mr-2 h-4 w-4" />
+              Align bottom
+            </DropdownMenuItem>
+            <Separator className="my-1" />
+            <DropdownMenuItem
+              disabled={selectedNodes.length < 3}
+              onSelect={() => onDistribute?.("h")}
+            >
+              <AlignHorizontalDistributeCenter className="mr-2 h-4 w-4" />
+              Distribute horizontally
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              disabled={selectedNodes.length < 3}
+              onSelect={() => onDistribute?.("v")}
+            >
+              <AlignVerticalDistributeCenter className="mr-2 h-4 w-4" />
+              Distribute vertically
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-9 rounded-lg gap-1 px-2"
+              disabled={isStyleDisabled}
+              title="Order"
+            >
+              <ChevronsUp className="h-4 w-4" />
+              <ChevronDown className="h-3 w-3" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent className="min-w-[200px]">
+            <DropdownMenuItem onSelect={() => onZOrder?.("front")}>
+              <ArrowUpToLine className="mr-2 h-4 w-4" />
+              Bring to front
+              <span className="ml-auto text-xs text-muted-foreground">
+                ⌘⇧]
+              </span>
+            </DropdownMenuItem>
+            <DropdownMenuItem onSelect={() => onZOrder?.("forward")}>
+              <ChevronsUp className="mr-2 h-4 w-4" />
+              Bring forward
+              <span className="ml-auto text-xs text-muted-foreground">⌘]</span>
+            </DropdownMenuItem>
+            <DropdownMenuItem onSelect={() => onZOrder?.("backward")}>
+              <ChevronsDown className="mr-2 h-4 w-4" />
+              Send backward
+              <span className="ml-auto text-xs text-muted-foreground">⌘[</span>
+            </DropdownMenuItem>
+            <DropdownMenuItem onSelect={() => onZOrder?.("back")}>
+              <ArrowDownToLine className="mr-2 h-4 w-4" />
+              Send to back
+              <span className="ml-auto text-xs text-muted-foreground">
+                ⌘⇧[
+              </span>
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
 
       <Separator orientation="vertical" className="h-6 hidden sm:block" />

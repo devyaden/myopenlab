@@ -1,7 +1,18 @@
 "use client";
 
+import { AgentChat } from "@/components/agent/AgentChat";
+import { AgentLauncher } from "@/components/agent/AgentLauncher";
+import { useIsMobile } from "@/hooks/use-mobile";
 import DocumentEditor from "@/components/editor";
 import { Input } from "@/components/ui/input";
+import {
+  alignNodes,
+  distributeNodes,
+  type AlignAxis,
+  type DistributeAxis,
+} from "@/lib/canvas/align";
+import { reorderForZ, type ZDirection } from "@/lib/canvas/z-order";
+import { addColumn, mapColumnTypeToPropertyType } from "@/lib/canvas/column-data";
 import { findAbsolutePosition } from "@/lib/canvas.utils";
 import { useUser } from "@/lib/contexts/userContext";
 import { deleteImage, listImages, uploadImage } from "@/lib/storage-utils";
@@ -64,6 +75,7 @@ interface NodeStyle {
   borderColor: string;
   textColor: string;
   lineHeight: number;
+  fontSizeIsExplicit?: boolean;
 }
 
 interface AppState {
@@ -109,6 +121,7 @@ export default function CanvasNew({ canvasId }: FigmaInterfaceProps) {
     setEdges,
     nodeStyles,
     updateNodeStyle,
+    updateNodeStyles,
     undo,
     redo,
     canUndo,
@@ -127,7 +140,9 @@ export default function CanvasNew({ canvasId }: FigmaInterfaceProps) {
     isDirty,
   } = useCanvasStore();
 
-  const isReadOnly = !isOwner;
+  // No mobile editing: phones get a readable, read-only view of the playbook.
+  const isMobile = useIsMobile();
+  const isReadOnly = !isOwner || isMobile;
 
   const currentState: {
     nodes: Node[];
@@ -518,6 +533,123 @@ export default function CanvasNew({ canvasId }: FigmaInterfaceProps) {
     setSelectedNode(nodeIds.length === 1 ? nodeIds[0] : null);
   }, []);
 
+  // Late-bound ref to handleMultiNodeGrouping so the keyboard handler (defined
+  // earlier in the component) can call it without circular ordering.
+  const handleGroupRef = useRef<(() => void) | null>(null);
+
+  // Selection used by all bulk-style operations: prefer selectedNodes (which
+  // covers single + multi), but fall back to selectedNode when the marquee /
+  // selection list hasn't propagated yet.
+  const styleTargetIds = useMemo(() => {
+    if (selectedNodes.length > 0) return selectedNodes;
+    if (selectedNode) return [selectedNode];
+    return [];
+  }, [selectedNodes, selectedNode]);
+
+  // Compute merged style across the selection. For each NodeStyle key, returns
+  // the shared value when all selected nodes agree, plus a `mixed` set of keys
+  // whose values differ — the toolbar uses that to render "Mixed" placeholders.
+  const { mergedStyle, mixedKeys } = useMemo(() => {
+    const merged: Partial<NodeStyle> = {};
+    const mixed = new Set<string>();
+    if (styleTargetIds.length === 0) {
+      return { mergedStyle: merged, mixedKeys: mixed };
+    }
+    const styles = styleTargetIds.map((id) => currentState.nodeStyles[id] || {});
+    const keySet: Record<string, true> = {};
+    styles.forEach((s) =>
+      Object.keys(s).forEach((k) => {
+        keySet[k] = true;
+      })
+    );
+    for (const key of Object.keys(keySet)) {
+      const first = (styles[0] as any)[key];
+      const allSame = styles.every(
+        (s) => JSON.stringify((s as any)[key]) === JSON.stringify(first)
+      );
+      if (allSame) {
+        (merged as any)[key] = first;
+      } else {
+        mixed.add(key);
+      }
+    }
+    return { mergedStyle: merged, mixedKeys: mixed };
+  }, [styleTargetIds, currentState.nodeStyles]);
+
+  // Apply a style partial to every node in the selection in a single, batched
+  // history entry. Falls back to the no-op when nothing is selected.
+  const applyStyleToSelection = useCallback(
+    (partial: Partial<NodeStyle>) => {
+      if (styleTargetIds.length === 0) return;
+      updateNodeStyles(styleTargetIds, partial);
+    },
+    [styleTargetIds, updateNodeStyles]
+  );
+
+  // Align/distribute act on the multi-selection. We restrict the operation to
+  // nodes that share the same parentNode (or none) — mixing parented and
+  // unparented nodes would teleport children inside a swimlane.
+  const handleAlign = useCallback(
+    (axis: AlignAxis) => {
+      if (selectedNodes.length < 2) return;
+      const selected = currentState.nodes.filter((n) =>
+        selectedNodes.includes(n.id)
+      );
+      const parents = new Set(selected.map((n) => n.parentNode || ""));
+      if (parents.size > 1) {
+        toast.error(
+          "Selected nodes share different containers; cannot align."
+        );
+        return;
+      }
+      const updates = alignNodes(selected, axis);
+      if (updates.size === 0) return;
+      const nextNodes = currentState.nodes.map((n) => {
+        const u = updates.get(n.id);
+        return u ? { ...n, position: u } : n;
+      });
+      updateState({ nodes: nextNodes });
+    },
+    [selectedNodes, currentState.nodes, updateState]
+  );
+
+  const handleZOrder = useCallback(
+    (direction: ZDirection) => {
+      if (selectedNodes.length === 0) return;
+      const reordered = reorderForZ(
+        currentState.nodes,
+        selectedNodes,
+        direction
+      );
+      updateState({ nodes: reordered });
+    },
+    [selectedNodes, currentState.nodes, updateState]
+  );
+
+  const handleDistribute = useCallback(
+    (axis: DistributeAxis) => {
+      if (selectedNodes.length < 3) return;
+      const selected = currentState.nodes.filter((n) =>
+        selectedNodes.includes(n.id)
+      );
+      const parents = new Set(selected.map((n) => n.parentNode || ""));
+      if (parents.size > 1) {
+        toast.error(
+          "Selected nodes share different containers; cannot distribute."
+        );
+        return;
+      }
+      const updates = distributeNodes(selected, axis);
+      if (updates.size === 0) return;
+      const nextNodes = currentState.nodes.map((n) => {
+        const u = updates.get(n.id);
+        return u ? { ...n, position: u } : n;
+      });
+      updateState({ nodes: nextNodes });
+    },
+    [selectedNodes, currentState.nodes, updateState]
+  );
+
   const onNodesChange = useCallback(
     (newNodes: Node[]) => {
       updateState({ nodes: newNodes });
@@ -573,19 +705,19 @@ export default function CanvasNew({ canvasId }: FigmaInterfaceProps) {
   }, [currentState.nodes, currentState.nodeStyles, updateState]);
 
   const lockNode = useCallback(() => {
-    if (selectedNode) {
-      const currentStyle = getNodeStyle(selectedNode);
-      updateNodeStyle(selectedNode, { locked: !currentStyle.locked });
-    }
-  }, [selectedNode, updateNodeStyle, getNodeStyle]);
+    if (styleTargetIds.length === 0) return;
+    // When at least one node is unlocked, lock all; otherwise unlock all.
+    const anyUnlocked = styleTargetIds.some(
+      (id) => !getNodeStyle(id).locked
+    );
+    applyStyleToSelection({ locked: anyUnlocked });
+  }, [styleTargetIds, getNodeStyle, applyStyleToSelection]);
 
   const changeShape = useCallback(
     (shape: NodeStyle["shape"]) => {
-      if (selectedNode) {
-        updateNodeStyle(selectedNode, { shape });
-      }
+      applyStyleToSelection({ shape });
     },
-    [selectedNode, updateNodeStyle]
+    [applyStyleToSelection]
   );
 
   const onDragStart = (event: React.DragEvent, nodeType: string) => {
@@ -683,20 +815,16 @@ export default function CanvasNew({ canvasId }: FigmaInterfaceProps) {
 
   const setBorderStyle = useCallback(
     (style: string) => {
-      if (selectedNode) {
-        updateNodeStyle(selectedNode, { borderStyle: style });
-      }
+      applyStyleToSelection({ borderStyle: style });
     },
-    [selectedNode, updateNodeStyle]
+    [applyStyleToSelection]
   );
 
   const setBorderWidth = useCallback(
     (width: number) => {
-      if (selectedNode) {
-        updateNodeStyle(selectedNode, { borderWidth: width });
-      }
+      applyStyleToSelection({ borderWidth: width });
     },
-    [selectedNode, updateNodeStyle]
+    [applyStyleToSelection]
   );
 
   const addLaneToSwimlane = useCallback(
@@ -803,28 +931,103 @@ export default function CanvasNew({ canvasId }: FigmaInterfaceProps) {
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.ctrlKey && event.key === "z") {
+      // Don't intercept shortcuts while typing in any input or contenteditable.
+      const target = event.target as HTMLElement | null;
+      const isEditingText =
+        useCanvasStore.getState().isTextEditing ||
+        (target &&
+          (target.tagName === "INPUT" ||
+            target.tagName === "TEXTAREA" ||
+            target.isContentEditable));
+
+      const mod = event.metaKey || event.ctrlKey;
+
+      if (mod && event.key.toLowerCase() === "z" && !event.shiftKey) {
         event.preventDefault();
         undo();
-      } else if (event.ctrlKey && event.key === "y") {
+      } else if (
+        (mod && event.key.toLowerCase() === "y") ||
+        (mod && event.shiftKey && event.key.toLowerCase() === "z")
+      ) {
         event.preventDefault();
         redo();
-      } else if (event.ctrlKey && event.shiftKey && event.key === "Z") {
-        event.preventDefault();
-        redo();
-      } else if (event.ctrlKey && event.key === "c") {
+      } else if (mod && event.key.toLowerCase() === "c") {
+        if (isEditingText) return;
         event.preventDefault();
         copySelectedNodes();
-      } else if (event.ctrlKey && event.key === "v") {
+      } else if (mod && event.key.toLowerCase() === "v") {
+        if (isEditingText) return;
         event.preventDefault();
         pasteNodes();
-      } else if (event.key === "Delete") {
+      } else if (mod && event.key.toLowerCase() === "a") {
+        if (isEditingText) return;
+        event.preventDefault();
+        const allIds = currentState.nodes.map((n) => n.id);
+        setSelectedNodes(allIds);
+        setSelectedNode(allIds.length === 1 ? allIds[0] : null);
+      } else if (mod && event.key.toLowerCase() === "d") {
+        if (isEditingText) return;
+        event.preventDefault();
+        // Duplicate the current selection: copy + paste in one keystroke.
+        copySelectedNodes();
+        // Paste runs on the next tick so the clipboard ref is populated.
+        setTimeout(() => pasteNodes(), 0);
+      } else if (mod && event.key.toLowerCase() === "g") {
+        if (isEditingText) return;
+        event.preventDefault();
+        if (selectedNodes.length >= 2) handleGroupRef.current?.();
+      } else if (mod && event.key === "]") {
+        if (isEditingText) return;
+        event.preventDefault();
+        handleZOrder(event.shiftKey ? "front" : "forward");
+      } else if (mod && event.key === "[") {
+        if (isEditingText) return;
+        event.preventDefault();
+        handleZOrder(event.shiftKey ? "back" : "backward");
+      } else if (event.key === "Delete" || event.key === "Backspace") {
+        if (isEditingText) return;
         event.preventDefault();
         if (selectedNodes.length > 0) {
           deleteSelectedNodes();
         } else if (selectedEdge) {
           deleteSelectedEdges();
         }
+      } else if (event.key === "Escape") {
+        if (isEditingText) return;
+        setSelectedNodes([]);
+        setSelectedNode(null);
+        setSelectedEdge(null);
+      } else if (
+        (event.key === "ArrowUp" ||
+          event.key === "ArrowDown" ||
+          event.key === "ArrowLeft" ||
+          event.key === "ArrowRight") &&
+        selectedNodes.length > 0 &&
+        !isEditingText
+      ) {
+        event.preventDefault();
+        const step = event.shiftKey ? 10 : 1;
+        const dx =
+          event.key === "ArrowLeft"
+            ? -step
+            : event.key === "ArrowRight"
+              ? step
+              : 0;
+        const dy =
+          event.key === "ArrowUp"
+            ? -step
+            : event.key === "ArrowDown"
+              ? step
+              : 0;
+        const nudged = currentState.nodes.map((n) =>
+          selectedNodes.includes(n.id)
+            ? {
+                ...n,
+                position: { x: n.position.x + dx, y: n.position.y + dy },
+              }
+            : n
+        );
+        updateState({ nodes: nudged });
       }
     };
 
@@ -841,42 +1044,40 @@ export default function CanvasNew({ canvasId }: FigmaInterfaceProps) {
     deleteSelectedEdges,
     selectedNodes,
     selectedEdge,
+    currentState.nodes,
+    updateState,
+    handleZOrder,
+    // handleMultiNodeGrouping is read via the latest-ref below to avoid an
+    // ordering issue (it's declared further down in the component).
+    handleGroupRef,
   ]);
 
   const setBackgroundColor = useCallback(
     (color: string) => {
-      if (selectedNode) {
-        updateNodeStyle(selectedNode, { backgroundColor: color });
-      }
+      applyStyleToSelection({ backgroundColor: color });
     },
-    [selectedNode, updateNodeStyle]
+    [applyStyleToSelection]
   );
 
   const setBorderColor = useCallback(
     (color: string) => {
-      if (selectedNode) {
-        updateNodeStyle(selectedNode, { borderColor: color });
-      }
+      applyStyleToSelection({ borderColor: color });
     },
-    [selectedNode, updateNodeStyle]
+    [applyStyleToSelection]
   );
 
   const setTextColor = useCallback(
     (color: string) => {
-      if (selectedNode) {
-        updateNodeStyle(selectedNode, { textColor: color });
-      }
+      applyStyleToSelection({ textColor: color });
     },
-    [selectedNode, updateNodeStyle]
+    [applyStyleToSelection]
   );
 
   const setLineHeight = useCallback(
     (height: number) => {
-      if (selectedNode) {
-        updateNodeStyle(selectedNode, { lineHeight: height });
-      }
+      applyStyleToSelection({ lineHeight: height });
     },
-    [selectedNode, updateNodeStyle]
+    [applyStyleToSelection]
   );
 
   const onEdgeSelect = useCallback((edgeIds: string[]) => {
@@ -1162,10 +1363,18 @@ export default function CanvasNew({ canvasId }: FigmaInterfaceProps) {
 
   const handleAddColumn = useCallback(
     (columnData: ColumnData) => {
-      const newColumns = [...columns, columnData];
-      setColumns(newColumns);
+      // Seed node.data on ALL nodes via the shared helper so a column added
+      // from the table behaves identically to one added from the node panel.
+      const { columns: nextColumns, nodes: nextNodes } = addColumn(
+        columns,
+        nodes,
+        columnData as any,
+        mapColumnTypeToPropertyType(columnData.type)
+      );
+      setNodes(nextNodes);
+      setColumns(nextColumns);
     },
-    [columns, setColumns]
+    [columns, nodes, setColumns, setNodes]
   );
 
   const toggleSidebar = useCallback(() => {
@@ -1252,7 +1461,6 @@ export default function CanvasNew({ canvasId }: FigmaInterfaceProps) {
     [folders]
   );
 
-  const selectedStyle = selectedNode ? getNodeStyle(selectedNode) : null;
   const selectedEdgeData = selectedEdge
     ? currentState.edges.find((edge) => edge.id === selectedEdge)?.data
     : null;
@@ -1533,6 +1741,12 @@ export default function CanvasNew({ canvasId }: FigmaInterfaceProps) {
     setSelectedNodes([groupedNodeId]);
   }, [selectedNodes, currentState.nodes, currentState.nodeStyles, updateState]);
 
+  // Keep the late-bound ref in sync so the keyboard handler always calls the
+  // latest version of handleMultiNodeGrouping.
+  useEffect(() => {
+    handleGroupRef.current = handleMultiNodeGrouping;
+  }, [handleMultiNodeGrouping]);
+
   // If unauthorized, show the Unauthorized component
   if (unauthorized) {
     return <Unauthorized />;
@@ -1598,43 +1812,45 @@ export default function CanvasNew({ canvasId }: FigmaInterfaceProps) {
                 viewMode === VIEW_MODE.canvas &&
                 !isReadOnly && (
                   <Toolbar
-                    key={selectedNode || selectedEdge || "no-selection"}
-                    fontFamily={selectedStyle?.fontFamily || "Arial"}
+                    key={
+                      selectedNodes.length > 0
+                        ? `nodes-${selectedNodes.length}`
+                        : selectedEdge || "no-selection"
+                    }
+                    fontFamily={mergedStyle.fontFamily || "Arial"}
                     setFontFamily={(font) =>
-                      selectedNode &&
-                      updateNodeStyle(selectedNode, { fontFamily: font })
+                      applyStyleToSelection({ fontFamily: font })
                     }
-                    fontSize={selectedStyle?.fontSize || 12}
+                    fontSize={mergedStyle.fontSize || 12}
                     setFontSize={(size) =>
-                      selectedNode &&
-                      updateNodeStyle(selectedNode, { fontSize: size })
+                      applyStyleToSelection({
+                        fontSize: size,
+                        fontSizeIsExplicit: true,
+                      })
                     }
-                    isBold={selectedStyle?.isBold || false}
+                    isBold={mergedStyle.isBold || false}
                     setIsBold={(bold) =>
-                      selectedNode &&
-                      updateNodeStyle(selectedNode, { isBold: bold })
+                      applyStyleToSelection({ isBold: bold })
                     }
-                    isItalic={selectedStyle?.isItalic || false}
+                    isItalic={mergedStyle.isItalic || false}
                     setIsItalic={(italic) =>
-                      selectedNode &&
-                      updateNodeStyle(selectedNode, { isItalic: italic })
+                      applyStyleToSelection({ isItalic: italic })
                     }
-                    isUnderline={selectedStyle?.isUnderline || false}
+                    isUnderline={mergedStyle.isUnderline || false}
                     setIsUnderline={(underline) =>
-                      selectedNode &&
-                      updateNodeStyle(selectedNode, { isUnderline: underline })
+                      applyStyleToSelection({ isUnderline: underline })
                     }
-                    textAlign={selectedStyle?.textAlign || "left"}
+                    textAlign={mergedStyle.textAlign || "left"}
                     setTextAlign={(align) =>
-                      selectedNode &&
-                      updateNodeStyle(selectedNode, { textAlign: align })
+                      applyStyleToSelection({ textAlign: align })
                     }
-                    verticalAlign={selectedStyle?.verticalAlign || "top"}
+                    verticalAlign={mergedStyle.verticalAlign || "top"}
                     setVerticalAlign={(align) =>
-                      selectedNode &&
-                      updateNodeStyle(selectedNode, { verticalAlign: align })
+                      applyStyleToSelection({ verticalAlign: align })
                     }
                     selectedNode={selectedNode}
+                    selectedNodes={selectedNodes}
+                    mixedKeys={mixedKeys}
                     onUndo={undo}
                     onRedo={redo}
                     canUndo={canUndo}
@@ -1643,13 +1859,15 @@ export default function CanvasNew({ canvasId }: FigmaInterfaceProps) {
                     onPaste={pasteNodes}
                     onLock={lockNode}
                     onChangeShape={changeShape}
-                    shape={selectedStyle?.shape || "rectangle"}
-                    isLocked={selectedStyle?.locked || false}
-                    borderStyle={selectedStyle?.borderStyle || "solid"}
+                    shape={
+                      (mergedStyle.shape as NodeStyle["shape"]) || "rectangle"
+                    }
+                    isLocked={mergedStyle.locked || false}
+                    borderStyle={mergedStyle.borderStyle || "solid"}
                     setBorderStyle={setBorderStyle}
-                    borderWidth={selectedStyle?.borderWidth || 2}
+                    borderWidth={mergedStyle.borderWidth || 2}
                     setBorderWidth={setBorderWidth}
-                    isSwimlane={selectedStyle?.shape === "swimlane"}
+                    isSwimlane={mergedStyle.shape === "swimlane"}
                     onDelete={
                       selectedNodes.length > 0
                         ? deleteSelectedNodes
@@ -1657,15 +1875,13 @@ export default function CanvasNew({ canvasId }: FigmaInterfaceProps) {
                           ? deleteSelectedEdges
                           : () => {}
                     }
-                    backgroundColor={
-                      selectedStyle?.backgroundColor || "#ffffff"
-                    }
+                    backgroundColor={mergedStyle.backgroundColor || "#ffffff"}
                     setBackgroundColor={setBackgroundColor}
-                    borderColor={selectedStyle?.borderColor || "#000000"}
+                    borderColor={mergedStyle.borderColor || "#000000"}
                     setBorderColor={setBorderColor}
-                    textColor={selectedStyle?.textColor || "#000000"}
+                    textColor={mergedStyle.textColor || "#000000"}
                     setTextColor={setTextColor}
-                    lineHeight={selectedStyle?.lineHeight || 1.2}
+                    lineHeight={mergedStyle.lineHeight || 1.2}
                     setLineHeight={setLineHeight}
                     selectedEdge={selectedEdge}
                     onChangeEdgeStyle={onChangeEdgeStyle}
@@ -1686,6 +1902,9 @@ export default function CanvasNew({ canvasId }: FigmaInterfaceProps) {
                     }
                     areMultipleSelected={selectedNodes.length > 1}
                     handleMultiNodeGrouping={handleMultiNodeGrouping}
+                    onAlign={handleAlign}
+                    onDistribute={handleDistribute}
+                    onZOrder={handleZOrder}
                   />
                 )}
 
@@ -1788,6 +2007,8 @@ export default function CanvasNew({ canvasId }: FigmaInterfaceProps) {
           onReady={() => setIsDocumentReady(true)}
         />
       )}
+      <AgentLauncher canvasId={canvasId} />
+      <AgentChat />
     </>
   );
 }

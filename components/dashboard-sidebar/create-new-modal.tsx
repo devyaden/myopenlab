@@ -75,8 +75,8 @@ const folderSchema = z.object({
 const formSchema = z.object({
   name: z
     .string()
-    .min(1, "Canvas name is required")
-    .max(50, "Canvas name must be 50 characters or less"),
+    .min(1, "Playbook name is required")
+    .max(50, "Playbook name must be 50 characters or less"),
   description: z
     .string()
     .max(500, "Description must be 500 characters or less")
@@ -183,7 +183,7 @@ export function CreateNewModal({
       canvasForm.setError("name", {
         type: "manual",
         message:
-          "A canvas with this name already exists in the selected folder",
+          "A playbook with this name already exists in the selected folder",
       });
       return;
     }
@@ -237,7 +237,7 @@ export function CreateNewModal({
     // Create a canvas with the AI-generated data
     const success = onCreateCanvas(
       name,
-      "AI Generated Canvas",
+      "AI Generated Playbook",
       CANVAS_TYPE.HYBRID,
       currentFolderId || null
     );
@@ -335,7 +335,7 @@ export function CreateNewModal({
               </svg>
             </div>
             <span className={`font-medium text-center ${!canCreateHybrid ? "text-gray-500" : ""}`}>
-              New Canvas
+              New Playbook
             </span>
             <span className={`text-xs text-center mt-1 ${!canCreateHybrid ? "text-gray-400" : "text-muted-foreground"}`}>
               {!canCreateHybrid ? (
@@ -344,7 +344,7 @@ export function CreateNewModal({
                   Upgrade to Pro
                 </span>
               ) : (
-                "Canvas will be the drawing board to draw diagram"
+                "A playbook is your space for process maps and diagrams"
               )}
             </span>
           </div>
@@ -483,9 +483,9 @@ export function CreateNewModal({
                 name="name"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Canvas Name</FormLabel>
+                    <FormLabel>Playbook Name</FormLabel>
                     <FormControl>
-                      <Input placeholder="Enter canvas name" {...field} />
+                      <Input placeholder="Enter playbook name" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -499,7 +499,7 @@ export function CreateNewModal({
                     <FormLabel>Description</FormLabel>
                     <FormControl>
                       <Textarea
-                        placeholder="Enter canvas description"
+                        placeholder="Enter playbook description"
                         {...field}
                       />
                     </FormControl>
@@ -543,7 +543,7 @@ export function CreateNewModal({
                 >
                   Back
                 </Button>
-                <Button type="submit">Create Canvas</Button>
+                <Button type="submit">Create Playbook</Button>
               </DialogFooter>
             </form>
           </Form>
@@ -575,7 +575,7 @@ export function CreateNewModal({
               <path d="M9 3v18M3 9h18" />
             </svg>
           </div>
-          <span className="font-medium">New Canvas</span>
+          <span className="font-medium">New Playbook</span>
         </div>
 
         <div

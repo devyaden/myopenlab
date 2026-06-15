@@ -10,6 +10,25 @@ export async function GET(request: Request) {
   if (code) {
     const supabase = await createClient();
     await supabase.auth.exchangeCodeForSession(code);
+
+    if (redirectTo) {
+      return NextResponse.redirect(`${origin}${redirectTo}`);
+    }
+
+    // Send users who haven't finished onboarding to the wizard.
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (user) {
+      const { data: profile } = await supabase
+        .from("user")
+        .select("onboarding_completed")
+        .eq("id", user.id)
+        .maybeSingle();
+      if (profile && profile.onboarding_completed === false) {
+        return NextResponse.redirect(`${origin}/onboarding`);
+      }
+    }
   }
 
   if (redirectTo) {

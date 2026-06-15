@@ -25,7 +25,15 @@ export interface NodeStyle {
   borderColor: string;
   textColor: string;
   lineHeight: number;
+  // When true, the user has explicitly chosen a fontSize and the node should
+  // render at that exact size; when false/undefined, fontSize auto-scales with
+  // the shape's dimensions (legacy behavior).
+  fontSizeIsExplicit?: boolean;
 }
+
+export type RecentColorSlot = "fill" | "border" | "text" | "edge";
+
+export type RecentColors = Record<RecentColorSlot, string[]>;
 
 export interface CanvasData {
   nodes: Node[];
@@ -86,6 +94,8 @@ export interface CanvasState extends CanvasData {
   lastSaved: Date | null;
   updated_at: Date | null;
   created_at: Date | null;
+  recentColors: RecentColors;
+  isTextEditing: boolean;
 }
 
 export interface CanvasActions {
@@ -93,6 +103,9 @@ export interface CanvasActions {
   setEdges: (edges: any[]) => void;
   setNodeStyles: (nodeStyles: any) => void;
   updateNodeStyle: (nodeId: string, style: any) => void;
+  updateNodeStyles: (nodeIds: string[], style: Partial<NodeStyle>) => void;
+  pushRecentColor: (slot: RecentColorSlot, color: string) => void;
+  setIsTextEditing: (editing: boolean) => void;
   setColumns: (columns: any[]) => void;
   setName: (name: string) => void;
   setDescription: (description: string) => void;
@@ -101,6 +114,7 @@ export interface CanvasActions {
   loadFolderCanvases: (folder_id: string) => Promise<void>;
   loadCanvas: (canvasId: string) => Promise<void>;
   syncChanges: () => Promise<void>;
+  initializeWithAIData: (aiData: any) => void;
   refreshColumnsData: () => Promise<void>;
   resetState: () => void;
   undo: () => void;
