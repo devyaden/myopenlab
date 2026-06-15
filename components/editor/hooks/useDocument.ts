@@ -34,9 +34,18 @@ interface DocumentState {
   lastSaved: Date | null;
   folderCanvases: any[];
   folder?: any;
+  // Phase 4: a monotonically-increasing signal + payload so the open editor can
+  // re-render content pushed in by an agent apply (the editor's one-shot loader
+  // ignores later editor_state changes by design — this is the explicit escape).
+  aiApplySeq: number;
+  aiAppliedDoc: any;
+  /** Which document the pending aiAppliedDoc belongs to — so the editor never
+   *  replays one document's agent content onto another on (re)mount. */
+  aiAppliedCanvasId: string | null;
   setName: (name: string) => void;
   setDescription: (description: string) => void;
   updateEditorState: (editorState: any) => void;
+  applyDocumentContent: (json: any) => void;
   loadDocument: (canvasId: string) => Promise<void>;
   saveDocument: () => Promise<void>;
   syncChanges: () => void;
@@ -59,9 +68,13 @@ const initialState: DocumentState = {
   error: null,
   isDirty: false,
   lastSaved: null,
+  aiApplySeq: 0,
+  aiAppliedDoc: null,
+  aiAppliedCanvasId: null,
   setName: () => {},
   setDescription: () => {},
   updateEditorState: () => {},
+  applyDocumentContent: () => {},
   loadDocument: async () => {},
   saveDocument: async () => {},
   syncChanges: () => {},
@@ -130,6 +143,20 @@ export const useDocumentStore = create<DocumentState>()(
 
           // Trigger debounced save
           get().syncChanges();
+        },
+        applyDocumentContent: (json) => {
+          // Push agent-authored content into the open editor. The server apply
+          // already persisted it, so mark clean (no autosave) and bump the
+          // signal the editor effect watches. The editor re-applies via
+          // setContent under its isApplyingRemoteRef guard, so this does NOT
+          // round-trip back through autosave.
+          set((state) => ({
+            aiAppliedDoc: json,
+            aiAppliedCanvasId: state.canvas_id,
+            aiApplySeq: state.aiApplySeq + 1,
+            isDirty: false,
+            lastSaved: new Date(),
+          }));
         },
         loadDocument: async (canvasId) => {
           set({ isLoading: true, error: null, canvas_id: canvasId });

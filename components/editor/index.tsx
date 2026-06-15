@@ -59,6 +59,7 @@ import DocReferenceDialog, {
   type DocReferenceInsert,
 } from "./DocReferenceDialog";
 import { createReferenceForMention } from "@/lib/refs/client";
+import { playbookHref } from "@/lib/playbook-href";
 import { ReactFlowNode } from "./extensions/ReactFlowNode";
 import ResizableImageNode from "./extensions/ResizableImageNode";
 import { TextDirection } from "./extensions/TextDirection";
@@ -287,6 +288,9 @@ const Editor = (
     user_id,
     folder,
     error: loadError,
+    aiApplySeq,
+    aiAppliedDoc,
+    aiAppliedCanvasId,
   } = useDocumentStore();
 
   // Initialize editor
@@ -685,6 +689,39 @@ const Editor = (
 
     return () => clearTimeout(timer);
   }, [editor, canvasId, editor_state, isLoading, loadError]);
+
+  // Phase 4: re-render content an agent apply pushed into the OPEN document.
+  // The one-shot loader above deliberately ignores later editor_state changes
+  // (to avoid the typing "flinch"), so an agent edit to the open doc needs this
+  // explicit, non-gated re-apply keyed on aiApplySeq. Uses the same
+  // flushSync-safe deferral + isApplyingRemoteRef guard as the loader so the
+  // setContent doesn't loop back through onUpdate autosave.
+  useEffect(() => {
+    if (aiApplySeq === 0) return; // nothing applied yet
+    if (!editor || editor.isDestroyed) return;
+    if (!aiAppliedDoc) return;
+    // Only apply content that belongs to the document currently open — never
+    // replay one doc's agent edit onto another (e.g. on a remount with a stale
+    // signal still in the singleton store).
+    if (aiAppliedCanvasId !== canvasId) return;
+    const timer = setTimeout(() => {
+      if (!editor || editor.isDestroyed) return;
+      isApplyingRemoteRef.current = true;
+      try {
+        editor.commands.setContent(aiAppliedDoc, false);
+        pendingChangesRef.current = false;
+        setSaveStatus("saved");
+        editor.commands.focus("end");
+      } catch (err) {
+        console.error("Failed to apply agent document content:", err);
+      } finally {
+        isApplyingRemoteRef.current = false;
+      }
+    }, 0);
+    return () => clearTimeout(timer);
+    // Intentionally keyed on aiApplySeq only — each agent apply bumps it once.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [aiApplySeq]);
 
   // Reset the load + autosave gates when the user navigates to a different
   // canvas, so the new doc must load cleanly before it can autosave.
@@ -1750,7 +1787,9 @@ const Editor = (
                     const id = target.getAttribute("data-file-id");
                     if (!id) return;
                     e.preventDefault();
-                    router.push(`/protected/playbook/${id}`);
+                    router.push(
+                      playbookHref(id, target.getAttribute("data-canvas-type"))
+                    );
                   }}
                 >
                   <EditorContent editor={editor} />

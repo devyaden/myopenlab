@@ -4,7 +4,13 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAgentStore } from "@/lib/store/useAgent";
 import { useCanvasStore } from "@/lib/store/useCanvas";
+import { useDocumentStore } from "@/components/editor/hooks/useDocument";
 import { emitEmbedRefresh } from "@/lib/realtime/embed-refresh";
+import { playbookHref } from "@/lib/playbook-href";
+import {
+  blocksToTiptapDoc,
+  blocksToPlainText,
+} from "@/lib/agent/document-blocks";
 import ReactFlow, { Background } from "reactflow";
 import "reactflow/dist/style.css";
 import {
@@ -26,11 +32,13 @@ import {
 interface Proposal {
   id: string;
   kind: "create" | "update";
+  target?: "canvas" | "document"; // absent ⇒ "canvas" (back-compat)
   name?: string;
   code?: string | null;
   folder_id?: string | null;
   canvas_id?: string | null;
-  diagram: { nodes: any[]; edges: any[]; nodeStyles: Record<string, any> };
+  diagram?: { nodes: any[]; edges: any[]; nodeStyles: Record<string, any> };
+  body?: any[]; // document block list (target === "document")
   status: "pending" | "applied" | "discarded";
 }
 
@@ -61,12 +69,64 @@ function ProposalPreview({
   onApply: () => void;
   applying: boolean;
 }) {
-  const nodes = (proposal.diagram.nodes ?? []).map((n: any) => ({
+  const isDocument = proposal.target === "document";
+
+  const statusBadge =
+    proposal.status === "applied" ? (
+      <span className="flex items-center gap-1 text-xs text-green-600">
+        <Check size={13} /> Applied
+      </span>
+    ) : proposal.status === "discarded" ? (
+      <span className="text-xs text-muted-foreground">Discarded</span>
+    ) : null;
+
+  if (isDocument) {
+    const summary = blocksToPlainText(proposal.body ?? [], 600);
+    const blockCount = (proposal.body ?? []).length;
+    return (
+      <div className="rounded-lg border bg-background">
+        <div className="flex items-center justify-between border-b px-3 py-2">
+          <span className="text-xs font-medium">
+            {proposal.kind === "create"
+              ? `New document: ${proposal.name ?? "Untitled"}`
+              : "Update to this document"}
+          </span>
+          {statusBadge}
+        </div>
+        <div className="max-h-[220px] overflow-y-auto px-3 py-2">
+          <pre className="whitespace-pre-wrap break-words font-sans text-xs leading-relaxed text-muted-foreground">
+            {summary || "(empty document)"}
+          </pre>
+        </div>
+        <div className="border-t px-3 py-1 text-[10px] text-muted-foreground">
+          {blockCount} block{blockCount === 1 ? "" : "s"}
+        </div>
+        {proposal.status === "pending" && (
+          <div className="flex justify-end gap-2 border-t px-3 py-2">
+            <button
+              onClick={onApply}
+              disabled={applying}
+              className="flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:opacity-90 disabled:opacity-60"
+            >
+              {applying ? (
+                <Loader2 size={13} className="animate-spin" />
+              ) : (
+                <Check size={13} />
+              )}
+              Apply
+            </button>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  const nodes = (proposal.diagram?.nodes ?? []).map((n: any) => ({
     ...n,
     width: n.width || 120,
     height: n.height || 60,
   }));
-  const edges = (proposal.diagram.edges ?? []).map((e: any) => ({
+  const edges = (proposal.diagram?.edges ?? []).map((e: any) => ({
     ...e,
     type: "custom",
     sourceHandle: e.sourceHandle || "g",
@@ -80,13 +140,7 @@ function ProposalPreview({
             ? `New playbook: ${proposal.name ?? "Untitled"}`
             : "Update to this playbook"}
         </span>
-        {proposal.status === "applied" ? (
-          <span className="flex items-center gap-1 text-xs text-green-600">
-            <Check size={13} /> Applied
-          </span>
-        ) : proposal.status === "discarded" ? (
-          <span className="text-xs text-muted-foreground">Discarded</span>
-        ) : null}
+        {statusBadge}
       </div>
       <div className="h-[200px] w-full">
         <ReactFlow
@@ -223,11 +277,58 @@ export function AgentChat() {
     async (msgIdx: number, proposal: Proposal) => {
       setApplyingId(proposal.id);
       try {
+        // ── Document proposals ──────────────────────────────────────────────
+        // Always commit through the API (it writes document_data, the history
+        // snapshot, and reconciles cross-references). If the targeted document
+        // is the one open in the editor, also push the content in instantly so
+        // it re-renders without a navigation/flash.
+        if (proposal.target === "document") {
+          const res = await fetch("/api/ai/agent/apply", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(
+              proposal.kind === "create"
+                ? {
+                    kind: "create",
+                    target: "document",
+                    name: proposal.name ?? "Untitled Document",
+                    code: proposal.code ?? null,
+                    folder_id: proposal.folder_id ?? null,
+                    body: proposal.body ?? [],
+                  }
+                : {
+                    kind: "update",
+                    target: "document",
+                    canvas_id: proposal.canvas_id,
+                    body: proposal.body ?? [],
+                  }
+            ),
+          });
+          const json = await res.json();
+          if (res.ok) {
+            markApplied(msgIdx, proposal.id);
+            const docStore = useDocumentStore.getState();
+            if (
+              proposal.kind === "update" &&
+              proposal.canvas_id &&
+              docStore.canvas_id === proposal.canvas_id
+            ) {
+              // The edited document is open — re-render it instantly.
+              docStore.applyDocumentContent(
+                blocksToTiptapDoc(proposal.body ?? [])
+              );
+            } else if (proposal.kind === "create" && json.canvasId) {
+              router.push(playbookHref(json.canvasId, "document"));
+            }
+          }
+          return;
+        }
+
         // If the proposal updates the playbook that's currently open in the
         // editor, apply it straight into the canvas store so it renders
         // instantly. syncChanges() persists it through the normal save path
         // (which also writes a history snapshot) — no separate API write needed.
-        if (proposal.kind === "update" && proposal.canvas_id) {
+        if (proposal.kind === "update" && proposal.canvas_id && proposal.diagram) {
           const store = useCanvasStore.getState();
           if (store.id === proposal.canvas_id) {
             store.initializeWithAIData({

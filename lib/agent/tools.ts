@@ -5,11 +5,36 @@ import { DiagramType } from "@/lib/types/diagram-types";
 import { buildWorkspaceIndex } from "./workspace";
 import { reconcileNodeIds } from "./node-ids";
 import { resolveCode, listBacklinks } from "@/lib/refs/resolver";
+import { tiptapToBlocks, type DocBlock } from "./document-blocks";
 
 // Reuse the canonical diagram input schema (nodes/edges/nodeStyles) so the agent
 // produces diagrams in the exact shape the renderer + processor expect.
 const diagramSchema: any = createDiagramToolSchema(DiagramType.WORKFLOW)[0]
   .input_schema;
+
+// Phase 4: the document BODY is a structured block list (NOT raw Tiptap JSON).
+// The apply layer converts it to the editor's content model (lib/agent/
+// document-blocks.ts). Kept permissive (array of {type, ...}) so the model isn't
+// fighting JSON-schema validation; the per-block fields are documented in the
+// tool description and coerced defensively by the converter.
+const documentBodySchema: any = {
+  type: "array",
+  description:
+    'Ordered document blocks. Each is an object with a "type" and type-specific fields:\n' +
+    '- { "type":"heading", "level":1|2|3, "text":"..." }\n' +
+    '- { "type":"paragraph", "text":"..." }\n' +
+    '- { "type":"bullet_list", "items":["...","..."] }\n' +
+    '- { "type":"numbered_list", "items":["...","..."] }\n' +
+    '- { "type":"task_list", "items":[{"text":"...","checked":false}] }\n' +
+    '- { "type":"divider" }\n' +
+    '- { "type":"table", "headers":["A","B"], "rows":[["1","2"],["3","4"]] }\n' +
+    '- { "type":"embed_flow", "canvasId":"<id of a playbook flow>", "name":"..." } (live flow embed)\n' +
+    '- { "type":"embed_table", "tableId":"<id of an EXISTING table artifact>", "columns":["col1","col2"] } (live table embed — columns is REQUIRED, the embed shows nothing without it; for tabular content you are writing yourself use a static "table" block instead)\n' +
+    '- { "type":"doc_reference", "docId":"<id of a document>", "refType":"template|policy|standard|checklist|authority|document", "label":"...", "code":"..." } (reference CARD — does NOT transclude)\n' +
+    '- { "type":"mention", "id":"<canvas id>", "code":"HR-01", "label":"...", "refType":"depends-on" } (inline link chip)\n' +
+    "Use ids/codes from the workspace index — never invent them.",
+  items: { type: "object" },
+};
 
 export interface AgentToolContext {
   supabase: SupabaseClient;
@@ -19,11 +44,16 @@ export interface AgentToolContext {
 
 export interface ToolProposal {
   kind: "create" | "update";
+  /** Which surface the proposal targets. Absent ⇒ "canvas" (back-compat). */
+  target?: "canvas" | "document";
   name?: string;
   code?: string | null;
   folder_id?: string | null;
   canvas_id?: string | null;
-  diagram: { nodes: any[]; edges: any[]; nodeStyles: Record<string, any> };
+  /** Present for canvas (diagram) proposals. */
+  diagram?: { nodes: any[]; edges: any[]; nodeStyles: Record<string, any> };
+  /** Present for document proposals — the structured block list (see document-blocks.ts). */
+  body?: DocBlock[];
 }
 
 export interface ToolExecutionResult {
@@ -140,6 +170,50 @@ export const AGENT_TOOLS: any[] = [
       required: ["canvas_id", "nodes", "edges"],
     },
   },
+  {
+    name: "get_document",
+    description:
+      "Read a document's current content as a block list (the same shape propose_*_document takes). Use BEFORE editing a document so you preserve its existing structure, embeds, and reference ids.",
+    input_schema: {
+      type: "object",
+      properties: {
+        canvas_id: { type: "string", description: "The document id (a canvas of type 'document')" },
+      },
+      required: ["canvas_id"],
+    },
+  },
+  {
+    name: "propose_create_document",
+    description:
+      "Propose creating a NEW document (a rich page: headings, text, lists, tables, live flow/table embeds, and sub-document reference cards). This does NOT save — it shows the user a preview to approve. A document is the right surface for an operating-model 'process page' that composes a flow + tables + Template/Policy reference cards. Embed/reference EXISTING artifacts by their ids/codes from the workspace.",
+    input_schema: {
+      type: "object",
+      properties: {
+        name: { type: "string", description: "Name/title for the new document" },
+        code: {
+          type: "string",
+          description:
+            'Optional operating-model code (e.g. "HR-01-PAGE"). If omitted the server assigns one. Unique in the workspace.',
+        },
+        folder_id: { type: "string", description: "Optional folder id to place it in" },
+        body: documentBodySchema,
+      },
+      required: ["name", "body"],
+    },
+  },
+  {
+    name: "propose_update_document",
+    description:
+      "Propose updating an EXISTING document. This does NOT save — it shows a preview to approve. Provide the canvas_id and the FULL revised block list (it replaces the document body). Call get_document first and preserve embed/reference ids you keep.",
+    input_schema: {
+      type: "object",
+      properties: {
+        canvas_id: { type: "string", description: "The document id to update" },
+        body: documentBodySchema,
+      },
+      required: ["canvas_id", "body"],
+    },
+  },
 ];
 
 /** Confirms a playbook belongs to the user. Returns the row or null. */
@@ -149,7 +223,7 @@ async function assertOwnership(
 ): Promise<any | null> {
   const { data } = await ctx.supabase
     .from("canvas")
-    .select("id, name, user_id, canvas_type")
+    .select("id, name, user_id, canvas_type, code")
     .eq("id", canvasId)
     .eq("user_id", ctx.userId)
     .maybeSingle();
@@ -332,6 +406,75 @@ export async function executeAgentTool(
             edges: reconciled.edges,
             nodeStyles: reconciled.nodeStyles,
           },
+        },
+      };
+    }
+
+    case "get_document": {
+      const owned = await assertOwnership(ctx, input?.canvas_id);
+      if (!owned)
+        return { content: "Document not found or you don't have access." };
+      const { data } = await ctx.supabase
+        .from("document_data")
+        .select("lexical_state, version")
+        .eq("canvas_id", input.canvas_id)
+        .maybeSingle();
+
+      let blocks: DocBlock[] = [];
+      if (data?.lexical_state != null) {
+        try {
+          const wrapper =
+            typeof data.lexical_state === "string"
+              ? JSON.parse(data.lexical_state)
+              : data.lexical_state;
+          // The stored shape is { state, json, controls, page }; tolerate a
+          // bare doc too.
+          const json = wrapper?.json ?? wrapper;
+          blocks = tiptapToBlocks(json);
+        } catch {
+          blocks = [];
+        }
+      }
+      return {
+        content: JSON.stringify({
+          id: input.canvas_id,
+          name: owned.name,
+          code: owned.code ?? null,
+          version: data?.version ?? 1,
+          body: blocks,
+        }),
+      };
+    }
+
+    case "propose_create_document": {
+      const body: DocBlock[] = Array.isArray(input?.body) ? input.body : [];
+      return {
+        content:
+          "Proposal prepared. The user will see a preview and choose whether to apply it. Do not assume it is saved.",
+        proposal: {
+          kind: "create",
+          target: "document",
+          name: input?.name ?? "Untitled Document",
+          code: input?.code ?? null,
+          folder_id: input?.folder_id ?? null,
+          body,
+        },
+      };
+    }
+
+    case "propose_update_document": {
+      const owned = await assertOwnership(ctx, input?.canvas_id);
+      if (!owned)
+        return { content: "Document not found or you don't have access." };
+      const body: DocBlock[] = Array.isArray(input?.body) ? input.body : [];
+      return {
+        content:
+          "Proposal prepared. The user will see a preview and choose whether to apply it. Do not assume it is saved.",
+        proposal: {
+          kind: "update",
+          target: "document",
+          canvas_id: input.canvas_id,
+          body,
         },
       };
     }

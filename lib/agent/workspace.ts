@@ -4,6 +4,7 @@ export interface WorkspacePlaybook {
   id: string;
   name: string;
   type: string;
+  code: string | null;
   folder: string | null;
   updated_at: string;
 }
@@ -27,11 +28,11 @@ export async function buildWorkspaceIndex(
   const [{ data: folders }, { data: rootCanvases }] = await Promise.all([
     supabase
       .from("folder")
-      .select("id, name, canvases:canvas(id, name, canvas_type, updated_at)")
+      .select("id, name, canvases:canvas(id, name, canvas_type, code, updated_at)")
       .eq("user_id", userId),
     supabase
       .from("canvas")
-      .select("id, name, canvas_type, updated_at, folder_id")
+      .select("id, name, canvas_type, code, updated_at, folder_id")
       .eq("user_id", userId)
       .is("folder_id", null),
   ]);
@@ -44,6 +45,7 @@ export async function buildWorkspaceIndex(
         id: c.id,
         name: c.name,
         type: c.canvas_type ?? "hybrid",
+        code: c.code ?? null,
         folder: (folder as any).name ?? null,
         updated_at: c.updated_at,
       });
@@ -54,6 +56,7 @@ export async function buildWorkspaceIndex(
       id: (c as any).id,
       name: (c as any).name,
       type: (c as any).canvas_type ?? "hybrid",
+      code: (c as any).code ?? null,
       folder: null,
       updated_at: (c as any).updated_at,
     });
@@ -67,7 +70,7 @@ export async function buildWorkspaceIndex(
       : playbooks
           .map(
             (p) =>
-              `- [${p.id}] "${p.name}" (${p.type}${
+              `- [${p.id}]${p.code ? ` {${p.code}}` : ""} "${p.name}" (${p.type}${
                 p.folder ? `, folder: ${p.folder}` : ""
               })`
           )

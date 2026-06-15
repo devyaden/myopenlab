@@ -15,6 +15,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { subscribeEmbedRefresh } from "@/lib/realtime/embed-refresh";
+import { playbookHref } from "@/lib/playbook-href";
 
 interface CardMeta {
   id: string;
@@ -129,7 +130,7 @@ function DocReferenceNodeView({
   const updated = relativeTime(meta?.updated_at);
 
   const open = () => {
-    if (docId) router.push(`/protected/playbook/${docId}`);
+    if (docId) router.push(playbookHref(docId, meta?.canvas_type));
   };
 
   return (

@@ -370,6 +370,69 @@ Goal: the agent can build and maintain a March-style composite document end-to-e
   assigns codes, and assembles them into one composite Document — i.e., generate a full HR-01-style unit in one
   approved batch. This is the demo that proves the vision.
 
+**STATUS: ✅ done + in-browser agent QA passed (2026-06-16).** `tsc --noEmit` + `next build` both clean; a
+parallel adversarial review (find → verify) ran over the diff and its 6 confirmed bugs were fixed (see below);
+the block→Tiptap converter has a 15-assertion runtime test. **Headline demo verified live with the real agent:**
+asked the in-app agent to "create a Recruitment Quick Reference document with the Recruitment & Sourcing flow
+embedded and a policy card to HR Policies" → it read the workspace (found codes `HR-01`/`PLCY-01`), called
+`propose_create_document`, said "I've prepared a preview — apply it" (never claimed a write), the **document
+preview** card rendered a block summary, Apply navigated to the doc and it rendered the **intro + Process heading
++ live HR-01 flow embed (fully hydrated) + Policies heading + PLCY-01 reference card** — 0 console errors. A
+follow-up `update_document` added a Notes section: embeds + card survived, a `canvas_history` snapshot was
+written (v3, carrying the document body), and references reconciled to exactly `{depends-on, policy}`.
+
+**Design (block-DSL, not raw Tiptap):** the agent authors a document as a structured **block list**; the new pure,
+isomorphic `lib/agent/document-blocks.ts` is the single converter used by BOTH the server apply route and the
+client instant-apply — `blocksToTiptapDoc` (→ a ProseMirror doc), `tiptapToBlocks` (← for `get_document`), and
+`extractReferences` (the cross-reference rows). Block types: heading/paragraph/bullet_list/numbered_list/
+task_list/divider/static-table + the live `embed_flow` / `embed_table` / `doc_reference` / inline `mention`.
+
+**4a — tools (✅):** `lib/agent/tools.ts` gained `get_document`, `propose_create_document`,
+`propose_update_document`; `ToolProposal` widened with `target:"canvas"|"document"` + `body` (`diagram` made
+optional). The proposal still rides the existing SSE `proposal` event + proposal→preview→Apply gate (no loop
+changes). `assertOwnership` now also selects `code`.
+
+**4b — apply path (✅):** `app/api/ai/agent/apply/route.ts` gained `target:"document"` branches. Create inserts a
+`canvas` row with `canvas_type:"document"` (+ code gen / 23505 retry) and a `document_data` row whose
+`lexical_state` is the editor's exact `JSON.stringify({state,json,controls,page})` wrapper (so it loads with zero
+editor changes). Update preserves the existing `controls`/`page`, bumps `version`, writes a `canvas_history`
+snapshot (the `data` JSONB holds the document wrapper), and **reconciles references** (deletes the doc's
+`from_node`-null refs, recreates from `extractReferences` — so backlinks track the current content).
+
+**4c — client (✅):** `AgentChat.tsx` branches document proposals (a document **preview** card + a document apply
+path); for an update to the OPEN doc it pushes content in instantly via a new `useDocument.applyDocumentContent`
+→ `aiApplySeq` signal → a non-gated re-apply effect in `editor/index.tsx` (guarded by `isApplyingRemoteRef` so it
+doesn't loop through autosave, and by `aiAppliedCanvasId === canvasId` so one doc's content can't replay onto
+another). Create navigates to `/protected/document-editor/[id]` via the new `lib/playbook-href.ts` (documents and
+flow/table canvases live on different routes — this also fixes the Phase 3 card/mention click-through for
+document targets).
+
+**4d — workspace + prompt (✅):** `buildWorkspaceIndex` now surfaces each artifact's `code` (`- [id] {CODE} "name"
+(type)`); documents were already listed. `prompt.ts` gained the document tools, a DOCUMENTS block-authoring
+section (when to use a static table vs `embed_flow` vs `embed_table` vs a `doc_reference` card), the process-page
+scaffold **dependency-order** sequence (create the flow first → it needs an id before you can embed it; write
+tabular data as static `table` blocks, never via `propose_create_canvas` which makes a flow not a table), and an
+EDITING-AN-EXISTING-DOCUMENT (preserve embed/reference ids) rule.
+
+**Adversarial-review fixes (6, all verified):** (1) empty `bullet/numbered/task_list` emitted a schema-invalid
+node → drop empty lists; (2) a string/flat `table` `headers`/`rows` threw and 500'd the whole apply → `Array.isArray`
+guards + scalar-row tolerance; (3) `embed_table` round-trip dropped `selectedColumns` (re-applied table rendered
+empty) → `tiptapToBlocks` now recovers `columns`/`displayRows`; (4) a column-less `embed_table` shows a permanent
+empty state (it doesn't self-hydrate columns like the flow embed does) → require `columns`, degrade to a note,
+and mark it required in the prompt/tool; (5) a non-UUID id the model put in an id field poisoned the `to_canvas`
+FK and silently dropped a resolvable backlink → a UUID gate routes code-like values through `to_code`; (6) the
+process-page scaffold told the agent to make tables with `propose_create_canvas` (a hybrid, not a table — the
+embed would be empty) → prompt now uses static `table` blocks / existing table artifacts only. Plus a defensive
+cross-document instant-apply guard (`aiAppliedCanvasId`).
+
+**Known gaps (documented, not blocking):** no document-side node-id reconcile (the prompt carries the "preserve
+embed/reference ids" burden); inline @-mentions *inside* a paragraph are flattened to text on the
+`get_document` → edit round-trip (standalone mention/card blocks round-trip fine); the "one approved batch"
+scaffold is realized as a guided sequence (a flow must be applied to get an id before a document can embed it).
+
+**QA leftover (intentional):** the agent-authored **`Recruitment Quick Reference`** (code `RQ-01`) is kept as a
+live composite-document sample (intro + embedded HR-01 flow + Notes + PLCY-01 policy card).
+
 ---
 
 ## Phase 5 — Operating-Model authoring UX
@@ -447,5 +510,7 @@ Phase 0 items below are ✅ DONE (2026-06-15); corrected root causes noted inlin
 - ✅ Playbook rename: `slash-items.tsx` ("Playbook"), `EditorToolbar.tsx` ("Insert Playbook"),
   `TableSelectorDialog.tsx` ("Insert Table"); **plus (found in QA)** "New Canvas" → "New Playbook" in
   `dashboard/folder-content.tsx` and `dashboard-sidebar/user-sidebar.tsx` create menus. QA-verified live.
-- ⏳ `app/api/ai/agent/apply/route.ts` — writes `canvas_data` only; no `document_data` path (Phase 4).
-- ⏳ `lib/agent/tools.ts` — canvas-only tools; no document/embed tools (Phase 4).
+- ✅ `app/api/ai/agent/apply/route.ts` — `target:"document"` create/update branches write `document_data`
+  (the `{state,json,controls,page}` wrapper) + a `canvas_history` snapshot + reconcile references (Phase 4).
+- ✅ `lib/agent/tools.ts` — added `get_document` / `propose_create_document` / `propose_update_document`
+  (block-DSL body via `lib/agent/document-blocks.ts`); `ToolProposal` widened with `target`/`body` (Phase 4).
