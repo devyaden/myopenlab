@@ -5,6 +5,7 @@ import type React from "react";
 import { NodeViewWrapper } from "@tiptap/react";
 import { useEffect, useState, useRef, useMemo, useCallback } from "react";
 import { useDocumentStore } from "../hooks/useDocument";
+import { subscribeEmbedRefresh } from "@/lib/realtime/embed-refresh";
 
 interface CanvasTableNodeViewProps {
   node: {
@@ -621,6 +622,33 @@ export default function CanvasTableNodeView({
   useEffect(() => {
     loadTableData(false);
   }, [loadTableData, savedConfig.isDynamic, node.attrs.tableId]);
+
+  // Phase 3: keep a dynamic table embed in sync with its source without
+  // polling — force-refresh when the source is saved in this tab / by an agent
+  // apply (the in-app bus), when the row changes via realtime, or when the tab
+  // regains focus. Debounced into a single refetch. Static tables are untouched.
+  const loadTableRef = useRef(loadTableData);
+  loadTableRef.current = loadTableData;
+  useEffect(() => {
+    if (!savedConfig.isDynamic || !node.attrs.tableId) return;
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    const schedule = () => {
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(() => loadTableRef.current(true), 400);
+    };
+    const onVisible = () => {
+      if (document.visibilityState === "visible") schedule();
+    };
+    const unsub = subscribeEmbedRefresh(node.attrs.tableId, schedule);
+    document.addEventListener("visibilitychange", onVisible);
+    window.addEventListener("focus", onVisible);
+    return () => {
+      if (timer) clearTimeout(timer);
+      unsub();
+      document.removeEventListener("visibilitychange", onVisible);
+      window.removeEventListener("focus", onVisible);
+    };
+  }, [savedConfig.isDynamic, node.attrs.tableId]);
 
   // Show scroll hint for tables with many columns
   useEffect(() => {

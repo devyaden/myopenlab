@@ -3,6 +3,7 @@
 import type { Editor, Range } from "@tiptap/core";
 import {
   Code2,
+  FileText,
   Heading1,
   Heading2,
   Heading3,
@@ -184,26 +185,44 @@ export function getSlashItems(onInsert: (type: string) => void): SlashItem[] {
 
     // — Embeds —
     {
-      title: "Table",
-      description: "Insert a table from your tables",
-      icon: Table2,
-      keywords: ["table", "grid", "spreadsheet"],
-      group: "Embeds",
-      command: viaInsert("canvas-table"),
-    },
-    {
-      title: "Playbook",
-      description: "Embed a playbook flow / diagram",
+      title: "Embed Flow",
+      description: "Embed a live playbook flow / diagram",
       icon: LayoutGrid,
-      keywords: ["playbook", "canvas", "diagram", "flow", "board"],
+      keywords: ["playbook", "canvas", "diagram", "flow", "board", "embed"],
       group: "Embeds",
       command: viaInsert("canvas"),
     },
     {
-      title: "Mention file",
-      description: "Link another file inline",
+      title: "Embed Table",
+      description: "Embed a live table from your tables",
+      icon: Table2,
+      keywords: ["table", "grid", "spreadsheet", "embed"],
+      group: "Embeds",
+      command: viaInsert("canvas-table"),
+    },
+    {
+      title: "Embed Document",
+      description: "Reference card to a template, policy or document",
+      icon: FileText,
+      keywords: [
+        "document",
+        "reference",
+        "card",
+        "template",
+        "policy",
+        "standard",
+        "checklist",
+        "embed",
+        "subdocument",
+      ],
+      group: "Embeds",
+      command: viaInsert("doc-reference"),
+    },
+    {
+      title: "Mention / link",
+      description: "Link another file or code (HR-01) inline",
       icon: AtSign,
-      keywords: ["mention", "file", "link", "reference", "at"],
+      keywords: ["mention", "file", "link", "reference", "at", "code"],
       group: "Embeds",
       // Re-trigger the @-mention popup by typing the char.
       command: ({ editor, range }) =>

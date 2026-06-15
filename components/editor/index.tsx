@@ -54,6 +54,11 @@ import CanvasTableNode from "./extensions/CanvasTableNode";
 import { createFileMentionConfig } from "./extensions/FileMention";
 import { createSlashCommandsConfig } from "./extensions/SlashCommands";
 import FloatBlock from "./extensions/FloatBlock";
+import { DocReference } from "./extensions/DocReference";
+import DocReferenceDialog, {
+  type DocReferenceInsert,
+} from "./DocReferenceDialog";
+import { createReferenceForMention } from "@/lib/refs/client";
 import { ReactFlowNode } from "./extensions/ReactFlowNode";
 import ResizableImageNode from "./extensions/ResizableImageNode";
 import { TextDirection } from "./extensions/TextDirection";
@@ -166,6 +171,7 @@ const Editor = (
 
   const [zoom, setZoom] = useState("100%");
   const [canvasDialogOpen, setCanvasDialogOpen] = useState(false);
+  const [docReferenceDialogOpen, setDocReferenceDialogOpen] = useState(false);
   const [tableSelectorDialogOpen, setTableSelectorDialogOpen] = useState(false);
   const [selectedTableData, setSelectedTableData] = useState<any>(null);
   const [visibility, setVisibility] = useState<string>("private");
@@ -365,7 +371,7 @@ const Editor = (
       TableHeader,
       Typography,
       Placeholder.configure({
-        placeholder: "Start typing or use the toolbar to format...",
+        placeholder: "Type / for blocks, @ to link…",
       }),
       CharacterCount.configure({
         limit: 500000,
@@ -377,8 +383,22 @@ const Editor = (
       }),
       ReactFlowNode,
       CanvasTableNode,
+      DocReference,
       FloatBlock,
-      createFileMentionConfig({}),
+      createFileMentionConfig({
+        // When a coded artifact is @-mentioned, record a typed cross-reference
+        // from this document to it (best-effort; never blocks the insert).
+        onMention: (item) => {
+          const fromCanvas = useDocumentStore.getState().canvas_id;
+          if (!fromCanvas || !item.id) return;
+          void createReferenceForMention({
+            fromCanvas,
+            toCanvas: item.id,
+            toCode: item.code ?? null,
+            type: "depends-on",
+          });
+        },
+      }),
       createSlashCommandsConfig({
         onInsert: (type) => insertContentRef.current(type),
       }),
@@ -1130,6 +1150,37 @@ const Editor = (
     handleInsertCroppedCanvas(croppedData);
   };
 
+  // Phase 3: insert a sub-document reference card and record the typed
+  // cross-reference from this document to the target (best-effort).
+  const handleInsertDocReference = (ref: DocReferenceInsert) => {
+    if (!editor) return;
+    document.body.style.pointerEvents = "";
+    editor
+      .chain()
+      .focus()
+      .insertContent({
+        type: "docReference",
+        attrs: {
+          docId: ref.docId,
+          refType: ref.refType,
+          label: ref.label,
+          code: ref.code,
+        },
+      })
+      .run();
+
+    const fromCanvas = useDocumentStore.getState().canvas_id;
+    if (fromCanvas) {
+      void createReferenceForMention({
+        fromCanvas,
+        toCanvas: ref.docId,
+        toCode: ref.code,
+        type: ref.refType,
+      });
+    }
+    handleSave();
+  };
+
   const insertContent = (type: string) => {
     if (!editor) return;
 
@@ -1150,6 +1201,10 @@ const Editor = (
         break;
       case "canvas":
         setCanvasDialogOpen(true);
+        break;
+      case "doc-reference":
+        document.body.style.pointerEvents = "";
+        setDocReferenceDialogOpen(true);
         break;
       case "canvas-table":
         // Fix pointer events before opening the dialogF
@@ -1803,6 +1858,12 @@ const Editor = (
         onClose={() => setCanvasDialogOpen(false)}
         onInsertCanvas={handleInsertCanvas}
         canvases={filteredCanvases}
+      />
+
+      <DocReferenceDialog
+        isOpen={docReferenceDialogOpen}
+        onClose={() => setDocReferenceDialogOpen(false)}
+        onInsert={handleInsertDocReference}
       />
 
       <TableSelectorDialog

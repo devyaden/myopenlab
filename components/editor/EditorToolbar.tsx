@@ -871,6 +871,11 @@ export default function EditorToolbar({
                   <Layers2 className="mr-2 h-4 w-4" />
                   <span>Insert Playbook</span>
                 </DropdownMenuItem>
+
+                <DropdownMenuItem onClick={() => onInsert("doc-reference")}>
+                  <FileText className="mr-2 h-4 w-4" />
+                  <span>Insert Document reference</span>
+                </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
 

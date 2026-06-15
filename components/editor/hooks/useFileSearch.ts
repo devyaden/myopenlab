@@ -7,6 +7,8 @@ export interface MentionFile {
   name: string;
   canvas_type: string | null;
   folder_name: string | null;
+  /** Phase 3: human-readable code (e.g. "HR-01"), so `@` can resolve by code. */
+  code: string | null;
 }
 
 /**
@@ -40,6 +42,7 @@ async function fetchAll(): Promise<MentionFile[]> {
         `
         id,
         name,
+        code,
         canvas_type,
         folder:folder!canvas_folder_id_fkey(name)
       `
@@ -58,6 +61,7 @@ async function fetchAll(): Promise<MentionFile[]> {
       name: row.name ?? "Untitled",
       canvas_type: row.canvas_type ?? null,
       folder_name: row.folder?.name ?? null,
+      code: row.code ?? null,
     }));
     cache = files;
     return files;
@@ -74,7 +78,14 @@ export async function searchFiles(query: string): Promise<MentionFile[]> {
   const files = await fetchAll();
   const q = query.trim().toLowerCase();
   if (!q) return files.slice(0, 10);
-  return files.filter((f) => f.name.toLowerCase().includes(q)).slice(0, 10);
+  // Match on name OR human code, so `@HR-01` resolves the coded playbook.
+  return files
+    .filter(
+      (f) =>
+        f.name.toLowerCase().includes(q) ||
+        (f.code ?? "").toLowerCase().includes(q)
+    )
+    .slice(0, 10);
 }
 
 export function preloadFiles(): void {

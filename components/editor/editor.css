@@ -1045,6 +1045,138 @@
   white-space: nowrap;
   max-width: 220px;
 }
+.mention-list__code {
+  margin-left: auto;
+  flex: 0 0 auto;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11px;
+  color: #475569;
+  background: #f1f5f9;
+  border-radius: 4px;
+  padding: 1px 6px;
+}
+
+/* Phase 3: sub-document reference card (DocReference node) */
+.doc-reference-card {
+  margin: 16px 0;
+}
+.doc-reference-card__inner {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px 14px;
+  border: 1px solid #e2e8f0;
+  border-left: 3px solid #6366f1;
+  border-radius: 10px;
+  background: #fff;
+  cursor: pointer;
+  transition: box-shadow 120ms ease, border-color 120ms ease;
+}
+.doc-reference-card__inner:hover {
+  border-color: #c7d2fe;
+  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.08);
+}
+.doc-reference-card.is-selected .doc-reference-card__inner {
+  border-color: #6366f1;
+  box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.25);
+}
+.doc-reference-card__icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  flex: 0 0 auto;
+  border-radius: 8px;
+  background: rgba(99, 102, 241, 0.1);
+  color: #4f46e5;
+}
+.doc-reference-card__body {
+  min-width: 0;
+  flex: 1 1 auto;
+}
+.doc-reference-card__top {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.doc-reference-card__type {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #6366f1;
+}
+.doc-reference-card__code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11px;
+  color: #475569;
+  background: #f1f5f9;
+  border-radius: 4px;
+  padding: 1px 6px;
+}
+.doc-reference-card__title {
+  font-weight: 600;
+  font-size: 15px;
+  color: #0f172a;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.doc-reference-card__meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 2px;
+  font-size: 12px;
+  color: #64748b;
+}
+.doc-reference-card__owner::after {
+  content: "·";
+  margin-left: 10px;
+  color: #cbd5e1;
+}
+.doc-reference-card__error {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: #dc2626;
+}
+.doc-reference-card__actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 0 0 auto;
+  color: #94a3b8;
+}
+.doc-reference-card__refresh {
+  all: unset;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.doc-reference-card__refresh:hover {
+  background: #f1f5f9;
+  color: #475569;
+}
+.doc-reference-card__open {
+  color: #94a3b8;
+}
+.doc-reference-card__inner:hover .doc-reference-card__open {
+  color: #6366f1;
+}
+.doc-reference-card__spin {
+  animation: doc-reference-spin 0.8s linear infinite;
+}
+@keyframes doc-reference-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
 
 /* Print styles */
 @media print {

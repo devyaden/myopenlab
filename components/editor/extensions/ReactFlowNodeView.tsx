@@ -8,6 +8,7 @@ import "reactflow/dist/style.css";
 import ReactFlowCanvas from "../ReactFlowCanvas";
 import { Button } from "@/components/ui";
 import { log } from "@/lib/log";
+import { subscribeEmbedRefresh } from "@/lib/realtime/embed-refresh";
 
 function ReactFlowNodeView({
   node,
@@ -209,6 +210,37 @@ function ReactFlowNodeView({
       console.error("Error updating node data:", error);
     }
   }, [node.attrs.nodes, node.attrs.edges, node.attrs.styles, initialized]);
+
+  // Keep a ref to the latest fetcher so the subscription/focus handlers
+  // (registered once per canvasId) always call the current closure.
+  const fetchRef = useRef(fetchCanvasData);
+  fetchRef.current = fetchCanvasData;
+
+  // Phase 3: keep a live embed in sync with its source canvas without polling.
+  // Refetch when (a) the source is saved in this tab or by an agent apply (the
+  // in-app bus), (b) the source row changes via realtime, or (c) the tab
+  // regains focus (covers edits made elsewhere while this doc stayed open).
+  // All three are debounced into a single refetch. Static embeds are untouched.
+  useEffect(() => {
+    if (!useRealTimeData || !canvasId) return;
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    const schedule = () => {
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(() => fetchRef.current(), 400);
+    };
+    const onVisible = () => {
+      if (document.visibilityState === "visible") schedule();
+    };
+    const unsub = subscribeEmbedRefresh(canvasId, schedule);
+    document.addEventListener("visibilitychange", onVisible);
+    window.addEventListener("focus", onVisible);
+    return () => {
+      if (timer) clearTimeout(timer);
+      unsub();
+      document.removeEventListener("visibilitychange", onVisible);
+      window.removeEventListener("focus", onVisible);
+    };
+  }, [useRealTimeData, canvasId]);
 
   const handleClick = (e: React.MouseEvent) => {
     e.stopPropagation();

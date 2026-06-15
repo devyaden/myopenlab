@@ -296,6 +296,55 @@ Goal: a Document that holds live flows + live tables + sub-document **reference 
 - **Slash menu additions** for the new blocks: "Embed Document (reference card)", "Embed Flow", "Embed Table",
   keep them in the Embeds group; finish Playbook naming.
 
+**STATUS: ✅ done + in-browser QA passed (2026-06-16).** `tsc --noEmit` + `next build` both clean (new routes
+`/api/canvas/meta/[id]` and `/api/refs` registered). Verified live against the composite-document scenario:
+embedded a Policy reference card + a typed `@HR-01` mention + a live HR-01 flow into one document; a DB edit to
+the source flow refreshed the open embed with **no manual refresh**; reload persisted all three; 0 console errors.
+
+**3a — reliable embed refresh (✅):** new shared module `lib/realtime/embed-refresh.ts` — an in-app event bus
+(`emitEmbedRefresh` / `subscribeEmbedRefresh`) + a best-effort Supabase realtime channel on the source
+`canvas_data` row. Three complementary, **debounced (single refetch), non-polling** signals drive each embed:
+(a) realtime (cross-tab/client), (b) the in-app bus — fired from `useCanvas.saveCanvas()` after a successful
+write and from `AgentChat.applyProposal()` after an apply (so an agent edit to an embedded canvas refreshes the
+open doc), and (c) a tab-focus/visibility refresh (catches edits made elsewhere while the doc stayed open).
+Wired into `ReactFlowNodeView` (→ `fetchCanvasData`), `CanvasTableNodeView` (→ `loadTableData(true)`) and the new
+`DocReferenceNodeView` (→ re-fetch card meta). Manual refresh kept as fallback. Realtime enabled on `canvas_data`
+via idempotent migration `prisma/migrations/20260616_phase3_realtime_canvas_data/migration.sql` (adds the table to
+`supabase_realtime` + `REPLICA IDENTITY FULL`) — applied via `prisma db execute`; the bus + focus path are the
+guarantee if a deploy's realtime is off. **QA:** a focus event fired exactly **1** debounced
+`/api/canvas/data/<id>` refetch; a DB `UPDATE canvas_data` on the source fired exactly **1** realtime refetch in
+the open embed. ✅
+
+**3b — sub-document reference card (✅):** new Tiptap atom node `DocReference` (`extensions/DocReference.ts` +
+`DocReferenceNodeView.tsx`) storing `docId` + `refType` (template/policy/standard/checklist/authority/document) +
+cached `label`/`code` (so it renders instantly + in print/export). The card fetches live metadata from the new
+**`/api/canvas/meta/[id]`** route (owner-scoped; title, code, type, owner, last-edited — owner is a separate
+best-effort query so a join-name mismatch can't break the card) and renders title, type badge, **code chip**,
+owner, "Updated …", a refresh button + click-through. Inserted via a new `DocReferenceDialog` (picks a
+document — docs sorted first — + a refType chip) reachable from the slash menu **and** the toolbar's Insert Views
+menu. CSS in `editor.css`. **QA:** card rendered `Policy / PLCY-01 / HR Policies / claude.qa@example.com /
+Updated 6h ago`, survived reload, and click-through navigated to the referenced doc. ✅
+
+**3c — typed `@`-mentions + reference creation (✅):** `useFileSearch` now selects + matches on `code`, so
+`@HR-01` resolves the coded playbook; `MentionList` shows a code chip; `FileMention` carries a `code` attr and a
+custom suggestion `command` that, after inserting the chip, fires `onMention` → records a typed cross-reference.
+Reference creation goes through the new **`POST /api/refs`** (server-authoritative: user_id from session, must own
+the source, resolves `toCode`→canvas, **dedupes**, rejects self-refs); `GET /api/refs?canvasId|code` returns
+backlinks. Client helper `lib/refs/client.ts` (best-effort, never blocks the insert). `@`-mentions create a
+`depends-on` ref; reference cards create a typed ref (policy/template/…). Placeholder hint changed to
+"Type / for blocks, @ to link…". **QA:** `@HR-01` → chip `@Recruitment & Sourcing` (data-code HR-01) + a
+`depends-on` backlink; the card created a `policy` backlink; a duplicate POST returned `deduped:true` (still 1
+row). **Deferred (Phase 5):** step-level (`HR-01.04`) and person/role mentions need node-level codes + the
+directory; mention-removal GC is left to the dangling-ref detector for now. ✅
+
+**3d — slash/toolbar menu + naming (✅):** Embeds group is now "Embed Flow" / "Embed Table" / "Embed Document"
+(+ "Mention / link"), all in the Embeds group; toolbar Insert Views gained "Insert Document reference". **QA:**
+`/embed` filtered to exactly the three new items; the toolbar menu showed the new entry. ✅
+
+**QA leftovers (intentional):** `Untitled Document 1` keeps the embedded Policy card + `@HR-01` mention + HR-01
+flow as a live composite-doc sample; `HR Policies` keeps code `PLCY-01`; the `policy` + `depends-on` references
+remain (they back the card + mention).
+
 ---
 
 ## Phase 4 — The agent authors & edits documents (headline)

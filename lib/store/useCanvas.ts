@@ -11,6 +11,7 @@ import { createJSONStorage, persist } from "zustand/middleware";
 import { supabase } from "../supabase/client";
 import { ALL_SHAPES } from "../types/flow-table.types";
 import { log } from "@/lib/log";
+import { emitEmbedRefresh } from "@/lib/realtime/embed-refresh";
 
 // Helper function to determine the correct dataKey for a column
 const getColumnDataKey = (column: any): string => {
@@ -495,6 +496,10 @@ export const useCanvasStore = create<CanvasStore>()(
               version: state.version + 1,
               updated_at: new Date(),
             });
+
+            // Phase 3: nudge any open document that embeds this canvas/table to
+            // refetch, so live flows/tables stay in sync without a manual refresh.
+            emitEmbedRefresh(state.id);
 
             // toast.success("Saved successfully!", { id: savingToast });
           } catch (error) {

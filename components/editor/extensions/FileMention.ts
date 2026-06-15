@@ -10,6 +10,8 @@ export interface FileMentionAttrs {
   id: string;
   label: string;
   canvasType: string | null;
+  /** Phase 3: human-readable code (e.g. "HR-01") when the target is coded. */
+  code: string | null;
 }
 
 /**
@@ -45,12 +47,23 @@ const FileMention = Mention.extend({
         renderHTML: (attrs) =>
           attrs.canvasType ? { "data-canvas-type": attrs.canvasType } : {},
       },
+      code: {
+        default: null,
+        parseHTML: (el) => el.getAttribute("data-code"),
+        renderHTML: (attrs) =>
+          attrs.code ? { "data-code": attrs.code } : {},
+      },
     };
   },
 });
 
 export function createFileMentionConfig(opts: {
   onPreload?: () => void;
+  /**
+   * Phase 3: fired after a mention is inserted, with its attributes — used to
+   * record a typed cross-reference from the current document to the target.
+   */
+  onMention?: (attrs: FileMentionAttrs) => void;
 }) {
   return FileMention.configure({
     HTMLAttributes: {
@@ -68,6 +81,26 @@ export function createFileMentionConfig(opts: {
 
     suggestion: {
       char: "@",
+      // Insert the mention node, then notify so a typed reference is recorded.
+      // Mirrors @tiptap/extension-mention's default command (insert node + a
+      // trailing space), with our onMention side-effect appended.
+      command: ({ editor, range, props }) => {
+        const attrs = props as unknown as FileMentionAttrs;
+        const nodeAfter = editor.view.state.selection.$to.nodeAfter;
+        const overrideSpace = nodeAfter?.text?.startsWith(" ");
+        const r = overrideSpace ? { from: range.from, to: range.to + 1 } : range;
+
+        editor
+          .chain()
+          .focus()
+          .insertContentAt(r, [
+            { type: "fileMention", attrs },
+            { type: "text", text: " " },
+          ])
+          .run();
+
+        opts.onMention?.(attrs);
+      },
       // Fired when the popup opens. Cheap; just kicks off the cache fetch.
       items: async ({ query }) => {
         opts.onPreload?.();

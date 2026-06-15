@@ -21,7 +21,12 @@ export interface MentionListHandle {
 
 interface MentionListProps {
   items: MentionFile[];
-  command: (item: { id: string; label: string; canvasType: string | null }) => void;
+  command: (item: {
+    id: string;
+    label: string;
+    canvasType: string | null;
+    code: string | null;
+  }) => void;
 }
 
 const iconForType = (canvasType: string | null) => {
@@ -54,6 +59,7 @@ const MentionList = forwardRef<MentionListHandle, MentionListProps>(
         id: item.id,
         label: item.name,
         canvasType: item.canvas_type,
+        code: item.code,
       });
     };
 
@@ -108,6 +114,9 @@ const MentionList = forwardRef<MentionListHandle, MentionListProps>(
                 </span>
               )}
             </span>
+            {item.code && (
+              <span className="mention-list__code">{item.code}</span>
+            )}
           </button>
         ))}
       </div>

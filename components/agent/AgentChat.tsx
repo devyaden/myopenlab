@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAgentStore } from "@/lib/store/useAgent";
 import { useCanvasStore } from "@/lib/store/useCanvas";
+import { emitEmbedRefresh } from "@/lib/realtime/embed-refresh";
 import ReactFlow, { Background } from "reactflow";
 import "reactflow/dist/style.css";
 import {
@@ -237,6 +238,8 @@ export function AgentChat() {
             // Persist in the background so the spinner clears immediately;
             // the canvas has already updated via initializeWithAIData.
             void store.syncChanges();
+            // Nudge any document embedding this canvas to refetch now.
+            emitEmbedRefresh(proposal.canvas_id);
             markApplied(msgIdx, proposal.id);
             return;
           }
@@ -266,6 +269,11 @@ export function AgentChat() {
         const json = await res.json();
         if (res.ok) {
           markApplied(msgIdx, proposal.id);
+          // An update committed via the API targets a canvas that isn't the one
+          // open in the editor — exactly the case a document embed cares about.
+          if (proposal.kind === "update" && proposal.canvas_id) {
+            emitEmbedRefresh(proposal.canvas_id);
+          }
           if (proposal.kind === "create" && json.canvasId) {
             router.push(`/protected/playbook/${json.canvasId}`);
           }
