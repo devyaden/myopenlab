@@ -3,6 +3,8 @@ import { createDiagramToolSchema } from "@/lib/services/claude/tool-schemas";
 import { improveEdgeHandles } from "@/lib/services/claude/response-processor";
 import { DiagramType } from "@/lib/types/diagram-types";
 import { buildWorkspaceIndex } from "./workspace";
+import { reconcileNodeIds } from "./node-ids";
+import { resolveCode, listBacklinks } from "@/lib/refs/resolver";
 
 // Reuse the canonical diagram input schema (nodes/edges/nodeStyles) so the agent
 // produces diagrams in the exact shape the renderer + processor expect.
@@ -18,6 +20,7 @@ export interface AgentToolContext {
 export interface ToolProposal {
   kind: "create" | "update";
   name?: string;
+  code?: string | null;
   folder_id?: string | null;
   canvas_id?: string | null;
   diagram: { nodes: any[]; edges: any[]; nodeStyles: Record<string, any> };
@@ -73,6 +76,30 @@ export const AGENT_TOOLS: any[] = [
     },
   },
   {
+    name: "resolve_code",
+    description:
+      "Resolve a human-readable operating-model code (e.g. \"HR-01\") to the playbook it identifies. Use to follow cross-references between artifacts.",
+    input_schema: {
+      type: "object",
+      properties: {
+        code: { type: "string", description: "The code to resolve" },
+      },
+      required: ["code"],
+    },
+  },
+  {
+    name: "list_backlinks",
+    description:
+      "List what references a playbook — by its code and/or id. Answers \"what depends on / points at this?\". Useful before editing so you understand the blast radius.",
+    input_schema: {
+      type: "object",
+      properties: {
+        code: { type: "string", description: "The target's code (e.g. \"HR-01\")" },
+        canvas_id: { type: "string", description: "The target's playbook id" },
+      },
+    },
+  },
+  {
     name: "generate_diagram",
     description:
       "Normalize a diagram you have constructed (cleans up edge handles and styling). Pass the full nodes/edges/nodeStyles; returns the cleaned diagram. Use this before proposing a create/update.",
@@ -86,6 +113,11 @@ export const AGENT_TOOLS: any[] = [
       type: "object",
       properties: {
         name: { type: "string", description: "Name for the new playbook" },
+        code: {
+          type: "string",
+          description:
+            "Optional human-readable code for the operating-model spine (e.g. \"HR-01\"). Use a function/area prefix + serial. If omitted, the server assigns one. Must be unique in the workspace.",
+        },
         folder_id: {
           type: "string",
           description: "Optional folder id to place it in",
@@ -210,6 +242,34 @@ export async function executeAgentTool(
       };
     }
 
+    case "resolve_code": {
+      const ent = await resolveCode(ctx.supabase, ctx.userId, input?.code);
+      if (!ent)
+        return { content: `No playbook has the code "${input?.code}".` };
+      return { content: JSON.stringify(ent) };
+    }
+
+    case "list_backlinks": {
+      const links = await listBacklinks(ctx.supabase, ctx.userId, {
+        canvasId: input?.canvas_id ?? null,
+        code: input?.code ?? null,
+      });
+      if (links.length === 0)
+        return { content: "Nothing references that yet." };
+      return {
+        content: links
+          .map((l) => {
+            const src = l.fromCanvas;
+            const label = src
+              ? `${src.code ? `[${src.code}] ` : ""}"${src.name}"`
+              : l.from_canvas;
+            const node = l.from_node ? ` (step ${l.from_node})` : "";
+            return `- ${label}${node} --${l.type}-->`;
+          })
+          .join("\n"),
+      };
+    }
+
     case "generate_diagram": {
       const diagram = normalizeDiagram(input);
       return { content: JSON.stringify(diagram) };
@@ -223,6 +283,7 @@ export async function executeAgentTool(
         proposal: {
           kind: "create",
           name: input?.name ?? "Untitled Playbook",
+          code: input?.code ?? null,
           folder_id: input?.folder_id ?? null,
           diagram,
         },
@@ -233,14 +294,44 @@ export async function executeAgentTool(
       const owned = await assertOwnership(ctx, input?.canvas_id);
       if (!owned)
         return { content: "Playbook not found or you don't have access." };
-      const diagram = normalizeDiagram(input);
+
+      const normalized = normalizeDiagram(input);
+
+      // Stable node identity: re-anchor the proposed nodes onto the canvas's
+      // existing node ids so relation/rollup links and step references survive
+      // the edit, even if the model regenerated ids.
+      const { data: existing } = await ctx.supabase
+        .from("canvas_data")
+        .select("nodes")
+        .eq("canvas_id", input.canvas_id)
+        .maybeSingle();
+
+      const reconciled = reconcileNodeIds({
+        existingNodes: Array.isArray(existing?.nodes)
+          ? (existing!.nodes as any[])
+          : [],
+        nodes: normalized.nodes,
+        edges: normalized.edges,
+        nodeStyles: normalized.nodeStyles,
+      });
+
+      const idNote =
+        reconciled.remapped > 0
+          ? ` (kept ${reconciled.preserved} existing node id(s), recovered ${reconciled.remapped} by label, ${reconciled.minted} new)`
+          : "";
+
       return {
         content:
-          "Proposal prepared. The user will see a preview and choose whether to apply it. Do not assume it is saved.",
+          "Proposal prepared. The user will see a preview and choose whether to apply it. Do not assume it is saved." +
+          idNote,
         proposal: {
           kind: "update",
           canvas_id: input.canvas_id,
-          diagram,
+          diagram: {
+            nodes: reconciled.nodes,
+            edges: reconciled.edges,
+            nodeStyles: reconciled.nodeStyles,
+          },
         },
       };
     }

@@ -61,6 +61,7 @@ interface HeaderProps {
   saveLoading: boolean;
   saveStatus?: SaveStatus;
   lastSaved?: Date | null;
+  code?: string | null;
   canvasId: string;
   visibility: string;
   onVisibilityChange: (visibility: string) => Promise<void>;
@@ -86,6 +87,7 @@ export function Header({
   saveLoading,
   saveStatus,
   lastSaved,
+  code,
   canvasId,
   visibility,
   onVisibilityChange,
@@ -372,6 +374,14 @@ export function Header({
                     </TooltipContent>
                   </Tooltip>
                 </TooltipProvider>
+              )}
+              {code && (
+                <span
+                  className="ml-2 rounded bg-muted px-1.5 py-0.5 font-mono text-[11px] font-medium text-muted-foreground"
+                  title="Operating-model code (stable, unique in your workspace)"
+                >
+                  {code}
+                </span>
               )}
               {titleError && (
                 <span className="text-red-500 text-xs ml-1">

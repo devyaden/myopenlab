@@ -26,6 +26,7 @@ interface Proposal {
   id: string;
   kind: "create" | "update";
   name?: string;
+  code?: string | null;
   folder_id?: string | null;
   canvas_id?: string | null;
   diagram: { nodes: any[]; edges: any[]; nodeStyles: Record<string, any> };
@@ -248,6 +249,7 @@ export function AgentChat() {
             ? {
                 kind: "create",
                 name: proposal.name ?? "Untitled Playbook",
+                code: proposal.code ?? null,
                 folder_id: proposal.folder_id ?? null,
                 diagram: proposal.diagram,
               }

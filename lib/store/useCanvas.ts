@@ -77,6 +77,7 @@ const initialUndoableState: UndoableState = {
 const initialState: Omit<CanvasStore, keyof CanvasActions> = {
   id: "",
   ...initialUndoableState,
+  code: null,
   user_id: "",
   created_at: null,
   updated_at: null,
@@ -706,6 +707,7 @@ export const useCanvasStore = create<CanvasStore>()(
               const newState = {
                 id: canvasId,
                 name: canvas.name,
+                code: canvas.code ?? null,
                 description: canvas.description || "",
                 user_id: canvas.user_id,
                 folder_id: canvas.folder_id,

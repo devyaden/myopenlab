@@ -228,6 +228,44 @@ reference others, and references survive agent edits.
   Reuse the relation/rollup machinery in `useCanvas.ts` (`updateRelationInCanvas`, `refreshColumnsData`) as the
   storage substrate where it fits.
 
+**STATUS: ✅ done (2026-06-15).** `tsc --noEmit` + `next build` both clean; resolver + uniqueness verified
+against the live DB; node-id reconciliation unit-tested. End-to-end agent run (verification step 3) is the one
+remaining manual check — recommended before relying on it in a demo.
+
+**Migration & DB note:** no `Workspace` model exists, so "unique per workspace" = **unique per `user_id`**. The
+Prisma CLI/client are version-mismatched (CLI 6 vs client 5) and the **runtime never uses the Prisma client**
+(Supabase JS only), so DB changes were applied as **idempotent raw SQL via `prisma db execute`**
+(`prisma/migrations/20260615202841_phase2_canvas_code_and_reference/migration.sql`) — NOT `migrate dev`, which
+could detect drift and offer a destructive reset on a DB with data. `schema.prisma` was updated to match (and
+`prisma validate` passes). Re-running the migration is safe (all `IF NOT EXISTS`).
+
+**2a — stable node identity (✅):** new pure helper `lib/agent/node-ids.ts` `reconcileNodeIds()` re-anchors a
+proposed diagram onto the canvas's existing node ids — exact id match first, then label match to recover ids the
+model regenerated — and rewrites edges + nodeStyles for any remap. Wired into `tools.ts` `propose_update_canvas`
+(fetches existing `canvas_data.nodes`, reconciles, reports counts in the tool_result). Prompt gained an
+"EDITING AN EXISTING PLAYBOOK (stable ids)" rule telling the model to copy ids verbatim. Behavioral test passed
+(preserve / label-recover / mint, with edge + style remap). The volatile-id source (`node-${Date.now()}` in the
+UI + fallback generators) is unchanged — preservation is enforced at the agent-edit boundary where it matters.
+Deferred: optional per-step `code` in `node.data` (not needed yet; references currently key on the stable id).
+
+**2b — `code` on Canvas (✅):** `canvas.code TEXT` + unique index `(user_id, code)` (Postgres NULL-distinctness
+allows many code-less canvases; non-null codes unique per user — verified a duplicate is rejected with `23505`).
+Generator `lib/refs/codes.ts` (`generateCanvasCode` / `derivePrefix` / `normalizePrefix`): honors an explicit
+well-formed agent code if free, else `PREFIX-NN` auto-incrementing past existing codes. The agent **assigns on
+create** — optional `code` on `propose_create_canvas` → threaded through the proposal → `apply/route.ts`, which
+is the authority: it generates server-side and **retries on `23505`** (never blocks creation on a collision).
+Surfaced as a monospace **code chip** in the shared breadcrumb header for canvas/table **and** document (both
+stores now load `code`).
+
+**2c — reference model + resolver (✅):** `reference` table `{ from_canvas(+from_node), to_canvas(+to_node),
+to_code, type, user_id }` with FK cascade from/to canvas. Resolver `lib/refs/resolver.ts`: `resolveCode`,
+`createReference` (resolves `toCode`→canvas), `listBacklinks` (by id and/or code, embeds the source canvas via
+the `reference_from_canvas_fkey` hint), `listOutgoingReferences`, and `findDanglingReferences` (the drift-moat
+seed — flags refs whose `to_code` no longer resolves). Two read tools added for the agent — `resolve_code` and
+`list_backlinks` (blast-radius before edits) — plus prompt notes on codes. DB smoke test passed end-to-end:
+assign code → resolve → create real + dangling refs → backlinks (with embedded source) → dangling detection →
+cleanup. Reference *creation* from typed `@`-mentions is Phase 3; agent-authored refs are Phase 4.
+
 ---
 
 ## Phase 3 — The composite document container

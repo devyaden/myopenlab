@@ -56,6 +56,7 @@ model Canvas {
   folder_id       String?            @db.Uuid
   updated_at      DateTime           @default(now()) @updatedAt
   user_id         String             @db.Uuid
+  code            String? // Phase 2: human-readable code (e.g. "HR-01"), unique per user
   folder          Folder?            @relation(fields: [folder_id], references: [id])
   user            User               @relation(fields: [user_id], references: [id])
   data            CanvasData?
@@ -67,8 +68,34 @@ model Canvas {
   columns         ColumnDefinition[]
   related_columns ColumnDefinition[] @relation("RelatedColumn")
   canvas_type     String             @default("hybrid")
+  references_from Reference[]        @relation("ReferenceFromCanvas")
+  references_to   Reference[]        @relation("ReferenceToCanvas")
 
+  @@unique([user_id, code])
   @@map("canvas")
+}
+
+// Phase 2: lightweight typed references between artifacts (the cross-reference
+// spine). `from`/`to` point at a canvas (+ optional node id within it) or are
+// resolved by a human code. Powers backlinks + dangling-ref integrity checks.
+model Reference {
+  id          String   @id @default(uuid()) @db.Uuid
+  user_id     String   @db.Uuid
+  from_canvas String   @db.Uuid
+  from_node   String?
+  to_canvas   String?  @db.Uuid
+  to_node     String?
+  to_code     String?
+  type        String // process-step | template | policy | standard | checklist | authority | person | role | depends-on
+  created_at  DateTime @default(now())
+  fromCanvas  Canvas   @relation("ReferenceFromCanvas", fields: [from_canvas], references: [id], onDelete: Cascade)
+  toCanvas    Canvas?  @relation("ReferenceToCanvas", fields: [to_canvas], references: [id], onDelete: Cascade)
+
+  @@index([user_id])
+  @@index([from_canvas])
+  @@index([to_canvas])
+  @@index([to_code])
+  @@map("reference")
 }
 
 model CanvasData {

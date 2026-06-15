@@ -140,6 +140,7 @@ export default function CanvasNew({ canvasId }: FigmaInterfaceProps) {
     currentFolder,
     isDirty,
     lastSaved,
+    code,
   } = useCanvasStore();
 
   // Phase 1: unified, quiet autosave status shared by all three editor
@@ -1757,6 +1758,7 @@ export default function CanvasNew({ canvasId }: FigmaInterfaceProps) {
                 saveLoading={saveLoading}
                 saveStatus={saveStatus}
                 lastSaved={lastSaved}
+                code={code}
                 onSave={saveCanvas}
                 canvasId={canvasId}
                 visibility={visibility}

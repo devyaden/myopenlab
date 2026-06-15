@@ -276,6 +276,7 @@ const Editor = (
     isLoading,
     saveLoading,
     lastSaved,
+    code,
     folderCanvases,
     user_id,
     folder,
@@ -1572,6 +1573,7 @@ const Editor = (
         saveLoading={saveLoading || saveStatus === "saving"}
         saveStatus={saveStatus}
         lastSaved={lastSaved}
+        code={code}
         onSave={handleSave}
         canvasId={canvasId}
         visibility={visibility}

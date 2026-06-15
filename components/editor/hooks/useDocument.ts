@@ -22,6 +22,7 @@ interface DocumentState {
   id: string;
   name: string;
   user_id: string;
+  code: string | null;
   description: string;
   editor_state: any;
   version: number;
@@ -49,6 +50,7 @@ const initialState: DocumentState = {
   name: "Untitled Document",
   description: "",
   user_id: "",
+  code: null,
   editor_state: null,
   version: 1,
   canvas_id: "",
@@ -135,7 +137,7 @@ export const useDocumentStore = create<DocumentState>()(
             const { data: canvas, error: canvasError } = await supabase
               .from("canvas")
               .select(
-                "id, name, description, folder_id, document_data(*), user_id, folder:folder!canvas_folder_id_fkey(*)"
+                "id, name, code, description, folder_id, document_data(*), user_id, folder:folder!canvas_folder_id_fkey(*)"
               )
               .eq("id", canvasId)
               .single();
@@ -150,6 +152,7 @@ export const useDocumentStore = create<DocumentState>()(
             set({
               id: documentData?.id || "",
               name: canvas.name,
+              code: (canvas as any).code ?? null,
               description: canvas.description || "",
               editor_state: documentData?.lexical_state || null,
               version: documentData?.version || 1,

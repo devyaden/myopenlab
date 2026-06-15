@@ -14,6 +14,7 @@ const applySchema = z.discriminatedUnion("kind", [
   z.object({
     kind: z.literal("create"),
     name: z.string().min(1).max(80),
+    code: z.string().max(40).nullable().optional(),
     folder_id: z.string().uuid().nullable().optional(),
     diagram,
   }),
@@ -47,15 +48,37 @@ export async function POST(request: NextRequest) {
 
     if (input.kind === "create") {
       const canvasId = crypto.randomUUID();
-      const { error: cErr } = await supabase.from("canvas").insert({
-        id: canvasId,
-        name: input.name,
-        user_id: user.id,
-        folder_id: input.folder_id ?? null,
-        canvas_type: "hybrid",
-        visibility: "private",
-      });
-      if (cErr) throw cErr;
+
+      // Phase 2: assign a stable human-readable code. The agent may propose one;
+      // the server is the authority on uniqueness. Retry on the unique-violation
+      // (23505) a concurrent create could cause; never block creation on it.
+      const { generateCanvasCode } = await import("@/lib/refs/codes");
+      let inserted = false;
+      let cErr: any = null;
+      for (let attempt = 0; attempt < 4 && !inserted; attempt++) {
+        const code = await generateCanvasCode(supabase, user.id, {
+          explicit: attempt === 0 ? input.code : null, // only honor the explicit code on the first try
+          name: input.name,
+        });
+        const res = await supabase.from("canvas").insert({
+          id: canvasId,
+          name: input.name,
+          user_id: user.id,
+          folder_id: input.folder_id ?? null,
+          canvas_type: "hybrid",
+          visibility: "private",
+          code,
+        });
+        if (!res.error) {
+          inserted = true;
+        } else if (res.error.code === "23505") {
+          cErr = res.error; // code collided — loop regenerates a fresh serial
+        } else {
+          cErr = res.error;
+          break; // a non-uniqueness error won't be fixed by retrying
+        }
+      }
+      if (!inserted) throw cErr;
 
       const { error: dErr } = await supabase.from("canvas_data").insert({
         canvas_id: canvasId,

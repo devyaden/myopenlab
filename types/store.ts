@@ -79,6 +79,7 @@ export interface CanvasState extends CanvasData {
   id: string;
   name: string;
   user_id: string;
+  code?: string | null;
   description?: string;
   folder_id?: string;
   currentFolder?: Folder | null;
