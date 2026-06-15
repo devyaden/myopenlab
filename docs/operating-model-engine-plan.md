@@ -228,9 +228,18 @@ reference others, and references survive agent edits.
   Reuse the relation/rollup machinery in `useCanvas.ts` (`updateRelationInCanvas`, `refreshColumnsData`) as the
   storage substrate where it fits.
 
-**STATUS: ✅ done (2026-06-15).** `tsc --noEmit` + `next build` both clean; resolver + uniqueness verified
-against the live DB; node-id reconciliation unit-tested. End-to-end agent run (verification step 3) is the one
-remaining manual check — recommended before relying on it in a demo.
+**STATUS: ✅ done + in-browser agent QA passed (2026-06-15).** `tsc --noEmit` + `next build` both clean;
+resolver + uniqueness verified against the live DB; node-id reconciliation unit-tested.
+
+**End-to-end agent run (verification step 3) — PASSED.** Set code `HR-01` on "Recruitment & Sourcing" (15
+nodes) → breadcrumb chip showed `HR-01`. Asked the in-app agent to "add a 'Schedule Intake Call' step after the
+start" → it called `get_canvas` then `propose_update_canvas`; Apply persisted via autosave (version 1→2). DB
+check: **15/15 original node ids preserved, 0 lost**, one new node `intake_call` added, edges rewired
+`start→intake_call→define_profile` (existing ids intact). Then seeded one `depends-on` reference and asked
+"which playbook is HR-01 and what references it?" → the agent used `resolve_code` + `list_backlinks` and
+answered correctly ("Recruitment & Sourcing", referenced by "Job Requisition & Approval"), with a blast-radius
+note. (QA leftovers: HR-01 code intentionally kept on that playbook + the agent-added `intake_call` step; the
+seeded reference was deleted.)
 
 **Migration & DB note:** no `Workspace` model exists, so "unique per workspace" = **unique per `user_id`**. The
 Prisma CLI/client are version-mismatched (CLI 6 vs client 5) and the **runtime never uses the Prisma client**
