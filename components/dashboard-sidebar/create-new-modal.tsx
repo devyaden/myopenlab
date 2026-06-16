@@ -28,12 +28,14 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { generateUntitledName } from "@/lib/utils";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Wand2, Lock, Crown } from "lucide-react";
+import { Wand2, Lock, Crown, LayoutTemplate } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
+import { toast } from "react-hot-toast";
 import * as z from "zod";
 import { AIGenerationDialog } from "../canvas-new/ai-generation-dialog";
 import { InputWithIcon } from "../input-with-icon";
+import { buildProcessPageBlocks } from "@/lib/agent/process-page-template";
 
 export enum CANVAS_TYPE {
   HYBRID = "hybrid",
@@ -109,6 +111,7 @@ export function CreateNewModal({
     CANVAS_TYPE.HYBRID
   );
   const [isAIDialogOpen, setIsAIDialogOpen] = useState(false);
+  const [creatingProcessPage, setCreatingProcessPage] = useState(false);
 
   const folderForm = useForm<FolderFormValues>({
     resolver: zodResolver(folderSchema),
@@ -156,6 +159,9 @@ export function CreateNewModal({
     folderForm.reset();
     canvasForm.reset();
     setSelectedCanvasType(CANVAS_TYPE.HYBRID);
+    // Don't leave the Process Page tile stuck on "Creating…" if the modal is
+    // closed while a create request is still in flight.
+    setCreatingProcessPage(false);
   };
 
   const handleClose = () => {
@@ -257,6 +263,54 @@ export function CreateNewModal({
       sessionStorage.setItem("pending-ai-data-timestamp", timestamp.toString());
 
       handleClose();
+    }
+  };
+
+  // Phase 5: the "Process page" template. Unlike the bare-canvas tiles, this
+  // scaffolds a March-style operating-model document (the canonical layout from
+  // lib/agent/process-page-template — the SAME factory the agent uses) and seeds
+  // its content via the proven agent apply route (which assigns a code + writes
+  // document_data), then navigates into it. It's a DOCUMENT only (no live flow
+  // yet — a guided placeholder), so it isn't gated by the diagram limit.
+  const handleCreateProcessPage = async () => {
+    if (creatingProcessPage) return;
+    setCreatingProcessPage(true);
+    try {
+      const existingNames = new Set(
+        [
+          ...folders.flatMap((folder) => folder.canvases),
+          ...(rootCanvases || []),
+        ].map((c) => c.name)
+      );
+      let name = "Process Page";
+      for (let n = 2; existingNames.has(name); n++) name = `Process Page ${n}`;
+
+      const folderId =
+        currentFolderId && currentFolderId !== "0" ? currentFolderId : null;
+      const body = buildProcessPageBlocks({ title: name });
+
+      const res = await fetch("/api/ai/agent/apply", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          kind: "create",
+          target: "document",
+          name,
+          folder_id: folderId,
+          body,
+        }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (res.ok && json?.canvasId) {
+        handleClose();
+        window.location.href = `/protected/document-editor/${json.canvasId}`;
+      } else {
+        toast.error(json?.error || "Couldn't create the process page");
+        setCreatingProcessPage(false);
+      }
+    } catch {
+      toast.error("Couldn't create the process page");
+      setCreatingProcessPage(false);
     }
   };
 
@@ -374,6 +428,28 @@ export function CreateNewModal({
             <span className="font-medium text-center">Create Table</span>
             <span className="text-xs text-center text-muted-foreground mt-1">
               Table will be the visual Table to Add Values into The Table
+            </span>
+          </div>
+
+          {/* Process page (Operating Model) — a March-style composite document */}
+          <div
+            className={`flex flex-col items-center justify-center p-6 bg-gray-50 rounded-lg transition-colors ${
+              creatingProcessPage
+                ? "opacity-75 cursor-wait"
+                : "hover:bg-gray-100 cursor-pointer"
+            }`}
+            onClick={() => {
+              if (!creatingProcessPage) handleCreateProcessPage();
+            }}
+          >
+            <div className="mb-4">
+              <LayoutTemplate className="h-6 w-6 text-gray-600" />
+            </div>
+            <span className="font-medium text-center">Process Page</span>
+            <span className="text-xs text-center text-muted-foreground mt-1">
+              {creatingProcessPage
+                ? "Creating…"
+                : "An operating-model page: flow + Activities/RACI/Deliverables + reference cards"}
             </span>
           </div>
 

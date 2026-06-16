@@ -88,6 +88,11 @@ export async function searchFiles(query: string): Promise<MentionFile[]> {
     .slice(0, 10);
 }
 
+/** The full cached canvas list (cross-folder), for the Cmd+K command palette. */
+export async function getAllFiles(): Promise<MentionFile[]> {
+  return fetchAll();
+}
+
 export function preloadFiles(): void {
   void fetchAll();
 }

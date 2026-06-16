@@ -5,6 +5,7 @@ import {
   createReference,
   resolveCode,
   listBacklinks,
+  listOutgoingReferences,
 } from "@/lib/refs/resolver";
 
 /**
@@ -117,8 +118,9 @@ export async function POST(request: NextRequest) {
 }
 
 /**
- * Backlinks for an artifact — "what references this?". Powers the Phase 5
- * backlinks panel and is handy for QA. Scoped to the session user.
+ * Relationships for an artifact — both "what references this?" (backlinks) and
+ * "what does this reference?" (outgoing). Powers the Phase 5 backlinks panel and
+ * is handy for QA. Scoped to the session user.
  */
 export async function GET(request: NextRequest) {
   const supabase = await createClient();
@@ -144,5 +146,17 @@ export async function GET(request: NextRequest) {
     canvasId,
     code,
   });
-  return NextResponse.json({ backlinks });
+
+  // Outgoing references originate from a canvas id; resolve one from the code if
+  // only a code was supplied.
+  let fromId = canvasId;
+  if (!fromId && code) {
+    const resolved = await resolveCode(supabase, user.id, code);
+    fromId = resolved?.id ?? null;
+  }
+  const outgoing = fromId
+    ? await listOutgoingReferences(supabase, user.id, fromId)
+    : [];
+
+  return NextResponse.json({ backlinks, outgoing });
 }

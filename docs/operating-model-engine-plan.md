@@ -448,6 +448,61 @@ Goal: make building a real operating model fast and faithful, not a blank page.
 - **Cmd+K search + saved views** (deferred from the launch plan): the flat ~150-item relation/embed picker
   proves the need; one searchable, folder-grouped picker for relations, embeds, and @-mentions.
 
+**STATUS: 5a (backlinks panel), 5b (process-page scaffold), 5c (Cmd+K + searchable relation picker) ✅ done +
+in-browser QA passed (2026-06-16); `tsc --noEmit` + `next build` clean; an 11-finding adversarial review
+(find→verify) was run over the 5a+5b diff and every confirmed finding was fixed (see 5a/5b notes).** 5d
+(Employee/Org directory) is the remaining sub-feature.
+
+**5a — Backlinks panel (✅):** new `components/refs/BacklinksPanel.tsx` — a
+header `Popover` (mounted once in the shared `components/canvas-new/header.tsx`, so it appears on all three
+surfaces) showing both **incoming** ("Referenced by") and **outgoing** ("References") links, grouped by
+direction, with type badges + code chips, click-through via `lib/playbook-href.ts`. Backed by the Phase-2
+`GET /api/refs?canvasId|code` which now **also returns `outgoing`** (via `listOutgoingReferences`). The panel
+fetches the count on mount and refreshes on open; it subscribes to the embed-refresh bus **only while open**
+(no fetch storm during canvas autosave). Owner-gated (the reference graph is `user_id`-scoped, so a non-owner
+viewer would only ever see an empty panel; viewer-visible backlinks would need owner-scoped reads — deferred).
+**QA:** on `HR-01` the panel showed *Referenced by → Recruitment Quick Reference (RQ-01) + Untitled Document 1*
+(both Depends-On); on the `RQ-01` document it showed *References → HR-01 (Depends-On) + PLCY-01 (Policy)*;
+click-through routed a document backlink to `/protected/document-editor/[id]`. 0 console errors. ✅
+
+**5b — Process-page scaffold (✅):** new pure, isomorphic `lib/agent/process-page-template.ts`
+`buildProcessPageBlocks()` — the single source of truth for the March layout (H1 title, intro, **Process Flow**
+[`embed_flow` if a flow id is supplied, else a guided placeholder], **Activities** [Ref/Activity/Owner/Notes],
+**RACI** [Activity/R/A/C/I], **Deliverables** [Deliverable/Format/Owner], **Templates/Policies/Standards**
+[`doc_reference` cards, or a typed `mention` chip when only a code is known, or a placeholder]). It emits only
+existing `DocBlock` types, so it flows through the same `blocksToTiptapDoc`/`extractReferences` as Phase 4.
+Wired to BOTH: (a) a new agent tool **`propose_process_page`** (`lib/agent/tools.ts`) that resolves any
+reference-card codes → docIds server-side then rides the existing proposal→preview→Apply path unchanged
+(prompt.ts now steers "document a process" to it); and (b) a **"Process Page" tile** in
+`components/dashboard-sidebar/create-new-modal.tsx` that POSTs to `/api/ai/agent/apply` (kind:create,
+target:document — DOCUMENT only, so no diagram-limit gate) and navigates into the new doc. A 32-assertion
+runtime check verified the factory (blank/live/code-only/messy shapes). **QA:** the tile created a document,
+the apply route assigned code `PP-01`, the scaffold rendered (6 headings + 3 tables + placeholders), and it
+survived a reload. 0 console errors. ✅
+
+**5c — Cmd+K + searchable pickers (✅):** (a) a global **command palette** (`components/command-palette/
+CommandPalette.tsx`, built on the already-present `components/ui/command.tsx` / `cmdk`) mounted once in
+`app/protected/layout.tsx` — Cmd/Ctrl+K opens a searchable, **folder-grouped** list of every playbook/table/
+document (cross-folder, reusing the `useFileSearch` cache via a new `getAllFiles()`), matching on name **and**
+code, navigating via `playbookHref`. (b) The flagged flat ~150-item **relation value picker**
+(`components/canvas-new/add-table-cell-relation-trigger.tsx`) rebuilt from a search-less `DropdownMenu` into a
+`Popover` + `cmdk` `Command` (search + keyboard nav), preserving the exact contract (multi-select add/remove,
+the `{id,label}` shape on select, the per-field visibility settings). **QA:** Cmd+K opened folder-grouped with
+code chips, `HR-01` filtered to the coded playbook, Enter navigated to it; the relation picker searched
+(`Mark` → only "Mark Davis"), selected, linked, and **persisted across reload**. 0 console errors. The embed
+dialogs (`TableSelectorDialog`/`CanvasDialog`) and the @-mention popup keep their own working UIs — full
+unification of those into the one shell is deferred (behavior-scope change). ✅
+
+**5d — Employee/Org directory:** NOT YET STARTED (the largest/riskiest sub-feature — needs a directory entity,
+a node-level reference resolver, an `@person`/`@role` mention source, RACI-cell typed references in the
+table-view, and agent awareness). Tracked separately.
+
+**Review fixes folded into 5b/5c (all 11 confirmed findings):** BacklinksPanel now (1) sends `&code=` so
+code-only backlinks resolve, (2) guards setState-after-unmount via a `mountedRef`, (3) only subscribes to the
+refresh bus while open (kills the ~2s autosave fetch storm), (4) is owner-gated in the header; (5) the
+"Process Page" tile resets its in-flight flag on modal close; (6) the dead `opts.code` was removed from the
+scaffold factory.
+
 ---
 
 ## Critical files

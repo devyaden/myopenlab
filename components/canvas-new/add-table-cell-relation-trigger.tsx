@@ -3,10 +3,21 @@ import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
   DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
 import { File, Minus, Plus, Settings } from "lucide-react";
 import { useMemo, useState } from "react";
 
@@ -26,9 +37,15 @@ interface AddTableCellTriggerProps {
   value: Column[];
 }
 
+/**
+ * The relation cell value picker. Phase 5: this used to be a flat DropdownMenu
+ * listing EVERY related row with no search (the ~150-item picker the plan flags).
+ * It is now a searchable cmdk Command (filters by label + any visible field),
+ * while preserving the exact contract: multi-select add/remove, the {id,label}
+ * shape stored on select, and the per-field visibility settings.
+ */
 const AddTableCellTrigger = ({
   value = [],
-  label,
   relatedCanvasData,
   onSelectValue,
 }: AddTableCellTriggerProps) => {
@@ -36,37 +53,25 @@ const AddTableCellTrigger = ({
   const [open, setOpen] = useState(false);
 
   const handleSelectedValue = (column: Column) => {
-    // Ensure column has all required properties
     if (!column.id || !column.label) {
       console.error("Invalid column data:", column);
       return;
     }
-
-    // Create a clean object with just the needed properties
-    const cleanColumn = {
-      id: column.id,
-      label: column.label,
-    };
-
-    const newValue = [...value, cleanColumn];
-    console.log("New relation values:", newValue);
-
-    // Close dropdown and update value
-    setTimeout(() => {
-      onSelectValue(newValue);
-    }, 0);
+    // Store only the stable contract shape (id + label); the picker keeps open
+    // so several items can be linked in one pass.
+    const cleanColumn = { id: column.id, label: column.label };
+    onSelectValue([...value, cleanColumn]);
   };
 
   const handleRemoveValue = (column: Column) => {
-    console.log("Removing relation value:", column);
-    const newValue = value.filter((val) => val.id !== column.id);
-    console.log("Updated relation values after removal:", newValue);
-    onSelectValue(newValue);
+    onSelectValue(value.filter((val) => val.id !== column.id));
   };
 
   const dropdownValues = useMemo(() => {
-    return relatedCanvasData?.columns?.filter(
-      (column) => !value.some((val) => val.id === column.id)
+    return (
+      relatedCanvasData?.columns?.filter(
+        (column) => !value.some((val) => val.id === column.id)
+      ) ?? []
     );
   }, [value, relatedCanvasData]);
 
@@ -81,33 +86,30 @@ const AddTableCellTrigger = ({
     );
   };
 
-  const renderFieldValue = (value: any) => {
-    if (value === null || value === undefined) {
-      return "No value";
-    } else if (typeof value === "string") {
-      return value;
-    } else if (typeof value === "number" || typeof value === "boolean") {
-      return value.toString();
-    } else if (typeof value === "object") {
+  const renderFieldValue = (val: any) => {
+    if (val === null || val === undefined) return "No value";
+    if (typeof val === "string") return val;
+    if (typeof val === "number" || typeof val === "boolean") return val.toString();
+    if (typeof val === "object") {
       try {
-        // For objects, try to convert to JSON string
-        return JSON.stringify(value).substring(0, 20) + "...";
-      } catch (e) {
+        return JSON.stringify(val).substring(0, 20) + "...";
+      } catch {
         return "Complex object";
       }
-    } else {
-      return "Unknown format";
     }
+    return "Unknown format";
   };
 
+  // cmdk filters on each item's `value`. Build a searchable string from the
+  // visible fields (+ id for uniqueness so same-label rows stay distinct).
+  const searchText = (column: Column) =>
+    [...visibleFields.map((f) => column[f] ?? ""), column.id].join(" ");
+
   return (
-    <DropdownMenu open={open} onOpenChange={setOpen}>
-      <DropdownMenuTrigger
-        asChild
-        className="flex items-center gap-2 p-2 w-full"
-      >
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild className="flex items-center gap-2 p-2 w-full">
         {value?.length ? (
-          <div className="flex flex-wrap gap-2 w-full">
+          <div className="flex flex-wrap gap-2 w-full cursor-pointer">
             {value.map((val, index) => (
               <div
                 key={index}
@@ -125,16 +127,13 @@ const AddTableCellTrigger = ({
             <Plus className="mr-2" /> Add
           </Button>
         )}
-      </DropdownMenuTrigger>
+      </PopoverTrigger>
 
-      <DropdownMenuContent align="start" className="w-64">
+      <PopoverContent align="start" className="w-72 p-0">
         <div className="p-2 flex justify-between items-center">
-          <p className="font-medium">{relatedCanvasData?.canvasName}</p>
-
+          <p className="font-medium truncate">{relatedCanvasData?.canvasName}</p>
           <div className="flex items-center justify-between gap-2">
-            <span className="text-gray-500 text-sm">
-              {value.length} Linked Items
-            </span>
+            <span className="text-gray-500 text-sm">{value.length} Linked</span>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" size="sm">
@@ -156,68 +155,77 @@ const AddTableCellTrigger = ({
           </div>
         </div>
 
-        <DropdownMenuSeparator />
-
-        {value?.map((column, index) => (
-          <DropdownMenuItem
-            key={index}
-            className="gap-2 hover:bg-slate-100 cursor-pointer"
-          >
-            <File className="w-4 h-4" />
-            <div className="flex-1">
-              {visibleFields.map((field) => (
-                <p
-                  key={field}
-                  className={
-                    field === "label" ? "font-medium" : "text-gray-500 text-xs"
-                  }
+        {value?.length > 0 && (
+          <div className="border-t px-1 py-1 max-h-32 overflow-y-auto">
+            {value.map((column, index) => (
+              <div
+                key={index}
+                className="flex items-center gap-2 rounded-sm px-2 py-1.5 hover:bg-slate-100"
+              >
+                <File className="w-4 h-4" />
+                <div className="flex-1">
+                  {visibleFields.map((field) => (
+                    <p
+                      key={field}
+                      className={
+                        field === "label"
+                          ? "font-medium text-sm"
+                          : "text-gray-500 text-xs"
+                      }
+                    >
+                      {renderFieldValue(column[field])}
+                    </p>
+                  ))}
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleRemoveValue(column);
+                  }}
                 >
-                  {field}: {renderFieldValue(column[field])}
-                </p>
-              ))}
-            </div>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={(e) => {
-                e.stopPropagation();
-                handleRemoveValue(column);
-              }}
-            >
-              <Minus className="w-4 h-4" />
-            </Button>
-          </DropdownMenuItem>
-        ))}
+                  <Minus className="w-4 h-4" />
+                </Button>
+              </div>
+            ))}
+          </div>
+        )}
 
-        <div className="p-2">
-          <span className="text-gray-500 text-sm">Link an item</span>
-        </div>
-
-        <DropdownMenuSeparator />
-
-        {dropdownValues?.map((column, index) => (
-          <DropdownMenuItem
-            key={index}
-            onClick={() => handleSelectedValue(column)}
-            className="gap-2 hover:bg-slate-100 cursor-pointer"
-          >
-            <File className="w-4 h-4" />
-            <div>
-              {visibleFields.map((field) => (
-                <p
-                  key={field}
-                  className={
-                    field === "label" ? "font-medium" : "text-gray-500 text-xs"
-                  }
+        <Command className="border-t">
+          <CommandInput placeholder="Search items to link…" />
+          <CommandList>
+            <CommandEmpty>No matching items.</CommandEmpty>
+            <CommandGroup heading="Link an item">
+              {dropdownValues.map((column, index) => (
+                <CommandItem
+                  key={column.id ?? index}
+                  value={searchText(column)}
+                  onSelect={() => handleSelectedValue(column)}
+                  className="gap-2 cursor-pointer"
                 >
-                  {field}: {renderFieldValue(column[field])}
-                </p>
+                  <File className="w-4 h-4" />
+                  <div className="flex-1">
+                    {visibleFields.map((field) => (
+                      <p
+                        key={field}
+                        className={
+                          field === "label"
+                            ? "font-medium"
+                            : "text-gray-500 text-xs"
+                        }
+                      >
+                        {renderFieldValue(column[field])}
+                      </p>
+                    ))}
+                  </div>
+                </CommandItem>
               ))}
-            </div>
-          </DropdownMenuItem>
-        ))}
-      </DropdownMenuContent>
-    </DropdownMenu>
+            </CommandGroup>
+          </CommandList>
+        </Command>
+      </PopoverContent>
+    </Popover>
   );
 };
 

@@ -6,6 +6,7 @@ import { buildWorkspaceIndex } from "./workspace";
 import { reconcileNodeIds } from "./node-ids";
 import { resolveCode, listBacklinks } from "@/lib/refs/resolver";
 import { tiptapToBlocks, type DocBlock } from "./document-blocks";
+import { buildProcessPageBlocks } from "./process-page-template";
 
 // Reuse the canonical diagram input schema (nodes/edges/nodeStyles) so the agent
 // produces diagrams in the exact shape the renderer + processor expect.
@@ -212,6 +213,64 @@ export const AGENT_TOOLS: any[] = [
         body: documentBodySchema,
       },
       required: ["canvas_id", "body"],
+    },
+  },
+  {
+    name: "propose_process_page",
+    description:
+      "Propose a complete operating-model PROCESS PAGE document in one step — the canonical March-style layout: title + code, the live process flow, the Activities/RACI/Deliverables tables, and reference cards to the supporting Templates/Policies/Standards. PREFER this over assembling a process page block-by-block. This does NOT save — it shows a preview to approve. Embed an EXISTING flow via flow_canvas_id; if the flow doesn't exist yet, propose_create_canvas it first, let the user apply it, then call this with its id (the flow section degrades to a placeholder if omitted). Supply the table rows and reference cards you know; omit what you don't (the scaffold leaves guided placeholders).",
+    input_schema: {
+      type: "object",
+      properties: {
+        title: {
+          type: "string",
+          description: 'The process name/title (e.g. "Recruitment & Selection")',
+        },
+        code: {
+          type: "string",
+          description:
+            'Optional operating-model code (e.g. "HR-01"). If omitted the server assigns one. Unique in the workspace.',
+        },
+        folder_id: { type: "string", description: "Optional folder id to place it in" },
+        flow_canvas_id: {
+          type: "string",
+          description:
+            "Optional id of an EXISTING flow playbook to embed live as the process flow",
+        },
+        flow_name: {
+          type: "string",
+          description: "Optional display name for the embedded flow",
+        },
+        intro: {
+          type: "string",
+          description: "Optional intro paragraph; a sensible default is used if omitted",
+        },
+        activities: {
+          type: "array",
+          description:
+            "Optional rows for the Activities table; each row is [Ref, Activity, Owner, Notes]",
+          items: { type: "array", items: { type: "string" } },
+        },
+        raci: {
+          type: "array",
+          description:
+            "Optional rows for the RACI table; each row is [Activity, Responsible, Accountable, Consulted, Informed]",
+          items: { type: "array", items: { type: "string" } },
+        },
+        deliverables: {
+          type: "array",
+          description:
+            "Optional rows for the Deliverables table; each row is [Deliverable, Format, Owner]",
+          items: { type: "array", items: { type: "string" } },
+        },
+        reference_cards: {
+          type: "array",
+          description:
+            "Optional reference cards to supporting sub-documents. Each: { docId?, code?, refType: template|policy|standard|checklist|authority, label? }",
+          items: { type: "object" },
+        },
+      },
+      required: ["title"],
     },
   },
 ];
@@ -474,6 +533,57 @@ export async function executeAgentTool(
           kind: "update",
           target: "document",
           canvas_id: input.canvas_id,
+          body,
+        },
+      };
+    }
+
+    case "propose_process_page": {
+      const title = String(input?.title ?? "").trim() || "Process Page";
+
+      // Resolve any reference cards given by code → its document id, so the card
+      // renders as a live reference card (not a degraded inline mention). The
+      // builder is pure (no DB), so resolution happens here where ctx exists.
+      const rawCards = Array.isArray(input?.reference_cards)
+        ? input.reference_cards
+        : [];
+      const referenceCards = [];
+      for (const c of rawCards) {
+        if (!c || typeof c !== "object") continue;
+        let docId: string | null = c.docId ?? c.id ?? null;
+        if (!docId && c.code) {
+          const ent = await resolveCode(ctx.supabase, ctx.userId, String(c.code));
+          docId = ent?.id ?? null;
+        }
+        referenceCards.push({
+          docId,
+          code: c.code ?? null,
+          refType: c.refType,
+          label: c.label,
+        });
+      }
+
+      const body = buildProcessPageBlocks({
+        title,
+        intro: input?.intro,
+        flowCanvasId: input?.flow_canvas_id ?? null,
+        flowName: input?.flow_name,
+        activities: Array.isArray(input?.activities) ? input.activities : undefined,
+        raci: Array.isArray(input?.raci) ? input.raci : undefined,
+        deliverables: Array.isArray(input?.deliverables)
+          ? input.deliverables
+          : undefined,
+        referenceCards,
+      });
+      return {
+        content:
+          "Proposal prepared. The user will see a preview and choose whether to apply it. Do not assume it is saved.",
+        proposal: {
+          kind: "create",
+          target: "document",
+          name: title,
+          code: input?.code ?? null,
+          folder_id: input?.folder_id ?? null,
           body,
         },
       };

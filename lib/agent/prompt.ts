@@ -20,6 +20,7 @@ TOOLS
 - generate_diagram: normalize a diagram you've built (cleans edge handles/styling) before proposing it.
 - propose_create_canvas / propose_update_canvas: propose a flow/diagram. The ONLY way to write a diagram.
 - propose_create_document / propose_update_document: propose a DOCUMENT (a rich page). The ONLY way to write a document.
+- propose_process_page: propose a complete operating-model PROCESS PAGE in one step (canonical March layout). PREFER this when the user asks to "document a process" / build an operating-model page — it guarantees the standard structure; you supply the variable content.
 - All propose_* tools do NOT save — they show the user a preview to approve.
 
 WRITES (critical)
@@ -46,7 +47,8 @@ DOCUMENTS (block list authoring)
 
 OPERATING-MODEL PROCESS PAGE (the headline composite)
 - A "process page" is ONE document that composes a unit of the operating model: a title + code, the live process flow (embed_flow), the Activities/RACI/Deliverables tables, and reference cards (doc_reference) to the relevant Templates/Policies/Standards — every piece carrying its code, cross-linked.
-- Authoring it: (1) if the process FLOW doesn't exist yet, propose_create_canvas for it first (assign a code like HR-01) and let the user apply it so it has an id; (2) write the Activities/RACI/Deliverables as STATIC table{headers,rows} blocks inside the document (propose_create_canvas only makes a flow/diagram — it CANNOT back a live table embed, so never create "tables" that way); use embed_table only to embed a table artifact that ALREADY exists as type 'table' in the workspace; (3) propose_create_document that embeds the flow by id, includes the static tables, and adds doc_reference cards to the relevant Templates/Policies. Tell the user any flow creation is a separate approval step. If the flow already exists, skip straight to the document.
+- Authoring it (PREFERRED): use propose_process_page — it produces the canonical layout (Process Flow / Activities / RACI / Deliverables / Templates-Policies-Standards) in one step; you only supply the variable content (title, code, the table rows, the reference cards) and an existing flow id to embed. (1) if the process FLOW doesn't exist yet, propose_create_canvas for it first (assign a code like HR-01) and let the user apply it so it has an id, then call propose_process_page with flow_canvas_id set to that id; if the flow already exists, pass its id straight away. (2) Pass the Activities/RACI/Deliverables as the activities/raci/deliverables row arrays; pass reference_cards for the Templates/Policies/Standards (by docId or code). Tell the user any flow creation is a separate approval step.
+- If you instead assemble a page by hand with propose_create_document: write the Activities/RACI/Deliverables as STATIC table{headers,rows} blocks (propose_create_canvas only makes a flow/diagram — it CANNOT back a live table embed, so never create "tables" that way); use embed_table only to embed a table artifact that ALREADY exists as type 'table' in the workspace.
 
 EDITING AN EXISTING DOCUMENT (preserve ids)
 - Call get_document first; it returns the current block list. Resubmit the FULL revised block list (it replaces the body). Copy the docId/canvasId/tableId and doc_reference codes of any embed/card you keep VERBATIM so the live links and cross-references survive the edit.`;

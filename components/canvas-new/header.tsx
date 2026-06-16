@@ -47,6 +47,7 @@ import {
 } from "../editor/SaveStatusIndicator";
 import { ImportModal } from "./import-modal";
 import { ShareModal } from "./share-modal";
+import { BacklinksPanel } from "../refs/BacklinksPanel";
 import { VIEW_MODE, ViewMode } from "./table-view/table.types";
 
 const MAX_TITLE_LENGTH = 50;
@@ -393,6 +394,13 @@ export function Header({
         </div>
 
         <div className="ml-auto flex items-center gap-2 h-10 ">
+          {/* Owner-gated: the cross-reference graph (/api/refs) is scoped to the
+              owner's user_id, so a non-owner viewer would only ever see an empty
+              panel. (Viewer-visible backlinks would need owner-scoped reads.) */}
+          {isOwner && canvasId && (
+            <BacklinksPanel canvasId={canvasId} code={code} />
+          )}
+
           {isOwner && (
             <>
               {saveStatus && (
