@@ -489,9 +489,35 @@ code, navigating via `playbookHref`. (b) The flagged flat ~150-item **relation v
 `Popover` + `cmdk` `Command` (search + keyboard nav), preserving the exact contract (multi-select add/remove,
 the `{id,label}` shape on select, the per-field visibility settings). **QA:** Cmd+K opened folder-grouped with
 code chips, `HR-01` filtered to the coded playbook, Enter navigated to it; the relation picker searched
-(`Mark` → only "Mark Davis"), selected, linked, and **persisted across reload**. 0 console errors. The embed
-dialogs (`TableSelectorDialog`/`CanvasDialog`) and the @-mention popup keep their own working UIs — full
-unification of those into the one shell is deferred (behavior-scope change). ✅
+(`Mark` → only "Mark Davis"), selected, linked, and **persisted across reload**. 0 console errors. ✅
+
+**5c (completion) — unified embed picker + saved views (✅):** the embed dialogs and "saved views" — the two
+pieces of bullet 4 that were initially deferred — were then completed so 5c fully matches the plan.
+- **One shared picker for embeds** — new `components/editor/EntityPicker.tsx` (the same `cmdk` shell as the
+  palette/relation picker: searchable, **folder-grouped**, cross-folder via `getAllFiles()` [canvases only — no
+  directory people], `allowedTypes` filter). All three embed dialogs now use it as their candidate step:
+  `CanvasDialog` (flow, `['hybrid']`) and `TableSelectorDialog` (table, `['table','hybrid']`) fetch the chosen
+  canvas's `columns`/`flowData` via `useDocumentStore.refreshSingleCanvas` **after** select (the picker rows are
+  lightweight) — owner-scoped + try/catch'd; `TableSelectorDialog` keeps its rich step-2 config verbatim;
+  `DocReferenceDialog` (`docsFirst`) keeps its refType pills. The Radix `pointer-events` hacks + `setTimeout`
+  insert wrappers are preserved. The editor host's `canvas-table` open no longer early-returns "No tables
+  available" (the picker is cross-folder). **QA:** all three open with the searchable folder-grouped picker;
+  flow embed (search → select → fetch → insert) and table embed (→ step-2 config → insert) inserted cleanly with
+  the page never freezing (pointer-events reset); doc-ref lists documents first. 0 console errors.
+- **Saved views** (`table-view/index.tsx` + a `SavedView` type) — a named snapshot of the table's
+  filters/sort/column-visibility/freeze, stored under `canvas_settings.table_settings` (`saved_views[]` +
+  `active_view_id`) so it autosaves + reloads with the existing `updateTableSettings` path (no migration, no
+  store/RPC change). A **"Views" dropdown** in the table toolbar (save current view / apply / delete) + a name
+  dialog; table-only (the diagram surface has no filter/sort concept). **QA:** saved "My Test View" → button
+  showed `View: My Test View`, persisted to `table_settings.saved_views` + `active_view_id`, **survived reload**,
+  and re-listed in the dropdown. 0 console errors.
+- **Adversarial-review fixes (8 confirmed, 4 distinct, all fixed):** all four embed/view components stay mounted
+  (only the Radix portal toggles), so transient state must be reset explicitly: (1, high) `CanvasDialog` reset its
+  `inserting`/`selectedFile` on close — it was stuck on "Loading…" after the first insert (re-verified: a second
+  insert reopens clean); (2) `TableSelectorDialog` resets to step 1 (the picker) with clean config on open
+  (it reopened on a stale step 2); (3) `DocReferenceDialog` resets its selection on open; (4, medium) saved views
+  now **re-apply the active view's filters/sort/freeze once on load** (those are React-only state) so the toolbar's
+  "View: X" indicator no longer lies after reload.
 
 **5d — Employee/Org directory (✅):** a directory is an ordinary **Table canvas** designated by a new nullable
 `canvas.directory_kind` (`'person'`|`'role'`; NULL = normal canvas) — idempotent migration

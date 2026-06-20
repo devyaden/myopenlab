@@ -53,12 +53,14 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import {
+  Check,
   ChevronDown,
   ChevronUp,
   Copy,
   Download,
   Filter,
   FilterX,
+  LayoutList,
   MoreVertical,
   Plus,
   SlidersHorizontal,
@@ -89,6 +91,7 @@ import {
   FilterOperator,
   Filter as FilterType,
   HierarchyNode,
+  SavedView,
   SortDirection,
   SortField,
   TableViewProps,
@@ -445,6 +448,85 @@ const TableView = forwardRef<
 
     const generateId = () =>
       `id-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+
+    // ── Phase 5c: SAVED VIEWS ────────────────────────────────────────────────
+    // A named snapshot of the table's presentation (filters/sort/visibility/
+    // freeze), stored under canvas_settings.table_settings so it autosaves +
+    // reloads for free. Table-only.
+    const savedViews: SavedView[] = Array.isArray(
+      (canvasSettings?.table_settings as any)?.saved_views
+    )
+      ? (canvasSettings!.table_settings as any).saved_views
+      : [];
+    const activeViewId: string | null =
+      (canvasSettings?.table_settings as any)?.active_view_id ?? null;
+    const [saveViewDialogOpen, setSaveViewDialogOpen] = useState(false);
+    const [newViewName, setNewViewName] = useState("");
+
+    const persistViews = (views: SavedView[], activeId: string | null) => {
+      updateTableSettings({
+        ...(canvasSettings?.table_settings as any),
+        saved_views: views,
+        active_view_id: activeId,
+      });
+    };
+
+    const saveCurrentView = (name: string) => {
+      const view: SavedView = {
+        id: generateId(),
+        name: name.trim() || `View ${savedViews.length + 1}`,
+        filterGroups,
+        sortField: (sortField ?? null) as string | null,
+        sortDirection,
+        hiddenColumns: [...((hiddenColumns as string[]) ?? [])],
+        columnWidths: { ...((columnWidths as Record<string, number>) ?? {}) },
+        frozenColumns: Array.from(frozenColumns),
+      };
+      persistViews([...savedViews, view], view.id);
+    };
+
+    const applyView = (view: SavedView) => {
+      setFilterGroups(Array.isArray(view.filterGroups) ? view.filterGroups : []);
+      setSortField((view.sortField ?? null) as SortField);
+      setSortDirection(view.sortDirection ?? null);
+      setFrozenColumns(new Set(view.frozenColumns ?? []));
+      // hiddenColumns / columnWidths live in table_settings; set them + the
+      // active id in one write (autosaves).
+      updateTableSettings({
+        ...(canvasSettings?.table_settings as any),
+        hiddenColumns: view.hiddenColumns ?? [],
+        columnWidths: view.columnWidths ?? columnWidths,
+        active_view_id: view.id,
+      });
+    };
+
+    const deleteView = (id: string) => {
+      persistViews(
+        savedViews.filter((v) => v.id !== id),
+        activeViewId === id ? null : activeViewId
+      );
+    };
+
+    const activeViewName =
+      savedViews.find((v) => v.id === activeViewId)?.name ?? null;
+
+    // Re-apply the active view's filters/sort/freeze ONCE after settings hydrate
+    // (those live in React-only state, unlike hiddenColumns/columnWidths which
+    // reload from table_settings) — else the toolbar would show a view as active
+    // while the table shows no filters/sort/freeze. Restore state only; don't
+    // re-persist (no autosave / clobber), and don't fight later user edits.
+    const didApplyActiveViewRef = useRef(false);
+    useEffect(() => {
+      if (didApplyActiveViewRef.current) return;
+      if (!activeViewId) return;
+      const view = savedViews.find((v) => v.id === activeViewId);
+      if (!view) return;
+      didApplyActiveViewRef.current = true;
+      setFilterGroups(Array.isArray(view.filterGroups) ? view.filterGroups : []);
+      setSortField((view.sortField ?? null) as SortField);
+      setSortDirection(view.sortDirection ?? null);
+      setFrozenColumns(new Set(view.frozenColumns ?? []));
+    }, [activeViewId, savedViews]);
 
     const isColumnFilterable = (
       columnType: string | undefined,
@@ -2239,6 +2321,64 @@ const TableView = forwardRef<
                     />
                     Sort {sortField ? `(${sortField})` : ""}
                   </Button>
+
+                  {/* Phase 5c: Saved Views — name + switch the current filter/
+                      sort/column configuration. */}
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button
+                        variant={activeViewId ? "default" : "outline"}
+                        className={`text-sm hover:bg-gray-50 ml-2 rounded-md ${activeViewId ? "bg-blue-50 text-blue-700 hover:bg-blue-100 border-blue-200" : "text-gray-500"}`}
+                      >
+                        <LayoutList
+                          className={`h-4 w-4 mr-2 ${activeViewId ? "text-blue-700" : ""}`}
+                        />
+                        {activeViewName ? `View: ${activeViewName}` : "Views"}
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="start" className="w-60">
+                      {savedViews.length === 0 && (
+                        <div className="px-2 py-1.5 text-xs text-muted-foreground">
+                          No saved views yet
+                        </div>
+                      )}
+                      {savedViews.map((v) => (
+                        <DropdownMenuItem
+                          key={v.id}
+                          onClick={() => applyView(v)}
+                          className="flex items-center gap-2"
+                        >
+                          {activeViewId === v.id ? (
+                            <Check className="h-3.5 w-3.5 text-blue-600" />
+                          ) : (
+                            <span className="w-3.5" />
+                          )}
+                          <span className="flex-1 truncate">{v.name}</span>
+                          <span
+                            role="button"
+                            tabIndex={0}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              deleteView(v.id);
+                            }}
+                            className="text-gray-400 hover:text-red-600"
+                            title="Delete view"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </span>
+                        </DropdownMenuItem>
+                      ))}
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem
+                        onClick={() => {
+                          setNewViewName("");
+                          setSaveViewDialogOpen(true);
+                        }}
+                      >
+                        <Plus className="h-3.5 w-3.5 mr-2" /> Save current view…
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                 </>
               )}
 
@@ -3153,6 +3293,48 @@ const TableView = forwardRef<
           existingColumns={columns}
           shapeOptions={shapeOptions}
         />
+
+        {/* Phase 5c: name + save the current view */}
+        <Dialog open={saveViewDialogOpen} onOpenChange={setSaveViewDialogOpen}>
+          <DialogContent className="max-w-sm">
+            <DialogHeader>
+              <DialogTitle>Save current view</DialogTitle>
+              <DialogDescription>
+                Saves the current filters, sort, column visibility, and frozen
+                columns as a named view you can switch back to.
+              </DialogDescription>
+            </DialogHeader>
+            <Input
+              autoFocus
+              placeholder="View name (e.g. By owner, Open items)"
+              value={newViewName}
+              onChange={(e) => setNewViewName(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && newViewName.trim()) {
+                  saveCurrentView(newViewName);
+                  setSaveViewDialogOpen(false);
+                }
+              }}
+            />
+            <DialogFooter>
+              <Button
+                variant="outline"
+                onClick={() => setSaveViewDialogOpen(false)}
+              >
+                Cancel
+              </Button>
+              <Button
+                disabled={!newViewName.trim()}
+                onClick={() => {
+                  saveCurrentView(newViewName);
+                  setSaveViewDialogOpen(false);
+                }}
+              >
+                Save view
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </>
     );
   }

@@ -28,6 +28,10 @@ import {
   Languages,
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import toast from "react-hot-toast";
+import { EntityPicker } from "./EntityPicker";
+import { useDocumentStore } from "./hooks/useDocument";
+import type { MentionFile } from "./hooks/useFileSearch";
 
 interface TableSelectorDialogProps {
   isOpen: boolean;
@@ -134,17 +138,84 @@ export default function TableSelectorDialog({
     }
   }, [tableData]);
 
-  const availableTables = useMemo(() => {
-    const allTables = [...(tables || [])];
-
-    // Add the initial tableData if it's not already in the list
-    if (tableData && !allTables.some((table) => table.id === tableData.id)) {
-      allTables.unshift(tableData);
+  // The component stays mounted (only the Radix portal toggles), so each open
+  // must start at step 1 (the cross-folder picker) with clean config — else a
+  // prior insert leaves it stuck on step 2 with stale filters/sort/RTL.
+  useEffect(() => {
+    if (isOpen) {
+      setCurrentStep(1);
+      setSelectedTable(null);
+      setLoadedTables([]);
+      setSelectedColumns([]);
+      setFilterGroups([]);
+      setSortField(null);
+      setSortDirection(null);
+      setIsRTL(false);
+      setEditingFilter(null);
+      setShowSortUI(false);
+      setFilterDialogOpen(false);
     }
+  }, [isOpen]);
 
-    // The data already has proper dataKey set, no need to process further
-    return allTables;
-  }, [tableData, tables]);
+  // Phase 5c: tables chosen from the cross-folder EntityPicker are fetched
+  // on-demand (the picker rows are lightweight) and cached here so step-2's
+  // selectedTableData / availableColumns resolve.
+  const [loadedTables, setLoadedTables] = useState<any[]>([]);
+  const [picking, setPicking] = useState(false);
+
+  const availableTables = useMemo(() => {
+    const all = [...loadedTables, ...(tables || [])];
+    if (tableData && !all.some((table) => table.id === tableData.id)) {
+      all.unshift(tableData);
+    }
+    // Dedup by id (the freshly-fetched loadedTables version wins).
+    const seen = new Set<string>();
+    return all.filter((t) => {
+      if (!t?.id || seen.has(t.id)) return false;
+      seen.add(t.id);
+      return true;
+    });
+  }, [tableData, tables, loadedTables]);
+
+  // Pick a table/playbook from the shared picker → fetch its columns + rows →
+  // seed step-2 config and advance.
+  const handlePick = async (file: MentionFile) => {
+    if (picking) return;
+    setPicking(true);
+    try {
+      const full = await useDocumentStore
+        .getState()
+        .refreshSingleCanvas(file.id);
+      const cols = Array.isArray(full?.columns) ? full.columns : [];
+      if (cols.length === 0) {
+        toast.error("That table has no columns to embed.");
+        setPicking(false);
+        return;
+      }
+      const table = {
+        id: full.id,
+        name: full.name,
+        columns: full.columns,
+        flowData: full.flowData,
+      };
+      setLoadedTables((prev) => [
+        ...prev.filter((t) => t.id !== table.id),
+        table,
+      ]);
+      setSelectedTable(table.id);
+      const totalRows = table.flowData?.[0]?.nodes?.length || 0;
+      setDisplayRows(Math.min(totalRows, 5));
+      const columnTitles = table.columns
+        ?.filter((c: any) => c.title !== "id")
+        .map((c: any) => c.title);
+      setSelectedColumns(columnTitles || []);
+      setCurrentStep(2);
+    } catch {
+      toast.error("Couldn't load that table.");
+    } finally {
+      setPicking(false);
+    }
+  };
 
   // Get the selected table data
   const selectedTableData = useMemo(() => {
@@ -972,118 +1043,24 @@ export default function TableSelectorDialog({
                 </div>
               </div>
 
-              {/* Step 1: Table Selection */}
+              {/* Step 1: Table Selection (shared searchable, folder-grouped picker) */}
               {currentStep === 1 && (
                 <>
                   <div className="text-sm text-muted-foreground mb-4">
-                    Select a canvas to create a table from:
+                    Search a table or playbook to embed live{" "}
+                    {picking && (
+                      <span className="text-yadn-accent-green">— loading…</span>
+                    )}
                   </div>
 
-                  <ScrollArea className="h-[400px] border rounded-md p-2">
-                    <div className="grid grid-cols-1 gap-4">
-                      {availableTables.length > 0 ? (
-                        availableTables.map((table) => (
-                          <div
-                            key={table.id}
-                            className={`border rounded-md p-3 cursor-pointer transition-all ${
-                              selectedTable === table.id
-                                ? "ring-2 ring-primary border-primary"
-                                : "hover:border-gray-400"
-                            }`}
-                            onClick={() => handleTableSelect(table.id)}
-                          >
-                            <div className="font-medium mb-2">
-                              {table.name || "Untitled Canvas"}
-                            </div>
-                            <div className="h-[150px] overflow-hidden border rounded-md bg-gray-50">
-                              {/* Custom inline table preview for selection */}
-                              <div className="p-2">
-                                <table className="w-full text-xs">
-                                  <thead className="bg-gray-100">
-                                    <tr>
-                                      {table.columns
-                                        ?.filter(
-                                          (col: any) => col.title !== "id"
-                                        )
-                                        .slice(0, 3) // Show only first 3 columns for preview
-                                        .map((col: any) => (
-                                          <th
-                                            key={col.title}
-                                            className="p-1 text-left border-r border-gray-200"
-                                          >
-                                            {col.title}
-                                          </th>
-                                        ))}
-                                    </tr>
-                                  </thead>
-                                  <tbody>
-                                    {table.flowData?.[0]?.nodes
-                                      ?.slice(0, 3)
-                                      .map((node: any, index: number) => (
-                                        <tr
-                                          key={node.id || index}
-                                          className="border-b border-gray-200"
-                                        >
-                                          {table.columns
-                                            ?.filter(
-                                              (col: any) => col.title !== "id"
-                                            )
-                                            .slice(0, 3)
-                                            .map((col: any) => {
-                                              const dataKey =
-                                                col.dataKey ||
-                                                col.data_key ||
-                                                col.title;
-                                              let cellValue;
-                                              switch (dataKey) {
-                                                case "label":
-                                                  cellValue =
-                                                    node?.data?.label || "";
-                                                  break;
-                                                case "shape":
-                                                  cellValue =
-                                                    node?.data?.shape || "";
-                                                  break;
-                                                case "id":
-                                                  cellValue = node?.id || "";
-                                                  break;
-                                                default:
-                                                  cellValue =
-                                                    node?.data?.[dataKey] ||
-                                                    node?.data?.[col.title] ||
-                                                    "";
-                                              }
-                                              return (
-                                                <td
-                                                  key={col.title}
-                                                  className="p-1 border-r border-gray-200 truncate"
-                                                >
-                                                  {cellValue || "—"}
-                                                </td>
-                                              );
-                                            })}
-                                        </tr>
-                                      ))}
-                                  </tbody>
-                                </table>
-                              </div>
-                            </div>
-                            <div className="mt-2 text-xs text-gray-500">
-                              {table.flowData?.[0]?.nodes?.length || 0} rows,{" "}
-                              {table.columns?.filter(
-                                (col: any) => col.title !== "id"
-                              ).length || 0}{" "}
-                              columns
-                            </div>
-                          </div>
-                        ))
-                      ) : (
-                        <div className="text-center py-8 text-gray-500">
-                          No canvas tables available
-                        </div>
-                      )}
-                    </div>
-                  </ScrollArea>
+                  <EntityPicker
+                    allowedTypes={["table", "hybrid"]}
+                    selectedId={selectedTable}
+                    onSelect={handlePick}
+                    disabled={picking}
+                    placeholder="Search tables by name or code…"
+                    emptyText="No tables found"
+                  />
 
                   <div className="flex justify-end mt-4">
                     <Button
@@ -1092,16 +1069,8 @@ export default function TableSelectorDialog({
                         document.body.style.pointerEvents = "";
                         setTimeout(() => onClose(), 10);
                       }}
-                      className="mr-2"
                     >
                       Cancel
-                    </Button>
-                    <Button
-                      onClick={() => setCurrentStep(2)}
-                      disabled={!selectedTable}
-                      className="bg-yadn-accent-green hover:bg-yadn-accent-green/90 text-white"
-                    >
-                      Next
                     </Button>
                   </div>
                 </>

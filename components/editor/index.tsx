@@ -1252,16 +1252,16 @@ const Editor = (
         // Fix pointer events before opening the dialogF
         document.body.style.pointerEvents = "";
 
-        // Find tables from folder canvases
+        // The TableSelectorDialog now uses the cross-folder EntityPicker, so
+        // always open it (tables may live in other folders). Optionally pre-seed
+        // the first current-folder table as a convenience default.
         const tableCanvases = folderCanvases.filter(
           (canvas) =>
             (canvas.canvas_type === "table" ||
               canvas.canvas_type === "hybrid") &&
             canvas.columns?.length > 0
         );
-
         if (tableCanvases.length > 0) {
-          // Select the first table by default
           const firstTable = tableCanvases[0];
           setSelectedTableData({
             id: firstTable.id,
@@ -1269,14 +1269,12 @@ const Editor = (
             columns: firstTable.columns,
             flowData: firstTable.flowData || { nodes: [], edges: [] },
           });
-
-          // Use setTimeout to ensure the dialog opens properly
-          setTimeout(() => {
-            setTableSelectorDialogOpen(true);
-          }, 10);
         } else {
-          toast.error("No tables available");
+          setSelectedTableData(null);
         }
+        setTimeout(() => {
+          setTableSelectorDialogOpen(true);
+        }, 10);
         break;
       case "horizontal-rule":
         editor.chain().focus().setHorizontalRule().run();

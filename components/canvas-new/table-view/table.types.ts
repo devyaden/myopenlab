@@ -79,3 +79,21 @@ export interface FilterGroup {
   filters: Filter[];
   conjunction: "AND" | "OR";
 }
+
+/**
+ * Phase 5c: a named snapshot of the table's presentation (filters / sort /
+ * column visibility / freeze). Stored under canvas_settings.table_settings
+ * (saved_views[] + active_view_id) so it autosaves + reloads for free.
+ * `sortField` is a string because at runtime any column title can be the sort
+ * field (the SortField union is only the built-in columns).
+ */
+export interface SavedView {
+  id: string;
+  name: string;
+  filterGroups: FilterGroup[];
+  sortField: string | null;
+  sortDirection: SortDirection;
+  hiddenColumns: string[];
+  columnWidths?: Record<string, number>;
+  frozenColumns?: string[];
+}
