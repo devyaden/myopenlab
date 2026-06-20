@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2, ArrowRight, Sparkles, Check } from "lucide-react";
+import { useOnboardingStore, ONBOARDING_STEP_IDS } from "@/lib/store/useOnboarding";
 
 const TEAM_SIZES = ["Just me", "2–10", "11–50", "51–200"];
 const PROCESS_SUGGESTIONS = [
@@ -88,6 +89,12 @@ export default function OnboardingPage() {
         return;
       }
       capture("onboarding.completed");
+      // The AI just created the user's first playbook — record persona + progress
+      // so the in-app checklist shows item 1 pre-checked on the dashboard.
+      const onboarding = useOnboardingStore.getState();
+      onboarding.setPersona({ teamSize, firstProcess });
+      onboarding.setWelcomeSeen();
+      onboarding.completeStep(ONBOARDING_STEP_IDS.createFirstPlaybook);
       router.push(`/protected/playbook/${json.canvasId}`);
     } catch {
       setError("Network error. Please try again.");

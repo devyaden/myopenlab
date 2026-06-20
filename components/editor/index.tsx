@@ -53,6 +53,8 @@ import EditorToolbar from "./EditorToolbar";
 import CanvasTableNode from "./extensions/CanvasTableNode";
 import { createFileMentionConfig } from "./extensions/FileMention";
 import { createSlashCommandsConfig } from "./extensions/SlashCommands";
+import { useOnboardingStore, ONBOARDING_STEP_IDS } from "@/lib/store/useOnboarding";
+import { FeatureHint } from "@/components/onboarding/feature-hint";
 import FloatBlock from "./extensions/FloatBlock";
 import { DocReference } from "./extensions/DocReference";
 import DocReferenceDialog, {
@@ -171,6 +173,7 @@ const Editor = (
   const [fontUploadOpen, setFontUploadOpen] = useState(false);
 
   const [zoom, setZoom] = useState("100%");
+  const completeOnboardingStep = useOnboardingStore((s) => s.completeStep);
   const [canvasDialogOpen, setCanvasDialogOpen] = useState(false);
   const [docReferenceDialogOpen, setDocReferenceDialogOpen] = useState(false);
   const [tableSelectorDialogOpen, setTableSelectorDialogOpen] = useState(false);
@@ -1068,6 +1071,8 @@ const Editor = (
     }
 
     handleSave();
+    // Auto-check the "embed something live" onboarding item.
+    completeOnboardingStep(ONBOARDING_STEP_IDS.embedLive);
   };
 
   const handleInsertCanvasTable = (tableData: any) => {
@@ -1658,7 +1663,10 @@ const Editor = (
   }
 
   return (
-    <div className="w-full h-full editor-container">
+    <div className="w-full h-full editor-container relative">
+      {!isPartOfCanvas && (
+        <FeatureHint id="slash" side="right" className="left-8 top-32" />
+      )}
       {/* {canvasType !== CANVAS_TYPE.HYBRID && ( */}
       <Header
         projectName={name}

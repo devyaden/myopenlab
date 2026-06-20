@@ -1,0 +1,98 @@
+{
+  "common": {
+    "language": "Language"
+  },
+  "onboarding": {
+    "getStarted": "Get started",
+    "welcome": {
+      "title": "Welcome to theopenlab",
+      "body": "Turn how your team works into living playbooks — diagrams, tables and docs that stay in sync. Want a hand getting started?",
+      "buildWithAI": "Build my first playbook with AI",
+      "showAround": "Show me around",
+      "skip": "I'll explore on my own"
+    },
+    "checklist": {
+      "title": "Getting started",
+      "expand": "Expand checklist",
+      "collapse": "Collapse checklist",
+      "dismiss": "Dismiss checklist",
+      "toast": "You're all set up. Next: embed a live flow inside a document.",
+      "items": {
+        "create": {
+          "title": "Create your first playbook",
+          "desc": "Capture a process as a flow, a table, or a document.",
+          "cta": "Create"
+        },
+        "surfaces": {
+          "title": "See the three views",
+          "desc": "One playbook is a Canvas, a Table and a Document — switch anytime.",
+          "cta": "Open a playbook"
+        },
+        "askAi": {
+          "title": "Try Ask AI",
+          "desc": "Describe a process and let AI draft the whole thing for you.",
+          "cta": "Ask AI"
+        },
+        "embed": {
+          "title": "Embed something live",
+          "desc": "Drop a live flow or table into a document — it stays in sync automatically.",
+          "cta": "Open a playbook"
+        },
+        "share": {
+          "title": "Share your work",
+          "desc": "Invite a teammate or grab a shareable link.",
+          "cta": "Open a playbook"
+        },
+        "cmdk": {
+          "title": "Jump anywhere with ⌘K",
+          "desc": "Search every playbook, table and document instantly.",
+          "cta": "Open search"
+        }
+      }
+    },
+    "spotlight": {
+      "stepOf": "{current} of {total}",
+      "skip": "Skip tour",
+      "next": "Next",
+      "done": "Done",
+      "close": "Close tour",
+      "steps": {
+        "createNew": {
+          "title": "Start here",
+          "body": "Click New to create your first playbook, table or document."
+        },
+        "tiles": {
+          "title": "Pick a starting point",
+          "body": "Each tile creates a different artifact — or let ‘Generate with AI’ draft one for you."
+        },
+        "surfaces": {
+          "title": "One playbook, three views",
+          "body": "Switch between Canvas, Table and Document — it’s the same content, shown differently."
+        },
+        "askAi": {
+          "title": "Your AI co-author",
+          "body": "Ask AI to build or edit playbooks from a plain-language description."
+        }
+      }
+    },
+    "hints": {
+      "gotIt": "Got it",
+      "slash": {
+        "title": "Rich blocks & links",
+        "body": "Type / for blocks and @ to link to another playbook."
+      },
+      "canvasToolbar": {
+        "title": "Map your process",
+        "body": "Add shapes from the toolbar and connect them to build a flow."
+      },
+      "cmdk": {
+        "title": "Search everything",
+        "body": "Press ⌘K to jump to any playbook, table or document."
+      },
+      "references": {
+        "title": "Backlinks",
+        "body": "See what links here — and what this links to."
+      }
+    }
+  }
+}

@@ -4,7 +4,9 @@ import {
   CANVAS_TYPE,
   CreateNewModal,
 } from "@/components/dashboard-sidebar/create-new-modal";
-import { useOnboarding } from "@/components/onboarding/custom-tooltip";
+import { useOnboarding } from "@/lib/store/useOnboarding";
+import { GettingStartedChecklist } from "@/components/onboarding/getting-started-checklist";
+import { ANCHORS } from "@/components/onboarding/onboarding-steps";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -246,7 +248,7 @@ const FolderCard = memo(
           href={`/protected/folder/${folder.id}`}
           className={isDisabled ? "pointer-events-none" : ""}
         >
-          <Card className="p-3 hover:shadow-md transition-shadow cursor-pointer group h-28 w-28 relative onboarding-folder-card">
+          <Card className="p-3 hover:shadow-md transition-shadow cursor-pointer group h-28 w-28 relative">
             <div className="absolute top-1 right-1">
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
@@ -303,7 +305,7 @@ FolderCard.displayName = "FolderCard";
 // Root folder card component
 const RootFolderCard = memo(({ rootCanvases }: { rootCanvases: any[] }) => (
   <Link href={`/protected/folder/root`}>
-    <Card className="p-3 hover:shadow-md transition-shadow cursor-pointer group border-2 border-dashed border-yadn-accent-blue/30 h-28 w-28 flex items-center justify-center onboarding-root-folder">
+    <Card className="p-3 hover:shadow-md transition-shadow cursor-pointer group border-2 border-dashed border-yadn-accent-blue/30 h-28 w-28 flex items-center justify-center">
       <div className="flex flex-col items-center justify-center">
         <Folder className="h-10 w-10 text-yadn-accent-blue mb-1" />
         <h3 className="font-medium text-gray-900 truncate max-w-[90px] text-center text-sm">
@@ -451,6 +453,15 @@ export const HomeContent = memo(() => {
       "root".includes(debouncedSearchQuery.toLowerCase())
     );
   }, [debouncedSearchQuery]);
+
+  // Deep-link the checklist's "open a playbook" items at the most recent artifact.
+  const recentPlaybookHref = useMemo(() => {
+    const c = rootCanvases?.[0];
+    if (!c?.id) return null;
+    return c.canvas_type === "document"
+      ? `/protected/document-editor/${c.id}`
+      : `/protected/playbook/${c.id}`;
+  }, [rootCanvases]);
 
   // Event handlers
   const handleSearchChange = useCallback(
@@ -870,7 +881,7 @@ export const HomeContent = memo(() => {
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
               <Input
                 placeholder="Search folders and files..."
-                className="pl-10 pr-10 h-12 rounded-lg border-gray-200 onboarding-search-input"
+                className="pl-10 pr-10 h-12 rounded-lg border-gray-200"
                 value={searchQuery}
                 onChange={handleSearchChange}
                 disabled={isLoading && !hasInitialized}
@@ -887,8 +898,9 @@ export const HomeContent = memo(() => {
           </div>
           <div className="md:w-1/4 flex justify-end gap-3 mt-4 md:mt-0">
             <Button
+              data-onboarding={ANCHORS.createNew}
               onClick={() => setCreateNewModalType("canvas")}
-              className="bg-yadn-accent-green hover:bg-yadn-accent-green/80 text-white onboarding-create-new-btn"
+              className="bg-yadn-accent-green hover:bg-yadn-accent-green/80 text-white"
               disabled={canvasLoading}
             >
               {canvasLoading ? (
@@ -902,7 +914,10 @@ export const HomeContent = memo(() => {
         </div>
       </div>
 
-      <ScrollArea className="flex-grow p-6 pt-0">{renderContent}</ScrollArea>
+      <ScrollArea className="flex-grow p-6 pt-0">
+        <GettingStartedChecklist recentPlaybookHref={recentPlaybookHref} />
+        {renderContent}
+      </ScrollArea>
 
       <CreateNewModal
         isOpen={Boolean(createNewModalType)}
