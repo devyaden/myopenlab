@@ -57,6 +57,7 @@ model Canvas {
   updated_at      DateTime           @default(now()) @updatedAt
   user_id         String             @db.Uuid
   code            String? // Phase 2: human-readable code (e.g. "HR-01"), unique per user
+  directory_kind  String? // Phase 5d: 'person' | 'role' marks a Table canvas as a people/role directory (NULL = normal canvas)
   folder          Folder?            @relation(fields: [folder_id], references: [id])
   user            User               @relation(fields: [user_id], references: [id])
   data            CanvasData?

@@ -302,9 +302,10 @@ export const useCanvasStore = create<CanvasStore>()(
                 `
         *,
         related_canvas:canvas!column_definition_related_canvas_id_fkey(
-          id, 
-          name, 
-          description, 
+          id,
+          name,
+          description,
+          directory_kind,
           canvas_data(*),
           columns:column_definition!column_definition_canvas_id_fkey(*)
         )
@@ -641,9 +642,10 @@ export const useCanvasStore = create<CanvasStore>()(
                 `
     *,
     related_canvas:canvas!column_definition_related_canvas_id_fkey(
-      id, 
-      name, 
-      description, 
+      id,
+      name,
+      description,
+      directory_kind,
       canvas_data(*),
       columns:column_definition!column_definition_canvas_id_fkey(*)
     )

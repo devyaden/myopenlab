@@ -32,13 +32,15 @@ import {
 interface Proposal {
   id: string;
   kind: "create" | "update";
-  target?: "canvas" | "document"; // absent ⇒ "canvas" (back-compat)
+  target?: "canvas" | "document" | "directory"; // absent ⇒ "canvas" (back-compat)
   name?: string;
   code?: string | null;
   folder_id?: string | null;
   canvas_id?: string | null;
   diagram?: { nodes: any[]; edges: any[]; nodeStyles: Record<string, any> };
   body?: any[]; // document block list (target === "document")
+  directory_kind?: "person" | "role"; // target === "directory"
+  people?: any[]; // directory rows (target === "directory")
   status: "pending" | "applied" | "discarded";
 }
 
@@ -70,6 +72,7 @@ function ProposalPreview({
   applying: boolean;
 }) {
   const isDocument = proposal.target === "document";
+  const isDirectory = proposal.target === "directory";
 
   const statusBadge =
     proposal.status === "applied" ? (
@@ -79,6 +82,56 @@ function ProposalPreview({
     ) : proposal.status === "discarded" ? (
       <span className="text-xs text-muted-foreground">Discarded</span>
     ) : null;
+
+  if (isDirectory) {
+    const people = proposal.people ?? [];
+    return (
+      <div className="rounded-lg border bg-background">
+        <div className="flex items-center justify-between border-b px-3 py-2">
+          <span className="text-xs font-medium">
+            New {proposal.directory_kind ?? "person"} directory:{" "}
+            {proposal.name ?? "Directory"}
+          </span>
+          {statusBadge}
+        </div>
+        <div className="max-h-[220px] overflow-y-auto px-3 py-2">
+          {people.length === 0 ? (
+            <p className="text-xs text-muted-foreground">
+              An empty directory (you can add rows after).
+            </p>
+          ) : (
+            <ul className="space-y-0.5 text-xs text-muted-foreground">
+              {people.slice(0, 30).map((p: any, i: number) => (
+                <li key={i}>
+                  • {String(p?.name ?? p?.label ?? p?.Name ?? `Row ${i + 1}`)}
+                  {p?.role || p?.Role ? ` — ${p.role ?? p.Role}` : ""}
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+        <div className="border-t px-3 py-1 text-[10px] text-muted-foreground">
+          {people.length} row{people.length === 1 ? "" : "s"}
+        </div>
+        {proposal.status === "pending" && (
+          <div className="flex justify-end gap-2 border-t px-3 py-2">
+            <button
+              onClick={onApply}
+              disabled={applying}
+              className="flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:opacity-90 disabled:opacity-60"
+            >
+              {applying ? (
+                <Loader2 size={13} className="animate-spin" />
+              ) : (
+                <Check size={13} />
+              )}
+              Apply
+            </button>
+          </div>
+        )}
+      </div>
+    );
+  }
 
   if (isDocument) {
     const summary = blocksToPlainText(proposal.body ?? [], 600);
@@ -282,6 +335,31 @@ export function AgentChat() {
         // snapshot, and reconciles cross-references). If the targeted document
         // is the one open in the editor, also push the content in instantly so
         // it re-renders without a navigation/flash.
+        if (proposal.target === "directory") {
+          const res = await fetch("/api/ai/agent/apply", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              kind: "create",
+              target: "directory",
+              name: proposal.name ?? "Directory",
+              code: proposal.code ?? null,
+              folder_id: proposal.folder_id ?? null,
+              directory_kind: proposal.directory_kind ?? "person",
+              people: proposal.people ?? [],
+            }),
+          });
+          const json = await res.json();
+          if (res.ok) {
+            markApplied(msgIdx, proposal.id);
+            if (json.canvasId) {
+              // A directory is a Table canvas — open it on the playbook route.
+              router.push(playbookHref(json.canvasId, "table"));
+            }
+          }
+          return;
+        }
+
         if (proposal.target === "document") {
           const res = await fetch("/api/ai/agent/apply", {
             method: "POST",

@@ -7,7 +7,13 @@ import {
   useState,
   type KeyboardEvent,
 } from "react";
-import { FileText, LayoutGrid, Table as TableIcon } from "lucide-react";
+import {
+  FileText,
+  LayoutGrid,
+  Table as TableIcon,
+  User as UserIcon,
+  Briefcase,
+} from "lucide-react";
 import type { MentionFile } from "./hooks/useFileSearch";
 
 export interface MentionListHandle {
@@ -21,16 +27,17 @@ export interface MentionListHandle {
 
 interface MentionListProps {
   items: MentionFile[];
-  command: (item: {
-    id: string;
-    label: string;
-    canvasType: string | null;
-    code: string | null;
-  }) => void;
+  // Phase 5d: the full item is passed so the suggestion command can tell a
+  // directory person/role row (kind/nodeId/directoryId) from a canvas mention.
+  command: (item: MentionFile) => void;
 }
 
 const iconForType = (canvasType: string | null) => {
   switch ((canvasType ?? "").toLowerCase()) {
+    case "person":
+      return <UserIcon className="h-4 w-4 text-rose-600" aria-hidden />;
+    case "role":
+      return <Briefcase className="h-4 w-4 text-amber-600" aria-hidden />;
     case "table":
       return <TableIcon className="h-4 w-4 text-emerald-600" aria-hidden />;
     case "canvas":
@@ -55,12 +62,7 @@ const MentionList = forwardRef<MentionListHandle, MentionListProps>(
     const select = (index: number) => {
       const item = items[index];
       if (!item) return;
-      command({
-        id: item.id,
-        label: item.name,
-        canvasType: item.canvas_type,
-        code: item.code,
-      });
+      command(item);
     };
 
     useImperativeHandle(ref, () => ({

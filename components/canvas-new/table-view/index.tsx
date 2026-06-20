@@ -95,6 +95,10 @@ import {
 } from "./table.types";
 import { validationSchemas } from "./validations";
 import { getDataKey, isSpecialColumn } from "@/lib/canvas/column-data";
+import {
+  createReferenceForMention,
+  deleteReferenceForMention,
+} from "@/lib/refs/client";
 
 const TableView = forwardRef<
   { exportToCSV: () => void; exportToExcel: () => void },
@@ -1258,6 +1262,35 @@ const TableView = forwardRef<
                       (newItem: any) => newItem.id === prevItem.id
                     )
                 );
+
+                // Phase 5d: when the related canvas is a people/role DIRECTORY,
+                // record (and retract) typed person/role references so
+                // RACI/approver assignments surface in backlinks. Best-effort
+                // and isolated from the bidirectional-link logic below.
+                const dirKind = (columnDef as any).related_canvas
+                  ?.directory_kind as "person" | "role" | undefined;
+                if (dirKind === "person" || dirKind === "role") {
+                  addedItems.forEach((it: any) => {
+                    if (!it?.id) return;
+                    void createReferenceForMention({
+                      fromCanvas: canvasId,
+                      fromNode: nodeId,
+                      toCanvas: columnDef.related_canvas_id!,
+                      toNode: String(it.id),
+                      type: dirKind,
+                    });
+                  });
+                  removedItems.forEach((it: any) => {
+                    if (!it?.id) return;
+                    void deleteReferenceForMention({
+                      fromCanvas: canvasId,
+                      fromNode: nodeId,
+                      toCanvas: columnDef.related_canvas_id!,
+                      toNode: String(it.id),
+                      type: dirKind,
+                    });
+                  });
+                }
 
                 // Handle adding new relations
                 addedItems.forEach(async (relatedItem: any) => {

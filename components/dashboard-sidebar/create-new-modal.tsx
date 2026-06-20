@@ -28,7 +28,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { generateUntitledName } from "@/lib/utils";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Wand2, Lock, Crown, LayoutTemplate } from "lucide-react";
+import { Wand2, Lock, Crown, LayoutTemplate, Users } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "react-hot-toast";
@@ -112,6 +112,7 @@ export function CreateNewModal({
   );
   const [isAIDialogOpen, setIsAIDialogOpen] = useState(false);
   const [creatingProcessPage, setCreatingProcessPage] = useState(false);
+  const [creatingDirectory, setCreatingDirectory] = useState(false);
 
   const folderForm = useForm<FolderFormValues>({
     resolver: zodResolver(folderSchema),
@@ -159,9 +160,10 @@ export function CreateNewModal({
     folderForm.reset();
     canvasForm.reset();
     setSelectedCanvasType(CANVAS_TYPE.HYBRID);
-    // Don't leave the Process Page tile stuck on "Creating…" if the modal is
-    // closed while a create request is still in flight.
+    // Don't leave the Process Page / Directory tiles stuck on "Creating…" if the
+    // modal is closed while a create request is still in flight.
     setCreatingProcessPage(false);
+    setCreatingDirectory(false);
   };
 
   const handleClose = () => {
@@ -314,6 +316,52 @@ export function CreateNewModal({
     }
   };
 
+  // Phase 5d: create a People Directory — a Table the app recognizes as a roster
+  // of people that @person mentions and RACI/approver assignments resolve to.
+  // Seeded server-side (Name/Email/Role/Manager columns) via the apply route.
+  const handleCreateDirectory = async () => {
+    if (creatingDirectory) return;
+    setCreatingDirectory(true);
+    try {
+      const existingNames = new Set(
+        [
+          ...folders.flatMap((folder) => folder.canvases),
+          ...(rootCanvases || []),
+        ].map((c) => c.name)
+      );
+      let name = "Employee Directory";
+      for (let n = 2; existingNames.has(name); n++)
+        name = `Employee Directory ${n}`;
+
+      const folderId =
+        currentFolderId && currentFolderId !== "0" ? currentFolderId : null;
+
+      const res = await fetch("/api/ai/agent/apply", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          kind: "create",
+          target: "directory",
+          name,
+          folder_id: folderId,
+          directory_kind: "person",
+          people: [],
+        }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (res.ok && json?.canvasId) {
+        handleClose();
+        window.location.href = `/protected/playbook/${json.canvasId}`;
+      } else {
+        toast.error(json?.error || "Couldn't create the directory");
+        setCreatingDirectory(false);
+      }
+    } catch {
+      toast.error("Couldn't create the directory");
+      setCreatingDirectory(false);
+    }
+  };
+
   // Update the handleTypeSelect function to immediately create an item without showing the form
   const handleTypeSelect = (selectedType: CANVAS_TYPE) => {
     // Only check limits for HYBRID canvas - tables are always free and unlimited
@@ -450,6 +498,28 @@ export function CreateNewModal({
               {creatingProcessPage
                 ? "Creating…"
                 : "An operating-model page: flow + Activities/RACI/Deliverables + reference cards"}
+            </span>
+          </div>
+
+          {/* People Directory — a roster @person / RACI / approvers resolve to */}
+          <div
+            className={`flex flex-col items-center justify-center p-6 bg-gray-50 rounded-lg transition-colors ${
+              creatingDirectory
+                ? "opacity-75 cursor-wait"
+                : "hover:bg-gray-100 cursor-pointer"
+            }`}
+            onClick={() => {
+              if (!creatingDirectory) handleCreateDirectory();
+            }}
+          >
+            <div className="mb-4">
+              <Users className="h-6 w-6 text-gray-600" />
+            </div>
+            <span className="font-medium text-center">People Directory</span>
+            <span className="text-xs text-center text-muted-foreground mt-1">
+              {creatingDirectory
+                ? "Creating…"
+                : "A roster of people that @person, RACI cells & approvers resolve to"}
             </span>
           </div>
 

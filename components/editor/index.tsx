@@ -395,11 +395,16 @@ const Editor = (
         onMention: (item) => {
           const fromCanvas = useDocumentStore.getState().canvas_id;
           if (!fromCanvas || !item.id) return;
+          // Phase 5d: a @person/@role mention targets a row WITHIN a directory —
+          // record a typed person/role reference carrying the row's node id.
+          const isDirectory =
+            item.canvasType === "person" || item.canvasType === "role";
           void createReferenceForMention({
             fromCanvas,
             toCanvas: item.id,
+            toNode: isDirectory ? item.nodeId ?? null : null,
             toCode: item.code ?? null,
-            type: "depends-on",
+            type: isDirectory ? item.canvasType! : "depends-on",
           });
         },
       }),

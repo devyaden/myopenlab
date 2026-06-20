@@ -19,6 +19,7 @@ const postSchema = z.object({
   fromCanvas: z.string().uuid(),
   fromNode: z.string().nullable().optional(),
   toCanvas: z.string().uuid().nullable().optional(),
+  toNode: z.string().trim().max(120).nullable().optional(),
   toCode: z.string().trim().max(64).nullable().optional(),
   type: z.string().trim().min(1).max(40),
 });
@@ -95,6 +96,11 @@ export async function POST(request: NextRequest) {
   dedupe = toCanvas
     ? dedupe.eq("to_canvas", toCanvas)
     : dedupe.eq("to_code", input.toCode as string);
+  // A node-level target (a directory person row) must dedupe per node, so two
+  // different people from the same source+type aren't collapsed into one row.
+  dedupe = input.toNode
+    ? dedupe.eq("to_node", input.toNode)
+    : dedupe.is("to_node", null);
 
   const { data: existing } = await dedupe;
   if (existing && existing.length > 0) {
@@ -105,6 +111,7 @@ export async function POST(request: NextRequest) {
     fromCanvas: input.fromCanvas,
     fromNode: input.fromNode ?? null,
     toCanvas,
+    toNode: input.toNode ?? null,
     toCode: input.toCode ?? null,
     type: input.type,
   });
@@ -115,6 +122,70 @@ export async function POST(request: NextRequest) {
     );
   }
   return NextResponse.json({ id: row.id, deduped: false });
+}
+
+/**
+ * Phase 5d: retract a specific typed reference (e.g. an unlinked RACI/approver
+ * cell). Owner-scoped: the caller must own the source canvas. Matches the exact
+ * {fromCanvas, fromNode, toCanvas|toCode, toNode, type} tuple.
+ */
+export async function DELETE(request: NextRequest) {
+  let body: unknown;
+  try {
+    body = await request.json();
+  } catch {
+    return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
+  }
+  const parsed = postSchema.safeParse(body);
+  if (!parsed.success) {
+    return NextResponse.json({ error: "Invalid input" }, { status: 400 });
+  }
+  const input = parsed.data;
+  // A retract must identify a specific target, or it could wipe every reference
+  // of this type from the source canvas in one call.
+  if (!input.toCanvas && !input.toCode && !input.toNode) {
+    return NextResponse.json(
+      { error: "A target (toCanvas, toCode, or toNode) is required" },
+      { status: 400 }
+    );
+  }
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+    error: userError,
+  } = await supabase.auth.getUser();
+  if (userError || !user) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const { data: src } = await supabase
+    .from("canvas")
+    .select("id, user_id")
+    .eq("id", input.fromCanvas)
+    .maybeSingle();
+  if (!src || src.user_id !== user.id) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
+  // Match the EXACT target tuple: pin the NULL case for every absent field so a
+  // retract can never over-match a row with a different (non-null) target.
+  let q = supabase
+    .from("reference")
+    .delete()
+    .eq("user_id", user.id)
+    .eq("from_canvas", input.fromCanvas)
+    .eq("type", input.type);
+  q = input.fromNode ? q.eq("from_node", input.fromNode) : q.is("from_node", null);
+  q = input.toCanvas ? q.eq("to_canvas", input.toCanvas) : q.is("to_canvas", null);
+  q = input.toCode ? q.eq("to_code", input.toCode) : q.is("to_code", null);
+  q = input.toNode ? q.eq("to_node", input.toNode) : q.is("to_node", null);
+
+  const { error } = await q;
+  if (error) {
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+  return NextResponse.json({ ok: true });
 }
 
 /**

@@ -14,6 +14,8 @@ export interface MentionReferenceInput {
   fromCanvas: string;
   fromNode?: string | null;
   toCanvas?: string | null;
+  /** Phase 5d: a node within `toCanvas` (e.g. a person row in a directory). */
+  toNode?: string | null;
   toCode?: string | null;
   type: string;
 }
@@ -33,5 +35,26 @@ export async function createReferenceForMention(
     });
   } catch (err) {
     console.error("[refs] failed to create reference", err);
+  }
+}
+
+/**
+ * Phase 5d: retract a typed reference (e.g. when a RACI/approver relation cell is
+ * unlinked). Matches on the exact {fromCanvas, fromNode, toCanvas, toNode, type}
+ * tuple, owner-scoped server-side. Best-effort; never blocks the edit.
+ */
+export async function deleteReferenceForMention(
+  input: MentionReferenceInput
+): Promise<void> {
+  if (!input.fromCanvas) return;
+  if (!input.toCanvas && !input.toCode) return;
+  try {
+    await fetch("/api/refs", {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(input),
+    });
+  } catch (err) {
+    console.error("[refs] failed to delete reference", err);
   }
 }

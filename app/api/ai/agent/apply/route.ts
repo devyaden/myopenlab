@@ -19,12 +19,15 @@ const docBody = z.array(z.any());
 const applySchema = z.discriminatedUnion("kind", [
   z.object({
     kind: z.literal("create"),
-    target: z.enum(["canvas", "document"]).optional(),
+    target: z.enum(["canvas", "document", "directory"]).optional(),
     name: z.string().min(1).max(120),
     code: z.string().max(40).nullable().optional(),
     folder_id: z.string().uuid().nullable().optional(),
     diagram: diagram.optional(),
     body: docBody.optional(),
+    // Phase 5d: directory create payload.
+    directory_kind: z.enum(["person", "role"]).optional(),
+    people: z.array(z.record(z.any())).optional(),
   }),
   z.object({
     kind: z.literal("update"),
@@ -54,6 +57,111 @@ export async function POST(request: NextRequest) {
     } = await supabase.auth.getUser();
     if (authError || !user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    // ── Directory proposals (target: "directory") ───────────────────────────
+    // A directory is a Table canvas (canvas_type "table") marked with a
+    // directory_kind, seeded with columns + people/role rows. Create only.
+    if (input.target === "directory") {
+      if (input.kind !== "create") {
+        return NextResponse.json(
+          { error: "Directories support create only" },
+          { status: 400 }
+        );
+      }
+      const kind = input.directory_kind === "role" ? "role" : "person";
+      const canvasId = crypto.randomUUID();
+      const { generateCanvasCode } = await import("@/lib/refs/codes");
+
+      let inserted = false;
+      let cErr: any = null;
+      for (let attempt = 0; attempt < 4 && !inserted; attempt++) {
+        const code = await generateCanvasCode(supabase, user.id, {
+          explicit: attempt === 0 ? input.code : null,
+          name: input.name,
+        });
+        const res = await supabase.from("canvas").insert({
+          id: canvasId,
+          name: input.name,
+          user_id: user.id,
+          folder_id: input.folder_id ?? null,
+          canvas_type: "table",
+          visibility: "private",
+          code,
+          directory_kind: kind,
+        });
+        if (!res.error) inserted = true;
+        else if (res.error.code === "23505") cErr = res.error;
+        else {
+          cErr = res.error;
+          break;
+        }
+      }
+      if (!inserted) throw cErr;
+
+      // Columns: the first maps to the row's `label` (the person/role name);
+      // the rest are free Text fields keyed by their title.
+      const colTitles =
+        kind === "role"
+          ? ["Name", "Description", "Reports To"]
+          : ["Name", "Email", "Role", "Manager"];
+      const columns = colTitles.map((title, i) => ({
+        id: crypto.randomUUID(),
+        title,
+        type: "Text",
+        required: false,
+        order: i,
+        canvas_id: canvasId,
+        data_key: i === 0 ? "label" : title,
+      }));
+      const { error: colErr } = await supabase
+        .from("column_definition")
+        .insert(columns);
+      if (colErr) throw colErr;
+
+      // Rows: each person/role is a table row (a genericNode). Its name is the
+      // node label (so @-mentions can display it); extra fields map onto the
+      // non-Name columns.
+      const people = Array.isArray(input.people) ? input.people : [];
+      const nodes = people.map((p: any, i: number) => {
+        const data: Record<string, any> = {
+          label: String(p?.name ?? p?.label ?? p?.Name ?? `Person ${i + 1}`),
+          shape: "rectangle",
+        };
+        for (let c = 1; c < colTitles.length; c++) {
+          const key = colTitles[c]; // e.g. "Reports To"
+          // Accept the column title, its lowercase form, AND a camelCase variant
+          // (the agent's tool schema documents keys like `reportsTo`).
+          const camel = key
+            .split(/\s+/)
+            .map((w, idx) =>
+              idx === 0
+                ? w.charAt(0).toLowerCase() + w.slice(1)
+                : w.charAt(0).toUpperCase() + w.slice(1)
+            )
+            .join("");
+          const v = p?.[key] ?? p?.[key.toLowerCase()] ?? p?.[camel] ?? "";
+          data[key] = typeof v === "string" ? v : v == null ? "" : String(v);
+        }
+        return {
+          id: crypto.randomUUID(),
+          type: "genericNode",
+          data,
+          position: { x: 80 + (i % 5) * 180, y: 80 + Math.floor(i / 5) * 120 },
+          parentNode: null,
+        };
+      });
+      const { error: dErr } = await supabase.from("canvas_data").insert({
+        canvas_id: canvasId,
+        nodes,
+        edges: [],
+        styles: {},
+        version: 1,
+        updated_at: new Date().toISOString(),
+      });
+      if (dErr) throw dErr;
+
+      return NextResponse.json({ ok: true, canvasId });
     }
 
     // ── Document proposals (target: "document") ──────────────────────────────
@@ -301,12 +409,18 @@ async function reconcileDocumentReferences(
     const { extractReferences } = await import("@/lib/agent/document-blocks");
     const { createReference } = await import("@/lib/refs/resolver");
 
+    // Replace this document's doc-level references (cards / @-mentions to
+    // canvases / live embeds). Phase 5d: do NOT clobber node-level person/role
+    // references (to_node set) — those are managed by the editor's onMention /
+    // the table-view RACI wiring, not by the document body, so an agent edit
+    // must leave them intact.
     await supabase
       .from("reference")
       .delete()
       .eq("user_id", userId)
       .eq("from_canvas", fromCanvas)
-      .is("from_node", null);
+      .is("from_node", null)
+      .is("to_node", null);
 
     const seen = new Set<string>();
     for (const spec of extractReferences(body)) {

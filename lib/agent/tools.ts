@@ -4,7 +4,12 @@ import { improveEdgeHandles } from "@/lib/services/claude/response-processor";
 import { DiagramType } from "@/lib/types/diagram-types";
 import { buildWorkspaceIndex } from "./workspace";
 import { reconcileNodeIds } from "./node-ids";
-import { resolveCode, listBacklinks } from "@/lib/refs/resolver";
+import {
+  resolveCode,
+  listBacklinks,
+  listDirectories,
+  listDirectoryRows,
+} from "@/lib/refs/resolver";
 import { tiptapToBlocks, type DocBlock } from "./document-blocks";
 import { buildProcessPageBlocks } from "./process-page-template";
 
@@ -46,7 +51,7 @@ export interface AgentToolContext {
 export interface ToolProposal {
   kind: "create" | "update";
   /** Which surface the proposal targets. Absent ⇒ "canvas" (back-compat). */
-  target?: "canvas" | "document";
+  target?: "canvas" | "document" | "directory";
   name?: string;
   code?: string | null;
   folder_id?: string | null;
@@ -55,6 +60,9 @@ export interface ToolProposal {
   diagram?: { nodes: any[]; edges: any[]; nodeStyles: Record<string, any> };
   /** Present for document proposals — the structured block list (see document-blocks.ts). */
   body?: DocBlock[];
+  /** Present for directory proposals (Phase 5d). */
+  directory_kind?: "person" | "role";
+  people?: Array<Record<string, any>>;
 }
 
 export interface ToolExecutionResult {
@@ -271,6 +279,54 @@ export const AGENT_TOOLS: any[] = [
         },
       },
       required: ["title"],
+    },
+  },
+  {
+    name: "list_directory",
+    description:
+      "List the user's people/role DIRECTORIES (and optionally the rows of one). Use this to find who/what you can assign as an owner, approver, or RACI participant. With no directory_id it lists the directories; with a directory_id it lists that directory's rows (each row has a stable node id you can reference).",
+    input_schema: {
+      type: "object",
+      properties: {
+        directory_id: {
+          type: "string",
+          description:
+            "Optional: a directory's id — returns its rows (people/roles) instead of the list of directories.",
+        },
+        kind: {
+          type: "string",
+          enum: ["person", "role"],
+          description: "Optional filter when listing directories.",
+        },
+      },
+    },
+  },
+  {
+    name: "propose_create_directory",
+    description:
+      "Propose creating a people or role DIRECTORY (a Table of employees or positions that @person/@role mentions and RACI/approver assignments resolve to). This does NOT save — it shows a preview to approve. A 'person' directory gets Name/Email/Role/Manager columns; a 'role' directory gets Name/Description/Reports To. Provide the rows you know via `people`.",
+    input_schema: {
+      type: "object",
+      properties: {
+        name: { type: "string", description: "Name for the directory (e.g. \"Employee Directory\")" },
+        kind: {
+          type: "string",
+          enum: ["person", "role"],
+          description: "person → a roster of employees; role → a roster of positions",
+        },
+        code: {
+          type: "string",
+          description: "Optional operating-model code. If omitted the server assigns one.",
+        },
+        folder_id: { type: "string", description: "Optional folder id to place it in" },
+        people: {
+          type: "array",
+          description:
+            "Optional rows. Each: { name (required), email?, role?, manager? } for a person directory, or { name, description?, reportsTo? } for a role directory.",
+          items: { type: "object" },
+        },
+      },
+      required: ["name", "kind"],
     },
   },
 ];
@@ -585,6 +641,66 @@ export async function executeAgentTool(
           code: input?.code ?? null,
           folder_id: input?.folder_id ?? null,
           body,
+        },
+      };
+    }
+
+    case "list_directory": {
+      if (input?.directory_id) {
+        const rows = await listDirectoryRows(
+          ctx.supabase,
+          ctx.userId,
+          String(input.directory_id)
+        );
+        if (rows.length === 0)
+          return { content: "That directory has no rows (or wasn't found)." };
+        return {
+          content: rows
+            .map((r) => {
+              const extra = Object.entries(r.data)
+                .filter(([k]) => k !== "label" && k !== "shape")
+                .filter(([, v]) => v != null && v !== "")
+                .map(([k, v]) => `${k}: ${v}`)
+                .join(", ");
+              return `- [${r.id}] ${r.label}${extra ? ` (${extra})` : ""}`;
+            })
+            .join("\n"),
+        };
+      }
+      const dirs = await listDirectories(
+        ctx.supabase,
+        ctx.userId,
+        input?.kind === "role" || input?.kind === "person" ? input.kind : undefined
+      );
+      if (dirs.length === 0)
+        return {
+          content:
+            "No directories yet. Use propose_create_directory to create a people or role directory.",
+        };
+      return {
+        content: dirs
+          .map(
+            (d) =>
+              `- [${d.id}]${d.code ? ` {${d.code}}` : ""} "${d.name}" (${d.kind} directory)`
+          )
+          .join("\n"),
+      };
+    }
+
+    case "propose_create_directory": {
+      const kind = input?.kind === "role" ? "role" : "person";
+      const people = Array.isArray(input?.people) ? input.people : [];
+      return {
+        content:
+          "Proposal prepared. The user will see a preview and choose whether to apply it. Do not assume it is saved.",
+        proposal: {
+          kind: "create",
+          target: "directory",
+          name: input?.name ?? (kind === "role" ? "Roles" : "Directory"),
+          code: input?.code ?? null,
+          folder_id: input?.folder_id ?? null,
+          directory_kind: kind,
+          people,
         },
       };
     }

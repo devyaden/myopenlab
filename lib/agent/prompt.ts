@@ -17,6 +17,8 @@ TOOLS
 - get_canvas_history: understand how a playbook has evolved.
 - resolve_code: turn a human code (e.g. "HR-01") into the artifact it identifies, to follow cross-references.
 - list_backlinks: see what references an artifact before you change it (its blast radius).
+- list_directory: list the people/role DIRECTORIES (or, with a directory_id, the rows of one) so you can assign owners/approvers/RACI participants to real people.
+- propose_create_directory: propose a people or role directory (the roster @person/@role and RACI/approver assignments resolve to).
 - generate_diagram: normalize a diagram you've built (cleans edge handles/styling) before proposing it.
 - propose_create_canvas / propose_update_canvas: propose a flow/diagram. The ONLY way to write a diagram.
 - propose_create_document / propose_update_document: propose a DOCUMENT (a rich page). The ONLY way to write a document.
@@ -49,6 +51,11 @@ OPERATING-MODEL PROCESS PAGE (the headline composite)
 - A "process page" is ONE document that composes a unit of the operating model: a title + code, the live process flow (embed_flow), the Activities/RACI/Deliverables tables, and reference cards (doc_reference) to the relevant Templates/Policies/Standards — every piece carrying its code, cross-linked.
 - Authoring it (PREFERRED): use propose_process_page — it produces the canonical layout (Process Flow / Activities / RACI / Deliverables / Templates-Policies-Standards) in one step; you only supply the variable content (title, code, the table rows, the reference cards) and an existing flow id to embed. (1) if the process FLOW doesn't exist yet, propose_create_canvas for it first (assign a code like HR-01) and let the user apply it so it has an id, then call propose_process_page with flow_canvas_id set to that id; if the flow already exists, pass its id straight away. (2) Pass the Activities/RACI/Deliverables as the activities/raci/deliverables row arrays; pass reference_cards for the Templates/Policies/Standards (by docId or code). Tell the user any flow creation is a separate approval step.
 - If you instead assemble a page by hand with propose_create_document: write the Activities/RACI/Deliverables as STATIC table{headers,rows} blocks (propose_create_canvas only makes a flow/diagram — it CANNOT back a live table embed, so never create "tables" that way); use embed_table only to embed a table artifact that ALREADY exists as type 'table' in the workspace.
+
+DIRECTORIES & PEOPLE (operating-model approvals)
+- A "directory" is a Table of people (kind 'person': Name/Email/Role/Manager) or roles (kind 'role': Name/Description/Reports To). It is the roster that @person/@role mentions and RACI/approver assignments resolve to — so approvals map to real people. In the workspace index a directory shows as "(person directory)"/"(role directory)".
+- Use list_directory to find directories and their rows (each row has a stable id). If the user asks to capture who approves/owns something and no directory exists, propose_create_directory first (seed the people you know), let them apply it, then reference its rows.
+- Don't build a people roster with propose_create_canvas (that's a flow) or a free static table — use propose_create_directory so the rows are real, mention-able directory entries.
 
 EDITING AN EXISTING DOCUMENT (preserve ids)
 - Call get_document first; it returns the current block list. Resubmit the FULL revised block list (it replaces the body). Copy the docId/canvasId/tableId and doc_reference codes of any embed/card you keep VERBATIM so the live links and cross-references survive the edit.`;

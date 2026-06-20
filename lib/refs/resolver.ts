@@ -201,9 +201,108 @@ export async function findDanglingReferences(
     .not("code", "is", null);
   const validCodes = new Set((coded ?? []).map((r: any) => r.code));
 
+  // Phase 5d: node-level (person/role) refs point at a row WITHIN a live canvas.
+  // The FK keeps to_canvas valid, but the row (node) could have been deleted, so
+  // validate to_node against the target canvas's current nodes. Batch-load each
+  // distinct target canvas's node ids once.
+  const distinct = Array.from(
+    new Set(
+      refs.filter((r) => r.to_canvas && r.to_node).map((r) => r.to_canvas as string)
+    )
+  );
+  const nodeMembership = new Map<string, Set<string>>();
+  for (const cid of distinct) {
+    const { data: cd } = await supabase
+      .from("canvas_data")
+      .select("nodes")
+      .eq("canvas_id", cid)
+      .maybeSingle();
+    const ids = new Set(
+      (Array.isArray(cd?.nodes) ? (cd!.nodes as any[]) : [])
+        .map((n: any) => String(n?.id))
+        .filter(Boolean)
+    );
+    nodeMembership.set(cid, ids);
+  }
+
   return refs.filter((r) => {
-    if (r.to_canvas) return false; // a live canvas target (FK-guaranteed)
+    if (r.to_canvas) {
+      if (r.to_node) {
+        const ids = nodeMembership.get(r.to_canvas);
+        return ids ? !ids.has(r.to_node) : false; // row deleted ⇒ dangling
+      }
+      return false; // a live canvas target (FK-guaranteed)
+    }
     if (!r.to_code) return true; // points nowhere
     return !validCodes.has(r.to_code); // code no longer resolves
   });
+}
+
+// ── Phase 5d: the Employee/Org directory ────────────────────────────────────
+
+export interface Directory {
+  id: string; // the directory canvas id
+  name: string;
+  code: string | null;
+  kind: string; // 'person' | 'role'
+}
+
+export interface DirectoryRow {
+  id: string; // the row's node id
+  label: string; // display name (node.data.label)
+  data: Record<string, any>;
+}
+
+/** Canvases the user has designated as people/role directories. */
+export async function listDirectories(
+  supabase: SupabaseClient,
+  userId: string,
+  kind?: "person" | "role"
+): Promise<Directory[]> {
+  let q = supabase
+    .from("canvas")
+    .select("id, name, code, directory_kind")
+    .eq("user_id", userId)
+    .not("directory_kind", "is", null);
+  if (kind) q = q.eq("directory_kind", kind);
+  const { data, error } = await q;
+  if (error) {
+    console.error("listDirectories failed:", error.message);
+    return [];
+  }
+  return (data ?? []).map((d: any) => ({
+    id: d.id,
+    name: d.name,
+    code: d.code ?? null,
+    kind: d.directory_kind,
+  }));
+}
+
+/** The rows (people/roles) of a directory, read from its canvas_data nodes. */
+export async function listDirectoryRows(
+  supabase: SupabaseClient,
+  userId: string,
+  directoryId: string
+): Promise<DirectoryRow[]> {
+  // The directory must belong to the user (the data read isn't user-scoped).
+  const { data: owned } = await supabase
+    .from("canvas")
+    .select("id")
+    .eq("id", directoryId)
+    .eq("user_id", userId)
+    .maybeSingle();
+  if (!owned) return [];
+  const { data } = await supabase
+    .from("canvas_data")
+    .select("nodes")
+    .eq("canvas_id", directoryId)
+    .maybeSingle();
+  const nodes = Array.isArray(data?.nodes) ? (data!.nodes as any[]) : [];
+  return nodes
+    .filter((n) => n && n.id)
+    .map((n) => ({
+      id: String(n.id),
+      label: String(n.data?.label ?? "Untitled"),
+      data: (n.data ?? {}) as Record<string, any>,
+    }));
 }

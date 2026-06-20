@@ -4,7 +4,11 @@ import tippy, { type Instance as TippyInstance } from "tippy.js";
 import MentionList, {
   type MentionListHandle,
 } from "../MentionList";
-import { searchFiles, preloadFiles } from "../hooks/useFileSearch";
+import {
+  searchFiles,
+  preloadFiles,
+  type MentionFile,
+} from "../hooks/useFileSearch";
 
 export interface FileMentionAttrs {
   id: string;
@@ -12,6 +16,8 @@ export interface FileMentionAttrs {
   canvasType: string | null;
   /** Phase 3: human-readable code (e.g. "HR-01") when the target is coded. */
   code: string | null;
+  /** Phase 5d: a directory row id when this mention is a @person/@role. */
+  nodeId?: string | null;
 }
 
 /**
@@ -53,6 +59,12 @@ const FileMention = Mention.extend({
         renderHTML: (attrs) =>
           attrs.code ? { "data-code": attrs.code } : {},
       },
+      nodeId: {
+        default: null,
+        parseHTML: (el) => el.getAttribute("data-node-id"),
+        renderHTML: (attrs) =>
+          attrs.nodeId ? { "data-node-id": attrs.nodeId } : {},
+      },
     };
   },
 });
@@ -85,7 +97,26 @@ export function createFileMentionConfig(opts: {
       // Mirrors @tiptap/extension-mention's default command (insert node + a
       // trailing space), with our onMention side-effect appended.
       command: ({ editor, range, props }) => {
-        const attrs = props as unknown as FileMentionAttrs;
+        // MentionList passes the full MentionFile; map it to the chip attrs,
+        // distinguishing a directory @person/@role (→ targets a row within the
+        // directory) from an ordinary canvas mention.
+        const f = props as unknown as MentionFile;
+        const isDirectory = f.kind === "person" || f.kind === "role";
+        const attrs: FileMentionAttrs = isDirectory
+          ? {
+              id: f.directoryId ?? "", // chip click → open the directory table
+              label: f.name,
+              canvasType: f.kind ?? null, // 'person' | 'role'
+              code: null,
+              nodeId: f.nodeId ?? null, // the specific row
+            }
+          : {
+              id: f.id,
+              label: f.name,
+              canvasType: f.canvas_type ?? null,
+              code: f.code ?? null,
+              nodeId: null,
+            };
         const nodeAfter = editor.view.state.selection.$to.nodeAfter;
         const overrideSpace = nodeAfter?.text?.startsWith(" ");
         const r = overrideSpace ? { from: range.from, to: range.to + 1 } : range;
@@ -105,7 +136,8 @@ export function createFileMentionConfig(opts: {
       items: async ({ query }) => {
         opts.onPreload?.();
         try {
-          return await searchFiles(query);
+          // includePeople: `@` also resolves directory people/roles.
+          return await searchFiles(query, true);
         } catch (err) {
           console.error("[FileMention] search failed", err);
           return [];

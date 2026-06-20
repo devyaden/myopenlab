@@ -448,10 +448,10 @@ Goal: make building a real operating model fast and faithful, not a blank page.
 - **Cmd+K search + saved views** (deferred from the launch plan): the flat ~150-item relation/embed picker
   proves the need; one searchable, folder-grouped picker for relations, embeds, and @-mentions.
 
-**STATUS: 5a (backlinks panel), 5b (process-page scaffold), 5c (Cmd+K + searchable relation picker) ✅ done +
-in-browser QA passed (2026-06-16); `tsc --noEmit` + `next build` clean; an 11-finding adversarial review
-(find→verify) was run over the 5a+5b diff and every confirmed finding was fixed (see 5a/5b notes).** 5d
-(Employee/Org directory) is the remaining sub-feature.
+**STATUS: all four sub-features (5a backlinks panel, 5b process-page scaffold, 5c Cmd+K + searchable relation
+picker, 5d Employee/Org directory) ✅ done + in-browser QA passed (2026-06-16 / 5d 2026-06-20); `tsc --noEmit`
++ `next build` clean; two adversarial find→verify reviews were run (5a+5b: 11 findings fixed; 5d: see 5d notes)
+and every confirmed finding fixed.** 5a–5c shipped in commit `662b7b4`; 5d follows.
 
 **5a — Backlinks panel (✅):** new `components/refs/BacklinksPanel.tsx` — a
 header `Popover` (mounted once in the shared `components/canvas-new/header.tsx`, so it appears on all three
@@ -493,9 +493,60 @@ code chips, `HR-01` filtered to the coded playbook, Enter navigated to it; the r
 dialogs (`TableSelectorDialog`/`CanvasDialog`) and the @-mention popup keep their own working UIs — full
 unification of those into the one shell is deferred (behavior-scope change). ✅
 
-**5d — Employee/Org directory:** NOT YET STARTED (the largest/riskiest sub-feature — needs a directory entity,
-a node-level reference resolver, an `@person`/`@role` mention source, RACI-cell typed references in the
-table-view, and agent awareness). Tracked separately.
+**5d — Employee/Org directory (✅):** a directory is an ordinary **Table canvas** designated by a new nullable
+`canvas.directory_kind` (`'person'`|`'role'`; NULL = normal canvas) — idempotent migration
+`prisma/migrations/20260616_phase5_directory_kind` applied via `prisma db execute` (NOT `migrate dev`), schema
+synced + `prisma validate` clean. Rows are the existing table substrate (`canvas_data.nodes`, `node.data.label`
+= the person/role name), so it reuses the table view, embeds, and the searchable relation picker for free — no
+new model.
+- **Reference spine made node-level.** `reference.to_node` (already in the schema) is now written end-to-end:
+  `lib/refs/client.ts` `MentionReferenceInput` + the **`POST /api/refs`** schema/dedupe carry `toNode` (so two
+  different people from the same source+type don't collapse); a new **`DELETE /api/refs`** retracts an exact
+  reference (owner-scoped). `resolver.ts` gained `listDirectories`/`listDirectoryRows` and `findDanglingReferences`
+  now validates a node-level target against the directory's current rows (a deleted person ⇒ dangling).
+- **Apply route — `target:"directory"` create** (`app/api/ai/agent/apply/route.ts`): inserts a `table` canvas
+  (+ code gen / 23505 retry) marked with `directory_kind`, seeds the columns (person → Name/Email/Role/Manager;
+  role → Name/Description/Reports To) and a row per `people[]` entry. Both the agent and the UI tile use it.
+- **Agent** (`tools.ts`/`prompt.ts`/`workspace.ts`): `propose_create_directory` (create a roster in one approved
+  step) + `list_directory` (find directories / their rows to assign owners/approvers); the workspace index marks
+  directories as `(person directory)`/`(role directory)`; `AgentChat.tsx` renders + applies the new proposal.
+- **`@person`/`@role` mentions** (`useFileSearch.ts` flattens each directory's rows into mention candidates
+  tagged `kind`/`directoryId`/`nodeId`; `MentionList` gets person/role icons; `FileMention` carries a `nodeId`
+  attr and maps a directory row vs a canvas; the editor `onMention` records a typed `person`/`role` reference
+  with `toNode`). One `@` resolves files, coded playbooks, **and** people/roles.
+- **RACI / approver typed references** (`table-view/index.tsx` + the `related_canvas` join in `useCanvas.ts` now
+  selects `directory_kind`): when a Relation cell's related canvas is a directory, linking a person **creates** a
+  `person`/`role` reference (`from_canvas`=table, `from_node`=row, `to_node`=the person row) and unlinking
+  **deletes** it — best-effort, isolated from the existing bidirectional-link logic.
+- **UI**: a **"People Directory" tile** in Create New (reuses the 5b tile pattern) → POSTs `target:"directory"`.
+
+**5d QA (dev server + Playwright, 2026-06-20):** the tile created a person directory (`canvas_type:table`,
+`code ED-01`, `directory_kind:person`, Name/Email/Role/Manager columns) and navigated to it. `@Sarah` in a
+document surfaced **"Sarah Chen (CEO)"** (person icon, from "Employee Directory"); selecting it wrote a
+`person` reference with `to_node` = Sarah's node id, and the document's References panel showed *References →
+Employee Directory / Person*. A Relation cell ("Approver") pointing at the directory created a `person`
+reference from the table row → Mark Davis on link, and `DELETE /api/refs` retracted it (0 rows). 0 console
+errors throughout. ✅
+
+**Adversarial-review fixes (7 confirmed + 1 found in QA, all fixed):** (1) `DELETE /api/refs` now requires a
+target (a `{fromCanvas,type}` body could otherwise wipe every ref of that type from a canvas); (2) the DELETE
+pins the NULL case for every absent target field (no over-match); (3) **the big one** — `reconcileDocumentReferences`
+now scopes its wipe to `to_node IS NULL`, so an agent `propose_update_document` no longer silently deletes the
+document's `@person`/`@role` references (which carry `to_node`); (4/5/6) directory person/role rows no longer
+leak into the **Cmd+K palette** or the **doc-reference picker** (they navigated/embedded a non-canvas
+`dirId::nodeId` id) — `useFileSearch` now keeps people in a separate cache surfaced ONLY via
+`searchFiles(query, includePeople=true)` in the `@`-mention path; `getAllFiles()` (palette) and the default
+`searchFiles` (doc-ref) are canvases-only; (7) the role directory's `reportsTo` camelCase key now maps to the
+"Reports To" column. Plus the Cmd+K `CommandDialog` got a screen-reader `DialogTitle` (cleared a Radix a11y
+console error surfaced in QA). Re-verified live: palette shows 0 person rows + 0 console errors; `@` still
+resolves people.
+
+**Known gaps (documented, not blocking):** the Backlinks panel is artifact-level — it shows that a doc/table
+references *a person in* a directory (type + directory name), not yet a per-person ("who is @Sarah's approver?")
+view (`to_node` filtering exists in the data but isn't surfaced in the panel UI); a directory is created via the
+tile/agent (no in-table-view "mark this table as a directory" toggle yet); reconcile of document-authored person
+mentions on agent re-edit follows the existing doc-level reconcile (inline mentions inside a paragraph still
+flatten on the get_document round-trip, per Phase 4).
 
 **Review fixes folded into 5b/5c (all 11 confirmed findings):** BacklinksPanel now (1) sends `&code=` so
 code-only backlinks resolve, (2) guards setState-after-unmount via a `mountedRef`, (3) only subscribes to the
