@@ -4,7 +4,7 @@ import {
   CANVAS_TYPE,
   CreateNewModal,
 } from "@/components/dashboard-sidebar/create-new-modal";
-import { useOnboarding } from "@/components/onboarding/custom-tooltip";
+import { useOnboarding } from "@/lib/store/useOnboarding";
 import {
   AlertDialog,
   AlertDialogAction,

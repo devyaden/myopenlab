@@ -2,6 +2,8 @@ import ClientLayout from "./client-layout";
 import "./globals.css";
 import { PostHogProvider } from "../components/PostHogProvider";
 import { Quicksand, Rubik } from "next/font/google";
+import { cookies } from "next/headers";
+import { LOCALE_COOKIE, dirFor, normalizeLocale } from "@/lib/i18n/config";
 
 const quicksand = Quicksand({
   subsets: ["latin"],
@@ -46,20 +48,25 @@ export const metadata = {
   },
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  // Read the persisted locale server-side so <html lang/dir> is correct on first
+  // paint (no flash). Defaults to English/LTR.
+  const cookieStore = await cookies();
+  const locale = normalizeLocale(cookieStore.get(LOCALE_COOKIE)?.value);
+
   return (
     <html
-      lang="en"
+      lang={locale}
       className={`${quicksand.variable} ${rubik.variable}`}
       suppressHydrationWarning
-      dir="ltr"
+      dir={dirFor(locale)}
     >
       <body className="bg-background text-foreground" suppressHydrationWarning>
-        <ClientLayout>{children}</ClientLayout>
+        <ClientLayout locale={locale}>{children}</ClientLayout>
       </body>
     </html>
   );

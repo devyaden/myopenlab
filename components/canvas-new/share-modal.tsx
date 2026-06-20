@@ -18,6 +18,7 @@ import {
 import { CANVAS_TYPE } from "@/types/store";
 import { Copy } from "lucide-react";
 import React, { useState } from "react";
+import { useOnboardingStore, ONBOARDING_STEP_IDS } from "@/lib/store/useOnboarding";
 import { toast } from "react-hot-toast";
 
 // // Custom TikTok icon component with improved styling
@@ -351,6 +352,7 @@ export function ShareModal({
   const [isChangingVisibility, setIsChangingVisibility] = useState(false);
   const shareLinkRef = React.useRef<HTMLInputElement>(null);
   const baseUrl = typeof window !== "undefined" ? window.location.origin : "";
+  const completeOnboardingStep = useOnboardingStore((s) => s.completeStep);
 
   // Generate share link when modal opens
   React.useEffect(() => {
@@ -364,6 +366,7 @@ export function ShareModal({
   }, [isOpen, canvasId, baseUrl]);
 
   const handleCopyLink = () => {
+    completeOnboardingStep(ONBOARDING_STEP_IDS.shareOrInvite);
     if (navigator.clipboard && navigator.clipboard.writeText) {
       navigator.clipboard
         .writeText(shareLink)
@@ -402,6 +405,7 @@ export function ShareModal({
     try {
       setIsChangingVisibility(true);
       await onVisibilityChange(newVisibility);
+      completeOnboardingStep(ONBOARDING_STEP_IDS.shareOrInvite);
       toast.success(`Canvas visibility changed to ${newVisibility}`);
     } catch (error) {
       toast.error("Failed to change visibility");

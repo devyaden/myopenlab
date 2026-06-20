@@ -1,843 +1,223 @@
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
+import { useCallback } from "react";
 import { supabase } from "../supabase/client";
 import { log } from "@/lib/log";
 
-export interface TutorialStep {
-  target: string;
-  content: string;
-  title?: string;
-  placement?: "top" | "bottom" | "left" | "right";
-  disableBeacon?: boolean;
-  spotlightClicks?: boolean;
-  spotlightPadding?: number;
-  hideCloseButton?: boolean;
-  showSkipButton?: boolean;
-  triggerAction?: () => Promise<boolean> | boolean;
-  waitForElement?: string;
-  requiresNavigation?: {
-    path: string;
-    condition?: () => boolean;
-  };
-  customAction?: {
-    type: "open_modal" | "click_element" | "navigate" | "wait";
-    target?: string;
-    data?: any;
-  };
-}
+/**
+ * Slim onboarding store (Hybrid Spine redesign).
+ *
+ * Replaces the old react-joyride TUTORIALS engine. State is intentionally tiny:
+ * a set of completed Tier-1 checklist step ids + a few flags. Persisted instantly
+ * to localStorage and, cross-device, to the EXISTING Supabase columns
+ * (`onboarding_data` JSONB + `has_seen_onboarding`) — no DB migration.
+ *
+ * Legacy data (old `completedTutorials`/`hasSeenWelcome` shape) is read
+ * defensively so veterans are neither re-onboarded nor errored on hydrate.
+ */
 
-export interface Tutorial {
-  id: string;
-  name: string;
-  description: string;
-  icon: string;
-  steps: TutorialStep[];
-  prerequisites?: string[];
-  context: {
-    routes: string[];
-    conditions?: () => boolean;
-  };
-  value: string;
-  requiresSetup?: boolean;
-}
+// Canonical Tier-1 checklist step ids — kept in sync with onboarding-steps.ts.
+export const ONBOARDING_STEP_IDS = {
+  createFirstPlaybook: "create-first-playbook",
+  openSurfaces: "open-3-surfaces",
+  tryAskAi: "try-ask-ai",
+  embedLive: "embed-live-content",
+  shareOrInvite: "share-or-invite",
+  tryCmdk: "try-cmdk",
+} as const;
 
-export const TUTORIALS: Record<string, Tutorial> = {
-  advanced_organization: {
-    id: "advanced_organization",
-    name: "Smart Organization",
-    description: "Learn powerful organization features most users miss",
-    icon: "🧠",
-    value: "Hidden productivity features and shortcuts",
-    context: {
-      routes: ["/protected"],
-    },
-    steps: [
-      {
-        target: ".onboarding-search-input",
-        title: "Global Search Power",
-        content:
-          'This search works across ALL your content - folders, files, and even inside documents. Try typing "type:canvas" or "modified:today" to see advanced search operators in action.',
-        placement: "bottom",
-        disableBeacon: true,
-        spotlightPadding: 8,
-      },
-      {
-        target: ".onboarding-root-folder",
-        title: "Root Folder Strategy",
-        content:
-          'The Root folder is perfect for temporary files, quick drafts, and items you haven\'t organized yet. Think of it as your "inbox" for new content. Click it to see how it works.',
-        placement: "top",
-        spotlightPadding: 4,
-        spotlightClicks: true,
-      },
-      {
-        target: ".onboarding-folder-card:first-child",
-        title: "Quick Actions on Hover",
-        content:
-          "Hover over any folder to see hidden actions. You can rename, delete, or move items without opening menus. Try hovering now!",
-        placement: "top",
-        spotlightPadding: 4,
-      },
-    ],
-  },
-
-  creation_workflows: {
-    id: "creation_workflows",
-    name: "Creation Workflows",
-    description: "Master the fastest ways to create and organize content",
-    icon: "⚡",
-    value: "Efficient content creation patterns and AI generation",
-    requiresSetup: true,
-    context: {
-      routes: ["/protected", "/protected/folder/"],
-    },
-    steps: [
-      {
-        target: ".onboarding-create-new-btn",
-        title: "Smart Creation Menu",
-        content:
-          "This button is your gateway to creating new content. Let's open it to see all the amazing creation options available to you.",
-        placement: "left",
-        spotlightPadding: 8,
-        spotlightClicks: true,
-        customAction: {
-          type: "click_element",
-          target: ".onboarding-create-new-btn",
-        },
-        waitForElement: ".onboarding-canvas-option",
-      },
-      {
-        target: ".onboarding-canvas-option",
-        title: "Canvas for Visual Thinking",
-        content:
-          "Canvases are perfect for brainstorming, flowcharts, mind maps, and visual planning. Unlike documents, you can freely position elements anywhere and create visual relationships.",
-        placement: "top",
-        spotlightPadding: 4,
-        spotlightClicks: false,
-      },
-      {
-        target: ".onboarding-table-option",
-        title: "Tables for Structured Data",
-        content:
-          "Tables are ideal for organizing data, creating lists, tracking projects, and any structured information. Perfect when you need organized rows and columns.",
-        placement: "top",
-        spotlightPadding: 4,
-        spotlightClicks: false,
-      },
-      {
-        target: ".onboarding-document-option",
-        title: "Documents for Writing",
-        content:
-          "Documents are great for writing, notes, documentation, and any text-heavy content. They provide rich formatting and traditional document structure.",
-        placement: "top",
-        spotlightPadding: 4,
-        spotlightClicks: false,
-      },
-      {
-        target: ".onboarding-ai-option",
-        title: "🤖 AI-Powered Creation - The Magic!",
-        content:
-          "This is where the real magic happens! Click here to let AI generate entire diagrams, workflows, or visual content based on just your description. It's like having a professional designer at your fingertips!",
-        placement: "top",
-        spotlightPadding: 4,
-        spotlightClicks: true,
-        customAction: {
-          type: "click_element",
-          target: ".onboarding-ai-option",
-        },
-        waitForElement: ".language",
-      },
-      {
-        target: ".language",
-        title: "Choose Your Language",
-        content:
-          "Start by selecting your preferred language. The AI will generate content and labels in the language you choose, making it perfect for international teams.",
-        placement: "bottom",
-        spotlightPadding: 4,
-        spotlightClicks: false,
-      },
-      {
-        target: ".diagram",
-        title: "Select Diagram Type",
-        content:
-          "Choose what type of diagram you want to create. Each type has different templates and structures optimized for specific use cases like workflows, hierarchies, or mind maps.",
-        placement: "bottom",
-        spotlightPadding: 4,
-        spotlightClicks: false,
-      },
-      {
-        target: ".industry",
-        title: "Industry Context",
-        content:
-          "Select your industry to get relevant examples and terminology. This helps the AI understand your business context and create more accurate, professional diagrams.",
-        placement: "bottom",
-        spotlightPadding: 4,
-        spotlightClicks: false,
-      },
-      {
-        target: ".prompt",
-        title: "Describe Your Vision",
-        content:
-          "This is where you describe what you want to create. Be specific about processes, relationships, and details. The more detailed your description, the better the AI can bring your vision to life!",
-        placement: "bottom",
-        spotlightPadding: 4,
-        spotlightClicks: false,
-      },
-      {
-        target: ".generate",
-        title: "Generate Magic! ✨",
-        content:
-          "Click here to let AI create your diagram! In moments, you'll have a professional, structured diagram that you can further customize and refine. Try it now - you'll be amazed!",
-        placement: "top",
-        spotlightPadding: 4,
-        spotlightClicks: false,
-      },
-    ],
-  },
-
-  folder_mastery: {
-    id: "folder_mastery",
-    name: "Folder Mastery",
-    description: "Advanced file management and productivity techniques",
-    icon: "📂",
-    value: "Professional file organization strategies",
-    context: {
-      routes: ["/protected/folder/"],
-    },
-    requiresSetup: true,
-    steps: [
-      {
-        target: ".onboarding-folder-search",
-        title: "Scoped Search",
-        content:
-          "When inside a folder, search only looks within that folder and its subfolders. Try searching for something specific to see how it filters results.",
-        placement: "bottom",
-        spotlightPadding: 8,
-        spotlightClicks: true,
-      },
-      {
-        target: ".onboarding-create-dropdown",
-        title: "Context-Aware Creation",
-        content:
-          "Notice how this menu shows quick creation options. Items created here automatically go into this folder - no need to move them later. Let's open it!",
-        placement: "left",
-        spotlightPadding: 8,
-        spotlightClicks: true,
-        customAction: {
-          type: "click_element",
-          target: ".onboarding-create-dropdown",
-        },
-      },
-      {
-        target: ".onboarding-file-actions",
-        title: "File Operations",
-        content:
-          "Hover over files to see quick actions. Pro tip: Hold Shift while clicking to select multiple files for batch operations like moving or deleting.",
-        placement: "top",
-        spotlightPadding: 4,
-      },
-      {
-        target: ".onboarding-breadcrumb",
-        title: "Smart Navigation",
-        content:
-          "Click any part of the breadcrumb path to jump directly to that level. Much faster than using the back button multiple times. Try it!",
-        placement: "bottom",
-        spotlightPadding: 4,
-        spotlightClicks: true,
-      },
-    ],
-  },
-};
+export type OnboardingStepId =
+  (typeof ONBOARDING_STEP_IDS)[keyof typeof ONBOARDING_STEP_IDS];
 
 interface OnboardingState {
-  // Tutorial tracking
-  completedTutorials: string[];
-  skippedTutorials: string[];
-  hasSeenWelcome: boolean;
-  lastCompletedAt: string | null;
-
-  // Session state (not persisted)
-  welcomeShownThisSession: boolean;
-  isHydrated: boolean;
-  isSyncing: boolean;
+  // ---- Persisted progress ----
+  completedStepIds: string[];
+  seenHints: Record<string, boolean>;
+  welcomeSeen: boolean;
+  dismissedChecklist: boolean;
+  teamSize: string | null;
+  firstProcess: string | null;
   lastSyncAt: string | null;
 
-  // Active tutorial state
-  activeTutorial: string | null;
-  isRunning: boolean;
-  currentStep: number;
-  waitingForAction: boolean;
+  // ---- Session-only (not persisted) ----
+  isHydrated: boolean;
+  isSyncing: boolean;
+  spotlightActive: boolean;
+  spotlightStep: number;
 
-  // User preferences
-  autoStartTutorials: boolean;
-  showAdvancedTips: boolean;
+  // ---- Actions ----
+  completeStep: (id: string) => void;
+  markHintSeen: (id: string) => void;
+  setWelcomeSeen: () => void;
+  dismissChecklist: () => void;
+  reopenChecklist: () => void;
+  setPersona: (p: { teamSize?: string | null; firstProcess?: string | null }) => void;
+  startSpotlight: () => void;
+  stopSpotlight: () => void;
+  setSpotlightStep: (n: number) => void;
+  setHydrated: (b: boolean) => void;
+  resetOnboarding: () => void;
 
-  // Smart suggestions
-  userBehavior: {
-    createdItems: number;
-    foldersCreated: number;
-    searchesPerformed: number;
-    lastActiveDate: string | null;
-  };
+  // ---- Getters ----
+  isStepComplete: (id: string) => boolean;
+  isHintSeen: (id: string) => boolean;
 
-  // Actions
-  startTutorial: (tutorialId: string) => void;
-  completeTutorial: (tutorialId: string) => void;
-  stopTutorial: () => void;
-  skipTutorial: (tutorialId: string) => void;
-  resetTutorial: (tutorialId: string) => void;
-  resetAllTutorials: () => void;
-  setWelcomeSeen: (showThisSession?: boolean) => void;
-  updatePreferences: (
-    prefs: Partial<
-      Pick<OnboardingState, "autoStartTutorials" | "showAdvancedTips">
-    >
-  ) => void;
-  setWaitingForAction: (waiting: boolean) => void;
-  setHydrated: (hydrated: boolean) => void;
-
-  // Smart behavior tracking
-  trackUserAction: (action: "create" | "folder_create" | "search") => void;
-
-  // Getters
-  isTutorialCompleted: (tutorialId: string) => boolean;
-  isTutorialSkipped: (tutorialId: string) => boolean;
-  isTutorialAvailable: (tutorialId: string, currentPath?: string) => boolean;
-  shouldAutoStartTutorial: (
-    tutorialId: string,
-    currentPath?: string
-  ) => boolean;
-  getContextualTutorials: (currentPath: string) => Tutorial[];
-  getNextSuggestedTutorial: (currentPath?: string) => string | null;
-  getTutorialStatus: (
-    tutorialId: string,
-    currentPath?: string
-  ) => "completed" | "skipped" | "available" | "unavailable";
-
-  // Database sync
+  // ---- Database sync ----
   syncWithDatabase: (userId: string, force?: boolean) => Promise<void>;
   saveToDatabase: (userId: string) => Promise<void>;
 }
 
-// Helper function to merge states intelligently
-const mergeOnboardingStates = (localState: any, dbState: any) => {
-  // Always prefer the most recent data
-  const localTime = localState.lastCompletedAt
-    ? new Date(localState.lastCompletedAt).getTime()
-    : 0;
-  const dbTime = dbState.lastCompletedAt
-    ? new Date(dbState.lastCompletedAt).getTime()
-    : 0;
-
-  // Merge arrays by combining and deduplicating
-  const mergedCompleted = Array.from(
-    new Set([
-      ...(localState.completedTutorials || []),
-      ...(dbState.completedTutorials || []),
-    ])
-  );
-
-  const mergedSkipped = Array.from(
-    new Set([
-      ...(localState.skippedTutorials || []),
-      ...(dbState.skippedTutorials || []),
-    ])
-  );
-
-  // Use most recent behavior data
-  const mergedBehavior = {
-    createdItems: Math.max(
-      localState.userBehavior?.createdItems || 0,
-      dbState.userBehavior?.createdItems || 0
-    ),
-    foldersCreated: Math.max(
-      localState.userBehavior?.foldersCreated || 0,
-      dbState.userBehavior?.foldersCreated || 0
-    ),
-    searchesPerformed: Math.max(
-      localState.userBehavior?.searchesPerformed || 0,
-      dbState.userBehavior?.searchesPerformed || 0
-    ),
-    lastActiveDate:
-      localTime > dbTime
-        ? localState.userBehavior?.lastActiveDate
-        : dbState.userBehavior?.lastActiveDate,
-  };
-
-  return {
-    completedTutorials: mergedCompleted,
-    skippedTutorials: mergedSkipped,
-    hasSeenWelcome:
-      localState.hasSeenWelcome || dbState.hasSeenWelcome || false,
-    lastCompletedAt:
-      localTime > dbTime ? localState.lastCompletedAt : dbState.lastCompletedAt,
-    // Tutorials are opt-in: default to NOT auto-starting. A user (or a settings
-    // toggle) can flip this on; we never auto-launch a tutorial on page load.
-    autoStartTutorials:
-      localState.autoStartTutorials ?? dbState.autoStartTutorials ?? false,
-    showAdvancedTips:
-      localState.showAdvancedTips ?? dbState.showAdvancedTips ?? true,
-    userBehavior: mergedBehavior,
-  };
-};
+// Debounced background save to Supabase using the globally-stashed user id.
+function scheduleSave(get: () => OnboardingState) {
+  if (typeof window === "undefined") return;
+  const uid = (window as any).currentUserId;
+  if (!uid) return;
+  clearTimeout((window as any).onboardingSaveTimeout);
+  (window as any).onboardingSaveTimeout = setTimeout(() => {
+    get()
+      .saveToDatabase(uid)
+      .catch((e) => console.error("onboarding save failed", e));
+  }, 1200);
+}
 
 export const useOnboardingStore = create<OnboardingState>()(
   persist(
     (set, get) => ({
       // Initial state
-      completedTutorials: [],
-      skippedTutorials: [],
-      hasSeenWelcome: false,
-      lastCompletedAt: null,
-      welcomeShownThisSession: false,
+      completedStepIds: [],
+      seenHints: {},
+      welcomeSeen: false,
+      dismissedChecklist: false,
+      teamSize: null,
+      firstProcess: null,
+      lastSyncAt: null,
+
       isHydrated: false,
       isSyncing: false,
-      lastSyncAt: null,
-      activeTutorial: null,
-      isRunning: false,
-      currentStep: 0,
-      waitingForAction: false,
-      autoStartTutorials: false, // opt-in: never auto-start tutorials
-      showAdvancedTips: true,
-      userBehavior: {
-        createdItems: 0,
-        foldersCreated: 0,
-        searchesPerformed: 0,
-        lastActiveDate: null,
-      },
+      spotlightActive: false,
+      spotlightStep: 0,
 
       // Actions
-      startTutorial: (tutorialId: string) => {
-        const tutorial = TUTORIALS[tutorialId];
-        if (!tutorial) {
-          log.warn(`Tutorial ${tutorialId} not found`);
-          return;
-        }
-
+      completeStep: (id) => {
         const state = get();
-
-        // Stop any currently running tutorial
-        if (state.isRunning && state.activeTutorial) {
-          log.debug(`Stopping current tutorial: ${state.activeTutorial}`);
-        }
-
-        log.debug(`Starting tutorial: ${tutorialId}`);
-        set({
-          activeTutorial: tutorialId,
-          isRunning: true,
-          currentStep: 0,
-          waitingForAction: false,
-        });
+        if (state.completedStepIds.includes(id)) return;
+        set({ completedStepIds: [...state.completedStepIds, id] });
+        scheduleSave(get);
       },
 
-      completeTutorial: (tutorialId: string) => {
+      markHintSeen: (id) => {
         const state = get();
-
-        // Remove from skipped if it was there
-        const updatedSkipped = state.skippedTutorials.filter(
-          (id) => id !== tutorialId
-        );
-
-        // Add to completed if not already there
-        const updatedCompleted = state.completedTutorials.includes(tutorialId)
-          ? state.completedTutorials
-          : [...state.completedTutorials, tutorialId];
-
-        const newState = {
-          completedTutorials: updatedCompleted,
-          skippedTutorials: updatedSkipped,
-          lastCompletedAt: new Date().toISOString(),
-          activeTutorial: null,
-          isRunning: false,
-          currentStep: 0,
-          waitingForAction: false,
-        };
-
-        set(newState);
-
-        // Auto-save to database in background
-        const currentUser = (window as any).currentUserId;
-        if (currentUser) {
-          get().saveToDatabase(currentUser).catch(console.error);
-        }
+        if (state.seenHints[id]) return;
+        set({ seenHints: { ...state.seenHints, [id]: true } });
+        scheduleSave(get);
       },
 
-      stopTutorial: () => {
+      setWelcomeSeen: () => {
+        if (get().welcomeSeen) return;
+        set({ welcomeSeen: true });
+        scheduleSave(get);
+      },
+
+      dismissChecklist: () => {
+        set({ dismissedChecklist: true });
+        scheduleSave(get);
+      },
+
+      reopenChecklist: () => {
+        set({ dismissedChecklist: false });
+        scheduleSave(get);
+      },
+
+      setPersona: ({ teamSize, firstProcess }) => {
         set({
-          activeTutorial: null,
-          isRunning: false,
-          currentStep: 0,
-          waitingForAction: false,
+          teamSize: teamSize ?? get().teamSize,
+          firstProcess: firstProcess ?? get().firstProcess,
         });
+        scheduleSave(get);
       },
 
-      skipTutorial: (tutorialId: string) => {
-        const state = get();
+      startSpotlight: () => set({ spotlightActive: true, spotlightStep: 0 }),
+      stopSpotlight: () => set({ spotlightActive: false, spotlightStep: 0 }),
+      setSpotlightStep: (n) => set({ spotlightStep: n }),
 
-        // Remove from completed if it was there
-        const updatedCompleted = state.completedTutorials.filter(
-          (id) => id !== tutorialId
-        );
+      setHydrated: (b) => set({ isHydrated: b }),
 
-        // Add to skipped if not already there
-        const updatedSkipped = state.skippedTutorials.includes(tutorialId)
-          ? state.skippedTutorials
-          : [...state.skippedTutorials, tutorialId];
-
-        const newState = {
-          completedTutorials: updatedCompleted,
-          skippedTutorials: updatedSkipped,
-          activeTutorial: null,
-          isRunning: false,
-          currentStep: 0,
-          waitingForAction: false,
-        };
-
-        set(newState);
-
-        // Auto-save to database in background
-        const currentUser = (window as any).currentUserId;
-        if (currentUser) {
-          get().saveToDatabase(currentUser).catch(console.error);
-        }
-      },
-
-      resetTutorial: (tutorialId: string) => {
-        const state = get();
-        const updatedCompleted = state.completedTutorials.filter(
-          (id) => id !== tutorialId
-        );
-        const updatedSkipped = state.skippedTutorials.filter(
-          (id) => id !== tutorialId
-        );
-
+      resetOnboarding: () =>
         set({
-          completedTutorials: updatedCompleted,
-          skippedTutorials: updatedSkipped,
-          activeTutorial: null,
-          isRunning: false,
-          waitingForAction: false,
-        });
-      },
-
-      resetAllTutorials: () => {
-        set({
-          completedTutorials: [],
-          skippedTutorials: [],
-          lastCompletedAt: null,
-          activeTutorial: null,
-          isRunning: false,
-          currentStep: 0,
-          waitingForAction: false,
-        });
-      },
-
-      setWelcomeSeen: (showThisSession = true) => {
-        set({
-          hasSeenWelcome: true,
-          welcomeShownThisSession: showThisSession,
-        });
-      },
-
-      updatePreferences: (prefs) => {
-        set(prefs);
-      },
-
-      setWaitingForAction: (waiting: boolean) => {
-        set({ waitingForAction: waiting });
-      },
-
-      setHydrated: (hydrated: boolean) => {
-        set({ isHydrated: hydrated });
-      },
-
-      // Smart behavior tracking
-      trackUserAction: (action) => {
-        const state = get();
-        const newBehavior = { ...state.userBehavior };
-
-        switch (action) {
-          case "create":
-            newBehavior.createdItems += 1;
-            break;
-          case "folder_create":
-            newBehavior.foldersCreated += 1;
-            break;
-          case "search":
-            newBehavior.searchesPerformed += 1;
-            break;
-        }
-
-        newBehavior.lastActiveDate = new Date().toISOString();
-
-        set({
-          userBehavior: newBehavior,
-        });
-
-        // Auto-save to database in background
-        const currentUser = (window as any).currentUserId;
-        if (currentUser) {
-          // Debounce saves for user actions
-          clearTimeout((window as any).onboardingSaveTimeout);
-          (window as any).onboardingSaveTimeout = setTimeout(() => {
-            get().saveToDatabase(currentUser).catch(console.error);
-          }, 2000);
-        }
-      },
+          completedStepIds: [],
+          seenHints: {},
+          dismissedChecklist: false,
+          spotlightActive: false,
+          spotlightStep: 0,
+        }),
 
       // Getters
-      isTutorialCompleted: (tutorialId: string) => {
+      isStepComplete: (id) => get().completedStepIds.includes(id),
+      isHintSeen: (id) => !!get().seenHints[id],
+
+      // Database sync — merge DB <-> local, tolerant of the legacy shape.
+      syncWithDatabase: async (userId, force = false) => {
         const state = get();
-        return state.completedTutorials.includes(tutorialId);
-      },
+        if (state.isSyncing && !force) return;
 
-      isTutorialSkipped: (tutorialId: string) => {
-        const state = get();
-        return state.skippedTutorials.includes(tutorialId);
-      },
-
-      isTutorialAvailable: (tutorialId: string, currentPath?: string) => {
-        const tutorial = TUTORIALS[tutorialId];
-        if (!tutorial) return false;
-
-        // Always check if tutorial exists first
-        return true;
-      },
-
-      shouldAutoStartTutorial: (tutorialId: string, currentPath?: string) => {
-        const state = get();
-        const tutorial = TUTORIALS[tutorialId];
-        if (!tutorial) return false;
-
-        // Don't auto-start until hydrated
-        if (!state.isHydrated) return false;
-
-        // Check if tutorial is contextually relevant
-        if (currentPath && tutorial.context.routes.length > 0) {
-          const isRelevantRoute = tutorial.context.routes.some(
-            (route) => currentPath === route || currentPath.startsWith(route)
-          );
-          if (!isRelevantRoute) return false;
-        }
-
-        // Don't auto-start if user disabled it
-        if (!state.autoStartTutorials) return false;
-
-        // Don't auto-start if tutorial is running
-        if (state.isRunning) return false;
-
-        // Don't auto-start if completed or skipped
-        if (
-          state.completedTutorials.includes(tutorialId) ||
-          state.skippedTutorials.includes(tutorialId)
-        ) {
-          return false;
-        }
-
-        // Don't auto-start if welcome hasn't been seen yet
-        if (!state.hasSeenWelcome) return false;
-
-        // Check prerequisites
-        if (tutorial.prerequisites) {
-          const hasPrerequisites = tutorial.prerequisites.every((prereq) =>
-            state.completedTutorials.includes(prereq)
-          );
-          if (!hasPrerequisites) return false;
-        }
-
-        return true;
-      },
-
-      getContextualTutorials: (currentPath: string) => {
-        return Object.values(TUTORIALS).filter((tutorial) => {
-          // Check if tutorial is contextually relevant to current path
-          if (tutorial.context.routes.length > 0) {
-            const isRelevantRoute = tutorial.context.routes.some(
-              (route) => currentPath === route || currentPath.startsWith(route)
-            );
-            return isRelevantRoute;
-          }
-          return false;
-        });
-      },
-
-      getTutorialStatus: (tutorialId: string, currentPath?: string) => {
-        const state = get();
-        const tutorial = TUTORIALS[tutorialId];
-
-        if (!tutorial) return "unavailable";
-
-        // Check completion/skip status first (global state)
-        if (state.completedTutorials.includes(tutorialId)) {
-          return "completed";
-        }
-        if (state.skippedTutorials.includes(tutorialId)) {
-          return "skipped";
-        }
-
-        // Check if tutorial is contextually available
-        if (currentPath && tutorial.context.routes.length > 0) {
-          const isRelevantRoute = tutorial.context.routes.some(
-            (route) => currentPath === route || currentPath.startsWith(route)
-          );
-          if (isRelevantRoute) {
-            return "available";
-          } else {
-            return "unavailable";
-          }
-        }
-
-        // Default to available if no specific route restrictions
-        return "available";
-      },
-
-      getNextSuggestedTutorial: (currentPath?: string) => {
-        const state = get();
-
-        // Don't suggest if a tutorial is currently running
-        if (state.isRunning || state.activeTutorial) {
-          return null;
-        }
-
-        // Don't suggest if auto-start is disabled
-        if (!state.autoStartTutorials) {
-          return null;
-        }
-
-        // Don't suggest until hydrated
-        if (!state.isHydrated) {
-          return null;
-        }
-
-        // Smart suggestion based on user behavior and context
-        const { userBehavior } = state;
-
-        // For new users on home page, start with organization
-        if (
-          currentPath === "/protected" &&
-          userBehavior.createdItems === 0 &&
-          userBehavior.foldersCreated === 0 &&
-          get().shouldAutoStartTutorial("advanced_organization", currentPath)
-        ) {
-          return "advanced_organization";
-        }
-
-        // If user has created content but not many folders, suggest organization
-        if (
-          userBehavior.createdItems >= 3 &&
-          userBehavior.foldersCreated < 2 &&
-          get().shouldAutoStartTutorial("advanced_organization", currentPath)
-        ) {
-          return "advanced_organization";
-        }
-
-        // If user is in creation flow, suggest creation workflows
-        if (
-          currentPath?.includes("/protected") &&
-          userBehavior.createdItems < 5 &&
-          get().shouldAutoStartTutorial("creation_workflows", currentPath)
-        ) {
-          return "creation_workflows";
-        }
-
-        // If user is actively using folders, suggest folder mastery
-        if (
-          currentPath?.includes("/folder/") &&
-          userBehavior.foldersCreated >= 1 &&
-          get().shouldAutoStartTutorial("folder_mastery", currentPath)
-        ) {
-          return "folder_mastery";
-        }
-
-        // Default fallback - suggest first available tutorial
-        const contextualTutorials = get().getContextualTutorials(
-          currentPath || "/protected"
-        );
-        const availableTutorial = contextualTutorials.find((tutorial) =>
-          get().shouldAutoStartTutorial(tutorial.id, currentPath)
-        );
-
-        return availableTutorial?.id || null;
-      },
-
-      // Database sync - improved to prevent state overwrites
-      syncWithDatabase: async (userId: string, force: boolean = false) => {
-        const state = get();
-
-        // Prevent multiple simultaneous syncs
-        if (state.isSyncing && !force) {
-          log.debug("Sync already in progress, skipping...");
-          return;
-        }
-
-        // Don't sync too frequently unless forced
         const lastSync = state.lastSyncAt
           ? new Date(state.lastSyncAt).getTime()
           : 0;
-        const now = Date.now();
         const fiveMinutes = 5 * 60 * 1000;
-
-        if (!force && now - lastSync < fiveMinutes) {
-          log.debug("Recent sync found, skipping...");
-          return;
-        }
+        if (!force && Date.now() - lastSync < fiveMinutes) return;
 
         set({ isSyncing: true });
-
         try {
-          // Get current local state before any network calls
-          const currentLocalState = {
-            completedTutorials: state.completedTutorials,
-            skippedTutorials: state.skippedTutorials,
-            hasSeenWelcome: state.hasSeenWelcome,
-            lastCompletedAt: state.lastCompletedAt,
-            autoStartTutorials: state.autoStartTutorials,
-            showAdvancedTips: state.showAdvancedTips,
-            userBehavior: state.userBehavior,
-          };
-
           const { data: userData } = await supabase
             .from("user")
             .select("onboarding_data, has_seen_onboarding")
             .eq("id", userId)
             .single();
 
-          if (userData?.onboarding_data) {
-            const dbOnboardingData =
-              typeof userData.onboarding_data === "string"
-                ? JSON.parse(userData.onboarding_data)
-                : userData.onboarding_data;
+          const raw = userData?.onboarding_data;
+          const db: Record<string, any> = raw
+            ? typeof raw === "string"
+              ? safeParse(raw)
+              : raw
+            : {};
 
-            const dbState = {
-              ...dbOnboardingData,
-              hasSeenWelcome: userData.has_seen_onboarding || false,
-            };
+          // Legacy veterans engaged with the old tutorial engine — don't re-onboard.
+          const legacyEngaged =
+            (Array.isArray(db.completedTutorials) &&
+              db.completedTutorials.length > 0) ||
+            db.hasSeenWelcome === true;
 
-            // Merge states intelligently instead of overwriting
-            const mergedState = mergeOnboardingStates(
-              currentLocalState,
-              dbState
-            );
+          const dbWelcomeSeen =
+            typeof db.welcomeSeen === "boolean"
+              ? db.welcomeSeen
+              : !!userData?.has_seen_onboarding || legacyEngaged;
 
-            // Only update if there are actual changes
-            const hasChanges =
-              JSON.stringify(mergedState) !== JSON.stringify(currentLocalState);
+          const merged = {
+            completedStepIds: Array.from(
+              new Set([
+                ...state.completedStepIds,
+                ...(Array.isArray(db.completedStepIds)
+                  ? db.completedStepIds
+                  : []),
+              ])
+            ),
+            seenHints: {
+              ...(db.seenHints && typeof db.seenHints === "object"
+                ? db.seenHints
+                : {}),
+              ...state.seenHints,
+            },
+            welcomeSeen: state.welcomeSeen || dbWelcomeSeen,
+            dismissedChecklist:
+              state.dismissedChecklist ||
+              (typeof db.dismissedChecklist === "boolean"
+                ? db.dismissedChecklist
+                : false),
+            teamSize: state.teamSize ?? db.teamSize ?? null,
+            firstProcess: state.firstProcess ?? db.firstProcess ?? null,
+          };
 
-            if (hasChanges) {
-              log.debug("Merging database state with local state");
-              set({
-                ...mergedState,
-                lastSyncAt: new Date().toISOString(),
-              });
-            } else {
-              set({ lastSyncAt: new Date().toISOString() });
-            }
-          } else {
-            // No database data, just update sync time
-            set({ lastSyncAt: new Date().toISOString() });
-          }
-
-          // Save current state back to database to ensure consistency
+          set({ ...merged, lastSyncAt: new Date().toISOString() });
           await get().saveToDatabase(userId);
         } catch (error) {
           console.error("Failed to sync onboarding data:", error);
@@ -846,25 +226,38 @@ export const useOnboardingStore = create<OnboardingState>()(
         }
       },
 
-      // Separate function for saving to database
-      saveToDatabase: async (userId: string) => {
+      // Persist to Supabase, preserving any unknown keys already in onboarding_data
+      // (e.g. the signup questionnaire's companyDescription).
+      saveToDatabase: async (userId) => {
         try {
           const state = get();
+          const { data } = await supabase
+            .from("user")
+            .select("onboarding_data")
+            .eq("id", userId)
+            .single();
+
+          const existing: Record<string, any> = data?.onboarding_data
+            ? typeof data.onboarding_data === "string"
+              ? safeParse(data.onboarding_data)
+              : data.onboarding_data
+            : {};
 
           const dataToSave = {
-            completedTutorials: state.completedTutorials,
-            skippedTutorials: state.skippedTutorials,
-            autoStartTutorials: state.autoStartTutorials,
-            showAdvancedTips: state.showAdvancedTips,
-            lastCompletedAt: state.lastCompletedAt,
-            userBehavior: state.userBehavior,
+            ...existing,
+            completedStepIds: state.completedStepIds,
+            seenHints: state.seenHints,
+            welcomeSeen: state.welcomeSeen,
+            dismissedChecklist: state.dismissedChecklist,
+            teamSize: state.teamSize ?? existing.teamSize ?? null,
+            firstProcess: state.firstProcess ?? existing.firstProcess ?? null,
           };
 
           await supabase
             .from("user")
             .update({
               onboarding_data: dataToSave,
-              has_seen_onboarding: state.hasSeenWelcome,
+              has_seen_onboarding: state.welcomeSeen,
             })
             .eq("id", userId);
 
@@ -878,33 +271,67 @@ export const useOnboardingStore = create<OnboardingState>()(
       name: "onboarding-store",
       storage: createJSONStorage(() => localStorage),
       partialize: (state) => ({
-        completedTutorials: state.completedTutorials,
-        skippedTutorials: state.skippedTutorials,
-        hasSeenWelcome: state.hasSeenWelcome,
-        lastCompletedAt: state.lastCompletedAt,
-        autoStartTutorials: state.autoStartTutorials,
-        showAdvancedTips: state.showAdvancedTips,
-        userBehavior: state.userBehavior,
+        completedStepIds: state.completedStepIds,
+        seenHints: state.seenHints,
+        welcomeSeen: state.welcomeSeen,
+        dismissedChecklist: state.dismissedChecklist,
+        teamSize: state.teamSize,
+        firstProcess: state.firstProcess,
         lastSyncAt: state.lastSyncAt,
       }),
+      // Tolerant merge: map any legacy localStorage shape onto the slim schema.
+      merge: (persisted, current) => {
+        const p = (persisted ?? {}) as any;
+        const legacyWelcome =
+          p.welcomeSeen === true ||
+          p.hasSeenWelcome === true ||
+          (Array.isArray(p.completedTutorials) &&
+            p.completedTutorials.length > 0);
+        return {
+          ...current,
+          completedStepIds: Array.isArray(p.completedStepIds)
+            ? p.completedStepIds
+            : [],
+          seenHints:
+            p.seenHints && typeof p.seenHints === "object" ? p.seenHints : {},
+          welcomeSeen:
+            typeof p.welcomeSeen === "boolean" ? p.welcomeSeen : legacyWelcome,
+          dismissedChecklist:
+            typeof p.dismissedChecklist === "boolean"
+              ? p.dismissedChecklist
+              : false,
+          teamSize: p.teamSize ?? null,
+          firstProcess: p.firstProcess ?? null,
+          lastSyncAt: p.lastSyncAt ?? null,
+        };
+      },
       onRehydrateStorage: () => (state) => {
-        log.debug("Onboarding store hydrated from localStorage");
-        if (state) {
-          state.setHydrated(true);
-        }
+        if (state) state.setHydrated(true);
       },
     }
   )
 );
 
-// logs
-if (process.env.NODE_ENV === "development") {
-  useOnboardingStore.subscribe((state) => {
-    log.debug("Onboarding store state changed:", {
-      completedTutorials: state.completedTutorials,
-      skippedTutorials: state.skippedTutorials,
-      isHydrated: state.isHydrated,
-      isSyncing: state.isSyncing,
-    });
-  });
+function safeParse(s: string): Record<string, any> {
+  try {
+    return JSON.parse(s) ?? {};
+  } catch {
+    return {};
+  }
+}
+
+/**
+ * Backwards-compatible hook for the dashboard surfaces that still call the old
+ * `track*` helpers. `trackCreate` now completes the "create your first playbook"
+ * checklist item; folder/search tracking are no-ops (those were only feeding the
+ * removed "smart suggestion" engine).
+ */
+export function useOnboarding() {
+  const completeStep = useOnboardingStore((s) => s.completeStep);
+  const trackCreate = useCallback(
+    () => completeStep(ONBOARDING_STEP_IDS.createFirstPlaybook),
+    [completeStep]
+  );
+  const noop = useCallback(() => {}, []);
+  return { trackCreate, trackFolderCreate: noop, trackSearch: noop };
 }

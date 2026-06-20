@@ -2,6 +2,7 @@
 
 import { Check, Loader2, AlertCircle, CircleDashed } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { ANCHORS } from "@/components/onboarding/onboarding-steps";
 
 /**
  * Unified autosave status used by all three editor surfaces (Canvas / Table /
@@ -68,6 +69,7 @@ export function SaveStatusIndicator({
 
   return (
     <div
+      data-onboarding={ANCHORS.saveStatus}
       className={cn(
         "flex items-center gap-1.5 text-xs select-none whitespace-nowrap",
         tone,

@@ -2,6 +2,8 @@ import { Button } from "@/components/ui/button";
 import { CANVAS_TYPE } from "@/types/store";
 import { ViewMode, VIEW_MODE } from "./table-view/table.types";
 import Image from "next/image";
+import { useOnboardingStore, ONBOARDING_STEP_IDS } from "@/lib/store/useOnboarding";
+import { ANCHORS } from "@/components/onboarding/onboarding-steps";
 
 interface ViewModeSwitcherProps {
   viewMode: ViewMode;
@@ -19,8 +21,18 @@ export function ViewModeSwitcher({
   const isTable = canvasType === CANVAS_TYPE.TABLE;
   const isDocument = canvasType === CANVAS_TYPE.DOCUMENT;
 
+  const completeStep = useOnboardingStore((s) => s.completeStep);
+  // Auto-check the "see the three views" onboarding item on a real switch.
+  const handleViewModeChange = (mode: "canvas" | "table" | "document") => {
+    if (isHybrid) completeStep(ONBOARDING_STEP_IDS.openSurfaces);
+    onViewModeChange(mode);
+  };
+
   return (
-    <div className="bg-gray-100 p-1 rounded-lg flex">
+    <div
+      className="bg-gray-100 p-1 rounded-lg flex"
+      data-onboarding={ANCHORS.surfaceSwitcher}
+    >
       {(isHybrid || isTable) && (
         <Button
           variant="ghost"
@@ -28,7 +40,7 @@ export function ViewModeSwitcher({
           className={`h-9 w-9 p-0 rounded-md ${
             viewMode === VIEW_MODE.table ? "bg-white shadow-sm" : ""
           }`}
-          onClick={() => onViewModeChange("table")}
+          onClick={() => handleViewModeChange("table")}
           aria-label="Table view"
         >
           <Image
@@ -47,7 +59,7 @@ export function ViewModeSwitcher({
           className={`h-9 w-9 p-0 rounded-md ${
             viewMode === VIEW_MODE.canvas ? "bg-white shadow-sm" : ""
           }`}
-          onClick={() => onViewModeChange("canvas")}
+          onClick={() => handleViewModeChange("canvas")}
           aria-label="Canvas view"
         >
           <Image
@@ -66,7 +78,7 @@ export function ViewModeSwitcher({
           className={`h-9 w-9 p-0 rounded-md ${
             viewMode === VIEW_MODE.document ? "bg-white shadow-sm" : ""
           }`}
-          onClick={() => onViewModeChange("document")}
+          onClick={() => handleViewModeChange("document")}
           aria-label="Document view"
         >
           <Image

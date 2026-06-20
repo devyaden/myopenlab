@@ -22,6 +22,7 @@ import {
   type MentionFile,
 } from "@/components/editor/hooks/useFileSearch";
 import { playbookHref } from "@/lib/playbook-href";
+import { useOnboardingStore, ONBOARDING_STEP_IDS } from "@/lib/store/useOnboarding";
 
 /**
  * Phase 5: a global Cmd+K command palette. One searchable, folder-grouped picker
@@ -50,6 +51,7 @@ export function CommandPalette() {
   const [open, setOpen] = useState(false);
   const [files, setFiles] = useState<MentionFile[]>([]);
   const [loading, setLoading] = useState(false);
+  const completeStep = useOnboardingStore((s) => s.completeStep);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -77,9 +79,19 @@ export function CommandPalette() {
     return () => window.removeEventListener("keydown", onKey);
   }, []);
 
+  // The getting-started checklist can open the palette via this event.
   useEffect(() => {
-    if (open) load();
-  }, [open, load]);
+    const onOpen = () => setOpen(true);
+    window.addEventListener("olab:open-cmdk", onOpen);
+    return () => window.removeEventListener("olab:open-cmdk", onOpen);
+  }, []);
+
+  useEffect(() => {
+    if (open) {
+      load();
+      completeStep(ONBOARDING_STEP_IDS.tryCmdk);
+    }
+  }, [open, load, completeStep]);
 
   // Group by folder for the folder-grouped list; folderless files go last.
   const groups = useMemo(() => {

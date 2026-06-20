@@ -26,6 +26,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { ANCHORS } from "@/components/onboarding/onboarding-steps";
 import { generateUntitledName } from "@/lib/utils";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Wand2, Lock, Crown, LayoutTemplate, Users } from "lucide-react";
@@ -401,9 +402,12 @@ export function CreateNewModal({
       const canCreateHybrid = canCreateCanvas ? canCreateCanvas(CANVAS_TYPE.HYBRID) : true;
 
       return (
-        <div className="grid grid-cols-2 gap-4 py-4">
+        <div
+          className="grid grid-cols-2 gap-4 py-4"
+          data-onboarding={ANCHORS.createTiles}
+        >
           <div
-            className={`relative flex flex-col items-center justify-center p-6 rounded-lg transition-colors onboarding-canvas-option ${
+            className={`relative flex flex-col items-center justify-center p-6 rounded-lg transition-colors ${
               !canCreateHybrid
                 ? "bg-gray-50 border-2 border-gray-200 cursor-pointer opacity-75"
                 : "bg-gray-50 hover:bg-gray-100 cursor-pointer"
