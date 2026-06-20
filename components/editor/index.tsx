@@ -63,9 +63,17 @@ import DocReferenceDialog, {
 import { createReferenceForMention } from "@/lib/refs/client";
 import { playbookHref } from "@/lib/playbook-href";
 import { ReactFlowNode } from "./extensions/ReactFlowNode";
+import {
+  placeCaretAfterEmbed,
+  ensureTrailingParagraph,
+} from "./extensions/embed/caret";
 import ResizableImageNode from "./extensions/ResizableImageNode";
 import { TextDirection } from "./extensions/TextDirection";
 import { useDocumentStore } from "./hooks/useDocument";
+import { ConflictDialog } from "./ConflictDialog";
+import { PresenceAvatars } from "./PresenceAvatars";
+import { colorForUser } from "@/lib/realtime/document-presence";
+import { supabase } from "@/lib/supabase/client";
 import ImageDialog from "./ImageDialog";
 import { backupDocument } from "@/lib/document-backup";
 import FontUploadDialog from "./FontUploadDialog";
@@ -278,6 +286,13 @@ const Editor = (
     editor_state,
     saveDocument,
     loadDocument,
+    reloadDocument,
+    loadFailed,
+    conflict,
+    resolveConflictKeepMine,
+    resolveConflictTakeTheirs,
+    dismissConflict,
+    applyRemoteChange,
     setName,
     name,
     setDescription,
@@ -289,6 +304,8 @@ const Editor = (
     code,
     folderCanvases,
     user_id,
+    canvas_id: storeCanvasId,
+    visibility: storeVisibility,
     folder,
     error: loadError,
     aiApplySeq,
@@ -683,6 +700,10 @@ const Editor = (
         } else {
           editor.commands.setContent("", false);
         }
+        // Guarantee a trailing paragraph when the doc ends in an atom embed so
+        // the gap cursor never strands below a final diagram/table. Runs inside
+        // the isApplyingRemoteRef window so it doesn't trip autosave.
+        ensureTrailingParagraph(editor);
         pendingChangesRef.current = false;
         setSaveStatus("saved");
         // The document loaded cleanly — autosave is now safe to run.
@@ -714,6 +735,18 @@ const Editor = (
     if (aiAppliedCanvasId !== canvasId) return;
     const timer = setTimeout(() => {
       if (!editor || editor.isDestroyed) return;
+      // If the user typed during the apply, back up their in-progress content
+      // locally before the agent content replaces it — so the keystroke is
+      // recoverable rather than silently clobbered. We deliberately do NOT save
+      // it to the server here (that would overwrite the agent's just-persisted
+      // edit); the backup is the safety net.
+      if (pendingChangesRef.current && canvasId) {
+        try {
+          backupDocument(canvasId, editor.getJSON());
+        } catch {
+          /* best-effort */
+        }
+      }
       isApplyingRemoteRef.current = true;
       try {
         editor.commands.setContent(aiAppliedDoc, false);
@@ -741,6 +774,36 @@ const Editor = (
       }
     };
   }, [canvasId]);
+
+  // Part 4 (C1): observe newer versions of THIS document written elsewhere
+  // (another tab / user / the agent) via realtime, and reconcile through the
+  // store — a conflict if we have local unsaved edits, a silent adopt if we're
+  // clean. Best-effort (no-op if realtime isn't enabled on the project); the
+  // save-time optimistic check remains the guarantee.
+  useEffect(() => {
+    if (!canvasId) return;
+    const channel = supabase
+      .channel(`doc:${canvasId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "document_data",
+          filter: `canvas_id=eq.${canvasId}`,
+        },
+        (payload) => {
+          const row = payload.new as { version?: number; lexical_state?: any };
+          if (row && typeof row.version === "number") {
+            applyRemoteChange(row.version, row.lexical_state);
+          }
+        }
+      )
+      .subscribe();
+    return () => {
+      void supabase.removeChannel(channel);
+    };
+  }, [canvasId, applyRemoteChange]);
 
   // (Phase 2.5: removed the pagination-command effect. Page geometry now
   // flows entirely through CSS variables on the .editor-page-surface
@@ -1050,6 +1113,7 @@ const Editor = (
             },
           })
           .run();
+        placeCaretAfterEmbed(editor);
       } else if (croppedData.imageData) {
         // Use the imageData directly as a static image source
         editor
@@ -1143,6 +1207,7 @@ const Editor = (
           },
         })
         .run();
+      placeCaretAfterEmbed(editor);
 
       // Ensure dialog is fully closed before proceeding
       setTimeout(() => {
@@ -1215,6 +1280,7 @@ const Editor = (
         },
       })
       .run();
+    placeCaretAfterEmbed(editor);
 
     const fromCanvas = useDocumentStore.getState().canvas_id;
     if (fromCanvas) {
@@ -1358,11 +1424,18 @@ const Editor = (
   };
 
   useEffect(() => {
-    // Phase 1: autosave is the contract, so we no longer throw the browser's
-    // "unsaved changes" confirmation dialog (no preventDefault / returnValue).
-    // We just best-effort flush the pending save on the way out.
-    const handleBeforeUnload = () => {
-      flushPendingSaveRef.current();
+    // Autosave is the contract, so leaving with everything saved is silent.
+    // But if a write is still in flight OR edits haven't been flushed yet,
+    // confirm before unload (B4) so an in-progress save isn't lost to a close.
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      const hadPending = pendingChangesRef.current;
+      flushPendingSaveRef.current(); // fires the final save (async) + clears pending
+      const saving = useDocumentStore.getState().saveLoading;
+      if (hadPending || saving) {
+        e.preventDefault();
+        // Legacy browsers require a returnValue to show the prompt.
+        e.returnValue = "";
+      }
     };
 
     window.addEventListener("beforeunload", handleBeforeUnload);
@@ -1565,42 +1638,42 @@ const Editor = (
     }
   };
 
+  // Authorization, derived from the document the store already loaded (no extra
+  // /api/canvas round-trip). Gated on the store having attempted THIS canvas so
+  // it never evaluates against stale/empty state and flashes a false
+  // "unauthorized".
   useEffect(() => {
-    const checkAuthorization = async () => {
-      if (!user || !isLoaded) return;
+    if (!user || !isLoaded) return;
+    if (storeCanvasId !== canvasId) return; // store hasn't loaded this doc yet
 
-      try {
-        // Get canvas details to check visibility
-        const response = await fetch(`/api/canvas/${canvasId}`);
+    // Load failed for this canvas (not found / no access) → bounce out.
+    if (loadError && !user_id) {
+      toast.error("Canvas not found");
+      router.push("/protected");
+      return;
+    }
+    if (!user_id) return; // document still loading
 
-        if (!response.ok) {
-          if (response.status === 404) {
-            toast.error("Canvas not found");
-            router.push("/protected");
-            return;
-          }
-          throw new Error("Failed to fetch canvas");
-        }
+    setVisibility(storeVisibility || "private");
 
-        const data = await response.json();
-        setVisibility(data.visibility || "private");
-
-        // If user is not owner and canvas is not public, show unauthorized component
-        if (user.id !== data.user_id && data.visibility !== "public") {
-          setUnauthorized(true);
-        }
-
-        if (user.id !== data.user_id && data.visibility === "public") {
-          // setIsOwner(true);
-          editor?.setOptions({ editable: false });
-        }
-      } catch (error) {
-        toast.error("Failed to check authorization");
-      }
-    };
-
-    checkAuthorization();
-  }, [canvasId, user, isLoaded, router]);
+    if (user.id !== user_id && storeVisibility !== "public") {
+      setUnauthorized(true);
+    } else if (user.id !== user_id && storeVisibility === "public") {
+      editor?.setOptions({ editable: false });
+    } else {
+      setUnauthorized(false);
+    }
+  }, [
+    canvasId,
+    user,
+    isLoaded,
+    storeCanvasId,
+    user_id,
+    storeVisibility,
+    loadError,
+    editor,
+    router,
+  ]);
 
   useEffect(() => {
     if (editor && !readOnly) {
@@ -1636,8 +1709,11 @@ const Editor = (
       return [currentCanvas].filter(Boolean);
     }
 
+    // A2: the light folder load no longer carries `flowData`, so identify
+    // embeddable flows by type alone. The actual nodes/edges/styles are fetched
+    // fresh when an item is selected (CanvasDialog → refreshSingleCanvas).
     return folderCanvases.filter(
-      (canvas) => canvas.canvas_type === "hybrid" && canvas.flowData
+      (canvas) => canvas.canvas_type === "hybrid"
     );
   }, [folder, canvasType, folderCanvases]);
 
@@ -1664,6 +1740,59 @@ const Editor = (
 
   return (
     <div className="w-full h-full editor-container relative">
+      {/* B3: load-error recovery. The stored document is untouched (autosave is
+          gated off until a clean load), so we offer a retry instead of leaving
+          the user on a broken/empty editor. */}
+      {loadFailed && (
+        <div className="absolute inset-x-0 top-0 z-50 flex items-center justify-center gap-3 border-b border-red-200 bg-red-50 px-4 py-2 text-sm text-red-700 shadow-sm">
+          <span>
+            Couldn&apos;t load this document — your saved content is safe.
+          </span>
+          <button
+            type="button"
+            onClick={() => void reloadDocument()}
+            className="rounded bg-red-600 px-3 py-1 font-medium text-white hover:bg-red-700"
+          >
+            Retry
+          </button>
+        </div>
+      )}
+      {/* Part 4: live presence (other editors) — renders nothing when alone. */}
+      {user?.id && canvasId && (
+        <div className="absolute right-6 top-28 z-40">
+          <PresenceAvatars
+            canvasId={canvasId}
+            self={{
+              id: user.id,
+              name: user.email ? user.email.split("@")[0] : "You",
+              color: colorForUser(user.id),
+            }}
+          />
+        </div>
+      )}
+
+      {/* Part 4: conflict resolution chooser (consumes the store's conflict
+          signal; the losing side is backed up before either choice applies). */}
+      {conflict && (
+        <ConflictDialog
+          mineHtml={editor?.getHTML() ?? ""}
+          theirsHtml={(() => {
+            try {
+              const parsed =
+                typeof conflict.serverState === "string"
+                  ? JSON.parse(conflict.serverState)
+                  : conflict.serverState;
+              return parsed?.state ?? "";
+            } catch {
+              return "";
+            }
+          })()}
+          onKeepMine={() => void resolveConflictKeepMine()}
+          onTakeTheirs={() => resolveConflictTakeTheirs()}
+          onClose={() => dismissConflict()}
+        />
+      )}
+
       {!isPartOfCanvas && (
         <FeatureHint id="slash" side="right" className="left-8 top-32" />
       )}

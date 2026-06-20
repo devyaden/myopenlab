@@ -279,7 +279,13 @@ export async function POST(request: NextRequest) {
       });
 
       await reconcileDocumentReferences(supabase, user.id, input.canvas_id, input.body ?? []);
-      return NextResponse.json({ ok: true, canvasId: input.canvas_id });
+      // Return the new version so the open editor's store can adopt it and not
+      // false-conflict on the user's next save (optimistic-concurrency check).
+      return NextResponse.json({
+        ok: true,
+        canvasId: input.canvas_id,
+        version: nextVersion,
+      });
     }
 
     // ── Canvas (diagram) proposals ───────────────────────────────────────────

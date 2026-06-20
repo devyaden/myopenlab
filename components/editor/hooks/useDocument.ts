@@ -6,6 +6,8 @@ import { supabase } from "@/lib/supabase/client";
 import toast from "react-hot-toast";
 import { debounce } from "lodash";
 import { Folder } from "@/types/sidebar";
+import { retryWithBackoff, isTransientError } from "@/lib/net/retry";
+import { backupConflictLoser } from "@/lib/document-backup";
 
 /**
  * Detects an expired/invalid Supabase auth token. PostgREST returns
@@ -23,13 +25,28 @@ interface DocumentState {
   name: string;
   user_id: string;
   code: string | null;
+  /** Canvas visibility ("private" | "public"), loaded with the document so the
+   *  editor's authorization check doesn't need a second round-trip. */
+  visibility: string;
   description: string;
   editor_state: any;
   version: number;
   canvas_id: string;
   isLoading: boolean;
+  /** Loading state for the secondary folder-canvases fetch (insert-picker list
+   *  + table-embed data). Kept SEPARATE from `isLoading` so it never blocks the
+   *  editor's one-shot content loader — the document paints as soon as its own
+   *  data arrives, and folder data streams in behind it. */
+  folderLoading: boolean;
   saveLoading: boolean;
   error: string | null;
+  /** Set when a save is rejected because the document changed elsewhere since we
+   *  loaded it (optimistic-version mismatch). Stops the silent last-write-wins
+   *  overwrite; Part 4 turns this into a resolution chooser. */
+  conflict: { serverVersion: number; serverState: any } | null;
+  /** True when the LAST document load failed (distinct from save errors, which
+   *  also use `error`). Drives the load-error recovery banner. */
+  loadFailed: boolean;
   isDirty: boolean;
   lastSaved: Date | null;
   folderCanvases: any[];
@@ -45,9 +62,17 @@ interface DocumentState {
   setName: (name: string) => void;
   setDescription: (description: string) => void;
   updateEditorState: (editorState: any) => void;
-  applyDocumentContent: (json: any) => void;
+  applyDocumentContent: (json: any, version?: number) => void;
   loadDocument: (canvasId: string) => Promise<void>;
+  reloadDocument: () => Promise<void>;
   saveDocument: () => Promise<void>;
+  /** Conflict resolution (Part 4) — all preserve the losing side first. */
+  resolveConflictKeepMine: () => Promise<void>;
+  resolveConflictTakeTheirs: () => void;
+  dismissConflict: () => void;
+  /** Reconcile a newer remote version observed via realtime: raise a conflict
+   *  if there are local unsaved edits, otherwise silently adopt it. */
+  applyRemoteChange: (newVersion: number, newState: any) => void;
   syncChanges: () => void;
   resetState: () => void;
   loadFolderCanvases: (folderId: string) => Promise<void>;
@@ -60,12 +85,16 @@ const initialState: DocumentState = {
   description: "",
   user_id: "",
   code: null,
+  visibility: "private",
   editor_state: null,
   version: 1,
   canvas_id: "",
   isLoading: true,
+  folderLoading: false,
   saveLoading: false,
   error: null,
+  conflict: null,
+  loadFailed: false,
   isDirty: false,
   lastSaved: null,
   aiApplySeq: 0,
@@ -76,7 +105,12 @@ const initialState: DocumentState = {
   updateEditorState: () => {},
   applyDocumentContent: () => {},
   loadDocument: async () => {},
+  reloadDocument: async () => {},
   saveDocument: async () => {},
+  resolveConflictKeepMine: async () => {},
+  resolveConflictTakeTheirs: () => {},
+  dismissConflict: () => {},
+  applyRemoteChange: () => {},
   syncChanges: () => {},
   resetState: () => {},
   loadFolderCanvases: async () => {},
@@ -89,11 +123,16 @@ export const useDocumentStore = create<DocumentState>()(
   persist(
     (set, get) => {
       // Create a debounced version of saveDocument that we'll use for syncing
+      // Single 2000ms debounce, matching the editor's autosave timer so a doc
+      // edit can't be written twice by two timers (which, under the optimistic
+      // version check, could even race into a spurious self-conflict). This
+      // path now only serves name/description edits (setName/setDescription);
+      // editor content saves go through the editor's triggerAutoSave directly.
       const debouncedSave = debounce(async () => {
         if (get().isDirty) {
           await get().saveDocument();
         }
-      }, 3000);
+      }, 2000);
 
       // Throttle the save-error toast/log so an expired session or dropped
       // network doesn't flood the console on every keystroke-triggered save.
@@ -140,11 +179,12 @@ export const useDocumentStore = create<DocumentState>()(
             }
             return state; // Return unchanged state if nothing changed
           });
-
-          // Trigger debounced save
-          get().syncChanges();
+          // NOTE: no debounced save is scheduled here. The editor's
+          // triggerAutoSave (which calls this right before awaiting
+          // saveDocument) is the single autosave path for editor content, so a
+          // second timer firing the same write is avoided.
         },
-        applyDocumentContent: (json) => {
+        applyDocumentContent: (json, version) => {
           // Push agent-authored content into the open editor. The server apply
           // already persisted it, so mark clean (no autosave) and bump the
           // signal the editor effect watches. The editor re-applies via
@@ -156,15 +196,29 @@ export const useDocumentStore = create<DocumentState>()(
             aiApplySeq: state.aiApplySeq + 1,
             isDirty: false,
             lastSaved: new Date(),
+            // The server apply already bumped the row's version; adopt it so the
+            // next user save's optimistic check doesn't see a stale version and
+            // wrongly report a conflict.
+            ...(typeof version === "number" ? { version } : {}),
           }));
         },
+        reloadDocument: async () => {
+          const id = get().canvas_id;
+          if (!id) return;
+          await get().loadDocument(id);
+        },
         loadDocument: async (canvasId) => {
-          set({ isLoading: true, error: null, canvas_id: canvasId });
+          set({
+            isLoading: true,
+            error: null,
+            loadFailed: false,
+            canvas_id: canvasId,
+          });
           try {
             const { data: canvas, error: canvasError } = await supabase
               .from("canvas")
               .select(
-                "id, name, code, description, folder_id, document_data(*), user_id, folder:folder!canvas_folder_id_fkey(*)"
+                "id, name, code, description, folder_id, document_data(*), user_id, visibility, folder:folder!canvas_folder_id_fkey(*)"
               )
               .eq("id", canvasId)
               .single();
@@ -190,6 +244,7 @@ export const useDocumentStore = create<DocumentState>()(
                 ? new Date(documentData.updated_at)
                 : null,
               user_id: canvas.user_id,
+              visibility: (canvas as any).visibility || "private",
               folder: canvas.folder,
             });
 
@@ -202,6 +257,7 @@ export const useDocumentStore = create<DocumentState>()(
                   ? error.message
                   : "Failed to load document",
               isLoading: false,
+              loadFailed: true,
             });
           }
         },
@@ -210,30 +266,39 @@ export const useDocumentStore = create<DocumentState>()(
           if (!state.canvas_id) return;
           set({ saveLoading: true });
 
-          // Performs the actual upserts. Returns the resulting version so the
-          // caller can update store state. Throws on any Supabase error.
-          const performWrite = async (): Promise<number> => {
-            const now = new Date().toISOString();
-            const { data: existingDocs, error: checkError } = await supabase
-              .from("document_data")
-              .select("canvas_id")
-              .eq("canvas_id", state.canvas_id);
-            if (checkError) throw checkError;
+          const sameState = (a: any, b: any): boolean => {
+            try {
+              const na = typeof a === "string" ? a : JSON.stringify(a);
+              const nb = typeof b === "string" ? b : JSON.stringify(b);
+              return na === nb;
+            } catch {
+              return false;
+            }
+          };
 
-            const documentExists = existingDocs && existingDocs.length > 0;
+          type WriteResult =
+            | { status: "ok"; version: number }
+            | { status: "conflict"; currentVersion: number; serverState: any };
+
+          // One save attempt. Uses an optimistic-concurrency check: the content
+          // update only lands if the row is still at the version we loaded
+          // (`WHERE version = expected`). If nothing matched, the document was
+          // written elsewhere since — surfaced as a conflict instead of a silent
+          // last-write-wins overwrite. Safe to retry: a retry after a committed-
+          // but-lost-response write detects its own prior write and reports ok.
+          const performWrite = async (): Promise<WriteResult> => {
+            const now = new Date().toISOString();
             const latestEditorState = state.editor_state;
 
-            if (documentExists) {
-              const { error: updateError } = await supabase
-                .from("document_data")
-                .update({
-                  lexical_state: latestEditorState,
-                  version: state.version + 1,
-                  updated_at: now,
-                })
-                .eq("canvas_id", state.canvas_id);
-              if (updateError) throw updateError;
-            } else {
+            const { data: existingDocs, error: checkError } = await supabase
+              .from("document_data")
+              .select("canvas_id, version, lexical_state")
+              .eq("canvas_id", state.canvas_id);
+            if (checkError) throw checkError;
+            const existing = existingDocs && existingDocs[0];
+
+            let nextVersion: number;
+            if (!existing) {
               const { error: insertError } = await supabase
                 .from("document_data")
                 .insert({
@@ -243,8 +308,43 @@ export const useDocumentStore = create<DocumentState>()(
                   updated_at: now,
                 });
               if (insertError) throw insertError;
+              nextVersion = 1;
+            } else {
+              nextVersion = state.version + 1;
+              const { data: updated, error: updateError } = await supabase
+                .from("document_data")
+                .update({
+                  lexical_state: latestEditorState,
+                  version: nextVersion,
+                  updated_at: now,
+                })
+                .eq("canvas_id", state.canvas_id)
+                .eq("version", state.version) // optimistic-concurrency guard
+                .select("version");
+              if (updateError) throw updateError;
+
+              if (!updated || updated.length === 0) {
+                // Either a genuine concurrent write, OR our own prior attempt
+                // that committed before a transient error (retry). If the stored
+                // content already matches what we're writing at the next
+                // version, treat it as success.
+                if (
+                  existing.version === nextVersion &&
+                  sameState(existing.lexical_state, latestEditorState)
+                ) {
+                  return { status: "ok", version: nextVersion };
+                }
+                return {
+                  status: "conflict",
+                  currentVersion: existing.version,
+                  serverState: existing.lexical_state,
+                };
+              }
             }
 
+            // Canvas metadata is best-effort — the content (the important part)
+            // is already committed, so a name/description write failure must not
+            // fail the whole save.
             const { error: canvasError } = await supabase
               .from("canvas")
               .update({
@@ -253,34 +353,66 @@ export const useDocumentStore = create<DocumentState>()(
                 updated_at: now,
               })
               .eq("id", state.canvas_id);
-            if (canvasError) throw canvasError;
+            if (canvasError) {
+              console.error(
+                "Canvas metadata update failed (content was saved):",
+                canvasError
+              );
+            }
 
-            return documentExists ? state.version + 1 : 1;
+            return { status: "ok", version: nextVersion };
           };
 
-          try {
-            let newVersion: number;
+          // Retry transient (network/5xx) failures with backoff; an expired
+          // token is refreshed once and retried separately. Conflicts are a
+          // normal return value (not thrown) so they're never retried.
+          const runSave = async (): Promise<WriteResult> => {
             try {
-              newVersion = await performWrite();
+              return await retryWithBackoff(performWrite, {
+                retries: 3,
+                baseMs: 400,
+                shouldRetry: isTransientError,
+              });
             } catch (error) {
-              // An expired token is recoverable: refresh the session once and
-              // retry the write rather than dropping the save.
               if (isAuthError(error)) {
                 const { error: refreshError } =
                   await supabase.auth.refreshSession();
-                if (refreshError) throw error; // refresh failed → bubble up
-                newVersion = await performWrite();
-              } else {
-                throw error;
+                if (refreshError) throw error;
+                return await retryWithBackoff(performWrite, {
+                  retries: 2,
+                  baseMs: 400,
+                  shouldRetry: isTransientError,
+                });
               }
+              throw error;
+            }
+          };
+
+          try {
+            const result = await runSave();
+
+            if (result.status === "conflict") {
+              // Do NOT overwrite. Keep the local edits dirty and record the
+              // conflict — the editor surfaces the resolution chooser. No error
+              // toast/log here: a conflict is a normal, handled outcome, not a
+              // failure.
+              set({
+                saveLoading: false,
+                conflict: {
+                  serverVersion: result.currentVersion,
+                  serverState: result.serverState,
+                },
+              });
+              return;
             }
 
             set({
               isDirty: false,
               lastSaved: new Date(),
-              version: newVersion,
+              version: result.version,
               saveLoading: false,
               error: null,
+              conflict: null,
             });
           } catch (error) {
             reportSaveError(error);
@@ -292,6 +424,66 @@ export const useDocumentStore = create<DocumentState>()(
               saveLoading: false,
               // Leave isDirty=true so the next edit retries the save.
             });
+          }
+        },
+        resolveConflictKeepMine: async () => {
+          const { conflict, canvas_id } = get();
+          if (!conflict) return;
+          // The server copy is about to be overwritten — preserve it.
+          backupConflictLoser(canvas_id, "theirs", conflict.serverState);
+          // Re-base onto the current server version so our optimistic-concurrency
+          // check matches, then write our content (which now wins).
+          set({ version: conflict.serverVersion, conflict: null });
+          await get().saveDocument();
+        },
+        resolveConflictTakeTheirs: () => {
+          const { conflict, canvas_id, editor_state } = get();
+          if (!conflict) return;
+          // Our local copy is about to be replaced — preserve it.
+          backupConflictLoser(canvas_id, "mine", editor_state);
+          let json: any = null;
+          try {
+            const parsed =
+              typeof conflict.serverState === "string"
+                ? JSON.parse(conflict.serverState)
+                : conflict.serverState;
+            json = parsed?.json ?? parsed ?? null;
+          } catch {
+            json = null;
+          }
+          // Route through the guarded re-apply (isApplyingRemoteRef) so it
+          // doesn't round-trip through autosave or re-enter the one-shot loader.
+          if (json) get().applyDocumentContent(json, conflict.serverVersion);
+          set({
+            version: conflict.serverVersion,
+            editor_state: conflict.serverState,
+            isDirty: false,
+            conflict: null,
+          });
+        },
+        dismissConflict: () => set({ conflict: null }),
+        applyRemoteChange: (newVersion, newState) => {
+          const { version, isDirty } = get();
+          // Ignore our own write (version already adopted) and stale echoes.
+          if (typeof newVersion !== "number" || newVersion <= version) return;
+          if (isDirty) {
+            // Local unsaved edits diverge from a newer server copy → let the
+            // user choose (same conflict surface the save-time check produces).
+            set({
+              conflict: { serverVersion: newVersion, serverState: newState },
+            });
+          } else {
+            // No local edits → silently adopt the remote content.
+            let json: any = null;
+            try {
+              const parsed =
+                typeof newState === "string" ? JSON.parse(newState) : newState;
+              json = parsed?.json ?? parsed ?? null;
+            } catch {
+              json = null;
+            }
+            if (json) get().applyDocumentContent(json, newVersion);
+            set({ version: newVersion, editor_state: newState });
           }
         },
         syncChanges: () => {
@@ -307,7 +499,9 @@ export const useDocumentStore = create<DocumentState>()(
           // NOTE: do not touch the shared `error` field here. This is a
           // secondary fetch (the insert-picker list); a failure must not be
           // mistaken for a document-load failure, which would block autosave.
-          set({ isLoading: true });
+          // Uses `folderLoading`, NOT `isLoading`, so it never blocks the
+          // editor's content render (which gates on `isLoading`).
+          set({ folderLoading: true });
 
           // if (!folderId) {
           //   set({ folderCanvases: [] });
@@ -324,17 +518,22 @@ export const useDocumentStore = create<DocumentState>()(
               throw new Error("User not authenticated");
             }
 
+            // A2 — light folder query: fetch only metadata + (small) column
+            // definitions. The big `canvas_data` blob (nodes/edges/styles for
+            // EVERY folder canvas) is NOT loaded here; the insert dialogs fetch
+            // it fresh per-item on selection (refreshSingleCanvas), and table
+            // embeds upgrade themselves the same way. Massively trims the
+            // open-document payload.
             let query = supabase
               .from("canvas")
               .select(
                 `
-          id, 
+          id,
           name,
           canvas_type,
-          description, 
-          updated_at, 
-          columns:column_definition!column_definition_canvas_id_fkey(*), 
-          data:canvas_data(*)
+          description,
+          updated_at,
+          columns:column_definition!column_definition_canvas_id_fkey(*)
         `
               )
               .eq("user_id", user.id)
@@ -358,7 +557,9 @@ export const useDocumentStore = create<DocumentState>()(
                 description: canvas.description || "",
                 updated_at: new Date(canvas.updated_at),
                 columns: canvas.columns,
-                flowData: canvas.data ? canvas.data : null,
+                // Heavy flow/table data is fetched on demand (insert dialog
+                // selection / table-embed upgrade), not in this light load.
+                flowData: null,
               })),
             });
           } catch (error) {
@@ -366,7 +567,7 @@ export const useDocumentStore = create<DocumentState>()(
             // Intentionally NOT setting the shared `error` field — see note
             // above. The insert-picker list staying empty is non-fatal.
           } finally {
-            set({ isLoading: false });
+            set({ folderLoading: false });
           }
         },
 
@@ -408,25 +609,7 @@ export const useDocumentStore = create<DocumentState>()(
               throw new Error("Canvas not found");
             }
 
-            // Update the specific canvas in folderCanvases
-            set((state) => ({
-              folderCanvases: state.folderCanvases.map((canvas) =>
-                canvas.id === canvasId
-                  ? {
-                      id: data.id,
-                      name: data.name,
-                      canvas_type: data.canvas_type,
-                      description: data.description || "",
-                      updated_at: new Date(data.updated_at),
-                      columns: data.columns,
-                      flowData: data.data ? data.data : null,
-                    }
-                  : canvas
-              ),
-            }));
-
-            // Return the fresh canvas data
-            return {
+            const fresh = {
               id: data.id,
               name: data.name,
               canvas_type: data.canvas_type,
@@ -435,6 +618,25 @@ export const useDocumentStore = create<DocumentState>()(
               columns: data.columns,
               flowData: data.data ? data.data : null,
             };
+
+            // Upsert into folderCanvases: the light folder load may not contain
+            // this canvas at all (e.g. a table embed whose source lives in a
+            // different folder), so add it when missing instead of silently
+            // dropping the fresh data on the floor.
+            set((state) => {
+              const exists = state.folderCanvases.some(
+                (c) => c.id === canvasId
+              );
+              return {
+                folderCanvases: exists
+                  ? state.folderCanvases.map((c) =>
+                      c.id === canvasId ? fresh : c
+                    )
+                  : [...state.folderCanvases, fresh],
+              };
+            });
+
+            return fresh;
           } catch (error) {
             console.error("Error refreshing single canvas:", error);
             throw error;

@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { subscribeEmbedRefresh } from "@/lib/realtime/embed-refresh";
 import { playbookHref } from "@/lib/playbook-href";
+import { EmbedDragHandle } from "./embed/EmbedDragHandle";
 
 interface CardMeta {
   id: string;
@@ -135,9 +136,10 @@ function DocReferenceNodeView({
 
   return (
     <NodeViewWrapper
-      className={`doc-reference-card${selected ? " is-selected" : ""}`}
+      className={`group relative doc-reference-card${selected ? " is-selected" : ""}`}
       data-ref-type={refType}
     >
+      <EmbedDragHandle visible={selected} />
       <div
         className="doc-reference-card__inner"
         role="button"

@@ -6,6 +6,8 @@ import { NodeViewWrapper } from "@tiptap/react";
 import { useEffect, useState, useRef, useMemo, useCallback } from "react";
 import { useDocumentStore } from "../hooks/useDocument";
 import { subscribeEmbedRefresh } from "@/lib/realtime/embed-refresh";
+import { EmbedDragHandle } from "./embed/EmbedDragHandle";
+import { useInViewUpgrade } from "./embed/useInViewUpgrade";
 
 interface CanvasTableNodeViewProps {
   node: {
@@ -148,6 +150,11 @@ export default function CanvasTableNodeView({
     if (!node.attrs.tableId || !savedConfig.isDynamic) return null;
     return folderCanvases.find((canvas) => canvas.id === node.attrs.tableId);
   }, [folderCanvases, node.attrs.tableId, savedConfig.isDynamic]);
+
+  // Only fetch the live row data (and run the filter/sort pipeline) once the
+  // embed nears the viewport — off-screen tables paint from their static
+  // snapshot (node.attrs.data) with zero network until then.
+  const hasBeenInView = useInViewUpgrade(wrapperRef);
 
   // Check if we have valid table data
   const hasValidData = useMemo(() => {
@@ -444,8 +451,10 @@ export default function CanvasTableNodeView({
 
   // Generate table data from processed nodes
   const generateTableData = useCallback(() => {
-    if (!savedConfig.isDynamic) {
-      // Use static data for non-dynamic tables
+    // Parse the static snapshot stored on the node (the rows captured at insert
+    // time). Used for non-dynamic tables AND as the instant-paint fallback for
+    // dynamic tables whose live data hasn't been fetched yet (light load).
+    const staticTable = (): string[][] => {
       try {
         if (node.attrs.data) {
           const parsedData =
@@ -470,10 +479,20 @@ export default function CanvasTableNodeView({
         console.error("Error parsing static table data:", error);
         return [];
       }
+    };
+
+    if (!savedConfig.isDynamic) {
+      return staticTable();
+    }
+
+    // Dynamic table whose live row data hasn't loaded yet (e.g. before the
+    // light→heavy upgrade): paint the static snapshot so there's no empty flash.
+    if (!currentTableData || !(currentTableData as any).flowData) {
+      return staticTable();
     }
 
     // Generate dynamic data
-    if (!currentTableData || savedConfig.selectedColumns.length === 0) {
+    if (savedConfig.selectedColumns.length === 0) {
       return [];
     }
 
@@ -618,10 +637,25 @@ export default function CanvasTableNodeView({
     }
   }, [hasValidData, tableData.length, calculateOptimalHeight]);
 
-  // Initial load and setup refresh interval
+  // Initial load. For a dynamic table whose live data isn't loaded yet, fetch
+  // it (force) the first time the embed scrolls into view; otherwise just
+  // (re)generate from whatever data we already have (static snapshot or the
+  // already-loaded live rows). This defers per-table network off the initial
+  // document load and keeps off-screen tables zero-network.
   useEffect(() => {
-    loadTableData(false);
-  }, [loadTableData, savedConfig.isDynamic, node.attrs.tableId]);
+    const needsLiveFetch =
+      savedConfig.isDynamic &&
+      !!node.attrs.tableId &&
+      hasBeenInView &&
+      !(currentTableData as any)?.flowData;
+    loadTableData(needsLiveFetch);
+  }, [
+    loadTableData,
+    savedConfig.isDynamic,
+    node.attrs.tableId,
+    hasBeenInView,
+    currentTableData,
+  ]);
 
   // Phase 3: keep a dynamic table embed in sync with its source without
   // polling — force-refresh when the source is saved in this tab / by an agent
@@ -944,7 +978,7 @@ export default function CanvasTableNodeView({
 
   return (
     <NodeViewWrapper
-      className={`relative my-4 ${isSelected ? "is-selected" : ""}`}
+      className={`group relative my-4 ${isSelected ? "is-selected" : ""}`}
       style={{
         width: width ? `${Math.max(width, 400)}px` : "100%",
         height: height ? `${height}px` : `${optimalHeight}px`,
@@ -961,6 +995,7 @@ export default function CanvasTableNodeView({
       role="table"
       aria-label={`Canvas table with ${tableData.length - 1} rows and ${tableData[0]?.length || 0} columns${savedConfig.isRTL ? " (RTL)" : ""}`}
     >
+      <EmbedDragHandle visible={isSelected} />
       {hasValidData ? (
         <div
           className={`relative rounded-md shadow-sm h-full ${

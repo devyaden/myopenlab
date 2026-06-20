@@ -19,24 +19,27 @@ import { supabase } from "@/lib/supabase/client";
  *
  * Embeds are expected to debounce their refetch — both signals can arrive in a
  * burst (e.g. an agent apply that also writes a history row).
+ *
+ * Channels are de-duplicated per `canvasId`: a document embedding the same flow
+ * N times opens ONE realtime channel (not N), shared by all its embeds. The
+ * postgres_changes event fans out to every listener for that canvas.
  */
 
 type Listener = () => void;
 
-const listeners = new Map<string, Set<Listener>>();
-let channelSeq = 0;
+interface Entry {
+  listeners: Set<Listener>;
+  channel: ReturnType<typeof supabase.channel> | null;
+}
 
-/**
- * Notify every embed of `canvasId` to refetch. Call this right after a source
- * canvas/table's data has been persisted, so any open document embedding it
- * updates immediately.
- */
-export function emitEmbedRefresh(canvasId: string | null | undefined): void {
-  if (!canvasId) return;
-  const set = listeners.get(canvasId);
-  if (!set) return;
+const entries = new Map<string, Entry>();
+
+/** Invoke every listener registered for `canvasId`, isolating failures. */
+function fanOut(canvasId: string): void {
+  const entry = entries.get(canvasId);
+  if (!entry) return;
   // Snapshot so an unsubscribe during iteration can't disturb the walk.
-  Array.from(set).forEach((cb) => {
+  Array.from(entry.listeners).forEach((cb) => {
     try {
       cb();
     } catch (err) {
@@ -47,9 +50,19 @@ export function emitEmbedRefresh(canvasId: string | null | undefined): void {
 }
 
 /**
+ * Notify every embed of `canvasId` to refetch. Call this right after a source
+ * canvas/table's data has been persisted, so any open document embedding it
+ * updates immediately.
+ */
+export function emitEmbedRefresh(canvasId: string | null | undefined): void {
+  if (!canvasId) return;
+  fanOut(canvasId);
+}
+
+/**
  * Subscribe an embed to refresh signals for `canvasId`. Wires up both the
- * in-app bus and a best-effort realtime channel. Returns an unsubscribe fn the
- * caller must run on unmount.
+ * in-app bus and a best-effort realtime channel (one shared channel per
+ * canvasId). Returns an unsubscribe fn the caller must run on unmount.
  */
 export function subscribeEmbedRefresh(
   canvasId: string | null | undefined,
@@ -57,36 +70,35 @@ export function subscribeEmbedRefresh(
 ): () => void {
   if (!canvasId) return () => {};
 
-  let set = listeners.get(canvasId);
-  if (!set) {
-    set = new Set();
-    listeners.set(canvasId, set);
+  let entry = entries.get(canvasId);
+  if (!entry) {
+    entry = { listeners: new Set(), channel: null };
+    entries.set(canvasId, entry);
+    // One channel per canvasId, shared by all its embeds. Stable topic name so
+    // we never create more than one concurrent subscription for the same canvas.
+    entry.channel = supabase
+      .channel(`embed:canvas_data:${canvasId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "canvas_data",
+          filter: `canvas_id=eq.${canvasId}`,
+        },
+        () => fanOut(canvasId)
+      )
+      .subscribe();
   }
-  set.add(onRefresh);
-
-  // Unique topic per subscriber so two embeds of the same canvas don't share
-  // (and clobber) a channel.
-  const topic = `embed:canvas_data:${canvasId}:${channelSeq++}`;
-  const channel = supabase
-    .channel(topic)
-    .on(
-      "postgres_changes",
-      {
-        event: "*",
-        schema: "public",
-        table: "canvas_data",
-        filter: `canvas_id=eq.${canvasId}`,
-      },
-      () => onRefresh()
-    )
-    .subscribe();
+  entry.listeners.add(onRefresh);
 
   return () => {
-    const s = listeners.get(canvasId);
-    if (s) {
-      s.delete(onRefresh);
-      if (s.size === 0) listeners.delete(canvasId);
+    const e = entries.get(canvasId);
+    if (!e) return;
+    e.listeners.delete(onRefresh);
+    if (e.listeners.size === 0) {
+      if (e.channel) void supabase.removeChannel(e.channel);
+      entries.delete(canvasId);
     }
-    void supabase.removeChannel(channel);
   };
 }

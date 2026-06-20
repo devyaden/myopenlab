@@ -9,6 +9,9 @@ import ReactFlowCanvas from "../ReactFlowCanvas";
 import { Button } from "@/components/ui";
 import { log } from "@/lib/log";
 import { subscribeEmbedRefresh } from "@/lib/realtime/embed-refresh";
+import { EmbedDragHandle } from "./embed/EmbedDragHandle";
+import { useInViewUpgrade } from "./embed/useInViewUpgrade";
+import { FlowSnapshotPreview } from "./embed/FlowSnapshotPreview";
 
 function ReactFlowNodeView({
   node,
@@ -45,6 +48,27 @@ function ReactFlowNodeView({
   const lastUpdated = node.attrs.lastUpdated;
   const canvasName = node.attrs.name || "Untitled Canvas";
   const initialViewport = node.attrs.viewport || undefined;
+
+  // Parse the inline snapshot straight from attrs (no effect, no flash) so an
+  // off-screen embed paints its diagram instantly as a cheap SVG, without
+  // mounting a full ReactFlow instance.
+  const snapshot = useMemo(() => {
+    const parse = (s: any, fb: any) => {
+      try {
+        return s ? JSON.parse(s) : fb;
+      } catch {
+        return fb;
+      }
+    };
+    return {
+      nodes: parse(node.attrs.nodes, []),
+      edges: parse(node.attrs.edges, []),
+      styles: parse(node.attrs.styles, {}),
+    };
+  }, [node.attrs.nodes, node.attrs.edges, node.attrs.styles]);
+
+  // Only mount the heavy interactive ReactFlow once the embed nears the viewport.
+  const hasBeenInView = useInViewUpgrade(wrapperRef);
 
   useEffect(() => {
     setIsSelected(selected);
@@ -146,20 +170,9 @@ function ReactFlowNodeView({
       setStyles(styleData);
       setLoaded(true);
       setInitialized(true);
-
-      // Fetch fresh data if we have real-time enabled AND (no data OR no styles)
-      if (
-        useRealTimeData &&
-        canvasId &&
-        (nodeData.length === 0 || Object.keys(styleData).length === 0)
-      ) {
-        log.debug(
-          "Fetching fresh data because real-time enabled and missing content"
-        );
-        setTimeout(() => {
-          fetchCanvasData();
-        }, 500);
-      }
+      // NOTE: the on-mount fetch was removed — fresh data is fetched lazily the
+      // first time the embed scrolls into view (see the in-view effect below),
+      // so opening a doc with many embeds no longer fires a burst of requests.
     } catch (error) {
       console.error("Error parsing node data:", error);
       setNodes([]);
@@ -241,6 +254,21 @@ function ReactFlowNodeView({
       window.removeEventListener("focus", onVisible);
     };
   }, [useRealTimeData, canvasId]);
+
+  // Fetch fresh data the first time the embed scrolls into view (deferred off
+  // the initial page load), and only when the inline snapshot is missing
+  // content — embeds that already carry a full snapshot stay zero-network until
+  // the realtime/in-app bus signals a change.
+  useEffect(() => {
+    if (!hasBeenInView || !useRealTimeData || !canvasId) return;
+    if (
+      snapshot.nodes.length === 0 ||
+      Object.keys(snapshot.styles).length === 0
+    ) {
+      fetchRef.current();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hasBeenInView, useRealTimeData, canvasId]);
 
   const handleClick = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -428,46 +456,24 @@ function ReactFlowNodeView({
     }
   };
 
-  // Show loading only if we're actually loading AND don't have any existing data
-  if ((!loaded || isLoading) && nodes.length === 0) {
-    return (
-      <NodeViewWrapper
-        className={`react-flow-node-wrapper loading-state ${isSelected ? "is-selected" : ""}`}
-        data-name={canvasName}
-        data-canvas-id={canvasId}
-        data-loading="true"
-        style={{
-          width: `${width}px`,
-          height: `${height}px`,
-          position: "relative",
-          border: isSelected ? "2px solid #3b82f6" : "1px solid #ddd",
-          borderRadius: "6px",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-        }}
-      >
-        <div className="flex flex-col items-center gap-2 loading-indicator">
-          <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500"></div>
-          <span className="text-sm text-gray-500">Loading canvas...</span>
-        </div>
-      </NodeViewWrapper>
-    );
-  }
-
-  const canvasData = {
-    nodes: optimizedNodes,
-    edges: optimizedEdges,
-    flowData: {
-      styles: styles || {},
-      // Pass additional flow data if available
-      ...node.attrs.flowData,
-    },
-  };
+  // No blank/spinner loading branch: the snapshot SVG (below) is painted
+  // synchronously from attrs, so there's never an empty frame to cover.
+  const canvasData = useMemo(
+    () => ({
+      nodes: optimizedNodes,
+      edges: optimizedEdges,
+      flowData: {
+        styles: styles || {},
+        // Pass additional flow data if available
+        ...node.attrs.flowData,
+      },
+    }),
+    [optimizedNodes, optimizedEdges, styles, node.attrs.flowData]
+  );
 
   return (
     <NodeViewWrapper
-      className={`react-flow-node-wrapper loaded-state ${isSelected ? "is-selected" : ""}`}
+      className={`react-flow-node-wrapper loaded-state group ${isSelected ? "is-selected" : ""}`}
       ref={wrapperRef}
       onClick={handleClick}
       style={{
@@ -488,23 +494,33 @@ function ReactFlowNodeView({
       data-nodes={JSON.stringify(optimizedNodes)}
       data-edges={JSON.stringify(optimizedEdges)}
     >
+      <EmbedDragHandle visible={isSelected} />
       <div
         style={{
           flex: "1 1 auto",
           width: "100%",
+          height: "100%",
           position: "relative",
           overflow: "hidden",
           display: "flex",
         }}
       >
-        <ReactFlowCanvas
-          canvasData={canvasData}
-          readOnly={useRealTimeData}
-          printFriendly={true}
-          initialViewport={initialViewport}
-          onViewportChange={handleViewportUpdate}
-          height={height}
-        />
+        {hasBeenInView ? (
+          <ReactFlowCanvas
+            canvasData={canvasData}
+            readOnly={useRealTimeData}
+            printFriendly={true}
+            initialViewport={initialViewport}
+            onViewportChange={handleViewportUpdate}
+            height={height}
+          />
+        ) : (
+          <FlowSnapshotPreview
+            nodes={snapshot.nodes}
+            edges={snapshot.edges}
+            styles={snapshot.styles}
+          />
+        )}
       </div>
 
       {isSelected && (

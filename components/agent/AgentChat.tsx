@@ -391,9 +391,11 @@ export function AgentChat() {
               proposal.canvas_id &&
               docStore.canvas_id === proposal.canvas_id
             ) {
-              // The edited document is open — re-render it instantly.
+              // The edited document is open — re-render it instantly, adopting
+              // the server's new version so the next user save doesn't conflict.
               docStore.applyDocumentContent(
-                blocksToTiptapDoc(proposal.body ?? [])
+                blocksToTiptapDoc(proposal.body ?? []),
+                typeof json.version === "number" ? json.version : undefined
               );
             } else if (proposal.kind === "create" && json.canvasId) {
               router.push(playbookHref(json.canvasId, "document"));

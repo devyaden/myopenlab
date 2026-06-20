@@ -68,3 +68,26 @@ export function readBackups(canvasId: string): BackupSnapshot[] {
 export function latestBackup(canvasId: string): BackupSnapshot | null {
   return readBackups(canvasId)[0] ?? null;
 }
+
+const CONFLICT_PREFIX = "doc-conflict-backup:";
+
+/**
+ * Preserve the *losing* side of a save conflict so nothing is ever lost when the
+ * user picks "keep mine" / "take theirs". `content` is the raw stored content
+ * (the serialized editor state), not Tiptap JSON.
+ */
+export function backupConflictLoser(
+  canvasId: string,
+  which: "mine" | "theirs",
+  content: unknown
+): void {
+  if (typeof window === "undefined" || !canvasId) return;
+  try {
+    localStorage.setItem(
+      `${CONFLICT_PREFIX}${canvasId}`,
+      JSON.stringify({ savedAt: new Date().toISOString(), which, content })
+    );
+  } catch (err) {
+    console.warn("[document-backup] conflict backup failed", err);
+  }
+}
