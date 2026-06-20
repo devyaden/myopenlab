@@ -20,6 +20,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { RedeemPromoCode } from "@/components/subscription/redeem-promo-code";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useUser } from "@/lib/contexts/userContext";
@@ -742,6 +743,8 @@ export default function ProfilePage() {
                           </div>
                         </div>
                       )}
+
+                      <RedeemPromoCode onRedeemed={loadSubscription} />
                     </div>
                   ) : (
                     <div className="py-8">
@@ -790,6 +793,10 @@ export default function ProfilePage() {
                             Upgrade to Pro
                           </Button>
                         </div>
+                      </div>
+
+                      <div className="mt-6">
+                        <RedeemPromoCode onRedeemed={loadSubscription} />
                       </div>
                     </div>
                   )}
