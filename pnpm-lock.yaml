@@ -27,8 +27,8 @@ importers:
         specifier: ^3.10.0
         version: 3.10.0(react-hook-form@7.56.4(react@19.2.5))
       '@prisma/client':
-        specifier: ^5.21.1
-        version: 5.22.0(prisma@6.17.1(typescript@5.3.3))
+        specifier: ^6.17.1
+        version: 6.19.3(prisma@6.17.1(typescript@5.3.3))(typescript@5.3.3)
       '@radix-ui/react-alert-dialog':
         specifier: ^1.1.2
         version: 1.1.13(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.5(react@19.2.5))(react@19.2.5)
@@ -726,13 +726,16 @@ packages:
   '@popperjs/core@2.11.8':
     resolution: {integrity: sha512-P1st0aksCrn9sGZhp8GMYwBnQsbvAWsZAX44oXNNvLHGqAOcoVxmjZiohstwQ7SqKnbR47akdNi+uleWD8+g6A==}
 
-  '@prisma/client@5.22.0':
-    resolution: {integrity: sha512-M0SVXfyHnQREBKxCgyo7sffrKttwE6R8PMq330MIUF0pTwjUhLbW84pFDlf06B27XyCR++VtjugEnIHdr07SVA==}
-    engines: {node: '>=16.13'}
+  '@prisma/client@6.19.3':
+    resolution: {integrity: sha512-mKq3jQFhjvko5LTJFHGilsuQs+W+T3Gm451NzuTDGQxwCzwXHYnIu2zGkRoW+Exq3Rob7yp2MfzSrdIiZVhrBg==}
+    engines: {node: '>=18.18'}
     peerDependencies:
       prisma: '*'
+      typescript: '>=5.1.0'
     peerDependenciesMeta:
       prisma:
+        optional: true
+      typescript:
         optional: true
 
   '@prisma/config@6.17.1':
@@ -4289,9 +4292,10 @@ snapshots:
 
   '@popperjs/core@2.11.8': {}
 
-  '@prisma/client@5.22.0(prisma@6.17.1(typescript@5.3.3))':
+  '@prisma/client@6.19.3(prisma@6.17.1(typescript@5.3.3))(typescript@5.3.3)':
     optionalDependencies:
       prisma: 6.17.1(typescript@5.3.3)
+      typescript: 5.3.3
 
   '@prisma/config@6.17.1':
     dependencies:
