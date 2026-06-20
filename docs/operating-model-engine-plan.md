@@ -528,6 +528,13 @@ Employee Directory / Person*. A Relation cell ("Approver") pointing at the direc
 reference from the table row → Mark Davis on link, and `DELETE /api/refs` retracted it (0 rows). 0 console
 errors throughout. ✅
 
+**Arabic / RTL content check (2026-06-20):** seeded Arabic people into the directory and confirmed the whole
+spine is Unicode-clean: `@محمد` resolved "محمد علي (مدير الموارد البشرية)" in the mention popup, the inserted
+chip rendered the Arabic label + its node id, and a distinct `person` reference (correct `to_node`, not
+collapsed with the English Sarah ref) was recorded; an Arabic-named artifact appeared and rendered in the Cmd+K
+palette; the breadcrumb + backlinks panel rendered the Arabic name with the `HR-01` code chip — 0 console
+errors. ✅
+
 **Adversarial-review fixes (7 confirmed + 1 found in QA, all fixed):** (1) `DELETE /api/refs` now requires a
 target (a `{fromCanvas,type}` body could otherwise wipe every ref of that type from a canvas); (2) the DELETE
 pins the NULL case for every absent target field (no over-match); (3) **the big one** — `reconcileDocumentReferences`
