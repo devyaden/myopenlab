@@ -42,11 +42,29 @@ create table if not exists public.agent_attachment (
 create index if not exists agent_attachment_conversation_idx
   on public.agent_attachment (conversation_id);
 
+-- Proposals the agent streamed (normalized, ready to apply). Persisted as they
+-- are produced so a build that times out isn't lost, and so a reopened
+-- conversation can still show its Apply buttons with the right status.
+create table if not exists public.agent_proposal (
+  id                uuid primary key default gen_random_uuid(),
+  conversation_id   uuid not null references public.agent_conversation (id) on delete cascade,
+  message_ordinal   int,                     -- which user turn (count of prior user turns)
+  proposal_index    int,                     -- order within that turn (emitted order)
+  proposal_json     jsonb not null,          -- the normalized ToolProposal
+  status            text not null default 'pending',  -- pending | applied | discarded | failed
+  applied_canvas_id uuid,
+  created_at        timestamptz not null default now()
+);
+
+create index if not exists agent_proposal_conversation_idx
+  on public.agent_proposal (conversation_id, message_ordinal, proposal_index);
+
 -- Row Level Security ---------------------------------------------------------
 
 alter table public.agent_conversation enable row level security;
 alter table public.agent_message      enable row level security;
 alter table public.agent_attachment   enable row level security;
+alter table public.agent_proposal     enable row level security;
 
 -- Conversations: owner-only.
 drop policy if exists agent_conversation_owner on public.agent_conversation;
@@ -72,3 +90,18 @@ create policy agent_message_owner on public.agent_message
 drop policy if exists agent_attachment_owner on public.agent_attachment;
 create policy agent_attachment_owner on public.agent_attachment
   for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+
+-- Proposals: accessible when the parent conversation belongs to the user.
+drop policy if exists agent_proposal_owner on public.agent_proposal;
+create policy agent_proposal_owner on public.agent_proposal
+  for all using (
+    exists (
+      select 1 from public.agent_conversation c
+      where c.id = agent_proposal.conversation_id and c.user_id = auth.uid()
+    )
+  ) with check (
+    exists (
+      select 1 from public.agent_conversation c
+      where c.id = agent_proposal.conversation_id and c.user_id = auth.uid()
+    )
+  );

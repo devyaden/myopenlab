@@ -1,7 +1,5 @@
 "use client";
 
-import { AgentChat } from "@/components/agent/AgentChat";
-import { AgentLauncher } from "@/components/agent/AgentLauncher";
 import { useIsMobile } from "@/hooks/use-mobile";
 import DocumentEditor from "@/components/editor";
 import { Input } from "@/components/ui/input";
@@ -1987,8 +1985,6 @@ export default function CanvasNew({ canvasId }: FigmaInterfaceProps) {
           onReady={() => setIsDocumentReady(true)}
         />
       )}
-      <AgentLauncher canvasId={canvasId} />
-      <AgentChat />
     </>
   );
 }

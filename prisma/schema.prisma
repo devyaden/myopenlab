@@ -263,6 +263,7 @@ model AgentConversation {
   updated_at  DateTime          @default(now()) @updatedAt
   messages    AgentMessage[]
   attachments AgentAttachment[]
+  proposals   AgentProposal[]
 
   @@index([user_id, updated_at])
   @@map("agent_conversation")
@@ -295,4 +296,19 @@ model AgentAttachment {
 
   @@index([conversation_id])
   @@map("agent_attachment")
+}
+
+model AgentProposal {
+  id                String            @id @default(uuid()) @db.Uuid
+  conversation_id   String            @db.Uuid
+  message_ordinal   Int? // which user turn (count of prior user turns)
+  proposal_index    Int? // order within that turn (emitted order)
+  proposal_json     Json // the normalized ToolProposal
+  status            String            @default("pending") // pending | applied | discarded | failed
+  applied_canvas_id String?           @db.Uuid
+  created_at        DateTime          @default(now())
+  conversation      AgentConversation @relation(fields: [conversation_id], references: [id], onDelete: Cascade)
+
+  @@index([conversation_id, message_ordinal, proposal_index])
+  @@map("agent_proposal")
 }

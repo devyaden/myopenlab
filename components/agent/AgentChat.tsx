@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { useAgentStore } from "@/lib/store/useAgent";
 import { useCanvasStore } from "@/lib/store/useCanvas";
 import { useDocumentStore } from "@/components/editor/hooks/useDocument";
@@ -27,10 +27,14 @@ import {
   Plus,
   Sparkles,
   Check,
+  ArrowUpRight,
 } from "lucide-react";
 
 interface Proposal {
   id: string;
+  // The persisted agent_proposal row id (when the server has stored it), used to
+  // update its status on apply and to restore proposals when a conversation is reopened.
+  dbId?: string;
   kind: "create" | "update";
   target?: "canvas" | "document" | "directory"; // absent ⇒ "canvas" (back-compat)
   name?: string;
@@ -41,7 +45,11 @@ interface Proposal {
   body?: any[]; // document block list (target === "document")
   directory_kind?: "person" | "role"; // target === "directory"
   people?: any[]; // directory rows (target === "directory")
-  status: "pending" | "applied" | "discarded";
+  status: "pending" | "applied" | "discarded" | "failed";
+  // Set once applied so the chat can offer an inline "Open" link (instead of
+  // navigating away on apply, which used to destroy the chat).
+  appliedCanvasId?: string | null;
+  appliedType?: string | null; // canvas_type used to route the Open link
 }
 
 interface ChatMessage {
@@ -66,21 +74,65 @@ function ProposalPreview({
   proposal,
   onApply,
   applying,
+  disabled,
 }: {
   proposal: Proposal;
   onApply: () => void;
   applying: boolean;
+  disabled?: boolean;
 }) {
   const isDocument = proposal.target === "document";
   const isDirectory = proposal.target === "directory";
+
+  // Once applied, offer a link to the artifact instead of navigating on apply —
+  // the chat stays open and the other proposals remain applyable.
+  const openLink =
+    proposal.status === "applied" && proposal.appliedCanvasId ? (
+      // Client-side navigation (Next <Link>) so the layout-mounted chat survives —
+      // the user can view the new artifact and come back to apply the rest.
+      <Link
+        href={playbookHref(proposal.appliedCanvasId, proposal.appliedType)}
+        className="flex items-center gap-1 text-xs font-medium text-primary hover:underline"
+      >
+        Open <ArrowUpRight size={12} />
+      </Link>
+    ) : null;
 
   const statusBadge =
     proposal.status === "applied" ? (
       <span className="flex items-center gap-1 text-xs text-green-600">
         <Check size={13} /> Applied
       </span>
+    ) : proposal.status === "failed" ? (
+      <span className="text-xs text-destructive">Failed</span>
     ) : proposal.status === "discarded" ? (
       <span className="text-xs text-muted-foreground">Discarded</span>
+    ) : null;
+
+  const headerRight = (
+    <div className="flex items-center gap-2">
+      {openLink}
+      {statusBadge}
+    </div>
+  );
+
+  // Apply when pending; Retry when a previous apply failed.
+  const footer =
+    proposal.status === "pending" || proposal.status === "failed" ? (
+      <div className="flex justify-end gap-2 border-t px-3 py-2">
+        <button
+          onClick={onApply}
+          disabled={applying || disabled}
+          className="flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:opacity-90 disabled:opacity-60"
+        >
+          {applying ? (
+            <Loader2 size={13} className="animate-spin" />
+          ) : (
+            <Check size={13} />
+          )}
+          {proposal.status === "failed" ? "Retry" : "Apply"}
+        </button>
+      </div>
     ) : null;
 
   if (isDirectory) {
@@ -92,7 +144,7 @@ function ProposalPreview({
             New {proposal.directory_kind ?? "person"} directory:{" "}
             {proposal.name ?? "Directory"}
           </span>
-          {statusBadge}
+          {headerRight}
         </div>
         <div className="max-h-[220px] overflow-y-auto px-3 py-2">
           {people.length === 0 ? (
@@ -113,22 +165,7 @@ function ProposalPreview({
         <div className="border-t px-3 py-1 text-[10px] text-muted-foreground">
           {people.length} row{people.length === 1 ? "" : "s"}
         </div>
-        {proposal.status === "pending" && (
-          <div className="flex justify-end gap-2 border-t px-3 py-2">
-            <button
-              onClick={onApply}
-              disabled={applying}
-              className="flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:opacity-90 disabled:opacity-60"
-            >
-              {applying ? (
-                <Loader2 size={13} className="animate-spin" />
-              ) : (
-                <Check size={13} />
-              )}
-              Apply
-            </button>
-          </div>
-        )}
+        {footer}
       </div>
     );
   }
@@ -144,7 +181,7 @@ function ProposalPreview({
               ? `New document: ${proposal.name ?? "Untitled"}`
               : "Update to this document"}
           </span>
-          {statusBadge}
+          {headerRight}
         </div>
         <div className="max-h-[220px] overflow-y-auto px-3 py-2">
           <pre className="whitespace-pre-wrap break-words font-sans text-xs leading-relaxed text-muted-foreground">
@@ -154,22 +191,7 @@ function ProposalPreview({
         <div className="border-t px-3 py-1 text-[10px] text-muted-foreground">
           {blockCount} block{blockCount === 1 ? "" : "s"}
         </div>
-        {proposal.status === "pending" && (
-          <div className="flex justify-end gap-2 border-t px-3 py-2">
-            <button
-              onClick={onApply}
-              disabled={applying}
-              className="flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:opacity-90 disabled:opacity-60"
-            >
-              {applying ? (
-                <Loader2 size={13} className="animate-spin" />
-              ) : (
-                <Check size={13} />
-              )}
-              Apply
-            </button>
-          </div>
-        )}
+        {footer}
       </div>
     );
   }
@@ -193,7 +215,7 @@ function ProposalPreview({
             ? `New playbook: ${proposal.name ?? "Untitled"}`
             : "Update to this playbook"}
         </span>
-        {statusBadge}
+        {headerRight}
       </div>
       <div className="h-[200px] w-full">
         <ReactFlow
@@ -232,7 +254,6 @@ function ProposalPreview({
 }
 
 export function AgentChat() {
-  const router = useRouter();
   const { isOpen, canvasId, close } = useAgentStore();
   const [conversationId, setConversationId] = useState<string | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -243,6 +264,7 @@ export function AgentChat() {
   const [attachments, setAttachments] = useState<PendingAttachment[]>([]);
   const [uploading, setUploading] = useState(false);
   const [applyingId, setApplyingId] = useState<string | null>(null);
+  const [applyingAll, setApplyingAll] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
   const [conversations, setConversations] = useState<ConversationSummary[]>([]);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -271,17 +293,78 @@ export function AgentChat() {
     const res = await fetch(`/api/ai/agent/conversations/${id}`);
     if (!res.ok) return;
     const json = await res.json();
-    const loaded: ChatMessage[] = (json.messages ?? [])
+
+    // Tag each message with the user-turn it belongs to (the server stamps each
+    // proposal with the same ordinal = count of prior user turns), so restored
+    // proposals re-attach to the right assistant bubble.
+    let turn = -1;
+    const tagged = (json.messages ?? [])
       .filter((m: any) => m.role === "user" || m.role === "assistant")
       .map((m: any) => {
         const blocks = Array.isArray(m.content) ? m.content : [];
+        // Tool-result turns are stored with role "user" (and a near-cap wrap-up
+        // turn even carries a text block) — they aren't real user turns and must
+        // not be shown or counted.
+        const isToolTurn =
+          m.role === "user" && blocks.some((b: any) => b?.type === "tool_result");
+        if (m.role === "user" && !isToolTurn) turn += 1;
         const text = blocks
           .filter((b: any) => b.type === "text")
           .map((b: any) => b.text)
           .join("\n");
-        return { role: m.role, text };
-      })
-      .filter((m: ChatMessage) => m.text.trim().length > 0);
+        return { role: m.role as "user" | "assistant", text, turn, isToolTurn };
+      });
+
+    // Group restored proposals by their turn ordinal.
+    const proposalsByTurn = new Map<number, Proposal[]>();
+    for (const p of json.proposals ?? []) {
+      const src = p.proposal_json ?? {};
+      const target = src.target;
+      const appliedType =
+        target === "document"
+          ? "document"
+          : target === "directory"
+          ? "table"
+          : "canvas";
+      const restored: Proposal = {
+        ...src,
+        id: `db-${p.id}`,
+        dbId: p.id,
+        status: p.status ?? "pending",
+        appliedCanvasId: p.applied_canvas_id ?? undefined,
+        appliedType,
+      };
+      const arr = proposalsByTurn.get(p.message_ordinal) ?? [];
+      arr.push(restored);
+      proposalsByTurn.set(p.message_ordinal, arr);
+    }
+
+    // The last assistant message (with text) of each turn carries that turn's
+    // proposals — mirroring how they render live.
+    const lastAsstIdx = new Map<number, number>();
+    tagged.forEach((m: any, i: number) => {
+      if (m.role === "assistant" && m.text.trim().length > 0)
+        lastAsstIdx.set(m.turn, i);
+    });
+
+    const loaded: ChatMessage[] = [];
+    tagged.forEach((m: any, i: number) => {
+      if (m.isToolTurn) return; // tool-result turns (incl. any wrap-up nudge) aren't shown
+      if (m.text.trim().length === 0) return; // drop tool-only bubbles
+      const msg: ChatMessage = { role: m.role, text: m.text };
+      if (m.role === "assistant" && lastAsstIdx.get(m.turn) === i) {
+        const props = proposalsByTurn.get(m.turn);
+        if (props?.length) msg.proposals = props;
+      }
+      loaded.push(msg);
+    });
+    // Any turn whose assistant bubble had no text still needs its proposals shown.
+    proposalsByTurn.forEach((props, t) => {
+      if (!lastAsstIdx.has(t) && props.length) {
+        loaded.push({ role: "assistant", text: "Proposed changes", proposals: props });
+      }
+    });
+
     setConversationId(id);
     setMessages(loaded);
     setShowHistory(false);
@@ -311,14 +394,43 @@ export function AgentChat() {
     [conversationId, canvasId]
   );
 
-  const markApplied = useCallback((msgIdx: number, proposalId: string) => {
+  const markApplied = useCallback(
+    (
+      msgIdx: number,
+      proposalId: string,
+      applied?: { canvasId?: string | null; type?: string | null }
+    ) => {
+      setMessages((prev) =>
+        prev.map((m, i) =>
+          i === msgIdx
+            ? {
+                ...m,
+                proposals: m.proposals?.map((p) =>
+                  p.id === proposalId
+                    ? {
+                        ...p,
+                        status: "applied",
+                        appliedCanvasId: applied?.canvasId ?? p.appliedCanvasId,
+                        appliedType: applied?.type ?? p.appliedType,
+                      }
+                    : p
+                ),
+              }
+            : m
+        )
+      );
+    },
+    []
+  );
+
+  const markFailed = useCallback((msgIdx: number, proposalId: string) => {
     setMessages((prev) =>
       prev.map((m, i) =>
         i === msgIdx
           ? {
               ...m,
               proposals: m.proposals?.map((p) =>
-                p.id === proposalId ? { ...p, status: "applied" } : p
+                p.id === proposalId ? { ...p, status: "failed" } : p
               ),
             }
           : m
@@ -326,15 +438,14 @@ export function AgentChat() {
     );
   }, []);
 
+  // Commits a single proposal. Never navigates — on a successful create it records
+  // the new id so the chat can show an inline "Open" link, keeping the conversation
+  // (and any sibling proposals) intact. Returns true on success.
   const applyProposal = useCallback(
-    async (msgIdx: number, proposal: Proposal) => {
+    async (msgIdx: number, proposal: Proposal): Promise<boolean> => {
       setApplyingId(proposal.id);
       try {
-        // ── Document proposals ──────────────────────────────────────────────
-        // Always commit through the API (it writes document_data, the history
-        // snapshot, and reconciles cross-references). If the targeted document
-        // is the one open in the editor, also push the content in instantly so
-        // it re-renders without a navigation/flash.
+        // ── Directory proposals ─────────────────────────────────────────────
         if (proposal.target === "directory") {
           const res = await fetch("/api/ai/agent/apply", {
             method: "POST",
@@ -347,19 +458,27 @@ export function AgentChat() {
               folder_id: proposal.folder_id ?? null,
               directory_kind: proposal.directory_kind ?? "person",
               people: proposal.people ?? [],
+              proposalId: proposal.dbId,
             }),
           });
           const json = await res.json();
-          if (res.ok) {
-            markApplied(msgIdx, proposal.id);
-            if (json.canvasId) {
-              // A directory is a Table canvas — open it on the playbook route.
-              router.push(playbookHref(json.canvasId, "table"));
-            }
+          if (!res.ok) {
+            markFailed(msgIdx, proposal.id);
+            return false;
           }
-          return;
+          // A directory is a Table canvas — link it on the playbook route.
+          markApplied(msgIdx, proposal.id, {
+            canvasId: json.canvasId,
+            type: "table",
+          });
+          return true;
         }
 
+        // ── Document proposals ──────────────────────────────────────────────
+        // Always commit through the API (it writes document_data, the history
+        // snapshot, and reconciles cross-references). If the targeted document
+        // is the one open in the editor, also push the content in instantly so
+        // it re-renders without a flash.
         if (proposal.target === "document") {
           const res = await fetch("/api/ai/agent/apply", {
             method: "POST",
@@ -373,41 +492,48 @@ export function AgentChat() {
                     code: proposal.code ?? null,
                     folder_id: proposal.folder_id ?? null,
                     body: proposal.body ?? [],
+                    proposalId: proposal.dbId,
                   }
                 : {
                     kind: "update",
                     target: "document",
                     canvas_id: proposal.canvas_id,
                     body: proposal.body ?? [],
+                    proposalId: proposal.dbId,
                   }
             ),
           });
           const json = await res.json();
-          if (res.ok) {
-            markApplied(msgIdx, proposal.id);
-            const docStore = useDocumentStore.getState();
-            if (
-              proposal.kind === "update" &&
-              proposal.canvas_id &&
-              docStore.canvas_id === proposal.canvas_id
-            ) {
-              // The edited document is open — re-render it instantly, adopting
-              // the server's new version so the next user save doesn't conflict.
-              docStore.applyDocumentContent(
-                blocksToTiptapDoc(proposal.body ?? []),
-                typeof json.version === "number" ? json.version : undefined
-              );
-            } else if (proposal.kind === "create" && json.canvasId) {
-              router.push(playbookHref(json.canvasId, "document"));
-            }
+          if (!res.ok) {
+            markFailed(msgIdx, proposal.id);
+            return false;
           }
-          return;
+          const newId =
+            proposal.kind === "create" ? json.canvasId : proposal.canvas_id;
+          markApplied(msgIdx, proposal.id, {
+            canvasId: newId,
+            type: "document",
+          });
+          const docStore = useDocumentStore.getState();
+          if (
+            proposal.kind === "update" &&
+            proposal.canvas_id &&
+            docStore.canvas_id === proposal.canvas_id
+          ) {
+            // The edited document is open — re-render it instantly, adopting
+            // the server's new version so the next user save doesn't conflict.
+            docStore.applyDocumentContent(
+              blocksToTiptapDoc(proposal.body ?? []),
+              typeof json.version === "number" ? json.version : undefined
+            );
+          }
+          return true;
         }
 
-        // If the proposal updates the playbook that's currently open in the
-        // editor, apply it straight into the canvas store so it renders
-        // instantly. syncChanges() persists it through the normal save path
-        // (which also writes a history snapshot) — no separate API write needed.
+        // ── Canvas update to the playbook that's currently open ─────────────
+        // Apply straight into the canvas store so it renders instantly.
+        // syncChanges() persists through the normal save path (history snapshot
+        // included) — no separate API write needed.
         if (proposal.kind === "update" && proposal.canvas_id && proposal.diagram) {
           const store = useCanvasStore.getState();
           if (store.id === proposal.canvas_id) {
@@ -416,18 +542,20 @@ export function AgentChat() {
               edges: proposal.diagram.edges,
               nodeStyles: proposal.diagram.nodeStyles,
             });
-            // Persist in the background so the spinner clears immediately;
-            // the canvas has already updated via initializeWithAIData.
+            // Persist in the background so the spinner clears immediately.
             void store.syncChanges();
             // Nudge any document embedding this canvas to refetch now.
             emitEmbedRefresh(proposal.canvas_id);
-            markApplied(msgIdx, proposal.id);
-            return;
+            markApplied(msgIdx, proposal.id, {
+              canvasId: proposal.canvas_id,
+              type: "canvas",
+            });
+            return true;
           }
         }
 
-        // Otherwise commit via the API (create, or update to a playbook that
-        // isn't the one currently open).
+        // ── Otherwise commit via the API (create, or update to a playbook that
+        //    isn't the one currently open). ─────────────────────────────────
         const body =
           proposal.kind === "create"
             ? {
@@ -436,11 +564,13 @@ export function AgentChat() {
                 code: proposal.code ?? null,
                 folder_id: proposal.folder_id ?? null,
                 diagram: proposal.diagram,
+                proposalId: proposal.dbId,
               }
             : {
                 kind: "update",
                 canvas_id: proposal.canvas_id,
                 diagram: proposal.diagram,
+                proposalId: proposal.dbId,
               };
         const res = await fetch("/api/ai/agent/apply", {
           method: "POST",
@@ -448,28 +578,52 @@ export function AgentChat() {
           body: JSON.stringify(body),
         });
         const json = await res.json();
-        if (res.ok) {
-          markApplied(msgIdx, proposal.id);
-          // An update committed via the API targets a canvas that isn't the one
-          // open in the editor — exactly the case a document embed cares about.
-          if (proposal.kind === "update" && proposal.canvas_id) {
-            emitEmbedRefresh(proposal.canvas_id);
-          }
-          if (proposal.kind === "create" && json.canvasId) {
-            router.push(`/protected/playbook/${json.canvasId}`);
-          }
+        if (!res.ok) {
+          markFailed(msgIdx, proposal.id);
+          return false;
         }
+        // An update committed via the API targets a canvas that isn't the one
+        // open in the editor — exactly the case a document embed cares about.
+        if (proposal.kind === "update" && proposal.canvas_id) {
+          emitEmbedRefresh(proposal.canvas_id);
+        }
+        const newId =
+          proposal.kind === "create" ? json.canvasId : proposal.canvas_id;
+        markApplied(msgIdx, proposal.id, { canvasId: newId, type: "canvas" });
+        return true;
+      } catch {
+        markFailed(msgIdx, proposal.id);
+        return false;
       } finally {
         setApplyingId(null);
       }
     },
-    [router, markApplied]
+    [markApplied, markFailed]
   );
 
-  const send = useCallback(async () => {
-    const text = input.trim();
+  // Applies every still-pending proposal in an assistant message, in the order
+  // the agent emitted them (its intended dependency order — e.g. a flow before
+  // the process page that embeds it). Continues past failures and reports them.
+  const applyAll = useCallback(
+    async (msgIdx: number, proposals: Proposal[]) => {
+      setApplyingAll(true);
+      try {
+        for (const p of proposals) {
+          if (p.status !== "pending" && p.status !== "failed") continue;
+          // eslint-disable-next-line no-await-in-loop
+          await applyProposal(msgIdx, p);
+        }
+      } finally {
+        setApplyingAll(false);
+      }
+    },
+    [applyProposal]
+  );
+
+  const send = useCallback(async (overrideText?: string) => {
+    const text = (overrideText ?? input).trim();
     if (!text || streaming) return;
-    setInput("");
+    if (overrideText === undefined) setInput("");
     setMessages((m) => [...m, { role: "user", text }]);
     setStreaming(true);
     setLiveText("");
@@ -532,7 +686,12 @@ export function AgentChat() {
           } else if (event.type === "tool") {
             setToolActivity(event.name);
           } else if (event.type === "proposal") {
-            collectedProposals.push({ ...event.proposal, id: event.id, status: "pending" });
+            collectedProposals.push({
+              ...event.proposal,
+              id: event.id,
+              dbId: event.dbId,
+              status: "pending",
+            });
           } else if (event.type === "error") {
             acc += `\n\n⚠️ ${event.message}`;
             setLiveText(acc);
@@ -639,11 +798,32 @@ export function AgentChat() {
             >
               {m.text}
             </div>
+            {m.proposals && m.proposals.length > 1 && (() => {
+              const pendingCount = m.proposals.filter(
+                (p) => p.status === "pending" || p.status === "failed"
+              ).length;
+              if (pendingCount < 2) return null;
+              return (
+                <button
+                  onClick={() => applyAll(i, m.proposals!)}
+                  disabled={applyingAll || applyingId !== null}
+                  className="flex items-center gap-1.5 rounded-md border border-primary bg-primary/5 px-3 py-1.5 text-xs font-medium text-primary hover:bg-primary/10 disabled:opacity-60"
+                >
+                  {applyingAll ? (
+                    <Loader2 size={13} className="animate-spin" />
+                  ) : (
+                    <Check size={13} />
+                  )}
+                  Apply all ({pendingCount})
+                </button>
+              );
+            })()}
             {m.proposals?.map((p) => (
               <ProposalPreview
                 key={p.id}
                 proposal={p}
                 applying={applyingId === p.id}
+                disabled={applyingAll}
                 onApply={() => applyProposal(i, p)}
               />
             ))}
@@ -668,6 +848,18 @@ export function AgentChat() {
       </div>
 
       <div className="border-t p-3">
+        {!streaming &&
+          messages.length > 0 &&
+          messages[messages.length - 1].role === "assistant" && (
+            <button
+              onClick={() => send("continue")}
+              className="mb-2 flex items-center gap-1.5 rounded-md border bg-muted/40 px-3 py-1.5 text-xs font-medium text-foreground hover:bg-muted"
+              title="Have the agent keep building"
+            >
+              <Sparkles size={13} className="text-primary" />
+              Continue building
+            </button>
+          )}
         {attachments.length > 0 && (
           <div className="mb-2 flex flex-wrap gap-1.5">
             {attachments.map((a) => (
@@ -718,7 +910,7 @@ export function AgentChat() {
             className="flex-1 resize-none rounded-md border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
           />
           <button
-            onClick={send}
+            onClick={() => send()}
             disabled={streaming || !input.trim()}
             className="rounded-md bg-primary p-2 text-primary-foreground hover:opacity-90 disabled:opacity-50"
             title="Send"

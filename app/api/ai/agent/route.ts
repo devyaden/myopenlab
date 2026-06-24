@@ -118,43 +118,98 @@ export async function POST(request: NextRequest) {
   const client = new Anthropic({ apiKey: process.env.CLAUDE_API_KEY! });
   const encoder = new TextEncoder();
 
+  // The user-turn ordinal (count of prior REAL user turns — tool-result turns are
+  // also stored with role "user", so exclude them). Every proposal emitted in this
+  // request belongs to this turn; it re-attaches proposals to the right bubble when
+  // the conversation is reopened.
+  const isToolResultTurn = (m: any) =>
+    m.role === "user" &&
+    Array.isArray(m.content) &&
+    m.content.some((b: any) => b?.type === "tool_result");
+  const userTurnOrdinal = priorMessages.filter(
+    (m: any) => m.role === "user" && !isToolResultTurn(m)
+  ).length;
+
   const stream = new ReadableStream({
     async start(controller) {
-      const send = (event: any) => {
-        controller.enqueue(encoder.encode(`data: ${JSON.stringify(event)}\n\n`));
+      let closed = false;
+      const safeEnqueue = (chunk: string) => {
+        if (closed) return;
+        try {
+          controller.enqueue(encoder.encode(chunk));
+        } catch {
+          /* stream already closed by the client */
+        }
       };
+      const send = (event: any) => safeEnqueue(`data: ${JSON.stringify(event)}\n\n`);
+
+      // Heartbeat: keep the connection alive through long thinking gaps. With
+      // adaptive thinking (display omitted) the stream can be byte-silent for many
+      // seconds, which lets proxies/load balancers drop it mid-build. An SSE
+      // comment is ignored by the client parser (it only reads `data:` lines).
+      const heartbeat = setInterval(() => safeEnqueue(`: ping\n\n`), 15000);
 
       // Tell the client which conversation this is (esp. for newly created ones).
       send({ type: "meta", conversationId });
 
       const emit = (event: AgentEvent) => send(event);
 
+      // Persist incrementally so a 300s timeout mid-build never loses the turn:
+      // the user turn up front, then each assistant/tool message as it's produced,
+      // and each proposal as it's emitted.
+      let usageCounted = false;
+      await supabase.from("agent_message").insert({
+        conversation_id: conversationId,
+        role: "user",
+        content: userContent,
+      });
+
+      const onTurnAppended = async (message: any) => {
+        // Count exactly one AI request per user turn, the moment output begins —
+        // so even a timed-out big build counts (and stays resumable) just once.
+        if (!usageCounted) {
+          usageCounted = true;
+          try {
+            await incrementAiUsage(user.id);
+          } catch {
+            /* metering failure shouldn't break the turn */
+          }
+        }
+        await supabase.from("agent_message").insert({
+          conversation_id: conversationId,
+          role: message.role,
+          content: message.content,
+        });
+      };
+
+      const onProposalPersist = async (proposal: any, index: number) => {
+        // Non-fatal: if the agent_proposal table isn't present yet, this resolves
+        // with an error in `error` (not a throw) and we just return null — the
+        // proposal still streams and applies, it just won't survive a reload.
+        const { data } = await supabase
+          .from("agent_proposal")
+          .insert({
+            conversation_id: conversationId,
+            message_ordinal: userTurnOrdinal,
+            proposal_index: index,
+            proposal_json: proposal,
+            status: "pending",
+          })
+          .select("id")
+          .single();
+        return data?.id ?? null;
+      };
+
       try {
-        const { appended } = await runAgentLoop({
+        await runAgentLoop({
           client,
           systemBlocks,
           messages,
           ctx: { supabase, userId: user.id, currentCanvasId: input.canvasId },
           emit,
+          onTurnAppended,
+          onProposalPersist,
         });
-
-        // Persist: the user turn, then everything the loop appended.
-        const rows = [
-          { conversation_id: conversationId, role: "user", content: userContent },
-          ...appended.map((m) => ({
-            conversation_id: conversationId,
-            role: m.role,
-            content: m.content,
-          })),
-        ];
-        await supabase.from("agent_message").insert(rows);
-        await supabase
-          .from("agent_conversation")
-          .update({ updated_at: new Date().toISOString() })
-          .eq("id", conversationId);
-
-        // Count one AI request per user turn (not per internal tool round-trip).
-        await incrementAiUsage(user.id);
 
         const { captureServer } = await import("@/lib/posthog/server-capture");
         await captureServer(user.id, "ai.agent.turn", {
@@ -164,7 +219,21 @@ export async function POST(request: NextRequest) {
         });
       } catch (err: any) {
         send({ type: "error", message: err?.message ?? "Agent failed" });
+        try {
+          const { captureServer } = await import("@/lib/posthog/server-capture");
+          await captureServer(user.id, "ai.agent.turn.error", {
+            message: String(err?.message ?? "unknown"),
+          });
+        } catch {
+          /* analytics is best-effort */
+        }
       } finally {
+        clearInterval(heartbeat);
+        await supabase
+          .from("agent_conversation")
+          .update({ updated_at: new Date().toISOString() })
+          .eq("id", conversationId);
+        closed = true;
         controller.close();
       }
     },

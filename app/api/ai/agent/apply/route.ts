@@ -28,6 +28,8 @@ const applySchema = z.discriminatedUnion("kind", [
     // Phase 5d: directory create payload.
     directory_kind: z.enum(["person", "role"]).optional(),
     people: z.array(z.record(z.any())).optional(),
+    // The persisted agent_proposal row to mark applied (optional).
+    proposalId: z.string().uuid().optional(),
   }),
   z.object({
     kind: z.literal("update"),
@@ -35,8 +37,22 @@ const applySchema = z.discriminatedUnion("kind", [
     canvas_id: z.string().uuid(),
     diagram: diagram.optional(),
     body: docBody.optional(),
+    proposalId: z.string().uuid().optional(),
   }),
 ]);
+
+/** Flip a persisted proposal's status once its commit succeeds (best-effort). */
+async function markProposalApplied(
+  supabase: any,
+  proposalId: string | undefined,
+  canvasId: string | null
+): Promise<void> {
+  if (!proposalId) return;
+  await supabase
+    .from("agent_proposal")
+    .update({ status: "applied", applied_canvas_id: canvasId })
+    .eq("id", proposalId);
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -161,6 +177,7 @@ export async function POST(request: NextRequest) {
       });
       if (dErr) throw dErr;
 
+      await markProposalApplied(supabase, input.proposalId, canvasId);
       return NextResponse.json({ ok: true, canvasId });
     }
 
@@ -210,6 +227,7 @@ export async function POST(request: NextRequest) {
         if (dErr) throw dErr;
 
         await reconcileDocumentReferences(supabase, user.id, canvasId, input.body ?? []);
+        await markProposalApplied(supabase, input.proposalId, canvasId);
         return NextResponse.json({ ok: true, canvasId });
       }
 
@@ -279,6 +297,7 @@ export async function POST(request: NextRequest) {
       });
 
       await reconcileDocumentReferences(supabase, user.id, input.canvas_id, input.body ?? []);
+      await markProposalApplied(supabase, input.proposalId, input.canvas_id);
       // Return the new version so the open editor's store can adopt it and not
       // false-conflict on the user's next save (optimistic-concurrency check).
       return NextResponse.json({
@@ -340,6 +359,7 @@ export async function POST(request: NextRequest) {
       });
       if (dErr) throw dErr;
 
+      await markProposalApplied(supabase, input.proposalId, canvasId);
       return NextResponse.json({ ok: true, canvasId });
     }
 
@@ -388,6 +408,7 @@ export async function POST(request: NextRequest) {
       version: nextVersion,
     });
 
+    await markProposalApplied(supabase, input.proposalId, input.canvas_id);
     return NextResponse.json({ ok: true, canvasId: input.canvas_id });
   } catch (error: any) {
     console.error("Error applying proposal:", error);

@@ -33,5 +33,19 @@ export async function GET(
     .eq("conversation_id", id)
     .order("created_at", { ascending: true });
 
-  return NextResponse.json({ conversation: convo, messages: messages ?? [] });
+  // Persisted proposals (with their current status), so reopening a conversation
+  // restores the Apply / Open buttons on the right message. Best-effort — if the
+  // table isn't present yet, `error` is set and we just return none.
+  const { data: proposals } = await supabase
+    .from("agent_proposal")
+    .select("id, message_ordinal, proposal_index, proposal_json, status, applied_canvas_id")
+    .eq("conversation_id", id)
+    .order("message_ordinal", { ascending: true })
+    .order("proposal_index", { ascending: true });
+
+  return NextResponse.json({
+    conversation: convo,
+    messages: messages ?? [],
+    proposals: proposals ?? [],
+  });
 }
