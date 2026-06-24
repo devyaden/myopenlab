@@ -5,6 +5,7 @@ import { buildWorkspaceIndex } from "@/lib/agent/workspace";
 import { AGENT_SYSTEM_PROMPT, renderWorkspaceContext } from "@/lib/agent/prompt";
 import { runAgentLoop, type AgentEvent } from "@/lib/agent/loop";
 import { toContentBlocks } from "@/lib/agent/content-blocks";
+import { sanitizeHistory } from "@/lib/agent/history";
 
 const agentSchema = z.object({
   message: z.string().min(1).max(4000),
@@ -102,7 +103,13 @@ export async function POST(request: NextRequest) {
     role: r.role,
     content: r.content,
   }));
-  const messages = [...priorMessages, { role: "user", content: userContent }];
+  // Repair any invalid tool_use/tool_result pairing in the loaded history before
+  // replaying it (legacy batch-inserted turns can come back out of order). A no-op
+  // for well-formed histories.
+  const messages = sanitizeHistory([
+    ...priorMessages,
+    { role: "user", content: userContent },
+  ]);
 
   // System blocks: stable role (cached) + per-request workspace index.
   const index = await buildWorkspaceIndex(supabase, user.id);
