@@ -2,6 +2,69 @@
   "common": {
     "language": "Language"
   },
+  "agent": {
+    "title": "Workspace Agent",
+    "askAi": "Ask AI",
+    "newChat": "New chat",
+    "history": "History",
+    "close": "Close",
+    "placeholder": "Ask or instruct the agent…",
+    "thinking": "Thinking…",
+    "continueBuilding": "Continue building",
+    "noConversations": "No past conversations.",
+    "untitled": "Untitled conversation",
+    "empty": {
+      "title": "Ask about your playbooks",
+      "hint": "Try one of these, or pick an action below:"
+    },
+    "intents": {
+      "create": "Create",
+      "edit": "Edit",
+      "link": "Link",
+      "optimize": "Optimize",
+      "createTip": "Create a new playbook, document, or directory",
+      "editTip": "Make a fine-grained edit to what's open",
+      "linkTip": "Connect this to another artifact",
+      "optimizeTip": "Tidy up this flow's layout"
+    },
+    "examples": {
+      "list": "What playbooks do I have?",
+      "create": "Create a hiring process",
+      "edit": "Add an approval step to vendor onboarding"
+    },
+    "proposal": {
+      "newPlaybook": "New playbook: {name}",
+      "updatePlaybook": "Update to this playbook",
+      "editFlow": "Edit to this flow",
+      "newDocument": "New document: {name}",
+      "updateDocument": "Update to this document",
+      "editDocument": "Edit to this document",
+      "newDirectory": "New {kind} directory: {name}",
+      "editDirectory": "Edit to this directory",
+      "newLink": "New link",
+      "apply": "Apply",
+      "applyAll": "Apply all ({count})",
+      "retry": "Retry",
+      "open": "Open",
+      "applied": "Applied",
+      "failed": "Failed",
+      "discarded": "Discarded",
+      "noChanges": "No visible changes."
+    },
+    "tools": {
+      "reading": "Reading workspace…",
+      "readingPlaybook": "Reading playbook…",
+      "readingDocument": "Reading document…",
+      "searching": "Searching…",
+      "drafting": "Drafting…",
+      "editingFlow": "Editing flow…",
+      "editingDocument": "Editing document…",
+      "editingDirectory": "Editing directory…",
+      "linking": "Linking…",
+      "optimizing": "Tidying layout…",
+      "working": "Working…"
+    }
+  },
   "onboarding": {
     "getStarted": "Get started",
     "welcome": {

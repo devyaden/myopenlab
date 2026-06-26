@@ -2,16 +2,27 @@ import { Anthropic } from "@anthropic-ai/sdk";
 import { NextRequest } from "next/server";
 import { z } from "zod";
 import { buildWorkspaceIndex } from "@/lib/agent/workspace";
-import { AGENT_SYSTEM_PROMPT, renderWorkspaceContext } from "@/lib/agent/prompt";
+import {
+  AGENT_SYSTEM_PROMPT,
+  renderWorkspaceContext,
+  intentHint,
+} from "@/lib/agent/prompt";
 import { runAgentLoop, type AgentEvent } from "@/lib/agent/loop";
+import { toolDefsForIntent } from "@/lib/agent/registry";
 import { toContentBlocks } from "@/lib/agent/content-blocks";
 import { sanitizeHistory } from "@/lib/agent/history";
+import {
+  findCompactionSplit,
+  transcriptForSummary,
+} from "@/lib/agent/compaction";
 
 const agentSchema = z.object({
   message: z.string().min(1).max(4000),
   conversationId: z.string().uuid().optional(),
   canvasId: z.string().uuid().optional(),
   attachmentIds: z.array(z.string().uuid()).optional(),
+  // Phase E: a UI intent chip biases tool choice + the prompt (bias, not restrict).
+  intent: z.enum(["create", "edit", "link", "optimize"]).optional(),
 });
 
 export const maxDuration = 300;
@@ -27,7 +38,7 @@ export async function POST(request: NextRequest) {
   }
   const input = parsed.data;
 
-  const { checkAiUsageLimit, incrementAiUsage } = await import(
+  const { checkAiTokenLimit, recordTokenUsage } = await import(
     "@/lib/services/ai-usage"
   );
   const { createClient } = await import("@/lib/supabase/server");
@@ -44,12 +55,16 @@ export async function POST(request: NextRequest) {
     });
   }
 
-  const usage = await checkAiUsageLimit(user.id);
-  if (!usage.allowed) {
+  const tokenStatus = await checkAiTokenLimit(user.id);
+  if (!tokenStatus.allowed) {
+    const overDaily = tokenStatus.daily >= tokenStatus.dailyLimit;
     return new Response(
       JSON.stringify({
-        error: "AI usage limit reached",
-        message: `You've reached your monthly limit of ${usage.limit} AI requests.`,
+        error: "AI token limit reached",
+        reason: "ai_tokens",
+        message: overDaily
+          ? "You've reached your daily AI token limit. It resets tomorrow, or upgrade for a higher allowance."
+          : "You've reached your monthly AI token limit. Upgrade for a higher allowance.",
       }),
       { status: 429, headers: { "Content-Type": "application/json" } }
     );
@@ -103,11 +118,55 @@ export async function POST(request: NextRequest) {
     role: r.role,
     content: r.content,
   }));
+
+  const client = new Anthropic({ apiKey: process.env.CLAUDE_API_KEY! });
+
+  // Phase F4: auto-compaction. If the replayed history approaches the plan's
+  // per-conversation context cap, summarize the oldest turns and replay only the
+  // recent tail + a recap (best-effort; on any failure we fall back to full history).
+  let replayMessages = priorMessages;
+  let summaryBlockText: string | null = null;
+  if (tokenStatus.contextCap > 0) {
+    const split = findCompactionSplit(priorMessages, tokenStatus.contextCap);
+    if (split > 0) {
+      try {
+        const head = priorMessages.slice(0, split);
+        const recap = await client.messages.create({
+          model: "claude-haiku-4-5-20251001",
+          max_tokens: 1024,
+          messages: [
+            {
+              role: "user",
+              content:
+                "Summarize the earlier part of this assistant/user conversation into a concise recap. PRESERVE: decisions made, the names/ids/codes of any artifacts created or edited, and any open threads or pending follow-ups. Be terse and factual.\n\n" +
+                transcriptForSummary(head),
+            },
+          ],
+        });
+        const text = (recap.content as any[])
+          .map((b: any) => (b.type === "text" ? b.text : ""))
+          .join("")
+          .trim();
+        if (text) {
+          summaryBlockText = text;
+          replayMessages = priorMessages.slice(split);
+          // Persist for transparency (best-effort; column may not exist pre-migration).
+          await supabase
+            .from("agent_conversation")
+            .update({ summary: text, compacted_through_ordinal: split })
+            .eq("id", conversationId);
+        }
+      } catch (err) {
+        console.error("compaction failed; using full history:", err);
+      }
+    }
+  }
+
   // Repair any invalid tool_use/tool_result pairing in the loaded history before
   // replaying it (legacy batch-inserted turns can come back out of order). A no-op
   // for well-formed histories.
   const messages = sanitizeHistory([
-    ...priorMessages,
+    ...replayMessages,
     { role: "user", content: userContent },
   ]);
 
@@ -121,8 +180,15 @@ export async function POST(request: NextRequest) {
     },
     { type: "text", text: renderWorkspaceContext(index.text) },
   ];
-
-  const client = new Anthropic({ apiKey: process.env.CLAUDE_API_KEY! });
+  // Recap of older, compacted turns (Phase F4) — kept out of the cached block.
+  if (summaryBlockText)
+    systemBlocks.push({
+      type: "text",
+      text: `EARLIER IN THIS CONVERSATION (a summary of older turns that were compacted to save context):\n${summaryBlockText}`,
+    });
+  // Per-intent nudge (kept out of the cached block above so it doesn't bust the cache).
+  const hint = intentHint(input.intent);
+  if (hint) systemBlocks.push({ type: "text", text: hint });
   const encoder = new TextEncoder();
 
   // The user-turn ordinal (count of prior REAL user turns — tool-result turns are
@@ -164,7 +230,6 @@ export async function POST(request: NextRequest) {
       // Persist incrementally so a 300s timeout mid-build never loses the turn:
       // the user turn up front, then each assistant/tool message as it's produced,
       // and each proposal as it's emitted.
-      let usageCounted = false;
       await supabase.from("agent_message").insert({
         conversation_id: conversationId,
         role: "user",
@@ -172,16 +237,6 @@ export async function POST(request: NextRequest) {
       });
 
       const onTurnAppended = async (message: any) => {
-        // Count exactly one AI request per user turn, the moment output begins —
-        // so even a timed-out big build counts (and stays resumable) just once.
-        if (!usageCounted) {
-          usageCounted = true;
-          try {
-            await incrementAiUsage(user.id);
-          } catch {
-            /* metering failure shouldn't break the turn */
-          }
-        }
         await supabase.from("agent_message").insert({
           conversation_id: conversationId,
           role: message.role,
@@ -208,10 +263,12 @@ export async function POST(request: NextRequest) {
       };
 
       try {
-        await runAgentLoop({
+        const turnStart = Date.now();
+        const { usage: turnUsage, stats } = await runAgentLoop({
           client,
           systemBlocks,
           messages,
+          tools: input.intent ? toolDefsForIntent(input.intent) : undefined,
           ctx: { supabase, userId: user.id, currentCanvasId: input.canvasId },
           emit,
           onTurnAppended,
@@ -223,6 +280,30 @@ export async function POST(request: NextRequest) {
           messageLength: input.message.length,
           hadAttachments: Boolean(input.attachmentIds?.length),
           fromCanvas: Boolean(input.canvasId),
+          // Phase B: observability — per-turn shape + cost.
+          iterations: stats.iterations,
+          toolCallCount: stats.toolCalls,
+          proposalCount: stats.proposals,
+          durationMs: Date.now() - turnStart,
+          billableTokens: turnUsage.billableTokens,
+          contextTokens: turnUsage.contextTokens,
+          inputTokens: turnUsage.inputTokens,
+          outputTokens: turnUsage.outputTokens,
+          cacheReadTokens: turnUsage.cacheReadTokens,
+        });
+
+        // Meter the spend against the plan's daily/monthly budgets…
+        await recordTokenUsage(user.id, turnUsage);
+        // …and tell the client the live context size + budgets so it can render
+        // the context + budget meters (numbers reflect this turn included).
+        send({
+          type: "usage",
+          contextTokens: turnUsage.contextTokens,
+          contextCap: tokenStatus.contextCap,
+          daily: tokenStatus.daily + turnUsage.billableTokens,
+          monthly: tokenStatus.monthly + turnUsage.billableTokens,
+          dailyLimit: tokenStatus.dailyLimit,
+          monthlyLimit: tokenStatus.monthlyLimit,
         });
       } catch (err: any) {
         send({ type: "error", message: err?.message ?? "Agent failed" });

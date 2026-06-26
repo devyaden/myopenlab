@@ -187,6 +187,10 @@ model DocumentData {
 model Subscription {
   id                 String             @id @default(uuid()) @db.Uuid
   title              String
+  // Phase F2: a stable plan key (e.g. "free", "pro_monthly", "pro_yearly",
+  // "business_yearly") that PLAN_LIMITS maps to a limits profile. Set at checkout;
+  // null/unknown falls back to the free profile.
+  plan_key           String?
   description        String?
   price              Float
   duration           Int // Duration in days
@@ -259,6 +263,10 @@ model AgentConversation {
   user_id     String            @db.Uuid
   canvas_id   String?           @db.Uuid // optional: the playbook in focus when started
   title       String?
+  // Phase F4: auto-compaction. Once the live context nears the plan's cap, the
+  // oldest turns up to this ordinal are replaced by `summary` on replay.
+  compacted_through_ordinal Int?
+  summary                   String?
   created_at  DateTime          @default(now())
   updated_at  DateTime          @default(now()) @updatedAt
   messages    AgentMessage[]
@@ -274,11 +282,34 @@ model AgentMessage {
   conversation_id String            @db.Uuid
   role            String // "user" | "assistant"
   content         Json // array of Anthropic content blocks (text/tool_use/tool_result/thinking)
+  // Phase F1: per-turn token usage (set on the assistant turn). input_tokens on the
+  // latest assistant message ≈ the conversation's current context size.
+  input_tokens      Int?
+  output_tokens     Int?
+  cache_read_tokens Int?
+  billable_tokens   Int?
   created_at      DateTime          @default(now())
   conversation    AgentConversation @relation(fields: [conversation_id], references: [id], onDelete: Cascade)
 
   @@index([conversation_id, created_at])
   @@map("agent_message")
+}
+
+// Phase F2b: daily token spend per user. Monthly usage = SUM over the month's rows.
+model AiTokenUsage {
+  id                String   @id @default(uuid()) @db.Uuid
+  user_id           String   @db.Uuid
+  day               String // YYYY-MM-DD (UTC)
+  input_tokens      Int      @default(0)
+  output_tokens     Int      @default(0)
+  cache_read_tokens Int      @default(0)
+  billable_tokens   Int      @default(0)
+  created_at        DateTime @default(now())
+  updated_at        DateTime @default(now()) @updatedAt
+
+  @@unique([user_id, day])
+  @@index([user_id])
+  @@map("ai_token_usage")
 }
 
 model AgentAttachment {

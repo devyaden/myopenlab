@@ -5,6 +5,17 @@ import {
   type AgentToolContext,
   type ToolProposal,
 } from "./tools";
+import {
+  accumulateUsage,
+  emptyTurnUsage,
+  type TurnUsage,
+} from "./tokens";
+import {
+  newRunId,
+  summarizeToolInput,
+  traceToolCall,
+  traceTurn,
+} from "./trace";
 
 export const AGENT_MODEL = "claude-opus-4-8";
 // A safety net only — Task Budgets (output_config.task_budget) does the real
@@ -31,6 +42,8 @@ export async function runAgentLoop(opts: {
   systemBlocks: any[];
   messages: any[];
   ctx: AgentToolContext;
+  /** Optional tool subset (e.g. biased for a UI intent). Defaults to all tools. */
+  tools?: any[];
   emit: (event: AgentEvent) => void;
   // Called as each assistant/tool message is appended, so the caller can persist
   // incrementally — a timeout mid-loop then never loses the turn.
@@ -38,11 +51,23 @@ export async function runAgentLoop(opts: {
   // Called as each proposal is produced; returns the persisted row id (or null),
   // which is forwarded to the client so it can update the proposal's status on apply.
   onProposalPersist?: (proposal: ToolProposal, index: number) => Promise<string | null>;
-}): Promise<{ appended: any[] }> {
+}): Promise<{
+  appended: any[];
+  usage: TurnUsage;
+  stats: { iterations: number; toolCalls: number; proposals: number };
+}> {
   const { client, systemBlocks, ctx, emit, onTurnAppended, onProposalPersist } = opts;
   const messages = [...opts.messages];
   const appended: any[] = [];
   let proposalCounter = 0;
+  // Phase B/F1: one run id for the whole turn, a running token total, and counters
+  // for the dev trace + the route's analytics.
+  const runId = ctx.runId ?? newRunId();
+  ctx.runId = runId;
+  const startedAt = Date.now();
+  let usage = emptyTurnUsage();
+  let iterationsRun = 0;
+  let toolCallCount = 0;
   // Task Budgets is a beta. If the header is rejected for this account/SDK we drop
   // it (once) and fall back to the known-good GA call, so the agent never breaks.
   let taskBudgetSupported = true;
@@ -51,12 +76,13 @@ export async function runAgentLoop(opts: {
   // typing may lag; the values are honored at runtime. task_budget gives the model
   // a running token countdown for the whole turn so it self-moderates and wraps up
   // gracefully on big builds instead of getting chopped at the cap.
+  const tools = opts.tools ?? AGENT_TOOLS;
   const makeStream = () => {
     const common = {
       model: AGENT_MODEL,
       max_tokens: MAX_TOKENS,
       system: systemBlocks,
-      tools: AGENT_TOOLS,
+      tools,
       messages,
       thinking: { type: "adaptive" },
     };
@@ -77,6 +103,7 @@ export async function runAgentLoop(opts: {
   };
 
   for (let iteration = 0; iteration < MAX_ITERATIONS; iteration++) {
+    iterationsRun = iteration + 1;
     let finalMessage: any;
     for (let attempt = 0; ; attempt++) {
       const stream: any = makeStream();
@@ -97,6 +124,10 @@ export async function runAgentLoop(opts: {
       }
     }
 
+    // Fold this call's token usage into the turn total (the last call's input ≈
+    // the full replayed conversation, i.e. the context-meter number).
+    usage = accumulateUsage(usage, finalMessage.usage);
+
     // Record the assistant turn (full content, including any tool_use blocks)
     // and persist it immediately so a timeout later in the loop doesn't lose it.
     const assistantTurn = { role: "assistant", content: finalMessage.content };
@@ -112,7 +143,9 @@ export async function runAgentLoop(opts: {
     const toolResults: any[] = [];
     for (const block of finalMessage.content as any[]) {
       if (block.type !== "tool_use") continue;
+      toolCallCount += 1;
       emit({ type: "tool", name: block.name });
+      const toolStart = Date.now();
       try {
         const result = await executeAgentTool(block.name, block.input, ctx);
         if (result.proposal) {
@@ -125,12 +158,30 @@ export async function runAgentLoop(opts: {
           }
           emit({ type: "proposal", id, dbId, proposal: result.proposal });
         }
+        traceToolCall({
+          runId,
+          name: block.name,
+          inputSummary: summarizeToolInput(block.name, block.input),
+          durationMs: Date.now() - toolStart,
+          ok: true,
+          proposalKind: result.proposal
+            ? `${result.proposal.kind}:${result.proposal.target ?? "canvas"}`
+            : undefined,
+        });
         toolResults.push({
           type: "tool_result",
           tool_use_id: block.id,
           content: result.content,
         });
       } catch (err: any) {
+        traceToolCall({
+          runId,
+          name: block.name,
+          inputSummary: summarizeToolInput(block.name, block.input),
+          durationMs: Date.now() - toolStart,
+          ok: false,
+          error: String(err?.message ?? "unknown"),
+        });
         toolResults.push({
           type: "tool_result",
           tool_use_id: block.id,
@@ -160,5 +211,18 @@ export async function runAgentLoop(opts: {
   }
 
   emit({ type: "done" });
-  return { appended };
+
+  const stats = {
+    iterations: iterationsRun,
+    toolCalls: toolCallCount,
+    proposals: proposalCounter,
+  };
+  traceTurn({
+    runId,
+    ...stats,
+    durationMs: Date.now() - startedAt,
+    billableTokens: usage.billableTokens,
+    contextTokens: usage.contextTokens,
+  });
+  return { appended, usage, stats };
 }

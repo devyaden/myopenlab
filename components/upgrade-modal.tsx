@@ -15,7 +15,7 @@ import { useRouter } from "next/navigation";
 interface UpgradeModalProps {
   isOpen: boolean;
   onClose: () => void;
-  reason: "diagrams" | "ai_requests";
+  reason: "diagrams" | "ai_requests" | "ai_tokens";
   currentCount?: number;
   limit?: number;
 }
@@ -44,6 +44,12 @@ export function UpgradeModal({
       title: "AI Request Limit Reached",
       description: `You've used all ${limit || 5} AI requests for this month.`,
       feature: "Unlimited AI-powered diagram generation",
+    },
+    ai_tokens: {
+      title: "AI Token Limit Reached",
+      description:
+        "You've reached your AI token allowance. Upgrade for a larger context window and higher daily/monthly limits.",
+      feature: "A bigger context window + higher token limits",
     },
   };
 

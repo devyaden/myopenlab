@@ -2,6 +2,69 @@
   "common": {
     "language": "اللغة"
   },
+  "agent": {
+    "title": "مساعد مساحة العمل",
+    "askAi": "اسأل الذكاء الاصطناعي",
+    "newChat": "محادثة جديدة",
+    "history": "السجل",
+    "close": "إغلاق",
+    "placeholder": "اسأل أو وجّه المساعد…",
+    "thinking": "يفكّر…",
+    "continueBuilding": "متابعة البناء",
+    "noConversations": "لا توجد محادثات سابقة.",
+    "untitled": "محادثة بدون عنوان",
+    "empty": {
+      "title": "اسأل عن أدلّة العمل لديك",
+      "hint": "جرّب أحد هذه، أو اختر إجراءً بالأسفل:"
+    },
+    "intents": {
+      "create": "إنشاء",
+      "edit": "تعديل",
+      "link": "ربط",
+      "optimize": "تحسين",
+      "createTip": "أنشئ دليل عمل أو مستندًا أو دليلًا جديدًا",
+      "editTip": "أجرِ تعديلًا دقيقًا على المفتوح حاليًا",
+      "linkTip": "اربط هذا بعنصر آخر",
+      "optimizeTip": "رتّب تخطيط هذا المخطط"
+    },
+    "examples": {
+      "list": "ما أدلّة العمل المتوفّرة لديّ؟",
+      "create": "أنشئ عملية توظيف",
+      "edit": "أضف خطوة موافقة إلى عملية إعداد المورّدين"
+    },
+    "proposal": {
+      "newPlaybook": "دليل عمل جديد: {name}",
+      "updatePlaybook": "تحديث لهذا الدليل",
+      "editFlow": "تعديل على هذا المخطط",
+      "newDocument": "مستند جديد: {name}",
+      "updateDocument": "تحديث لهذا المستند",
+      "editDocument": "تعديل على هذا المستند",
+      "newDirectory": "دليل {kind} جديد: {name}",
+      "editDirectory": "تعديل على هذا الدليل",
+      "newLink": "رابط جديد",
+      "apply": "تطبيق",
+      "applyAll": "تطبيق الكل ({count})",
+      "retry": "إعادة المحاولة",
+      "open": "فتح",
+      "applied": "تم التطبيق",
+      "failed": "فشل",
+      "discarded": "تم التجاهل",
+      "noChanges": "لا توجد تغييرات ظاهرة."
+    },
+    "tools": {
+      "reading": "يقرأ مساحة العمل…",
+      "readingPlaybook": "يقرأ دليل العمل…",
+      "readingDocument": "يقرأ المستند…",
+      "searching": "يبحث…",
+      "drafting": "يصوغ…",
+      "editingFlow": "يعدّل المخطط…",
+      "editingDocument": "يعدّل المستند…",
+      "editingDirectory": "يعدّل الدليل…",
+      "linking": "يربط…",
+      "optimizing": "يرتّب التخطيط…",
+      "working": "يعمل…"
+    }
+  },
   "onboarding": {
     "getStarted": "ابدأ من هنا",
     "welcome": {

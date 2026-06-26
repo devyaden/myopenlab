@@ -115,3 +115,116 @@ export async function getAiUsageStats(userId: string): Promise<{
     isPaidUser,
   };
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Phase F: TOKEN economy. The agent is metered in (weighted billable) tokens
+// against plan-keyed daily + monthly budgets, with a per-conversation context cap.
+// All reads/writes fail OPEN (never block the agent) if the ai_token_usage table
+// isn't present yet — so this is safe to ship before the migration is applied.
+// ─────────────────────────────────────────────────────────────────────────────
+
+export interface TokenLimitStatus {
+  allowed: boolean;
+  daily: number;
+  monthly: number;
+  dailyLimit: number;
+  monthlyLimit: number;
+  /** Per-conversation live-context cap (the in-chat meter's denominator). */
+  contextCap: number;
+  isPaidUser: boolean;
+}
+
+function utcDay(now: Date): string {
+  return now.toISOString().slice(0, 10); // YYYY-MM-DD
+}
+function utcMonthPrefix(now: Date): string {
+  return now.toISOString().slice(0, 7); // YYYY-MM
+}
+
+/** Check the user's daily + monthly token budgets (block the NEXT turn if over). */
+export async function checkAiTokenLimit(
+  userId: string
+): Promise<TokenLimitStatus> {
+  const limits = await getUserFeatureLimits(userId);
+  const dailyLimit = limits[SubscriptionFeatureFlag.MAX_AI_TOKENS_PER_DAY];
+  const monthlyLimit = limits[SubscriptionFeatureFlag.MAX_AI_TOKENS_PER_MONTH];
+  const contextCap = limits[SubscriptionFeatureFlag.MAX_CONTEXT_TOKENS];
+  const isPaidUser =
+    limits[SubscriptionFeatureFlag.MAX_AI_REQUESTS] >= 999999;
+  const base = { dailyLimit, monthlyLimit, contextCap, isPaidUser };
+
+  try {
+    const supabase = await createClient();
+    const now = new Date();
+    const { data: rows, error } = await supabase
+      .from("ai_token_usage")
+      .select("day, billable_tokens")
+      .eq("user_id", userId)
+      .like("day", `${utcMonthPrefix(now)}%`);
+    if (error) return { allowed: true, daily: 0, monthly: 0, ...base };
+    const today = utcDay(now);
+    const monthly = (rows ?? []).reduce(
+      (s: number, r: any) => s + (r.billable_tokens ?? 0),
+      0
+    );
+    const daily = (rows ?? [])
+      .filter((r: any) => r.day === today)
+      .reduce((s: number, r: any) => s + (r.billable_tokens ?? 0), 0);
+    return {
+      allowed: daily < dailyLimit && monthly < monthlyLimit,
+      daily,
+      monthly,
+      ...base,
+    };
+  } catch {
+    return { allowed: true, daily: 0, monthly: 0, ...base };
+  }
+}
+
+/** Add a turn's token usage to today's row (read-modify-write; best-effort). */
+export async function recordTokenUsage(
+  userId: string,
+  usage: {
+    inputTokens: number;
+    outputTokens: number;
+    cacheReadTokens: number;
+    billableTokens: number;
+  }
+): Promise<void> {
+  try {
+    const supabase = await createClient();
+    const now = new Date();
+    const day = utcDay(now);
+    const { data: existing } = await supabase
+      .from("ai_token_usage")
+      .select("id, input_tokens, output_tokens, cache_read_tokens, billable_tokens")
+      .eq("user_id", userId)
+      .eq("day", day)
+      .maybeSingle();
+    if (existing) {
+      await supabase
+        .from("ai_token_usage")
+        .update({
+          input_tokens: (existing.input_tokens ?? 0) + usage.inputTokens,
+          output_tokens: (existing.output_tokens ?? 0) + usage.outputTokens,
+          cache_read_tokens:
+            (existing.cache_read_tokens ?? 0) + usage.cacheReadTokens,
+          billable_tokens: (existing.billable_tokens ?? 0) + usage.billableTokens,
+          updated_at: now.toISOString(),
+        })
+        .eq("id", existing.id);
+    } else {
+      await supabase.from("ai_token_usage").insert({
+        id: crypto.randomUUID(),
+        user_id: userId,
+        day,
+        input_tokens: usage.inputTokens,
+        output_tokens: usage.outputTokens,
+        cache_read_tokens: usage.cacheReadTokens,
+        billable_tokens: usage.billableTokens,
+      });
+    }
+  } catch (err) {
+    console.error("recordTokenUsage failed:", err);
+  }
+}

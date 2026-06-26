@@ -39,6 +39,29 @@ const applySchema = z.discriminatedUnion("kind", [
     body: docBody.optional(),
     proposalId: z.string().uuid().optional(),
   }),
+  // Phase D: fine-grained edits. The proposal carries `ops`; we re-resolve them
+  // against the LATEST persisted artifact here (so a concurrent edit isn't clobbered)
+  // and then commit through the same whole-body write + history + reference path.
+  z.object({
+    kind: z.literal("patch"),
+    target: z.enum(["canvas", "document", "directory"]),
+    canvas_id: z.string().uuid(),
+    ops: z.array(z.any()),
+    proposalId: z.string().uuid().optional(),
+  }),
+  // Phase D: a typed cross-reference (incl. node-level), written directly.
+  z.object({
+    kind: z.literal("link"),
+    reference: z.object({
+      fromCanvas: z.string().uuid(),
+      fromNode: z.string().nullable().optional(),
+      toCanvas: z.string().uuid().nullable().optional(),
+      toCode: z.string().nullable().optional(),
+      toNode: z.string().nullable().optional(),
+      type: z.string(),
+    }),
+    proposalId: z.string().uuid().optional(),
+  }),
 ]);
 
 /** Flip a persisted proposal's status once its commit succeeds (best-effort). */
@@ -73,6 +96,16 @@ export async function POST(request: NextRequest) {
     } = await supabase.auth.getUser();
     if (authError || !user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    // ── Patch proposals (fine-grained ops, re-resolved against latest) ───────
+    if (input.kind === "patch") {
+      return await applyPatch(supabase, user.id, input);
+    }
+
+    // ── Link proposals (a typed reference row, incl. node-level) ─────────────
+    if (input.kind === "link") {
+      return await applyLink(supabase, user.id, input);
     }
 
     // ── Directory proposals (target: "directory") ───────────────────────────
@@ -465,4 +498,207 @@ async function reconcileDocumentReferences(
   } catch (err) {
     console.error("reconcileDocumentReferences failed:", err);
   }
+}
+
+/** Ownership check shared by the patch/link handlers. Returns the row or null. */
+async function ownedCanvas(
+  supabase: any,
+  userId: string,
+  canvasId: string
+): Promise<any | null> {
+  const { data } = await supabase
+    .from("canvas")
+    .select("id, canvas_type")
+    .eq("id", canvasId)
+    .eq("user_id", userId)
+    .maybeSingle();
+  return data ?? null;
+}
+
+/**
+ * Commit a fine-grained patch. The ops are re-resolved against the CURRENT
+ * persisted artifact (not the pre-resolved snapshot from propose time), then
+ * written through the same whole-body update + history + reference path. Returns
+ * the resulting body/diagram so an open editor can adopt it without a refetch.
+ */
+async function applyPatch(supabase: any, userId: string, input: any) {
+  const owned = await ownedCanvas(supabase, userId, input.canvas_id);
+  if (!owned)
+    return NextResponse.json({ error: "Not found or no access" }, { status: 404 });
+  const now = new Date().toISOString();
+  const ops = Array.isArray(input.ops) ? input.ops : [];
+
+  if (input.target === "document") {
+    const { tiptapToBlocks, blocksToTiptapDoc } = await import(
+      "@/lib/agent/document-blocks"
+    );
+    const { applyDocOps } = await import("@/lib/agent/document-patch");
+
+    const { data: current } = await supabase
+      .from("document_data")
+      .select("lexical_state, version")
+      .eq("canvas_id", input.canvas_id)
+      .maybeSingle();
+
+    let beforeBlocks: any[] = [];
+    let controls: any = {};
+    let page: any = {};
+    if (current?.lexical_state != null) {
+      try {
+        const w =
+          typeof current.lexical_state === "string"
+            ? JSON.parse(current.lexical_state)
+            : current.lexical_state;
+        beforeBlocks = tiptapToBlocks(w?.json ?? w);
+        controls = w?.controls ?? {};
+        page = w?.page ?? {};
+      } catch {
+        /* keep defaults */
+      }
+    }
+    const { blocks: afterBlocks } = applyDocOps(beforeBlocks, ops);
+    const doc = blocksToTiptapDoc(afterBlocks);
+    const wrapper = { state: "", json: doc, controls, page };
+    const nextVersion = (current?.version ?? 1) + 1;
+
+    if (current) {
+      const { error } = await supabase
+        .from("document_data")
+        .update({ lexical_state: JSON.stringify(wrapper), version: nextVersion, updated_at: now })
+        .eq("canvas_id", input.canvas_id);
+      if (error) throw error;
+    } else {
+      const { error } = await supabase.from("document_data").insert({
+        canvas_id: input.canvas_id,
+        lexical_state: JSON.stringify(wrapper),
+        version: 1,
+        updated_at: now,
+      });
+      if (error) throw error;
+    }
+    await supabase.from("canvas_history").insert({
+      id: crypto.randomUUID(),
+      canvas_id: input.canvas_id,
+      data: { document: wrapper },
+      version: nextVersion,
+    });
+    await reconcileDocumentReferences(supabase, userId, input.canvas_id, afterBlocks);
+    await markProposalApplied(supabase, input.proposalId, input.canvas_id);
+    return NextResponse.json({
+      ok: true,
+      canvasId: input.canvas_id,
+      version: nextVersion,
+      body: afterBlocks,
+    });
+  }
+
+  if (input.target === "directory") {
+    const { applyDirectoryOps } = await import("@/lib/agent/directory-patch");
+    const { data: cols } = await supabase
+      .from("column_definition")
+      .select("title, order")
+      .eq("canvas_id", input.canvas_id)
+      .order("order", { ascending: true });
+    const colTitles = (cols ?? []).map((c: any) => String(c.title));
+    const { data: current } = await supabase
+      .from("canvas_data")
+      .select("nodes, edges, styles, version")
+      .eq("canvas_id", input.canvas_id)
+      .maybeSingle();
+    const beforeNodes = Array.isArray(current?.nodes) ? current.nodes : [];
+    const { nodes: afterNodes } = applyDirectoryOps(beforeNodes, colTitles, ops);
+    const nextVersion = (current?.version ?? 1) + 1;
+    const { error } = await supabase
+      .from("canvas_data")
+      .update({
+        nodes: afterNodes,
+        edges: current?.edges ?? [],
+        styles: current?.styles ?? {},
+        version: nextVersion,
+        updated_at: now,
+      })
+      .eq("canvas_id", input.canvas_id);
+    if (error) throw error;
+    await supabase.from("canvas_history").insert({
+      id: crypto.randomUUID(),
+      canvas_id: input.canvas_id,
+      data: { nodes: afterNodes, edges: current?.edges ?? [], styles: current?.styles ?? {} },
+      version: nextVersion,
+    });
+    await markProposalApplied(supabase, input.proposalId, input.canvas_id);
+    return NextResponse.json({ ok: true, canvasId: input.canvas_id, nodes: afterNodes });
+  }
+
+  // target === "canvas"
+  const { applyCanvasOps } = await import("@/lib/agent/canvas-patch");
+  const { reconcileNodeIds } = await import("@/lib/agent/node-ids");
+  const { data: current } = await supabase
+    .from("canvas_data")
+    .select("nodes, edges, styles, version")
+    .eq("canvas_id", input.canvas_id)
+    .maybeSingle();
+  const beforeState = {
+    nodes: Array.isArray(current?.nodes) ? current.nodes : [],
+    edges: Array.isArray(current?.edges) ? current.edges : [],
+    nodeStyles: (current?.styles as Record<string, any>) ?? {},
+  };
+  const { state: afterState } = applyCanvasOps(beforeState, ops);
+  // ops reference real ids, but reconcile keeps edges/styles consistent on deletes.
+  const reconciled = reconcileNodeIds({
+    existingNodes: beforeState.nodes,
+    nodes: afterState.nodes,
+    edges: afterState.edges,
+    nodeStyles: afterState.nodeStyles,
+  });
+  const nextVersion = (current?.version ?? 1) + 1;
+  const { error } = await supabase
+    .from("canvas_data")
+    .update({
+      nodes: reconciled.nodes,
+      edges: reconciled.edges,
+      styles: reconciled.nodeStyles,
+      version: nextVersion,
+      updated_at: now,
+    })
+    .eq("canvas_id", input.canvas_id);
+  if (error) throw error;
+  await supabase.from("canvas_history").insert({
+    id: crypto.randomUUID(),
+    canvas_id: input.canvas_id,
+    data: {
+      nodes: reconciled.nodes,
+      edges: reconciled.edges,
+      styles: reconciled.nodeStyles,
+    },
+    version: nextVersion,
+  });
+  await markProposalApplied(supabase, input.proposalId, input.canvas_id);
+  return NextResponse.json({
+    ok: true,
+    canvasId: input.canvas_id,
+    diagram: {
+      nodes: reconciled.nodes,
+      edges: reconciled.edges,
+      nodeStyles: reconciled.nodeStyles,
+    },
+  });
+}
+
+/** Commit a typed cross-reference (incl. node-level). */
+async function applyLink(supabase: any, userId: string, input: any) {
+  const ref = input.reference;
+  const owned = await ownedCanvas(supabase, userId, ref.fromCanvas);
+  if (!owned)
+    return NextResponse.json({ error: "Source not found or no access" }, { status: 404 });
+  const { createReference } = await import("@/lib/refs/resolver");
+  await createReference(supabase, userId, {
+    fromCanvas: ref.fromCanvas,
+    fromNode: ref.fromNode ?? null,
+    toCanvas: ref.toCanvas ?? null,
+    toNode: ref.toNode ?? null,
+    toCode: ref.toCode ?? null,
+    type: ref.type,
+  });
+  await markProposalApplied(supabase, input.proposalId, ref.fromCanvas);
+  return NextResponse.json({ ok: true, canvasId: ref.fromCanvas });
 }

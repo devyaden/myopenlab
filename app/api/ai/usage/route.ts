@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { checkAiUsageLimit } from "@/lib/services/ai-usage";
+import { checkAiTokenLimit } from "@/lib/services/ai-usage";
 
 export async function GET(request: NextRequest) {
   try {
@@ -17,13 +17,17 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const usage = await checkAiUsageLimit(user.id);
-
+    // Phase F: token budgets (daily/monthly) + the plan's per-conversation context
+    // cap, for the in-chat meters.
+    const status = await checkAiTokenLimit(user.id);
     return NextResponse.json({
-      used: usage.limit - usage.remaining,
-      limit: usage.limit,
-      remaining: usage.remaining,
-      allowed: usage.allowed,
+      daily: status.daily,
+      monthly: status.monthly,
+      dailyLimit: status.dailyLimit,
+      monthlyLimit: status.monthlyLimit,
+      contextCap: status.contextCap,
+      allowed: status.allowed,
+      isPaidUser: status.isPaidUser,
     });
   } catch (error: any) {
     console.error("Error fetching AI usage:", error);
