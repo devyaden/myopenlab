@@ -7,6 +7,8 @@ import { SidebarProvider } from "@/components/ui/sidebar";
 import { CommandPalette } from "@/components/command-palette/CommandPalette";
 import { AgentLauncher } from "@/components/agent/AgentLauncher";
 import { AgentChat } from "@/components/agent/AgentChat";
+import { ExplorationToggle } from "@/components/explore/ExplorationToggle";
+import { ExplorationOverlay } from "@/components/explore/ExplorationOverlay";
 import { useAgentStore } from "@/lib/store/useAgent";
 
 // Pull the playbook/document id out of the current route so the agent always
@@ -42,6 +44,10 @@ export default function RootLayout({
           remount). Applying a proposal therefore no longer destroys the chat. */}
       <AgentLauncher />
       <AgentChat />
+      {/* Exploration Mode (read-only governance Q&A). The toggle + overlay are the
+          only references the editor shell holds to the self-contained explore module. */}
+      <ExplorationToggle />
+      <ExplorationOverlay />
     </LayoutWrapper>
   );
 }

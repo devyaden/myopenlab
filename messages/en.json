@@ -65,6 +65,54 @@
       "working": "Working…"
     }
   },
+  "explore": {
+    "enter": "Explore",
+    "exit": "Exit exploration",
+    "scope": {
+      "whole": "Your whole workspace"
+    },
+    "chat": {
+      "title": "Governance Q&A",
+      "history": "History",
+      "newChat": "New question",
+      "noConversations": "No past questions yet.",
+      "untitled": "Untitled",
+      "thinking": "Looking through your workspace…",
+      "placeholder": "Ask about ownership, approvals, policies…",
+      "send": "Send",
+      "focusedOn": "Focused on:",
+      "clearFocus": "Clear focus",
+      "empty": {
+        "title": "Explore your governance",
+        "hint": "Ask how your company operates — who owns, approves, and governs what."
+      },
+      "examples": {
+        "owner": "Who owns the vendor onboarding process?",
+        "approver": "Who approves expense reports?",
+        "policy": "Which policies govern hiring?"
+      },
+      "collapse": "Hide chat",
+      "showChat": "Show chat"
+    },
+    "browser": {
+      "graph": "Relationships",
+      "directory": "People & Roles",
+      "graphEmpty": "No cross-references yet. Link policies, owners, and approvals in the editor and they'll appear here.",
+      "directoryEmpty": "No people or role directories yet.",
+      "processes": "Processes",
+      "hierarchyHint": "Add a “Manager” column to your people directory (in the editor) to see the org hierarchy.",
+      "detail": {
+        "open": "Open",
+        "ask": "Ask about this",
+        "references": "References",
+        "referencedBy": "Referenced by",
+        "reportsTo": "Reports to",
+        "reports": "Direct reports",
+        "assignedIn": "Assigned in",
+        "none": "None recorded"
+      }
+    }
+  },
   "onboarding": {
     "getStarted": "Get started",
     "welcome": {

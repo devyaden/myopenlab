@@ -343,3 +343,44 @@ model AgentProposal {
   @@index([conversation_id, message_ordinal, proposal_index])
   @@map("agent_proposal")
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Exploration Mode: read-only governance Q&A. Deliberately SEPARATE from the
+// agent_* tables so a future explorer-only role's data never mingles with editor
+// agent conversations and can be access-scoped independently. No proposals — the
+// exploration chat is read-only and never writes to the workspace.
+// ─────────────────────────────────────────────────────────────────────────────
+model ExploreConversation {
+  id          String           @id @default(uuid()) @db.Uuid
+  user_id     String           @db.Uuid
+  title       String?
+  // Mirrors the agent compaction fields so the exploration chat can reuse the
+  // same auto-compaction logic for long conversations.
+  compacted_through_ordinal Int?
+  summary                   String?
+  // Snapshot of the data scope this conversation was held under (e.g. "Your whole
+  // workspace"), for transparency once directory scoping is live.
+  scope_label String?
+  created_at  DateTime         @default(now())
+  updated_at  DateTime         @default(now()) @updatedAt
+  messages    ExploreMessage[]
+
+  @@index([user_id, updated_at])
+  @@map("explore_conversation")
+}
+
+model ExploreMessage {
+  id              String              @id @default(uuid()) @db.Uuid
+  conversation_id String              @db.Uuid
+  role            String // "user" | "assistant"
+  content         Json // array of Anthropic content blocks (text/tool_use/tool_result)
+  input_tokens      Int?
+  output_tokens     Int?
+  cache_read_tokens Int?
+  billable_tokens   Int?
+  created_at      DateTime            @default(now())
+  conversation    ExploreConversation @relation(fields: [conversation_id], references: [id], onDelete: Cascade)
+
+  @@index([conversation_id, created_at])
+  @@map("explore_message")
+}

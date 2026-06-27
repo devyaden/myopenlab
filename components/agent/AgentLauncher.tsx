@@ -1,6 +1,7 @@
 "use client";
 
 import { useAgentStore } from "@/lib/store/useAgent";
+import { useExplorationStore } from "@/lib/store/useExploration";
 import { useOnboardingStore, ONBOARDING_STEP_IDS } from "@/lib/store/useOnboarding";
 import { ANCHORS } from "@/components/onboarding/onboarding-steps";
 import { useT } from "@/lib/i18n/LocaleProvider";
@@ -12,8 +13,11 @@ import { Sparkles } from "lucide-react";
 export function AgentLauncher() {
   const t = useT();
   const { isOpen, open } = useAgentStore();
+  const exploring = useExplorationStore((s) => s.active);
   const completeStep = useOnboardingStore((s) => s.completeStep);
-  if (isOpen) return null;
+  // Hide while exploration mode is active so the floating buttons don't stack atop
+  // the full-screen surface.
+  if (isOpen || exploring) return null;
   return (
     <button
       data-onboarding={ANCHORS.askAi}
