@@ -37,6 +37,7 @@ import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useUser } from "@/lib/contexts/userContext";
 import { useSidebarStore } from "@/lib/store/useSidebar";
+import { subscribeLibraryRefresh } from "@/lib/realtime/library-refresh";
 import { generateUntitledName } from "@/lib/utils";
 import {
   AlertCircle,
@@ -161,6 +162,16 @@ const useFolderManagement = (folderId: string, user: any) => {
   useEffect(() => {
     setHasInitialized(false);
   }, [folderId]);
+
+  // Live-refresh this folder's file list when the library changes elsewhere
+  // (e.g. the agent created an item in this folder), so it appears without a
+  // manual page refresh.
+  useEffect(() => {
+    if (!user) return;
+    return subscribeLibraryRefresh(() => {
+      void refreshData();
+    });
+  }, [user, refreshData]);
 
   return {
     currentFolder,

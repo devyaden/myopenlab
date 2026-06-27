@@ -6,6 +6,7 @@ import { useAgentStore } from "@/lib/store/useAgent";
 import { useCanvasStore } from "@/lib/store/useCanvas";
 import { useDocumentStore } from "@/components/editor/hooks/useDocument";
 import { emitEmbedRefresh } from "@/lib/realtime/embed-refresh";
+import { emitLibraryRefresh } from "@/lib/realtime/library-refresh";
 import { playbookHref } from "@/lib/playbook-href";
 import { useT } from "@/lib/i18n/LocaleProvider";
 import { AgentIntents, type AgentIntent } from "@/components/agent/AgentIntents";
@@ -783,6 +784,8 @@ export function AgentChat() {
             canvasId: json.canvasId,
             type: "table",
           });
+          // A new item entered the library — refresh the sidebar + pickers.
+          emitLibraryRefresh();
           return true;
         }
 
@@ -826,6 +829,10 @@ export function AgentChat() {
             canvasId: newId,
             type: "document",
           });
+          if (proposal.kind === "create") {
+            // A new document entered the library — refresh the sidebar + pickers.
+            emitLibraryRefresh();
+          }
           const docStore = useDocumentStore.getState();
           if (
             proposal.kind === "update" &&
@@ -902,6 +909,10 @@ export function AgentChat() {
         const newId =
           proposal.kind === "create" ? json.canvasId : proposal.canvas_id;
         markApplied(msgIdx, proposal.id, { canvasId: newId, type: "canvas" });
+        if (proposal.kind === "create") {
+          // A new playbook entered the library — refresh the sidebar + pickers.
+          emitLibraryRefresh();
+        }
         return true;
       } catch {
         markFailed(msgIdx, proposal.id);

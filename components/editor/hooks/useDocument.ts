@@ -32,6 +32,13 @@ interface DocumentState {
   editor_state: any;
   version: number;
   canvas_id: string;
+  /** The canvasId whose content has actually finished loading into the store —
+   *  set ONLY in the same `set()` that populates `editor_state`. The editor's
+   *  one-shot content loader gates on this (not `isLoading`) so it can never
+   *  claim its gate against a stale `isLoading: false` left over from a
+   *  previously-loaded doc in this singleton store (the "blank until refresh"
+   *  bug on soft navigation). Not persisted — must reset to null on reload. */
+  loadedCanvasId: string | null;
   isLoading: boolean;
   /** Loading state for the secondary folder-canvases fetch (insert-picker list
    *  + table-embed data). Kept SEPARATE from `isLoading` so it never blocks the
@@ -89,6 +96,7 @@ const initialState: DocumentState = {
   editor_state: null,
   version: 1,
   canvas_id: "",
+  loadedCanvasId: null,
   isLoading: true,
   folderLoading: false,
   saveLoading: false,
@@ -213,6 +221,10 @@ export const useDocumentStore = create<DocumentState>()(
             error: null,
             loadFailed: false,
             canvas_id: canvasId,
+            // Invalidate the completion marker for the in-flight window so the
+            // editor's loader waits for THIS doc rather than acting on the
+            // previous doc's content.
+            loadedCanvasId: null,
           });
           try {
             const { data: canvas, error: canvasError } = await supabase
@@ -238,6 +250,10 @@ export const useDocumentStore = create<DocumentState>()(
               editor_state: documentData?.lexical_state || null,
               version: documentData?.version || 1,
               canvas_id: canvasId,
+              // Mark the load complete for THIS doc in the same set() that
+              // populates editor_state — this is the signal the editor loader
+              // gates on, guaranteeing editor_state is this doc's content.
+              loadedCanvasId: canvasId,
               isLoading: false,
               isDirty: false,
               lastSaved: documentData

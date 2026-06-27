@@ -229,7 +229,14 @@ export function CreateNewModal({
     setIsAIDialogOpen(false);
   };
 
-  const handleGenerateCanvas = (aiData: any) => {
+  const handleGenerateCanvas = async (aiData: any) => {
+    // HYBRID canvases are diagram-limited.
+    if (canCreateCanvas && !canCreateCanvas(CANVAS_TYPE.HYBRID)) {
+      onCanvasLimitReached?.();
+      handleClose();
+      return;
+    }
+
     // Get all existing canvases from both folders and root
     const allCanvases = [
       ...folders.flatMap((folder) => folder.canvases),
@@ -242,30 +249,39 @@ export function CreateNewModal({
     }));
 
     const name = generateUntitledName(CANVAS_TYPE.HYBRID, allCanvases);
+    const folderId =
+      currentFolderId && currentFolderId !== "0" ? currentFolderId : null;
 
-    // Create a canvas with the AI-generated data
-    const success = onCreateCanvas(
-      name,
-      "AI Generated Playbook",
-      CANVAS_TYPE.HYBRID,
-      currentFolderId || null
-    );
-
-    if (success) {
-      // Store the AI data in localStorage to be picked up by the canvas component
-      // We use a temporary storage with a timestamp that will be consumed when the canvas loads
-      const timestamp = Date.now();
-      localStorage.setItem(
-        `ai-data-${timestamp}`,
-        JSON.stringify({
-          data: aiData,
-          pending: true,
-        })
-      );
-      // Store the timestamp in sessionStorage to be retrieved when redirected
-      sessionStorage.setItem("pending-ai-data-timestamp", timestamp.toString());
-
-      handleClose();
+    // Persist the generated diagram server-side BEFORE navigating, via the same
+    // proven apply route the agent uses (writes canvas_data: nodes/edges/styles).
+    // This replaces the old localStorage handoff, which created an empty canvas,
+    // redirected, then applied + saved the diagram client-side on load — a race
+    // that lost or stale-loaded data if the save was interrupted.
+    try {
+      const res = await fetch("/api/ai/agent/apply", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          kind: "create",
+          target: "canvas",
+          name,
+          folder_id: folderId,
+          diagram: {
+            nodes: aiData?.nodes ?? [],
+            edges: aiData?.edges ?? [],
+            nodeStyles: aiData?.nodeStyles ?? {},
+          },
+        }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (res.ok && json?.canvasId) {
+        handleClose();
+        window.location.href = `/protected/playbook/${json.canvasId}`;
+      } else {
+        toast.error(json?.error || "Couldn't create the generated playbook");
+      }
+    } catch {
+      toast.error("Couldn't create the generated playbook");
     }
   };
 

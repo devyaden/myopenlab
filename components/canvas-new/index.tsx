@@ -15,6 +15,7 @@ import { findAbsolutePosition } from "@/lib/canvas.utils";
 import { useUser } from "@/lib/contexts/userContext";
 import { deleteImage, listImages, uploadImage } from "@/lib/storage-utils";
 import { useCanvasStore } from "@/lib/store/useCanvas";
+import { subscribeLibraryRefresh } from "@/lib/realtime/library-refresh";
 import { CANVAS_TYPE } from "@/types/store";
 import { useRouter } from "next/navigation";
 import type React from "react";
@@ -130,6 +131,7 @@ export default function CanvasNew({ canvasId }: FigmaInterfaceProps) {
     columns,
     setColumns,
     folderCanvases,
+    loadFolderCanvases,
     isLoading,
     canvas_type,
     updateCanvasSettings,
@@ -230,53 +232,30 @@ export default function CanvasNew({ canvasId }: FigmaInterfaceProps) {
       useCanvasStore.persist.rehydrate();
       localStorage.removeItem("canvas-store");
 
-      // First load the canvas from the server
-      loadCanvas(canvasId).then(() => {
-        // After loading, check if there's AI data pending to be applied
-        const pendingTimestamp = sessionStorage?.getItem(
-          "pending-ai-data-timestamp"
-        );
-
-        if (pendingTimestamp) {
-          const aiDataKey = `ai-data-${pendingTimestamp}`;
-          const aiDataJson = localStorage.getItem(aiDataKey);
-
-          if (aiDataJson) {
-            try {
-              const aiData = JSON.parse(aiDataJson);
-              if (aiData.pending && aiData.data) {
-                // Initialize the canvas with AI data
-                if (aiData.data.nodes) setNodes(aiData.data.nodes);
-                if (aiData.data.edges) setEdges(aiData.data.edges);
-                if (aiData.data.nodeStyles) {
-                  // Update each node style individually
-                  Object.entries(aiData.data.nodeStyles).forEach(
-                    ([nodeId, style]) => {
-                      updateNodeStyle(nodeId, style as NodeStyle);
-                    }
-                  );
-                }
-
-                // Clear the pending data
-                localStorage.removeItem(aiDataKey);
-                sessionStorage.removeItem("pending-ai-data-timestamp");
-                // Save the canvas with AI data
-                saveCanvas();
-              }
-            } catch (error) {
-              console.error("Error parsing AI data:", error);
-            }
-          }
-        }
-      });
+      // Load the canvas from the server. AI-generated diagrams are now persisted
+      // server-side at creation (via /api/ai/agent/apply), so there is no longer
+      // a localStorage handoff to apply on load — the diagram loads like any
+      // other canvas.
+      loadCanvas(canvasId);
     }
-  }, [canvasId, loadCanvas, saveCanvas]);
+  }, [canvasId, loadCanvas]);
 
   useEffect(() => {
     if (canvasId) {
       addToRecentDocuments(canvasId, projectName);
     }
   }, [canvasId, projectName, addToRecentDocuments]);
+
+  // Keep the insert/embed picker's folder list fresh when the library changes
+  // elsewhere (e.g. the agent creates a sibling canvas/table in this folder).
+  // Refetches folderCanvases via the store's `folderLoading` flag, so it never
+  // blanks the canvas view (which is gated on `isLoading`).
+  useEffect(() => {
+    if (!canvasId) return;
+    return subscribeLibraryRefresh(() => {
+      loadFolderCanvases(currentFolder?.id ?? null);
+    });
+  }, [canvasId, currentFolder?.id, loadFolderCanvases]);
 
   // Function to detect and fix circular parent-child relationships
   const fixCircularParentChildRelationships = useCallback(

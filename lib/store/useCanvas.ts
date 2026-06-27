@@ -84,6 +84,7 @@ const initialState: Omit<CanvasStore, keyof CanvasActions> = {
   updated_at: null,
   version: 1,
   isLoading: false,
+  folderLoading: false,
   saveLoading: false,
   error: null,
   isDirty: false,
@@ -516,7 +517,11 @@ export const useCanvasStore = create<CanvasStore>()(
         },
 
         loadFolderCanvases: async (folderId: string | null) => {
-          set({ isLoading: true, error: null });
+          // Secondary fetch (the insert-picker list). Uses `folderLoading`, NOT
+          // `isLoading`, so it never blanks the canvas view (gated on
+          // `isLoading`) — and never touches the shared `error` field, so a
+          // picker-list hiccup can't surface as a canvas-load failure.
+          set({ folderLoading: true });
 
           try {
             let query = supabase
@@ -550,69 +555,20 @@ export const useCanvasStore = create<CanvasStore>()(
             });
           } catch (error) {
             console.error("Error loading folder canvases:", error);
-            set({ error: "Failed to load folder canvases" });
-            // toast.error("Failed to load folder canvases");
+            // Intentionally do NOT set the shared `error` field — the picker
+            // list staying stale is non-fatal and must not trip canvas-load
+            // error UI.
           } finally {
-            set({ isLoading: false });
+            set({ folderLoading: false });
           }
         },
 
         loadCanvas: async (canvasId) => {
-          const pendingTimestamp = sessionStorage?.getItem(
-            "pending-ai-data-timestamp"
-          );
-          if (pendingTimestamp) {
-            const aiDataKey = `ai-data-${pendingTimestamp}`;
-            const aiDataJson = localStorage.getItem(aiDataKey);
-            if (aiDataJson) {
-              try {
-                const aiData = JSON.parse(aiDataJson);
-                if (
-                  aiData.pending &&
-                  aiData.data &&
-                  (aiData.data.nodes?.length > 0 ||
-                    aiData.data.edges?.length > 0)
-                ) {
-                  log.debug("Skipping server load - AI data pending");
-                  // Only load metadata, not the canvas data
-                  set({ isLoading: true, error: null });
-
-                  try {
-                    const { data: canvas, error: canvasError } = await supabase
-                      .from("canvas")
-                      .select("*, folder:folder!canvas_folder_id_fkey(*)")
-                      .eq("id", canvasId)
-                      .single();
-
-                    if (canvasError) throw canvasError;
-
-                    // Set basic canvas info but don't override nodes/edges
-                    set({
-                      id: canvasId,
-                      name: canvas.name,
-                      description: canvas.description || "",
-                      user_id: canvas.user_id,
-                      folder_id: canvas.folder_id,
-                      created_at: new Date(canvas.created_at),
-                      updated_at: new Date(canvas.updated_at),
-                      canvas_type: canvas.canvas_type,
-                      currentFolder: canvas.folder,
-                      isLoading: false,
-                    });
-
-                    get().loadFolderCanvases(canvas.folder_id);
-                    return; // Exit early
-                  } catch (error) {
-                    console.error("Error loading canvas metadata:", error);
-                    set({ error: "Failed to load canvas", isLoading: false });
-                    return;
-                  }
-                }
-              } catch (error) {
-                console.error("Error checking AI data:", error);
-              }
-            }
-          }
+          // NOTE: AI-generated diagrams are persisted server-side at creation
+          // (via /api/ai/agent/apply), so loadCanvas always loads the canonical
+          // server data — there is no longer a localStorage "pending AI data"
+          // handoff to skip the server load for. (That path raced the server
+          // write and could lose or stale-load the diagram.)
 
           set({ isLoading: true, error: null });
 

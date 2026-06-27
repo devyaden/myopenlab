@@ -73,6 +73,7 @@ import { useDocumentStore } from "./hooks/useDocument";
 import { ConflictDialog } from "./ConflictDialog";
 import { PresenceAvatars } from "./PresenceAvatars";
 import { colorForUser } from "@/lib/realtime/document-presence";
+import { subscribeLibraryRefresh } from "@/lib/realtime/library-refresh";
 import { supabase } from "@/lib/supabase/client";
 import ImageDialog from "./ImageDialog";
 import { backupDocument } from "@/lib/document-backup";
@@ -298,11 +299,12 @@ const Editor = (
     setDescription,
     syncChanges,
     updateEditorState: updateLexicalState,
-    isLoading,
+    loadedCanvasId,
     saveLoading,
     lastSaved,
     code,
     folderCanvases,
+    loadFolderCanvases,
     user_id,
     canvas_id: storeCanvasId,
     visibility: storeVisibility,
@@ -554,39 +556,56 @@ const Editor = (
   // but was never wired to onUpdate; both flowed to the same Supabase upsert
   // and racing the two only created stale writes.)
 
-  // Load document on mount
+  // Load document on mount — keyed on canvasId ONLY. It must NOT also depend on
+  // `name`: loadDocument sets `name`, so including it here fired a redundant
+  // SECOND loadDocument right after the first. That second load reset the
+  // store's loadedCanvasId mid-flight, which cleared the content-loader's
+  // pending apply timer before it fired and left the gate claimed — so the
+  // freshly-opened doc rendered blank until a hard refresh.
   useEffect(() => {
     if (canvasId) {
       loadDocument(canvasId);
-
-      // Add to recent documents
-      const savedDocuments = localStorage.getItem("recentDocuments");
-      const documents = savedDocuments ? JSON.parse(savedDocuments) : [];
-
-      // Check if document already exists
-      const existingDocIndex = documents.findIndex(
-        (doc: any) => doc.id === canvasId
-      );
-
-      if (existingDocIndex === -1) {
-        // Add new document
-        documents.unshift({
-          id: canvasId,
-          title: name || "Untitled Document",
-          date: new Date().toLocaleDateString(),
-          type: "document",
-        });
-      } else {
-        // Update existing document
-        documents[existingDocIndex].date = new Date().toLocaleDateString();
-        documents[existingDocIndex].title = name || "Untitled Document";
-      }
-
-      // Keep only the last 10 documents
-      const recentDocuments = documents.slice(0, 10);
-      localStorage.setItem("recentDocuments", JSON.stringify(recentDocuments));
     }
+  }, [canvasId, loadDocument]);
+
+  // Track recent documents separately (this one DOES need `name` for the title,
+  // and updating it must never re-trigger loadDocument).
+  useEffect(() => {
+    if (!canvasId) return;
+    const savedDocuments = localStorage.getItem("recentDocuments");
+    const documents = savedDocuments ? JSON.parse(savedDocuments) : [];
+
+    const existingDocIndex = documents.findIndex(
+      (doc: any) => doc.id === canvasId
+    );
+
+    if (existingDocIndex === -1) {
+      documents.unshift({
+        id: canvasId,
+        title: name || "Untitled Document",
+        date: new Date().toLocaleDateString(),
+        type: "document",
+      });
+    } else {
+      documents[existingDocIndex].date = new Date().toLocaleDateString();
+      documents[existingDocIndex].title = name || "Untitled Document";
+    }
+
+    const recentDocuments = documents.slice(0, 10);
+    localStorage.setItem("recentDocuments", JSON.stringify(recentDocuments));
   }, [canvasId, name]);
+
+  // Keep the insert/embed picker's folder list fresh: when the library changes
+  // elsewhere (e.g. the agent creates a sibling table/document in this folder),
+  // refetch this document's folderCanvases so the new item is selectable without
+  // a page refresh. This uses the store's `folderLoading` flag, NOT `isLoading`,
+  // so it never disturbs the editor's content render.
+  useEffect(() => {
+    if (!canvasId) return;
+    return subscribeLibraryRefresh(() => {
+      loadFolderCanvases(folder?.id ?? null);
+    });
+  }, [canvasId, folder?.id, loadFolderCanvases]);
   // Mirror local toolbar state into a ref so triggerAutoSave reads the
   // latest value without re-binding (which would break debouncing).
   useEffect(() => {
@@ -624,31 +643,32 @@ const Editor = (
   useEffect(() => {
     if (!editor || editor.isDestroyed) return;
     if (!canvasId) return;
-    if (isLoading) return; // wait for store to finish loadDocument
-    if (loadedCanvasIdRef.current === canvasId) return;
 
     // DATA-LOSS GUARD: if the store reports a load error (e.g. expired auth,
     // network failure), DO NOT mount empty content and DO NOT enable
     // autosave. The stored document is still intact in the DB; mounting empty
     // here and letting autosave fire would overwrite it with nothing. Leave
     // the gate unclaimed so a later successful load (after session refresh /
-    // reconnection) retries cleanly.
+    // reconnection) retries cleanly. Checked BEFORE the completion gate so the
+    // error still surfaces even though loadedCanvasId stays null on failure.
     if (loadError) {
       hasLoadedRef.current = false;
       setSaveStatus("error");
       return;
     }
 
-    // Claim the gate immediately so a re-run before the deferred work fires
-    // doesn't enqueue a second load. If we abort below (editor destroyed
-    // mid-defer), we release it.
-    loadedCanvasIdRef.current = canvasId;
+    // Gate on the store's per-load completion marker, NOT `isLoading`. A stale
+    // `isLoading: false` left in this singleton store by a PREVIOUS doc would
+    // otherwise let us run before THIS doc's content arrived. `loadedCanvasId
+    // === canvasId` is true only once loadDocument(canvasId) has finished and
+    // populated editor_state for this exact doc.
+    if (loadedCanvasId !== canvasId) return;
+    // One-shot: once we've APPLIED this doc's content, later editor_state
+    // changes (autosave) must not re-enter (that caused the typing "flinch").
+    if (loadedCanvasIdRef.current === canvasId) return;
 
     const timer = setTimeout(() => {
-      if (!editor || editor.isDestroyed) {
-        loadedCanvasIdRef.current = null;
-        return;
-      }
+      if (!editor || editor.isDestroyed) return;
 
       isApplyingRemoteRef.current = true;
       try {
@@ -706,6 +726,13 @@ const Editor = (
         ensureTrailingParagraph(editor);
         pendingChangesRef.current = false;
         setSaveStatus("saved");
+        // Claim the one-shot gate ONLY now, after content is applied. Claiming
+        // before the deferred apply (the previous approach) lost content: if the
+        // effect re-ran between claim and fire — e.g. loadDocument resetting
+        // loadedCanvasId — the cleanup cancelled the timer, and the claimed gate
+        // then blocked it from ever rescheduling. Claiming post-apply means any
+        // such re-run simply reschedules and applies cleanly.
+        loadedCanvasIdRef.current = canvasId;
         // The document loaded cleanly — autosave is now safe to run.
         hasLoadedRef.current = true;
         // Place caret at the end after the document is mounted; replaces the
@@ -717,7 +744,7 @@ const Editor = (
     }, 0);
 
     return () => clearTimeout(timer);
-  }, [editor, canvasId, editor_state, isLoading, loadError]);
+  }, [editor, canvasId, editor_state, loadedCanvasId, loadError]);
 
   // Phase 4: re-render content an agent apply pushed into the OPEN document.
   // The one-shot loader above deliberately ignores later editor_state changes

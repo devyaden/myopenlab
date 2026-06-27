@@ -39,6 +39,7 @@ import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useUser } from "@/lib/contexts/userContext";
 import { useSidebarStore } from "@/lib/store/useSidebar";
+import { subscribeLibraryRefresh } from "@/lib/realtime/library-refresh";
 import {
   AlertCircle,
   Edit,
@@ -136,6 +137,17 @@ const useHomeManagement = (user: any) => {
 
     initializeData();
   }, [user, refreshData, hasInitialized]);
+
+  // Live-refresh the folder/file cards when the library changes elsewhere (e.g.
+  // the agent created a playbook/document/directory), so a new item appears
+  // without a manual page refresh. The store caches (getFolders /
+  // fetchRootCanvases) are otherwise never invalidated.
+  useEffect(() => {
+    if (!user) return;
+    return subscribeLibraryRefresh(() => {
+      void refreshData();
+    });
+  }, [user, refreshData]);
 
   return {
     folders,

@@ -88,6 +88,10 @@ export interface CanvasState extends CanvasData {
   canvasSettings: CanvasSettings;
   version: number;
   isLoading: boolean;
+  /** Loading flag for the secondary folder-canvases fetch (insert-picker list).
+   *  Kept SEPARATE from `isLoading` so refetching the folder list never blanks
+   *  the whole canvas view (which is gated on `isLoading`). */
+  folderLoading: boolean;
   saveLoading: boolean;
   error: string | null;
   isDirty: boolean;
@@ -112,7 +116,7 @@ export interface CanvasActions {
   setDescription: (description: string) => void;
   setFolderId: (folder_id: string) => void;
   saveCanvas: () => Promise<void>;
-  loadFolderCanvases: (folder_id: string) => Promise<void>;
+  loadFolderCanvases: (folder_id: string | null) => Promise<void>;
   loadCanvas: (canvasId: string) => Promise<void>;
   syncChanges: () => Promise<void>;
   initializeWithAIData: (aiData: any) => void;
