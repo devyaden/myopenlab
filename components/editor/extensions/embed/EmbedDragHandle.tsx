@@ -24,8 +24,8 @@ export function EmbedDragHandle({ visible }: { visible?: boolean }) {
       className={[
         "embed-drag-handle absolute top-1/2 -left-7 z-20 -translate-y-1/2",
         "flex h-7 w-6 items-center justify-center rounded",
-        "border border-gray-200 bg-white/90 text-gray-400 shadow-sm",
-        "cursor-grab transition-opacity hover:text-gray-700 active:cursor-grabbing",
+        "border border-border bg-background/90 text-muted-foreground shadow-sm",
+        "cursor-grab transition-opacity hover:text-foreground active:cursor-grabbing",
         "opacity-0 group-hover:opacity-100",
         visible ? "opacity-100" : "",
       ].join(" ")}

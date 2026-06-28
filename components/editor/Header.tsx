@@ -266,7 +266,7 @@ export function Header({
   }, []);
 
   return (
-    <div className="border-b border-gray-200 py-2 sticky top-0 z-30 bg-white">
+    <div className="border-b border-border py-2 sticky top-0 z-30 bg-card">
       <div className="flex items-center px-2 md:px-4">
         <div className="flex items-center gap-2 md:gap-4">
           {/* Mobile menu */}
@@ -275,7 +275,7 @@ export function Header({
               <Button
                 variant="ghost"
                 size="sm"
-                className="gap-2 text-gray-600 md:hidden"
+                className="gap-2 text-muted-foreground md:hidden"
               >
                 <Menu className="h-4 w-4" />
               </Button>
@@ -594,7 +594,7 @@ export function Header({
                     <Button
                       variant="ghost"
                       size="sm"
-                      className="text-gray-600 p-0 pr-2 h-7 whitespace-nowrap"
+                      className="text-muted-foreground p-0 pr-2 h-7 whitespace-nowrap"
                     >
                       {item.name}
                     </Button>
@@ -692,7 +692,7 @@ export function Header({
               <span className="font-medium hidden sm:inline">Share</span>
             </button>
             <button
-              className="bg-white hover:bg-gray-50 border border-yadn-accent-green/20 px-2 sm:px-3 flex items-center justify-center"
+              className="bg-card hover:bg-accent border border-yadn-accent-green/20 px-2 sm:px-3 flex items-center justify-center"
               onClick={handleCopyShareLink}
             >
               <Link2 className="w-4 h-4 sm:w-5 sm:h-5 text-yadn-accent-green" />

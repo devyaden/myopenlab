@@ -102,7 +102,7 @@ export default function ManageConnectionsModal({
             <Label className="text-sm font-medium">Existing Connections</Label>
             <ScrollArea className="h-[200px] w-full rounded-md border">
               {connections.length === 0 ? (
-                <p className="p-4 text-sm text-gray-500">
+                <p className="p-4 text-sm text-muted-foreground">
                   No existing connections
                 </p>
               ) : (

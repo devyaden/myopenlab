@@ -113,7 +113,7 @@ const AddTableCellTrigger = ({
             {value.map((val, index) => (
               <div
                 key={index}
-                className="flex items-center bg-gray-100 rounded-md px-2 py-1"
+                className="flex items-center bg-muted rounded-md px-2 py-1"
               >
                 <File className="w-4 h-4 mr-1" />
                 <span className="text-sm font-medium">
@@ -133,7 +133,7 @@ const AddTableCellTrigger = ({
         <div className="p-2 flex justify-between items-center">
           <p className="font-medium truncate">{relatedCanvasData?.canvasName}</p>
           <div className="flex items-center justify-between gap-2">
-            <span className="text-gray-500 text-sm">{value.length} Linked</span>
+            <span className="text-muted-foreground text-sm">{value.length} Linked</span>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" size="sm">
@@ -170,7 +170,7 @@ const AddTableCellTrigger = ({
                       className={
                         field === "label"
                           ? "font-medium text-sm"
-                          : "text-gray-500 text-xs"
+                          : "text-muted-foreground text-xs"
                       }
                     >
                       {renderFieldValue(column[field])}
@@ -212,7 +212,7 @@ const AddTableCellTrigger = ({
                         className={
                           field === "label"
                             ? "font-medium"
-                            : "text-gray-500 text-xs"
+                            : "text-muted-foreground text-xs"
                         }
                       >
                         {renderFieldValue(column[field])}

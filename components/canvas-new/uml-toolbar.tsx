@@ -55,7 +55,7 @@ export function UMLToolbar({
   ];
 
   return (
-    <div className="absolute top-6 left-6 bg-white rounded-lg shadow-md border border-gray-200 p-2 z-10">
+    <div className="absolute top-6 left-6 bg-card rounded-lg shadow-md border border-border p-2 z-10">
       <div className="flex flex-wrap gap-2">
         <Button
           variant="ghost"
@@ -141,12 +141,12 @@ export function UMLToolbar({
           </Button>
 
           {showColorDropdown && (
-            <div className="absolute top-full left-0 mt-1 bg-white rounded-md shadow-md border border-gray-200 p-2 z-20 min-w-40">
+            <div className="absolute top-full left-0 mt-1 bg-card rounded-md shadow-md border border-border p-2 z-20 min-w-40">
               <div className="grid grid-cols-4 gap-2 ">
                 {backgroundColors.map((bgColor) => (
                   <button
                     key={bgColor.color}
-                    className="w-6 h-6 rounded-full border border-gray-300 flex items-center justify-center"
+                    className="w-6 h-6 rounded-full border border-border flex items-center justify-center"
                     style={{ backgroundColor: bgColor.color }}
                     onClick={() => {
                       onChangeBackgroundColor(bgColor.color);

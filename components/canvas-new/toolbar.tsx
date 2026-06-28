@@ -7,8 +7,8 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
+import { ToolbarRoot, ToolbarSeparator } from "../editor-shell/Toolbar";
 import { SHAPES } from "@/lib/types/flow-table.types";
-import { CANVAS_TYPE } from "@/types/store";
 import { ColorPickerPopover } from "./color-picker-popover";
 import {
   AlignCenter,
@@ -41,7 +41,6 @@ import {
   Unlink,
 } from "lucide-react";
 import React from "react";
-import { ViewModeSwitcher } from "./view-mode-switcher";
 
 interface ToolbarProps {
   fontFamily: string;
@@ -434,7 +433,7 @@ export const Toolbar = React.memo(function Toolbar({
     }
   };
   return (
-    <div className="flex items-center gap-2 p-2  overflow-x-auto border-b">
+    <ToolbarRoot className="gap-2 p-2">
       <div className="flex items-center gap-2 border rounded-lg h-9">
         <Button variant="ghost" size="sm" onClick={onUndo} disabled={!canUndo}>
           <CornerUpLeft className="h-3 w-3" />
@@ -636,7 +635,7 @@ export const Toolbar = React.memo(function Toolbar({
           </PopoverContent>
         </Popover> */}
       </div>
-      <Separator orientation="vertical" className="h-6 hidden sm:block" />
+      <ToolbarSeparator className="hidden sm:block" />
 
       {/* Unified controls for shape/edge properties */}
       <div className="flex items-center gap-2">
@@ -718,9 +717,9 @@ export const Toolbar = React.memo(function Toolbar({
                   {lineStyles.map((style) => (
                     <DropdownMenuItem
                       key={style.value}
-                      className={`flex items-center justify-between px-2 py-3 hover:bg-gray-50 cursor-pointer rounded-sm ${
+                      className={`flex items-center justify-between px-2 py-3 hover:bg-accent cursor-pointer rounded-sm ${
                         currentEdgeStyle === style.value
-                          ? "bg-gray-50 font-medium"
+                          ? "bg-muted font-medium"
                           : ""
                       }`}
                       onSelect={() => onChangeEdgeStyle(style.value)}
@@ -760,8 +759,8 @@ export const Toolbar = React.memo(function Toolbar({
                   {borderStyles.map((style) => (
                     <DropdownMenuItem
                       key={style.value}
-                      className={`flex items-center justify-between px-2 py-3 hover:bg-gray-50 cursor-pointer rounded-sm ${
-                        borderStyle === style.value ? "bg-gray-50" : ""
+                      className={`flex items-center justify-between px-2 py-3 hover:bg-accent cursor-pointer rounded-sm ${
+                        borderStyle === style.value ? "bg-muted" : ""
                       }`}
                       onSelect={() => setBorderStyle(style.value)}
                     >
@@ -807,7 +806,7 @@ export const Toolbar = React.memo(function Toolbar({
         </Button>
       </div>
 
-      <Separator orientation="vertical" className="h-6 hidden sm:block" />
+      <ToolbarSeparator className="hidden sm:block" />
 
       {/* Arrange / align / distribute / z-order. Gated on having at least
           one node selected; align needs >=2, distribute needs >=3. */}
@@ -928,7 +927,7 @@ export const Toolbar = React.memo(function Toolbar({
         </DropdownMenu>
       </div>
 
-      <Separator orientation="vertical" className="h-6 hidden sm:block" />
+      <ToolbarSeparator className="hidden sm:block" />
       <div className="flex items-center gap-2">
         {/* <Button variant="outline" size="sm" className="rounded-lg">
           <Link className="h-4 w-4" />
@@ -970,14 +969,6 @@ export const Toolbar = React.memo(function Toolbar({
           </Button>
         )}
       </div>
-
-      <div className="ml-auto flex items-center">
-        <ViewModeSwitcher
-          viewMode={viewMode}
-          onViewModeChange={onViewModeChange}
-          canvasType={CANVAS_TYPE.HYBRID}
-        />
-      </div>
-    </div>
+    </ToolbarRoot>
   );
 });

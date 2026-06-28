@@ -1008,7 +1008,7 @@ export default function TableSelectorDialog({
   return (
     <Dialog open={isOpen} onOpenChange={handleOpenChange}>
       <DialogContent className="sm:max-w-[650px] max-h-[85vh] overflow-hidden flex flex-col">
-        <DialogHeader className="sticky top-0 z-20 bg-white pt-4 pb-2 border-b">
+        <DialogHeader className="sticky top-0 z-20 bg-card pt-4 pb-2 border-b">
           <DialogTitle>Insert Table</DialogTitle>
         </DialogHeader>
 
@@ -1148,7 +1148,7 @@ export default function TableSelectorDialog({
                   {/* Sort Options Section - Inline */}
                   {showSortUI && (
                     <div className="mb-6 border rounded-md overflow-hidden">
-                      <div className="flex justify-between items-center p-3 bg-white border-b">
+                      <div className="flex justify-between items-center p-3 bg-card border-b">
                         <h3 className="font-medium text-sm">Sort Options</h3>
                         <Button
                           variant="ghost"
@@ -1160,7 +1160,7 @@ export default function TableSelectorDialog({
                         </Button>
                       </div>
 
-                      <div className="p-4 bg-gray-50 space-y-3">
+                      <div className="p-4 bg-muted space-y-3">
                         <div>
                           <div className="text-sm font-medium mb-1">
                             Sort by
@@ -1177,7 +1177,7 @@ export default function TableSelectorDialog({
                               }
                             }}
                           >
-                            <SelectTrigger className="w-full bg-white">
+                            <SelectTrigger className="w-full bg-card">
                               <SelectValue placeholder="Select a property" />
                             </SelectTrigger>
                             <SelectContent>
@@ -1214,7 +1214,7 @@ export default function TableSelectorDialog({
                                     : "outline"
                                 }
                                 size="sm"
-                                className={`flex-1 ${sortDirection === "asc" ? "bg-yadn-accent-green text-white" : "bg-white"}`}
+                                className={`flex-1 ${sortDirection === "asc" ? "bg-yadn-accent-green text-white" : "bg-card"}`}
                                 onClick={() => setSortDirection("asc")}
                               >
                                 <ChevronUp className="h-4 w-4 mr-2" />
@@ -1227,7 +1227,7 @@ export default function TableSelectorDialog({
                                     : "outline"
                                 }
                                 size="sm"
-                                className={`flex-1 ${sortDirection === "desc" ? "bg-yadn-accent-green text-white" : "bg-white"}`}
+                                className={`flex-1 ${sortDirection === "desc" ? "bg-yadn-accent-green text-white" : "bg-card"}`}
                                 onClick={() => setSortDirection("desc")}
                               >
                                 <ChevronDown className="h-4 w-4 mr-2" />
@@ -1251,7 +1251,7 @@ export default function TableSelectorDialog({
                   {/* Filter Options Section - Inline */}
                   {filterDialogOpen && (
                     <div className="mb-6 border rounded-md overflow-hidden">
-                      <div className="flex justify-between items-center p-3 bg-white border-b">
+                      <div className="flex justify-between items-center p-3 bg-card border-b">
                         <h3 className="font-medium text-sm">Filter Options</h3>
                         <Button
                           variant="ghost"
@@ -1263,13 +1263,13 @@ export default function TableSelectorDialog({
                         </Button>
                       </div>
 
-                      <div className="p-4 bg-gray-50 space-y-4">
+                      <div className="p-4 bg-muted space-y-4">
                         {filterGroups.length > 0 ? (
                           // Show existing filter groups
                           filterGroups.map((group, groupIndex) => (
                             <div
                               key={group.id}
-                              className="border border-gray-200 rounded-md p-3 space-y-3 bg-white"
+                              className="border border-border rounded-md p-3 space-y-3 bg-card"
                             >
                               {group.filters.map((filter, filterIndex) => {
                                 const columnType = getColumnTypeForFilter(
@@ -1514,7 +1514,7 @@ export default function TableSelectorDialog({
                         ) : (
                           // Empty state
                           <div className="text-center py-4">
-                            <div className="text-gray-400 mb-2">
+                            <div className="text-muted-foreground mb-2">
                               <Filter className="h-8 w-8 mx-auto mb-2" />
                               <p>No filters applied</p>
                             </div>
@@ -1553,14 +1553,14 @@ export default function TableSelectorDialog({
 
                   {/* RTL Information Banner - NEW */}
                   {isRTL && (
-                    <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-md">
+                    <div className="mb-4 p-3 bg-signal/10 border border-signal/30 rounded-md">
                       <div className="flex items-center gap-2 text-blue-800">
                         <Languages className="h-4 w-4" />
                         <span className="text-sm font-medium">
                           RTL Mode Enabled
                         </span>
                       </div>
-                      <p className="text-xs text-blue-600 mt-1">
+                      <p className="text-xs text-signal mt-1">
                         Table will be displayed in right-to-left layout with
                         headers and content aligned for RTL reading.
                       </p>
@@ -1597,21 +1597,21 @@ export default function TableSelectorDialog({
                     </div>
                   </div>
 
-                  <div className="rounded border border-gray-200 p-4 mt-2 mb-4">
+                  <div className="rounded border border-border p-4 mt-2 mb-4">
                     <div className="text-sm font-medium mb-2">Preview:</div>
-                    <div className="h-[200px] relative border rounded-md bg-gray-50 overflow-hidden">
+                    <div className="h-[200px] relative border rounded-md bg-muted overflow-hidden">
                       <div className="absolute inset-0 overflow-auto">
                         {/* Custom inline table preview with RTL support */}
                         <table
                           className="w-full text-sm"
                           style={{ direction: isRTL ? "rtl" : "ltr" }}
                         >
-                          <thead className="bg-gray-100">
+                          <thead className="bg-muted">
                             <tr>
                               {visibleColumns.map((columnTitle) => (
                                 <th
                                   key={columnTitle}
-                                  className={`p-2 border-r border-gray-200 ${isRTL ? "text-right" : "text-left"}`}
+                                  className={`p-2 border-r border-border ${isRTL ? "text-right" : "text-left"}`}
                                 >
                                   {columnTitle}
                                 </th>
@@ -1624,7 +1624,7 @@ export default function TableSelectorDialog({
                               .map((node, index) => (
                                 <tr
                                   key={node.id || index}
-                                  className="border-b border-gray-200"
+                                  className="border-b border-border"
                                 >
                                   {visibleColumns.map((columnTitle) => {
                                     const cellValue = getCellValue(
@@ -1634,7 +1634,7 @@ export default function TableSelectorDialog({
                                     return (
                                       <td
                                         key={columnTitle}
-                                        className={`p-2 border-r border-gray-200 ${isRTL ? "text-right" : "text-left"}`}
+                                        className={`p-2 border-r border-border ${isRTL ? "text-right" : "text-left"}`}
                                       >
                                         {cellValue || "—"}
                                       </td>
@@ -1651,12 +1651,12 @@ export default function TableSelectorDialog({
                             }).map((_, index) => (
                               <tr
                                 key={`empty-${index}`}
-                                className="border-b border-gray-200"
+                                className="border-b border-border"
                               >
                                 {visibleColumns.map((columnTitle) => (
                                   <td
                                     key={columnTitle}
-                                    className={`p-2 border-r border-gray-200 text-gray-400 ${isRTL ? "text-right" : "text-left"}`}
+                                    className={`p-2 border-r border-border text-muted-foreground ${isRTL ? "text-right" : "text-left"}`}
                                   >
                                     —
                                   </td>

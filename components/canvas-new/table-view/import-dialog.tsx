@@ -953,7 +953,7 @@ export const ImportDialog: React.FC<ImportModalProps> = ({
           <Upload className="w-6 h-6 text-yadn-accent-green" />
         </div>
         <h3 className="text-lg font-semibold mb-2">Import Data</h3>
-        <p className="text-sm text-gray-600 mb-4">
+        <p className="text-sm text-muted-foreground mb-4">
           Upload a CSV or Excel file to import data into your table
         </p>
       </div>
@@ -965,7 +965,7 @@ export const ImportDialog: React.FC<ImportModalProps> = ({
         </TabsList>
 
         <TabsContent value="upload" className="space-y-4">
-          <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-yadn-accent-green transition-colors">
+          <div className="border-2 border-dashed border-border rounded-lg p-6 text-center hover:border-yadn-accent-green transition-colors">
             <Input
               ref={fileInputRef}
               type="file"
@@ -976,14 +976,14 @@ export const ImportDialog: React.FC<ImportModalProps> = ({
             />
             <Label htmlFor="file-upload" className="cursor-pointer">
               <div className="space-y-2">
-                <FileSpreadsheet className="w-8 h-8 mx-auto text-gray-400" />
+                <FileSpreadsheet className="w-8 h-8 mx-auto text-muted-foreground" />
                 <div className="text-sm">
                   <span className="font-medium text-yadn-accent-green">
                     Click to upload
                   </span>{" "}
                   or drag and drop
                 </div>
-                <div className="text-xs text-gray-500">
+                <div className="text-xs text-muted-foreground">
                   CSV, Excel files up to 10MB
                 </div>
                 <div className="text-xs text-yadn-accent-green font-medium mt-2">
@@ -994,8 +994,8 @@ export const ImportDialog: React.FC<ImportModalProps> = ({
           </div>
 
           {file && (
-            <div className="flex items-center gap-2 p-3 bg-gray-50 rounded-lg">
-              <FileText className="w-4 h-4 text-gray-500" />
+            <div className="flex items-center gap-2 p-3 bg-muted rounded-lg">
+              <FileText className="w-4 h-4 text-muted-foreground" />
               <span className="text-sm font-medium">{file.name}</span>
               <Badge variant="secondary" className="ml-auto">
                 {(file.size / 1024 / 1024).toFixed(2)} MB
@@ -1015,7 +1015,7 @@ export const ImportDialog: React.FC<ImportModalProps> = ({
         </TabsContent>
 
         <TabsContent value="samples" className="space-y-4">
-          <div className="text-sm text-gray-600 mb-4">
+          <div className="text-sm text-muted-foreground mb-4">
             Download sample files to see the expected format. Your file must
             include columns for task and type.
           </div>
@@ -1030,7 +1030,7 @@ export const ImportDialog: React.FC<ImportModalProps> = ({
                 <Download className="w-4 h-4" />
                 Sample CSV
               </Button>
-              <p className="text-xs text-gray-500">
+              <p className="text-xs text-muted-foreground">
                 Perfect sample with valid type options
               </p>
             </div>
@@ -1085,7 +1085,7 @@ export const ImportDialog: React.FC<ImportModalProps> = ({
       <div className="flex items-center justify-between">
         <div>
           <h3 className="text-lg font-semibold">Preview Import</h3>
-          <p className="text-sm text-gray-600">
+          <p className="text-sm text-muted-foreground">
             Review the data and column mappings before importing
           </p>
         </div>
@@ -1129,14 +1129,14 @@ export const ImportDialog: React.FC<ImportModalProps> = ({
               {parsedData.detectedColumns.map((col, index) => (
                 <div
                   key={index}
-                  className="flex items-center justify-between p-3 border rounded bg-gray-50"
+                  className="flex items-center justify-between p-3 border rounded bg-muted"
                 >
                   <div className="flex items-center gap-3">
-                    <span className="text-sm font-medium text-gray-700">
+                    <span className="text-sm font-medium text-muted-foreground">
                       "{col.originalHeader}"
                     </span>
-                    <span className="text-gray-400">→</span>
-                    <span className="text-sm font-medium text-blue-600">
+                    <span className="text-muted-foreground">→</span>
+                    <span className="text-sm font-medium text-signal">
                       {col.title}
                     </span>
                     {col.isExisting && (
@@ -1176,7 +1176,7 @@ export const ImportDialog: React.FC<ImportModalProps> = ({
                         {row.map((cell, cellIndex) => (
                           <td
                             key={cellIndex}
-                            className="p-1 border-b text-gray-600"
+                            className="p-1 border-b text-muted-foreground"
                           >
                             {String(cell).substring(0, 20)}
                             {String(cell).length > 20 && "..."}
@@ -1187,7 +1187,7 @@ export const ImportDialog: React.FC<ImportModalProps> = ({
                   </tbody>
                 </table>
                 {parsedData.rows.length > 5 && (
-                  <div className="text-center text-xs text-gray-500 mt-2">
+                  <div className="text-center text-xs text-muted-foreground mt-2">
                     ...and {parsedData.rows.length - 5} more rows
                   </div>
                 )}
@@ -1252,11 +1252,11 @@ export const ImportDialog: React.FC<ImportModalProps> = ({
               Your table already contains {existingNodes.length} items. What
               would you like to do?
               <div className="mt-3 space-y-2 text-sm">
-                <div className="p-2 bg-blue-50 rounded border-l-4 border-blue-400">
+                <div className="p-2 bg-signal/10 rounded border-l-4 border-signal/30">
                   <strong>Add to Existing:</strong> Keep current data and add{" "}
                   {parsedData?.rows.length || 0} new items
                 </div>
-                <div className="p-2 bg-orange-50 rounded border-l-4 border-orange-400">
+                <div className="p-2 bg-attention-tint rounded border-l-4 border-attention/40">
                   <strong>Replace All:</strong> Remove current{" "}
                   {existingNodes.length} items and replace with{" "}
                   {parsedData?.rows.length || 0} new items

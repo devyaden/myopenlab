@@ -15,6 +15,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ScrollArea } from "../ui/scroll-area";
 import { ColumnDefinition } from "@/types/store";
 import { useCanvasStore } from "@/lib/store/useCanvas";
+import { Inspector } from "../editor-shell/Inspector";
 
 interface AddColumnSidebarProps {
   isOpen: boolean;
@@ -91,35 +92,23 @@ const OptionsManager: React.FC<{
           {options.map((option, index) => (
             <div
               key={index}
-              className="inline-flex items-center gap-1.5 bg-green-50 text-green-700 px-2.5 py-1.5 rounded-lg text-sm border border-green-200 hover:bg-green-100 transition-colors"
-              style={{
-                backgroundColor: "#f0fdf4",
-                borderColor: "#bbf7d0",
-                color: "#15803d",
-              }}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-signal/20 bg-signal/10 px-2.5 py-1.5 text-sm text-signal transition-colors hover:bg-signal/15"
             >
               <span className="font-medium">{option}</span>
               <button
                 type="button"
                 onClick={() => removeOption(index)}
-                className="hover:bg-green-200 rounded-full p-0.5 transition-colors group"
+                className="group rounded-full p-0.5 transition-colors hover:bg-signal/20"
                 aria-label={`Remove ${option}`}
-                style={{ "--tw-hover-bg-opacity": "1" } as React.CSSProperties}
-                onMouseEnter={(e) =>
-                  (e.currentTarget.style.backgroundColor = "#dcfce7")
-                }
-                onMouseLeave={(e) =>
-                  (e.currentTarget.style.backgroundColor = "transparent")
-                }
               >
-                <X className="h-3 w-3 group-hover:text-green-800" />
+                <X className="h-3 w-3" />
               </button>
             </div>
           ))}
         </div>
       ) : (
-        <div className="text-sm text-gray-500 bg-gray-50 border border-dashed border-gray-300 rounded-lg p-4 text-center">
-          <Info className="h-4 w-4 mx-auto mb-1 text-gray-400" />
+        <div className="text-sm text-muted-foreground bg-muted border border-dashed border-border rounded-lg p-4 text-center">
+          <Info className="h-4 w-4 mx-auto mb-1 text-muted-foreground" />
           No options added yet
         </div>
       )}
@@ -133,21 +122,7 @@ const OptionsManager: React.FC<{
             onChange={(e) => setNewOption(e.target.value)}
             onKeyDown={handleKeyPress}
             placeholder={`${placeholder} (Press Enter to save)`}
-            className="pr-8"
-            style={
-              {
-                "--tw-ring-color": "#09BC8A",
-                borderColor: "#09BC8A",
-              } as React.CSSProperties
-            }
-            onFocus={(e) => {
-              e.target.style.borderColor = "#09BC8A";
-              e.target.style.boxShadow = "0 0 0 2px rgba(9, 188, 138, 0.2)";
-            }}
-            onBlur={(e) => {
-              e.target.style.borderColor = "#d1d5db";
-              e.target.style.boxShadow = "none";
-            }}
+            className="pr-8 focus-visible:border-signal focus-visible:ring-signal/30"
           />
           <button
             type="button"
@@ -155,10 +130,10 @@ const OptionsManager: React.FC<{
               setNewOption("");
               setIsAddingOption(false);
             }}
-            className="absolute right-2 top-1/2 -translate-y-1/2 hover:bg-gray-100 rounded-full p-1 transition-colors"
+            className="absolute right-2 top-1/2 -translate-y-1/2 hover:bg-accent rounded-full p-1 transition-colors"
             aria-label="Cancel adding option"
           >
-            <X className="h-3 w-3 text-gray-500" />
+            <X className="h-3 w-3 text-muted-foreground" />
           </button>
         </div>
       ) : (
@@ -167,21 +142,7 @@ const OptionsManager: React.FC<{
           variant="outline"
           size="sm"
           onClick={() => setIsAddingOption(true)}
-          className="w-full justify-start text-gray-600 border-dashed border-gray-300 transition-colors"
-          style={
-            {
-              "--tw-hover-border-color": "#09BC8A",
-              "--tw-hover-text-color": "#09BC8A",
-            } as React.CSSProperties
-          }
-          onMouseEnter={(e) => {
-            e.currentTarget.style.borderColor = "#09BC8A";
-            e.currentTarget.style.color = "#09BC8A";
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.borderColor = "#d1d5db";
-            e.currentTarget.style.color = "#4b5563";
-          }}
+          className="w-full justify-start border-dashed border-border text-muted-foreground transition-colors hover:border-signal hover:text-signal"
         >
           <Plus className="h-4 w-4 mr-2" />
           Add an option
@@ -198,7 +159,7 @@ const FormSection: React.FC<{
   className?: string;
 }> = ({ title, children, className = "" }) => (
   <div className={`space-y-3 ${className}`}>
-    {title && <h3 className="text-sm font-medium text-gray-900">{title}</h3>}
+    {title && <h3 className="text-sm font-medium text-foreground">{title}</h3>}
     {children}
   </div>
 );
@@ -224,8 +185,6 @@ export const AddColumnSidebar: React.FC<AddColumnSidebarProps> = ({
     any | null
   >(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-
-  const sidebarRef = useRef<HTMLDivElement>(null);
 
   const handleSubmit = useCallback(
     async (e: React.FormEvent) => {
@@ -429,44 +388,50 @@ export const AddColumnSidebar: React.FC<AddColumnSidebarProps> = ({
     columnData.title.trim() && Object.keys(fieldErrors).length === 0;
 
   return (
-    <>
-      {/* Backdrop */}
-      <div
-        className="fixed inset-0 bg-black/20 z-40 transition-opacity"
-        onClick={onClose}
-      />
-
-      {/* Sidebar */}
-      <div
-        ref={sidebarRef}
-        className="fixed inset-y-0 right-0 w-80 bg-white shadow-2xl z-50 border-l border-gray-200 flex flex-col"
-      >
-        {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-gray-200 bg-gray-50">
-          <h2 className="text-lg font-semibold text-gray-900">
-            Add New Column
-          </h2>
+    <Inspector
+      open={isOpen}
+      onClose={onClose}
+      width="md"
+      backdrop
+      title="Add new column"
+      subtitle="A new field for every row in this playbook"
+      icon={<Plus className="h-4 w-4" />}
+      footer={
+        <>
+          {error && (
+            <Alert variant="destructive" className="mb-4">
+              <AlertCircle className="h-4 w-4" />
+              <AlertTitle>Error</AlertTitle>
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          )}
           <Button
-            variant="ghost"
-            size="icon"
-            onClick={onClose}
-            className="hover:bg-gray-200 transition-colors"
+            variant="signal"
+            onClick={handleSubmit}
+            className="w-full"
+            disabled={!isFormValid || isSubmitting}
           >
-            <X className="h-4 w-4" />
+            {isSubmitting ? (
+              <>
+                <div className="mr-2 h-4 w-4 animate-spin rounded-full border-b-2 border-white" />
+                Creating column…
+              </>
+            ) : (
+              "Add column"
+            )}
           </Button>
-        </div>
-
-        {/* Scrollable Content */}
-        <ScrollArea className="flex-1">
-          <div className="p-6 space-y-6">
+        </>
+      }
+    >
+      <div className="space-y-6">
             {/* Basic Information */}
             <FormSection>
               <div className="space-y-2">
                 <Label
                   htmlFor="columnTitle"
-                  className="text-sm font-medium text-gray-700"
+                  className="text-sm font-medium text-muted-foreground"
                 >
-                  Column Title <span className="text-red-500">*</span>
+                  Column Title <span className="text-destructive">*</span>
                 </Label>
                 <Input
                   id="columnTitle"
@@ -475,13 +440,13 @@ export const AddColumnSidebar: React.FC<AddColumnSidebarProps> = ({
                   placeholder="Enter column name"
                   className={`transition-colors ${
                     fieldErrors.title
-                      ? "border-red-300 focus:ring-red-500 focus:border-red-500"
-                      : "focus:ring-blue-500 focus:border-blue-500"
+                      ? "border-destructive/30 focus:ring-destructive focus:border-destructive"
+                      : "focus:ring-signal focus:border-signal"
                   }`}
                   required
                 />
                 {fieldErrors.title && (
-                  <p className="text-sm text-red-600 flex items-center gap-1">
+                  <p className="text-sm text-destructive flex items-center gap-1">
                     <AlertCircle className="h-3 w-3" />
                     {fieldErrors.title}
                   </p>
@@ -491,7 +456,7 @@ export const AddColumnSidebar: React.FC<AddColumnSidebarProps> = ({
               <div className="space-y-2">
                 <Label
                   htmlFor="columnType"
-                  className="text-sm font-medium text-gray-700"
+                  className="text-sm font-medium text-muted-foreground"
                 >
                   Column Type
                 </Label>
@@ -499,23 +464,7 @@ export const AddColumnSidebar: React.FC<AddColumnSidebarProps> = ({
                   value={columnData?.type}
                   onValueChange={handleTypeChange}
                 >
-                  <SelectTrigger
-                    className="transition-colors"
-                    style={
-                      {
-                        "--tw-ring-color": "#09BC8A",
-                      } as React.CSSProperties
-                    }
-                    onFocus={(e) => {
-                      e.currentTarget.style.borderColor = "#09BC8A";
-                      e.currentTarget.style.boxShadow =
-                        "0 0 0 2px rgba(9, 188, 138, 0.2)";
-                    }}
-                    onBlur={(e) => {
-                      e.currentTarget.style.borderColor = "#d1d5db";
-                      e.currentTarget.style.boxShadow = "none";
-                    }}
-                  >
+                  <SelectTrigger className="transition-colors focus:border-signal focus:ring-signal/30">
                     <SelectValue placeholder="Select type" />
                   </SelectTrigger>
                   <SelectContent>
@@ -538,8 +487,8 @@ export const AddColumnSidebar: React.FC<AddColumnSidebarProps> = ({
               columnData?.type === "Multiselect") && (
               <FormSection title="Configure Options">
                 <div className="space-y-2">
-                  <Label className="text-sm font-medium text-gray-700">
-                    Options <span className="text-red-500">*</span>
+                  <Label className="text-sm font-medium text-muted-foreground">
+                    Options <span className="text-destructive">*</span>
                   </Label>
                   <OptionsManager
                     options={columnData.options || []}
@@ -552,7 +501,7 @@ export const AddColumnSidebar: React.FC<AddColumnSidebarProps> = ({
                     placeholder="Enter option name"
                   />
                   {fieldErrors.options && (
-                    <p className="text-sm text-red-600 flex items-center gap-1">
+                    <p className="text-sm text-destructive flex items-center gap-1">
                       <AlertCircle className="h-3 w-3" />
                       {fieldErrors.options}
                     </p>
@@ -566,9 +515,9 @@ export const AddColumnSidebar: React.FC<AddColumnSidebarProps> = ({
                 <div className="space-y-2">
                   <Label
                     htmlFor="relationCanvas"
-                    className="text-sm font-medium text-gray-700"
+                    className="text-sm font-medium text-muted-foreground"
                   >
-                    Related Canvas <span className="text-red-500">*</span>
+                    Related Canvas <span className="text-destructive">*</span>
                   </Label>
                   {otherCanvases.length > 0 ? (
                     <>
@@ -589,31 +538,10 @@ export const AddColumnSidebar: React.FC<AddColumnSidebarProps> = ({
                       >
                         <SelectTrigger
                           className={`transition-colors ${
-                            fieldErrors.relation ? "border-red-300" : ""
+                            fieldErrors.relation
+                              ? "border-destructive/30 focus:border-destructive focus:ring-destructive/30"
+                              : "focus:border-signal focus:ring-signal/30"
                           }`}
-                          style={
-                            {
-                              "--tw-ring-color": fieldErrors.relation
-                                ? "#ef4444"
-                                : "#09BC8A",
-                            } as React.CSSProperties
-                          }
-                          onFocus={(e) => {
-                            if (!fieldErrors.relation) {
-                              e.currentTarget.style.borderColor = "#09BC8A";
-                              e.currentTarget.style.boxShadow =
-                                "0 0 0 2px rgba(9, 188, 138, 0.2)";
-                            } else {
-                              e.currentTarget.style.borderColor = "#ef4444";
-                              e.currentTarget.style.boxShadow =
-                                "0 0 0 2px rgba(239, 68, 68, 0.2)";
-                            }
-                          }}
-                          onBlur={(e) => {
-                            e.currentTarget.style.borderColor =
-                              fieldErrors.relation ? "#fca5a5" : "#d1d5db";
-                            e.currentTarget.style.boxShadow = "none";
-                          }}
                         >
                           <SelectValue placeholder="Select related canvas" />
                         </SelectTrigger>
@@ -630,7 +558,7 @@ export const AddColumnSidebar: React.FC<AddColumnSidebarProps> = ({
                         </SelectContent>
                       </Select>
                       {fieldErrors.relation && (
-                        <p className="text-sm text-red-600 flex items-center gap-1">
+                        <p className="text-sm text-destructive flex items-center gap-1">
                           <AlertCircle className="h-3 w-3" />
                           {fieldErrors.relation}
                         </p>
@@ -653,30 +581,14 @@ export const AddColumnSidebar: React.FC<AddColumnSidebarProps> = ({
               <FormSection title="Rollup Configuration">
                 <div className="space-y-4">
                   <div className="space-y-2">
-                    <Label className="text-sm font-medium text-gray-700">
+                    <Label className="text-sm font-medium text-muted-foreground">
                       Relation
                     </Label>
                     <Select
                       value={columnData.rollup_column_id || ""}
                       onValueChange={handleRollupRelationChange}
                     >
-                      <SelectTrigger
-                        className="transition-colors"
-                        style={
-                          {
-                            "--tw-ring-color": "#09BC8A",
-                          } as React.CSSProperties
-                        }
-                        onFocus={(e) => {
-                          e.currentTarget.style.borderColor = "#09BC8A";
-                          e.currentTarget.style.boxShadow =
-                            "0 0 0 2px rgba(9, 188, 138, 0.2)";
-                        }}
-                        onBlur={(e) => {
-                          e.currentTarget.style.borderColor = "#d1d5db";
-                          e.currentTarget.style.boxShadow = "none";
-                        }}
-                      >
+                      <SelectTrigger className="transition-colors focus:border-signal focus:ring-signal/30">
                         <SelectValue placeholder="Select relation">
                           {/* @ts-ignore */}
                           {columnData.rollupRelationName || "Select relation"}
@@ -695,7 +607,7 @@ export const AddColumnSidebar: React.FC<AddColumnSidebarProps> = ({
                               </SelectItem>
                             ))
                           ) : (
-                            <div className="text-sm p-4 text-gray-500 text-center">
+                            <div className="text-sm p-4 text-muted-foreground text-center">
                               <Info className="h-4 w-4 mx-auto mb-2" />
                               No relations found. Create a relation first!
                             </div>
@@ -709,9 +621,9 @@ export const AddColumnSidebar: React.FC<AddColumnSidebarProps> = ({
                     <div className="space-y-2">
                       <Label
                         htmlFor="rollupColumn"
-                        className="text-sm font-medium text-gray-700"
+                        className="text-sm font-medium text-muted-foreground"
                       >
-                        Property <span className="text-red-500">*</span>
+                        Property <span className="text-destructive">*</span>
                       </Label>
                       <Select
                         value={columnData.rollup_column_id || ""}
@@ -728,8 +640,8 @@ export const AddColumnSidebar: React.FC<AddColumnSidebarProps> = ({
                         <SelectTrigger
                           className={`transition-colors ${
                             fieldErrors.rollup
-                              ? "border-red-300 focus:ring-red-500"
-                              : "focus:ring-blue-500"
+                              ? "border-destructive/30 focus:ring-destructive"
+                              : "focus:ring-signal"
                           }`}
                         >
                           <SelectValue placeholder="Select column" />
@@ -751,7 +663,7 @@ export const AddColumnSidebar: React.FC<AddColumnSidebarProps> = ({
                         </SelectContent>
                       </Select>
                       {fieldErrors.rollup && (
-                        <p className="text-sm text-red-600 flex items-center gap-1">
+                        <p className="text-sm text-destructive flex items-center gap-1">
                           <AlertCircle className="h-3 w-3" />
                           {fieldErrors.rollup}
                         </p>
@@ -762,55 +674,6 @@ export const AddColumnSidebar: React.FC<AddColumnSidebarProps> = ({
               </FormSection>
             )}
           </div>
-        </ScrollArea>
-
-        {/* Footer */}
-        <div className="p-6 border-t border-gray-200 bg-gray-50">
-          {error && (
-            <Alert variant="destructive" className="mb-4">
-              <AlertCircle className="h-4 w-4" />
-              <AlertTitle>Error</AlertTitle>
-              <AlertDescription>{error}</AlertDescription>
-            </Alert>
-          )}
-          <Button
-            onClick={handleSubmit}
-            className={`w-full transition-all ${
-              !isFormValid || isSubmitting
-                ? "bg-gray-400 cursor-not-allowed"
-                : ""
-            }`}
-            style={
-              {
-                backgroundColor:
-                  isFormValid && !isSubmitting ? "#09BC8A" : undefined,
-                "--tw-hover-bg": "#059669",
-                "--tw-ring-color": "#09BC8A",
-              } as React.CSSProperties
-            }
-            onMouseEnter={(e) => {
-              if (isFormValid && !isSubmitting) {
-                e.currentTarget.style.backgroundColor = "#059669";
-              }
-            }}
-            onMouseLeave={(e) => {
-              if (isFormValid && !isSubmitting) {
-                e.currentTarget.style.backgroundColor = "#09BC8A";
-              }
-            }}
-            disabled={!isFormValid || isSubmitting}
-          >
-            {isSubmitting ? (
-              <>
-                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                Creating Column...
-              </>
-            ) : (
-              "Add Column"
-            )}
-          </Button>
-        </div>
-      </div>
-    </>
+    </Inspector>
   );
 };

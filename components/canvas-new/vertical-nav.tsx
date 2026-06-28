@@ -21,23 +21,23 @@ export function VerticalNav({
   return (
     <>
       <div
-        className={`w-[72px] border-r border-gray-200 flex flex-col items-center py-4 gap-2 ${className} z-30 bg-white`}
+        className={`w-[72px] border-r border-border flex flex-col items-center py-4 gap-2 ${className} z-30 bg-card`}
       >
         {canvasType === CANVAS_TYPE.HYBRID && (
           <Button
             variant="outline"
             size="icon"
-            className="h-12 w-12 rounded-lg hover:bg-gray-100 border-yadn-accent-green canvas-shapes"
+            className="h-12 w-12 rounded-lg hover:bg-accent border-signal canvas-shapes"
             onClick={onToggleSidebar}
           >
-            <Shapes className="!h-6 !w-6 text-yadn-accent-green" />
+            <Shapes className="!h-6 !w-6 text-signal" />
           </Button>
         )}
 
         <Button
           variant="outline"
           size="icon"
-          className="h-12 w-12 rounded-lg hover:bg-gray-100 cursor-move images-library"
+          className="h-12 w-12 rounded-lg hover:bg-accent cursor-move images-library"
           draggable
           onDragStart={(e) => onDragStart && onDragStart(e, "image")}
           onClick={onOpenImageManager}

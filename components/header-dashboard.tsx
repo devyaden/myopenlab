@@ -14,6 +14,8 @@ import { useUser } from "@/lib/contexts/userContext";
 import { useOnboardingStore } from "@/lib/store/useOnboarding";
 import { useT } from "@/lib/i18n/LocaleProvider";
 import { LanguageSwitcher } from "@/components/i18n/LanguageSwitcher";
+import { ThemeToggle } from "@/components/ui/theme-toggle";
+import { CommandBarTrigger } from "@/components/command-palette/CommandBarTrigger";
 import { useSidebarStore } from "@/lib/store/useSidebar";
 import { STORAGE_URL } from "@/utils/constants";
 import {
@@ -89,7 +91,7 @@ export const HeaderSidebar = () => {
 
   return (
     <header className="flex items-center justify-between gap-4 bg-yadn-dark-background px-6 z-50 py-4 min-w-full h-16">
-      <div className="flex items-center gap-5 flex-1">
+      <div className="flex items-center gap-5">
         <Link href="/" className="flex items-center gap-2 justify-center !h-full">
           <Image
             src="/assets/global/app-logo-white.svg"
@@ -123,7 +125,15 @@ export const HeaderSidebar = () => {
         </nav>
       </div>
 
+      {/* Global command bar — the visible ⌘K front door (find or create anything) */}
+      <div className="hidden md:flex flex-1 justify-center px-4">
+        <CommandBarTrigger />
+      </div>
+
       <div className="flex items-center gap-4">
+        {/* Light/dark theme toggle */}
+        <ThemeToggle className="text-white hover:bg-white/10" />
+
         {/* Language switcher */}
         <LanguageSwitcher />
 

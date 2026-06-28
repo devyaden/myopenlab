@@ -26,9 +26,15 @@ const config = {
     },
     extend: {
       fontFamily: {
-        quicksand: ["var(--font-quicksand)"],
-        rubik: ["var(--font-rubik)"],
-        lato: ["Lato", "sans-serif"],
+        // Atlas faces
+        display: ["var(--font-display)", "var(--font-body)", "system-ui", "sans-serif"],
+        body: ["var(--font-body)", "system-ui", "sans-serif"],
+        mono: ["var(--font-mono)", "ui-monospace", "monospace"],
+        arabic: ["var(--font-arabic)", "var(--font-body)", "sans-serif"],
+        // Back-compat aliases (legacy classes now adopt the Atlas faces)
+        quicksand: ["var(--font-body)", "system-ui", "sans-serif"],
+        rubik: ["var(--font-arabic)", "sans-serif"],
+        lato: ["var(--font-body)", "system-ui", "sans-serif"],
       },
       colors: {
         border: "hsl(var(--border))",
@@ -36,10 +42,9 @@ const config = {
         ring: "hsl(var(--ring))",
         background: "hsl(var(--background))",
         foreground: "hsl(var(--foreground))",
-        // add background: #6B6B6B;
 
         dark_background: "#8f8f8f",
-        light_background: "hsla(0, 0%, 0%, 0.25);",
+        light_background: "hsla(0, 0%, 0%, 0.25)",
 
         primary: {
           DEFAULT: "hsl(var(--primary))",
@@ -70,7 +75,7 @@ const config = {
           foreground: "hsl(var(--card-foreground))",
         },
         sidebar: {
-          DEFAULT: "#E8E8E8",
+          DEFAULT: "hsl(var(--sidebar-background))",
           foreground: "hsl(var(--sidebar-foreground))",
           primary: "hsl(var(--sidebar-primary))",
           "primary-foreground": "hsl(var(--sidebar-primary-foreground))",
@@ -79,52 +84,93 @@ const config = {
           border: "hsl(var(--sidebar-border))",
           ring: "hsl(var(--sidebar-ring))",
         },
+
+        // ── Atlas semantic colors ──
+        signal: {
+          DEFAULT: "hsl(var(--signal))",
+          hover: "hsl(var(--signal-hover))",
+          bright: "hsl(var(--signal-bright))",
+          tint: "hsl(var(--signal-tint))",
+          foreground: "hsl(var(--primary-foreground))",
+        },
+        attention: {
+          DEFAULT: "hsl(var(--attention))",
+          text: "hsl(var(--attention-text))",
+          tint: "hsl(var(--attention-tint))",
+        },
+        danger: {
+          DEFAULT: "hsl(var(--danger))",
+          tint: "hsl(var(--danger-tint))",
+        },
+        info: "hsl(var(--info))",
+        ink: "hsl(var(--ink))",
+        "muted-ink": "hsl(var(--muted-ink))",
+        "faint-ink": "hsl(var(--faint-ink))",
+        hairline: "hsl(var(--hairline))",
+        paper: "hsl(var(--paper))",
+        surface: "hsl(var(--surface))",
+        code: {
+          bg: "hsl(var(--code-bg))",
+          text: "hsl(var(--code-text))",
+        },
+
+        // ── Legacy YADN palette, remapped onto Atlas (keys kept for back-compat) ──
         yadn: {
+          // marketing accents (revisited in Step 6) — kept as-is for now
           pink: "#E91E63",
           "pink-light": "#FFE6EF",
           "pink-dark": "#C2185B",
           "gradient-pink-from": "#D92AA5",
           "gardient-pink-to": "#FA6CD0",
           "dark-background": "#252525",
-          "button-blue": "#3C41C2",
-          "primary-text": "#344054",
-          "primary-green": "#34C759",
-          "primary-red": "#FF3B30",
-          "primary-gray": "#F3F3F3",
-          "secondary-gray": "#F9FAFB",
-          "dark-gray": "#98A2B3",
-          "accent-green": "#09BC8A",
           "accent-blue": "#5DA9E9",
           "accent-dark-blue": "#003F91",
           "accent-pink": "#F7B2AD",
           "accent-yellow": "#FFF0EA",
           "accent-dark-orange": "#FF4A1C",
-
-          background: "rgb( 0, 10, 31)",
+          background: "rgb(0, 10, 31)",
           foreground: "rgb(243, 243, 243)",
+          // workspace colors → Atlas tokens
+          "button-blue": "hsl(var(--signal))",
+          "primary-text": "hsl(var(--ink))",
+          "primary-green": "hsl(var(--signal))",
+          "primary-red": "hsl(var(--danger))",
+          "primary-gray": "hsl(var(--secondary))",
+          "secondary-gray": "hsl(var(--muted))",
+          "dark-gray": "hsl(var(--muted-ink))",
+          // Primary-action teal: must carry white text at AA (5.1:1) in BOTH themes,
+          // so it uses --signal-solid (deep teal, theme-invariant), NOT the brighter
+          // --signal/--signal-bright which are for accents/"live" marks.
+          "accent-green": "hsl(var(--signal-solid))",
         },
       },
       borderRadius: {
-        lg: "var(--radius)",
-        md: "calc(var(--radius) - 2px)",
-        sm: "calc(var(--radius) - 4px)",
+        sm: "6px",
+        md: "10px",
+        lg: "14px",
+        xl: "18px",
+        "2xl": "22px",
+      },
+      boxShadow: {
+        "atlas-sm": "var(--shadow-sm)",
+        "atlas-md": "var(--shadow-md)",
+        "atlas-lg": "var(--shadow-lg)",
+      },
+      transitionTimingFunction: {
+        standard: "var(--ease-standard)",
+      },
+      transitionDuration: {
+        micro: "var(--duration-micro)",
+        menu: "var(--duration-menu)",
       },
       keyframes: {
         "accordion-down": {
-          from: {
-            height: "0",
-          },
-          to: {
-            height: "var(--radix-accordion-content-height)",
-          },
+          from: { height: "0" },
+          to: { height: "var(--radix-accordion-content-height)" },
         },
         "accordion-up": {
-          from: {
-            height: "var(--radix-accordion-content-height)",
-          },
-          to: {
-            height: "0",
-          },
+          from: { height: "var(--radix-accordion-content-height)" },
+          to: { height: "0" },
         },
         slideInRight: {
           "0%": { transform: "translateX(100%)", opacity: "0" },

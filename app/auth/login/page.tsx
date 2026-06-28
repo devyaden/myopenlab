@@ -1,43 +1,53 @@
 import SignInForm from "@/components/auth/sign-in-form";
 import Image from "next/image";
+import Link from "next/link";
+import { AtlasAuthAside } from "@/components/auth/atlas-auth-aside";
 
 export default function Home() {
   return (
-    <main className="flex min-h-screen bg-[#000A1F]">
-      {/* Left side - Sign In Form */}
-      <div className="flex w-full md:w-1/2 flex-col items-center justify-center px-6 py-12">
-        <div className="w-full max-w-md space-y-8">
-          <h1 className="text-3xl font-bold text-yadn-primary-gray">Sign In</h1>
-
-          <SignInForm />
-        </div>
-      </div>
-
-      {/* Right side - Decorative elements and tagline */}
-      <div className="hidden md:flex md:w-1/2 flex-col items-center justify-center relative overflow-hidden">
-        {/* Decorative shapes */}
-        <div className="absolute top-20 right-20 w-64 h-64 rounded-full bg-opacity-20 bg-yadn-accent-green blur-xl"></div>
-        <div className="absolute bottom-20 right-40 w-48 h-48 rounded-full bg-opacity-20 bg-yadn-primatext-yadn-primary-gray blur-xl"></div>
-        <div className="absolute top-1/2 left-20 w-72 h-72 rounded-full bg-opacity-10 bg-yadn-accent-green blur-xl"></div>
-
-        {/* Tagline */}
-        <div className="relative z-10 max-w-md px-8">
-          <h2 className="text-5xl font-bold text-yadn-primary-gray leading-tight text-center">
-            Map your ideas to life
-          </h2>
-        </div>
-
-        {/* Logo */}
-        <div className="absolute top-10 right-10 justify-center">
+    <main className="flex min-h-screen bg-background text-foreground">
+      {/* Left — the form. One obvious task: sign in. */}
+      <div className="flex w-full flex-col px-6 py-10 md:w-1/2 lg:px-16">
+        <Link href="/" className="inline-flex items-center" aria-label="Olab home">
+          <Image
+            src="/assets/global/app-logo.svg"
+            alt="Olab"
+            width={92}
+            height={28}
+            className="h-7 w-auto dark:hidden"
+            priority
+          />
           <Image
             src="/assets/global/app-logo-white.svg"
-            alt="Logo"
-            width={60}
-            height={60}
-            className="h-10 w-auto"
+            alt="Olab"
+            width={92}
+            height={28}
+            className="hidden h-7 w-auto dark:block"
+            priority
           />
+        </Link>
+
+        <div className="flex flex-1 items-center justify-center">
+          <div className="w-full max-w-sm space-y-8">
+            <div className="space-y-2">
+              <h1 className="font-display text-3xl font-semibold tracking-tight">
+                Welcome back
+              </h1>
+              <p className="text-sm text-muted-foreground">
+                Sign in to your operating model.
+              </p>
+            </div>
+            <SignInForm />
+          </div>
         </div>
+
+        <p className="text-center text-xs text-muted-foreground md:text-start">
+          © Olab — the living playbook for your team.
+        </p>
       </div>
+
+      {/* Right — the Atlas signature: a living map of the operating model. */}
+      <AtlasAuthAside />
     </main>
   );
 }

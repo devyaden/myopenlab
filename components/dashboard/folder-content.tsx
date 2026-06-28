@@ -192,13 +192,13 @@ const SkeletonCard = memo(() => (
   <Card className="p-4 animate-pulse">
     <div className="flex items-start justify-between">
       <div className="flex items-center flex-1">
-        <div className="h-10 w-10 bg-gray-200 rounded-lg"></div>
+        <div className="h-10 w-10 bg-muted rounded-lg"></div>
         <div className="ml-3 flex-1">
-          <div className="h-4 bg-gray-200 rounded w-3/4 mb-2"></div>
-          <div className="h-3 bg-gray-200 rounded w-1/2"></div>
+          <div className="h-4 bg-muted rounded w-3/4 mb-2"></div>
+          <div className="h-3 bg-muted rounded w-1/2"></div>
         </div>
       </div>
-      <div className="h-8 w-8 bg-gray-200 rounded"></div>
+      <div className="h-8 w-8 bg-muted rounded"></div>
     </div>
   </Card>
 ));
@@ -299,13 +299,13 @@ const CanvasCard = memo(
                   <FileText className="h-5 w-5 text-white" />
                 </div>
                 <div className="ml-3">
-                  <h3 className="font-medium text-gray-900 truncate max-w-[150px]">
+                  <h3 className="font-medium text-foreground truncate max-w-[150px]">
                     {canvas.name}
                     {isUpdating && (
                       <Loader2 className="inline ml-2 h-3 w-3 animate-spin" />
                     )}
                   </h3>
-                  <p className="text-xs text-gray-500">{typeLabel}</p>
+                  <p className="text-xs text-muted-foreground">{typeLabel}</p>
                 </div>
               </div>
               <DropdownMenu>
@@ -351,16 +351,16 @@ CanvasCard.displayName = "CanvasCard";
 // Error state component
 const ErrorState = memo(
   ({ error, onRetry }: { error: string; onRetry: () => void }) => (
-    <div className="text-center py-8 bg-red-50 rounded-lg border border-red-200">
-      <AlertCircle className="mx-auto h-12 w-12 text-red-400 mb-4" />
-      <h3 className="text-lg font-medium text-red-900 mb-2">
+    <div className="text-center py-8 bg-destructive/10 rounded-lg border border-destructive/30">
+      <AlertCircle className="mx-auto h-12 w-12 text-destructive mb-4" />
+      <h3 className="text-lg font-medium text-destructive mb-2">
         Something went wrong
       </h3>
-      <p className="text-red-700 mb-4">{error}</p>
+      <p className="text-destructive mb-4">{error}</p>
       <Button
         onClick={onRetry}
         variant="outline"
-        className="border-red-300 text-red-700 hover:bg-red-50"
+        className="border-destructive/30 text-destructive hover:bg-destructive/10"
       >
         Try Again
       </Button>
@@ -381,9 +381,9 @@ const EmptyState = memo(
     isSearching?: boolean;
     searchQuery?: string;
   }) => (
-    <div className="text-center py-8 bg-gray-50 rounded-lg">
-      <FileText className="mx-auto h-12 w-12 text-gray-300 mb-2" />
-      <p className="text-gray-500">
+    <div className="text-center py-8 bg-muted rounded-lg">
+      <FileText className="mx-auto h-12 w-12 text-muted-foreground mb-2" />
+      <p className="text-muted-foreground">
         {isSearching
           ? `No files found matching "${searchQuery}"`
           : "No files found in this folder"}
@@ -406,10 +406,10 @@ EmptyState.displayName = "EmptyState";
 
 // Loading overlay for operations
 const LoadingOverlay = memo(({ message }: { message: string }) => (
-  <div className="absolute inset-0 bg-white/80 backdrop-blur-sm flex items-center justify-center z-10">
-    <div className="flex items-center space-x-3 bg-white px-6 py-3 rounded-lg shadow-lg border">
+  <div className="absolute inset-0 bg-background/80 backdrop-blur-sm flex items-center justify-center z-10">
+    <div className="flex items-center space-x-3 bg-card px-6 py-3 rounded-lg shadow-lg border">
       <Loader2 className="h-5 w-5 animate-spin text-yadn-accent-green" />
-      <span className="text-gray-700 font-medium">{message}</span>
+      <span className="text-muted-foreground font-medium">{message}</span>
     </div>
   </div>
 ));
@@ -821,7 +821,7 @@ export const FolderContent = memo(({ folderId }: FolderContentProps) => {
     return (
       <div className="flex flex-col items-center justify-center h-full p-6">
         <Loader2 className="h-8 w-8 animate-spin text-yadn-accent-green mb-4" />
-        <p className="text-gray-600">Loading...</p>
+        <p className="text-muted-foreground">Loading...</p>
       </div>
     );
   }
@@ -831,7 +831,7 @@ export const FolderContent = memo(({ folderId }: FolderContentProps) => {
       {/* Operation Error Toast */}
       {operationError && (
         <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-50">
-          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg shadow-lg flex items-center space-x-2">
+          <div className="bg-destructive/10 border border-destructive/30 text-destructive px-4 py-3 rounded-lg shadow-lg flex items-center space-x-2">
             <AlertCircle className="h-4 w-4" />
             <span>{operationError}</span>
             <Button
@@ -851,11 +851,11 @@ export const FolderContent = memo(({ folderId }: FolderContentProps) => {
 
       {/* Plan Status Banner */}
       {planLimits && planLimits[SubscriptionFeatureFlag.MAX_DIAGRAMS] === 1 && (
-        <div className="bg-gradient-to-r from-orange-50 to-amber-50 border-b border-orange-200 px-6 py-3">
+        <div className="bg-attention-tint border-b border-attention/40 px-6 py-3">
           <div className="flex items-center justify-between max-w-7xl mx-auto">
             <div className="flex items-center gap-6">
               <div className="flex items-center gap-3">
-                <Zap className="h-5 w-5 text-orange-600" />
+                <Zap className="h-5 w-5 text-attention-text" />
                 <div>
                   <p className="text-sm font-medium text-gray-900">
                     Free Plan
@@ -878,7 +878,7 @@ export const FolderContent = memo(({ folderId }: FolderContentProps) => {
         </div>
       )}
 
-      <div className="p-6 flex-shrink-0 bg-white">
+      <div className="p-6 flex-shrink-0 bg-card">
         <div className="flex justify-between items-center mb-6">
           <div className="flex items-center">
             <Button
@@ -892,7 +892,7 @@ export const FolderContent = memo(({ folderId }: FolderContentProps) => {
             </Button>
             <h1 className="text-xl font-semibold">
               {isLoading && !hasInitialized ? (
-                <div className="h-6 bg-gray-200 rounded w-32 animate-pulse"></div>
+                <div className="h-6 bg-muted rounded w-32 animate-pulse"></div>
               ) : (
                 currentFolder?.name || "Loading..."
               )}
@@ -900,10 +900,10 @@ export const FolderContent = memo(({ folderId }: FolderContentProps) => {
           </div>
 
           <div className="relative w-full max-w-xl mx-auto px-4">
-            <Search className="absolute left-7 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+            <Search className="absolute left-7 top-1/2 transform -translate-y-1/2 h-5 w-5 text-muted-foreground" />
             <Input
               placeholder="Search files in this folder..."
-              className="pl-10 pr-10 h-12 rounded-lg border-gray-200 onboarding-folder-search"
+              className="pl-10 pr-10 h-12 rounded-lg border-border onboarding-folder-search"
               value={searchQuery}
               onChange={handleSearchChange}
               disabled={isLoading && !hasInitialized}
@@ -911,7 +911,7 @@ export const FolderContent = memo(({ folderId }: FolderContentProps) => {
             {searchQuery && (
               <button
                 onClick={handleSearchClear}
-                className="absolute right-7 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                className="absolute right-7 top-1/2 transform -translate-y-1/2 text-muted-foreground hover:text-foreground"
               >
                 <X className="h-5 w-5" />
               </button>
@@ -924,7 +924,7 @@ export const FolderContent = memo(({ folderId }: FolderContentProps) => {
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-medium">Files</h2>
           {isLoading && hasInitialized && (
-            <div className="flex items-center text-sm text-gray-500">
+            <div className="flex items-center text-sm text-muted-foreground">
               <Loader2 className="h-4 w-4 animate-spin mr-2" />
               Loading...
             </div>
@@ -1061,7 +1061,7 @@ export const FolderContent = memo(({ folderId }: FolderContentProps) => {
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction
               onClick={confirmDelete}
-              className="bg-red-500 text-white hover:bg-red-600"
+              className="bg-destructive text-white hover:bg-destructive/90"
             >
               Delete
             </AlertDialogAction>

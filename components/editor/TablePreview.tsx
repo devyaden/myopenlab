@@ -132,21 +132,21 @@ export default function TablePreview({
 
   if (!nodes || !nodes.length || !columns || !columns.length) {
     return (
-      <div className="text-center py-4 text-gray-500">
+      <div className="text-center py-4 text-muted-foreground">
         No data available for preview
       </div>
     );
   }
 
   return (
-    <div className="overflow-auto max-h-[200px] border border-gray-200 rounded">
+    <div className="overflow-auto max-h-[200px] border border-border rounded">
       <table className="w-full border-collapse">
         <thead>
-          <tr className="bg-gray-50 border-b border-gray-300">
+          <tr className="bg-muted border-b border-border">
             {filteredColumns.map((column, index) => (
               <th
                 key={`header-${index}`}
-                className="border-r border-gray-300 px-3 py-2 text-left text-xs font-semibold text-gray-700 whitespace-nowrap"
+                className="border-r border-border px-3 py-2 text-left text-xs font-semibold text-muted-foreground whitespace-nowrap"
                 style={{ minWidth: "150px" }}
               >
                 {column.title}
@@ -158,12 +158,12 @@ export default function TablePreview({
           {tableData.map((row, rowIndex) => (
             <tr
               key={`row-${rowIndex}`}
-              className="border-b border-gray-300 hover:bg-gray-50"
+              className="border-b border-border hover:bg-accent"
             >
               {row.map((cell, cellIndex) => (
                 <td
                   key={`cell-${rowIndex}-${cellIndex}`}
-                  className="border-r border-gray-300 px-3 py-2 text-xs text-gray-700"
+                  className="border-r border-border px-3 py-2 text-xs text-muted-foreground"
                   style={{ minWidth: "150px" }}
                 >
                   <div className="truncate" title={cell}>

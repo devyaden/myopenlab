@@ -767,7 +767,7 @@ export function UMLEditor({
             edgeTypes={edgeTypes}
             onError={onReactFlowError}
             fitView
-            className="bg-white"
+            className="bg-card"
             multiSelectionKeyCode={["Meta", "Shift"]}
             selectNodesOnDrag={false}
             // Miro/Figma gesture model: drag the empty pane = marquee select;

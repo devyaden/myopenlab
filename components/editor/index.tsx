@@ -71,8 +71,6 @@ import ResizableImageNode from "./extensions/ResizableImageNode";
 import { TextDirection } from "./extensions/TextDirection";
 import { useDocumentStore } from "./hooks/useDocument";
 import { ConflictDialog } from "./ConflictDialog";
-import { PresenceAvatars } from "./PresenceAvatars";
-import { colorForUser } from "@/lib/realtime/document-presence";
 import { subscribeLibraryRefresh } from "@/lib/realtime/library-refresh";
 import { supabase } from "@/lib/supabase/client";
 import ImageDialog from "./ImageDialog";
@@ -1771,32 +1769,21 @@ const Editor = (
           gated off until a clean load), so we offer a retry instead of leaving
           the user on a broken/empty editor. */}
       {loadFailed && (
-        <div className="absolute inset-x-0 top-0 z-50 flex items-center justify-center gap-3 border-b border-red-200 bg-red-50 px-4 py-2 text-sm text-red-700 shadow-sm">
+        <div className="absolute inset-x-0 top-0 z-50 flex items-center justify-center gap-3 border-b border-destructive/30 bg-destructive/10 px-4 py-2 text-sm text-destructive shadow-sm">
           <span>
             Couldn&apos;t load this document — your saved content is safe.
           </span>
           <button
             type="button"
             onClick={() => void reloadDocument()}
-            className="rounded bg-red-600 px-3 py-1 font-medium text-white hover:bg-red-700"
+            className="rounded bg-destructive px-3 py-1 font-medium text-white hover:bg-destructive/90"
           >
             Retry
           </button>
         </div>
       )}
-      {/* Part 4: live presence (other editors) — renders nothing when alone. */}
-      {user?.id && canvasId && (
-        <div className="absolute right-6 top-28 z-40">
-          <PresenceAvatars
-            canvasId={canvasId}
-            self={{
-              id: user.id,
-              name: user.email ? user.email.split("@")[0] : "You",
-              color: colorForUser(user.id),
-            }}
-          />
-        </div>
-      )}
+      {/* Live presence now lives in the shared header StatusChrome (one place,
+          all three surfaces) — no separate floating stack here. */}
 
       {/* Part 4: conflict resolution chooser (consumes the store's conflict
           signal; the losing side is backed up before either choice applies). */}
@@ -1838,26 +1825,18 @@ const Editor = (
         visibility={visibility}
         onVisibilityChange={handleVisibilityChange}
         isOwner={isOwner}
-        viewMode={"document"}
+        viewMode={viewMode ?? "document"}
+        onViewModeChange={onViewModeChange}
         exportAsJSON={handleExportJSON}
         propExportAsPDF={handleBrowserPrintToPDF}
-        canvasType={CANVAS_TYPE.DOCUMENT}
+        canvasType={canvasType ?? CANVAS_TYPE.DOCUMENT}
         currentFolder={folder}
       />
       {/* // )} */}
 
       <div
-        style={{
-          position: "fixed",
-          top: "58px",
-          left: 0,
-          right: 0,
-          zIndex: 49,
-          backgroundColor: "#fff",
-          borderBottom: "1px solid #e0e0e0",
-          boxShadow: "0 2px 8px rgba(0, 0, 0, 0.15)",
-          padding: "8px 16px",
-        }}
+        className="fixed inset-x-0 z-[49] border-b border-border bg-card px-4 py-2 shadow-atlas-md"
+        style={{ top: "58px" }}
       >
         <EditorToolbar
           editorState={editorState}
@@ -1967,7 +1946,7 @@ const Editor = (
         </div>
 
         {/* Zoom controls in bottom right */}
-        <div className="fixed bottom-4 right-4 bg-white border rounded-lg shadow-md p-1 flex items-center gap-1">
+        <div className="fixed bottom-4 right-4 bg-card border rounded-lg shadow-md p-1 flex items-center gap-1">
           <Button
             variant="ghost"
             size="sm"

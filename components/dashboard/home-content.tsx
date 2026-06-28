@@ -44,13 +44,16 @@ import {
   AlertCircle,
   Edit,
   Folder,
+  FolderPlus,
   Loader2,
   MoreVertical,
   Plus,
   Search,
+  SearchX,
   Trash,
   X,
 } from "lucide-react";
+import { TeachingEmptyState } from "@/components/ui/teaching-empty-state";
 import Link from "next/link";
 import { memo, useCallback, useEffect, useMemo, useState } from "react";
 
@@ -172,9 +175,9 @@ const SkeletonFolderCard = memo(() => (
   <div className="h-28 w-28">
     <Card className="p-3 h-full w-full">
       <div className="flex flex-col items-center justify-center h-full">
-        <div className="h-10 w-10 bg-gray-200 rounded mb-1"></div>
-        <div className="h-4 bg-gray-200 rounded w-16 mb-1"></div>
-        <div className="h-3 bg-gray-200 rounded w-12"></div>
+        <div className="h-10 w-10 bg-muted rounded mb-1"></div>
+        <div className="h-4 bg-muted rounded w-16 mb-1"></div>
+        <div className="h-3 bg-muted rounded w-12"></div>
       </div>
     </Card>
   </div>
@@ -187,11 +190,11 @@ const SkeletonFolderGrid = memo(() => (
   <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-10 gap-6">
     {/* Root folder skeleton */}
     <div className="h-28 w-28">
-      <Card className="p-3 border-2 border-dashed border-gray-200 h-full w-full flex items-center justify-center">
+      <Card className="p-3 border-2 border-dashed border-border h-full w-full flex items-center justify-center">
         <div className="flex flex-col items-center justify-center">
-          <div className="h-10 w-10 bg-gray-200 rounded mb-1"></div>
-          <div className="h-4 bg-gray-200 rounded w-12 mb-1"></div>
-          <div className="h-3 bg-gray-200 rounded w-10"></div>
+          <div className="h-10 w-10 bg-muted rounded mb-1"></div>
+          <div className="h-4 bg-muted rounded w-12 mb-1"></div>
+          <div className="h-3 bg-muted rounded w-10"></div>
         </div>
       </Card>
     </div>
@@ -203,9 +206,9 @@ const SkeletonFolderGrid = memo(() => (
 
     {/* New folder button skeleton */}
     <div className="h-28 w-28">
-      <div className="flex flex-col text-sm w-full h-full border border-gray-200 rounded-lg items-center justify-center">
-        <div className="h-5 w-5 bg-gray-200 rounded mb-1"></div>
-        <div className="h-4 bg-gray-200 rounded w-16"></div>
+      <div className="flex flex-col text-sm w-full h-full border border-border rounded-lg items-center justify-center">
+        <div className="h-5 w-5 bg-muted rounded mb-1"></div>
+        <div className="h-4 bg-muted rounded w-16"></div>
       </div>
     </div>
   </div>
@@ -295,13 +298,13 @@ const FolderCard = memo(
             </div>
             <div className="flex flex-col items-center justify-center h-full">
               <Folder className="h-10 w-10 text-yadn-accent-dark-orange mb-1" />
-              <h3 className="font-medium text-gray-900 truncate max-w-[90px] text-center text-sm">
+              <h3 className="font-medium text-foreground truncate max-w-[90px] text-center text-sm">
                 {folder.name}
                 {isUpdating && (
                   <Loader2 className="inline ml-1 h-3 w-3 animate-spin" />
                 )}
               </h3>
-              <p className="text-xs text-gray-500">
+              <p className="text-xs text-muted-foreground">
                 {folder.canvases?.length || 0} items
               </p>
             </div>
@@ -320,10 +323,10 @@ const RootFolderCard = memo(({ rootCanvases }: { rootCanvases: any[] }) => (
     <Card className="p-3 hover:shadow-md transition-shadow cursor-pointer group border-2 border-dashed border-yadn-accent-blue/30 h-28 w-28 flex items-center justify-center">
       <div className="flex flex-col items-center justify-center">
         <Folder className="h-10 w-10 text-yadn-accent-blue mb-1" />
-        <h3 className="font-medium text-gray-900 truncate max-w-[90px] text-center text-sm">
+        <h3 className="font-medium text-foreground truncate max-w-[90px] text-center text-sm">
           Root
         </h3>
-        <p className="text-xs text-gray-500">
+        <p className="text-xs text-muted-foreground">
           {rootCanvases.length || 0} items
         </p>
       </div>
@@ -336,16 +339,16 @@ RootFolderCard.displayName = "RootFolderCard";
 // Error state component
 const ErrorState = memo(
   ({ error, onRetry }: { error: string; onRetry: () => void }) => (
-    <div className="text-center py-8 bg-red-50 rounded-lg border border-red-200 col-span-full">
-      <AlertCircle className="mx-auto h-12 w-12 text-red-400 mb-4" />
-      <h3 className="text-lg font-medium text-red-900 mb-2">
+    <div className="text-center py-8 bg-destructive/10 rounded-lg border border-destructive/30 col-span-full">
+      <AlertCircle className="mx-auto h-12 w-12 text-destructive mb-4" />
+      <h3 className="text-lg font-medium text-destructive mb-2">
         Something went wrong
       </h3>
-      <p className="text-red-700 mb-4">{error}</p>
+      <p className="text-destructive mb-4">{error}</p>
       <Button
         onClick={onRetry}
         variant="outline"
-        className="border-red-300 text-red-700 hover:bg-red-50"
+        className="border-destructive/30 text-destructive hover:bg-destructive/10"
       >
         Try Again
       </Button>
@@ -366,22 +369,26 @@ const EmptyState = memo(
     searchQuery: string;
     onCreateFolder: () => void;
   }) => (
-    <div className="text-center py-8 bg-gray-50 rounded-lg col-span-full">
-      <Folder className="mx-auto h-12 w-12 text-gray-300 mb-2" />
-      <p className="text-gray-500">
-        {isSearching
-          ? `No folders found matching "${searchQuery}"`
-          : "No folders found"}
-      </p>
-      {!isSearching && (
-        <Button
-          variant="outline"
-          size="sm"
-          className="mt-4"
-          onClick={onCreateFolder}
-        >
-          <Plus className="mr-1 h-4 w-4" /> Create Your First Folder
-        </Button>
+    <div className="col-span-full">
+      {isSearching ? (
+        <TeachingEmptyState
+          compact
+          icon={<SearchX className="h-6 w-6" />}
+          title={`No matches for “${searchQuery}”`}
+          description="Try a different name or code — or press ⌘K to search everything."
+        />
+      ) : (
+        <TeachingEmptyState
+          compact
+          icon={<FolderPlus className="h-6 w-6" />}
+          title="No folders yet"
+          description="Folders keep your playbooks, tables and documents organized."
+          action={{
+            label: "Create your first folder",
+            onClick: onCreateFolder,
+            icon: <Plus className="h-4 w-4" />,
+          }}
+        />
       )}
     </div>
   )
@@ -391,10 +398,10 @@ EmptyState.displayName = "EmptyState";
 
 // Loading overlay component
 const LoadingOverlay = memo(({ message }: { message: string }) => (
-  <div className="absolute inset-0 bg-white/80 backdrop-blur-sm flex items-center justify-center z-10">
-    <div className="flex items-center space-x-3 bg-white px-6 py-3 rounded-lg shadow-lg border">
-      <Loader2 className="h-5 w-5 animate-spin text-yadn-accent-green" />
-      <span className="text-gray-700 font-medium">{message}</span>
+  <div className="absolute inset-0 bg-background/80 backdrop-blur-sm flex items-center justify-center z-10">
+    <div className="flex items-center space-x-3 bg-card px-6 py-3 rounded-lg shadow-lg border">
+      <Loader2 className="h-5 w-5 animate-spin text-signal" />
+      <span className="font-medium text-foreground">{message}</span>
     </div>
   </div>
 ));
@@ -772,7 +779,7 @@ export const HomeContent = memo(() => {
         <div className="h-28 w-28">
           <Button
             variant="ghost"
-            className="flex flex-col text-sm w-full h-full border border-gray-200 rounded-lg"
+            className="flex flex-col text-sm w-full h-full border border-border rounded-lg"
             onClick={() => setCreateNewModalType("folder")}
             disabled={folderLoading}
           >
@@ -815,7 +822,7 @@ export const HomeContent = memo(() => {
   if (!user) {
     return (
       <div className="flex flex-col h-full">
-        <div className="p-6 flex-shrink-0 bg-white">
+        <div className="p-6 flex-shrink-0 bg-card">
           <div className="flex flex-col md:flex-row justify-between md:items-center mb-6">
             <h1 className="text-2xl font-semibold md:w-1/4">Home</h1>
           </div>
@@ -832,7 +839,7 @@ export const HomeContent = memo(() => {
       {/* Operation Error Toast */}
       {operationError && (
         <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-50">
-          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg shadow-lg flex items-center space-x-2">
+          <div className="bg-destructive/10 border border-destructive/30 text-destructive px-4 py-3 rounded-lg shadow-lg flex items-center space-x-2">
             <AlertCircle className="h-4 w-4" />
             <span>{operationError}</span>
             <Button
@@ -852,16 +859,16 @@ export const HomeContent = memo(() => {
 
       {/* Plan Status Banner */}
       {planLimits && planLimits[SubscriptionFeatureFlag.MAX_DIAGRAMS] === 1 && (
-        <div className="bg-gradient-to-r from-orange-50 to-amber-50 border-b border-orange-200 px-6 py-3">
+        <div className="bg-attention-tint border-b border-attention/40 px-6 py-3">
           <div className="flex items-center justify-between max-w-7xl mx-auto">
             <div className="flex items-center gap-6">
               <div className="flex items-center gap-3">
-                <Zap className="h-5 w-5 text-orange-600" />
+                <Zap className="h-5 w-5 text-attention-text" />
                 <div>
-                  <p className="text-sm font-medium text-gray-900">
+                  <p className="text-sm font-medium text-foreground">
                     Free Plan
                   </p>
-                  <p className="text-xs text-gray-600">
+                  <p className="text-xs text-muted-foreground">
                     {rootCanvases.filter((canvas: any) => canvas.canvas_type === "hybrid" || !canvas.canvas_type).length}/{planLimits[SubscriptionFeatureFlag.MAX_DIAGRAMS]} Diagram • {aiUsage.used}/{aiUsage.limit} AI Calls
                   </p>
                 </div>
@@ -879,21 +886,21 @@ export const HomeContent = memo(() => {
         </div>
       )}
 
-      <div className="p-6 flex-shrink-0 bg-white">
+      <div className="p-6 flex-shrink-0 bg-card">
         <div className="flex flex-col md:flex-row justify-between md:items-center mb-6">
           <h1 className="text-2xl font-semibold md:w-1/4">
             {isLoading && !hasInitialized ? (
-              <div className="h-8 bg-gray-200 rounded w-20 animate-pulse"></div>
+              <div className="h-8 bg-muted rounded w-20 animate-pulse"></div>
             ) : (
               "Home"
             )}
           </h1>
           <div className="flex justify-center items-center w-full md:w-2/4">
             <div className="relative w-full max-w-xl">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-muted-foreground" />
               <Input
                 placeholder="Search folders and files..."
-                className="pl-10 pr-10 h-12 rounded-lg border-gray-200"
+                className="pl-10 pr-10 h-12 rounded-lg border-border"
                 value={searchQuery}
                 onChange={handleSearchChange}
                 disabled={isLoading && !hasInitialized}
@@ -901,7 +908,7 @@ export const HomeContent = memo(() => {
               {searchQuery && (
                 <button
                   onClick={handleSearchClear}
-                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground hover:text-muted-foreground"
                 >
                   <X className="h-5 w-5" />
                 </button>
@@ -1062,7 +1069,7 @@ export const HomeContent = memo(() => {
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction
               onClick={confirmDelete}
-              className="bg-red-500 text-white hover:bg-red-600"
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               Delete
             </AlertDialogAction>

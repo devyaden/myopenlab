@@ -141,18 +141,18 @@ export const SwimlaneNode = memo(
         <NodeResizer isVisible={selected} minWidth={400} minHeight={100} />
         <div
           style={nodeStyle}
-          className={`${selected ? "ring-2 ring-blue-500" : ""}`}
+          className={`${selected ? "ring-2 ring-signal" : ""}`}
         >
           <Handle type="target" position={Position.Left} className="w-3 h-3" />
           <div className="flex flex-col w-full h-full">
             {data.lanes.map((lane, index) => (
               <div
                 key={lane.id}
-                className="relative flex-grow border-b border-gray-200 last:border-b-0"
+                className="relative flex-grow border-b border-border last:border-b-0"
                 style={{ height: laneHeights[lane.id] }}
               >
                 <div
-                  className="absolute left-0 top-0 bottom-0 w-10 bg-gray-100 border-r border-gray-300 flex items-center justify-center"
+                  className="absolute left-0 top-0 bottom-0 w-10 bg-muted border-r border-border flex items-center justify-center"
                   style={{
                     writingMode: "vertical-rl",
                     transform: "rotate(180deg)",
@@ -188,7 +188,7 @@ export const SwimlaneNode = memo(
                 <div className="ml-10 h-full"></div>
                 {index < data.lanes.length - 1 && (
                   <div
-                    className="absolute bottom-0 left-0 right-0 h-2 bg-gray-300 cursor-row-resize"
+                    className="absolute bottom-0 left-0 right-0 h-2 bg-border cursor-row-resize"
                     onMouseDown={(e) => handleResizeStart(e, lane.id)}
                   ></div>
                 )}
@@ -196,7 +196,7 @@ export const SwimlaneNode = memo(
             ))}
           </div>
           {selected && (
-            <div className="absolute bottom-2 right-2 p-2 bg-white bg-opacity-80 z-10">
+            <div className="absolute bottom-2 right-2 p-2 bg-background/80 z-10">
               <PlusCircle
                 className="w-6 h-6 cursor-pointer text-blue-500 hover:text-blue-600"
                 onClick={handleAddLane}

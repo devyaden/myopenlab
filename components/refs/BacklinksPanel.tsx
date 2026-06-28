@@ -49,7 +49,7 @@ function CodeChip({ code }: { code?: string | null }) {
 
 function TypeBadge({ type }: { type: string }) {
   return (
-    <span className="shrink-0 rounded-full border border-gray-200 bg-gray-50 px-1.5 py-0.5 text-[10px] font-medium text-gray-500">
+    <span className="shrink-0 rounded-full border border-border bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
       {humanizeType(type)}
     </span>
   );
@@ -155,7 +155,7 @@ export function BacklinksPanel({ canvasId, code }: BacklinksPanelProps) {
       </PopoverTrigger>
       <PopoverContent align="end" className="w-96 p-0">
         <div className="flex items-center justify-between border-b px-3 py-2">
-          <span className="text-sm font-semibold text-gray-900">
+          <span className="text-sm font-semibold text-foreground">
             References
           </span>
           <div className="flex items-center gap-1 text-[11px] text-muted-foreground">
@@ -193,11 +193,11 @@ export function BacklinksPanel({ canvasId, code }: BacklinksPanelProps) {
                     className={cn(
                       "flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm",
                       b.fromCanvas?.id
-                        ? "hover:bg-gray-100"
+                        ? "hover:bg-accent"
                         : "cursor-default opacity-60"
                     )}
                   >
-                    <span className="flex-1 truncate text-gray-800">
+                    <span className="flex-1 truncate text-foreground">
                       {b.fromCanvas?.name || "Untitled"}
                     </span>
                     <CodeChip code={b.fromCanvas?.code} />
@@ -229,12 +229,12 @@ export function BacklinksPanel({ canvasId, code }: BacklinksPanelProps) {
                       className={cn(
                         "flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm",
                         resolvable
-                          ? "hover:bg-gray-100"
+                          ? "hover:bg-accent"
                           : "cursor-default opacity-60"
                       )}
                       title={resolvable ? undefined : "Target not found yet"}
                     >
-                      <span className="flex-1 truncate text-gray-800">
+                      <span className="flex-1 truncate text-foreground">
                         {targetName}
                         {!resolvable && (
                           <span className="ml-1 text-[10px] text-amber-600">

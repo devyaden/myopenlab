@@ -565,7 +565,7 @@ export function ShareModal({
                 <SelectItem value="public">Public</SelectItem>
               </SelectContent>
             </Select>
-            <p className="text-xs text-gray-500 mt-1">
+            <p className="text-xs text-muted-foreground mt-1">
               {isPublic
                 ? "Anyone with the link can view this canvas"
                 : "Only you can view this canvas"}
@@ -584,7 +584,7 @@ export function ShareModal({
                     ref={shareLinkRef}
                     value={shareLink}
                     readOnly
-                    className="flex-1 bg-gray-50"
+                    className="flex-1 bg-muted"
                   />
                   <Button
                     size="sm"

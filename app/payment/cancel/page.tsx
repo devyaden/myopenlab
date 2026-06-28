@@ -8,36 +8,38 @@ export default function PaymentCancelPage() {
   const router = useRouter();
 
   return (
-    <div className="min-h-screen bg-white flex items-center justify-center p-4">
-      <div className="max-w-md w-full text-center space-y-6">
+    <div className="flex min-h-screen items-center justify-center bg-background p-4">
+      <div className="w-full max-w-md space-y-6 text-center">
         <div className="flex justify-center">
-          <div className="bg-orange-100 rounded-full p-4">
-            <XCircle className="w-16 h-16 text-orange-600" />
+          <div className="rounded-full bg-attention-tint p-4">
+            <XCircle className="size-16 text-attention" />
           </div>
         </div>
 
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">
-            Payment Canceled
+        <div className="space-y-2">
+          <h1 className="font-display text-3xl font-bold tracking-tight text-foreground">
+            Checkout canceled
           </h1>
-          <p className="text-gray-600">
-            No charges were made to your account
+          <p className="text-muted-foreground">
+            No charge was made. You can pick a plan and try again whenever
+            you're ready.
           </p>
         </div>
 
         <div className="space-y-3">
           <Button
+            variant="signal"
             onClick={() => router.push("/pricing")}
-            className="w-full bg-yadn-accent-green hover:bg-yadn-accent-green/90 text-white"
+            className="w-full"
           >
-            Try Again
+            Choose a plan
           </Button>
           <Button
             onClick={() => router.push("/protected")}
             variant="outline"
             className="w-full"
           >
-            Back to Dashboard
+            Back to your workspace
           </Button>
         </div>
       </div>

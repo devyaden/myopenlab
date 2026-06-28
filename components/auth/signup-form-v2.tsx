@@ -207,13 +207,10 @@ function AccountStep({
             onChange={handleChange}
             onFocus={() => handleFieldFocus("firstName")}
             onBlur={() => handleFieldBlur("firstName")}
-            className={cn(
-              "bg-yadn-primary-gray/5 border-yadn-primary-gray/10 text-yadn-primary-gray placeholder:text-yadn-primary-gray/40 focus:border-yadn-accent-green focus:ring-yadn-accent-green",
-              errors.firstName && "border-red-500"
-            )}
+            className={cn(errors.firstName && "border-destructive")}
           />
           {errors.firstName && (
-            <p className="mt-1 text-xs text-red-500">{errors.firstName}</p>
+            <p className="mt-1 text-xs text-destructive">{errors.firstName}</p>
           )}
         </div>
         <div>
@@ -225,13 +222,10 @@ function AccountStep({
             onChange={handleChange}
             onFocus={() => handleFieldFocus("lastName")}
             onBlur={() => handleFieldBlur("lastName")}
-            className={cn(
-              "bg-yadn-primary-gray/5 border-yadn-primary-gray/10 text-yadn-primary-gray placeholder:text-yadn-primary-gray/40 focus:border-yadn-accent-green focus:ring-yadn-accent-green",
-              errors.lastName && "border-red-500"
-            )}
+            className={cn(errors.lastName && "border-destructive")}
           />
           {errors.lastName && (
-            <p className="mt-1 text-xs text-red-500">{errors.lastName}</p>
+            <p className="mt-1 text-xs text-destructive">{errors.lastName}</p>
           )}
         </div>
       </div>
@@ -245,13 +239,10 @@ function AccountStep({
           onChange={handleChange}
           onFocus={() => handleFieldFocus("email")}
           onBlur={() => handleFieldBlur("email")}
-          className={cn(
-            "bg-yadn-primary-gray/5 border-yadn-primary-gray/10 text-yadn-primary-gray placeholder:text-yadn-primary-gray/40 focus:border-yadn-accent-green focus:ring-yadn-accent-green",
-            errors.email && "border-red-500"
-          )}
+          className={cn(errors.email && "border-destructive")}
         />
         {errors.email && (
-          <p className="mt-1 text-xs text-red-500">{errors.email}</p>
+          <p className="mt-1 text-xs text-destructive">{errors.email}</p>
         )}
       </div>
 
@@ -264,15 +255,12 @@ function AccountStep({
           onChange={handleChange}
           onFocus={() => handleFieldFocus("password")}
           onBlur={() => handleFieldBlur("password")}
-          className={cn(
-            "bg-yadn-primary-gray/5 border-yadn-primary-gray/10 text-yadn-primary-gray placeholder:text-yadn-primary-gray/40 focus:border-yadn-accent-green focus:ring-yadn-accent-green pr-10",
-            errors.password && "border-red-500"
-          )}
+          className={cn("pr-10", errors.password && "border-destructive")}
         />
         <button
           type="button"
           onClick={handlePasswordToggle}
-          className="absolute right-3 top-1/2 -translate-y-1/2 text-yadn-primary-gray/60 hover:text-yadn-primary-gray"
+          className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
         >
           {showPassword ? (
             <EyeOffIcon className="h-5 w-5" />
@@ -281,7 +269,7 @@ function AccountStep({
           )}
         </button>
         {errors.password && (
-          <p className="mt-1 text-xs text-red-500">{errors.password}</p>
+          <p className="mt-1 text-xs text-destructive">{errors.password}</p>
         )}
       </div>
     </>
@@ -327,10 +315,10 @@ function CompanyStep({
   return (
     <>
       {formData.googleAuth && (
-        <div className="mb-6 p-4 bg-yadn-accent-green/10 border border-yadn-accent-green/30 rounded-lg">
+        <div className="mb-6 p-4 bg-signal/10 border border-signal/30 rounded-lg">
           <div className="flex items-center">
-            <Check className="h-5 w-5 text-yadn-accent-green mr-2" />
-            <p className="text-yadn-primary-gray">
+            <Check className="h-5 w-5 text-signal mr-2" />
+            <p className="text-foreground">
               <span className="font-medium">Signed in with Google:</span>{" "}
               {formData.email}
             </p>
@@ -347,18 +335,15 @@ function CompanyStep({
           onChange={handleChange}
           onFocus={() => handleFieldFocus("companyName")}
           onBlur={() => handleFieldBlur("companyName")}
-          className={cn(
-            "bg-yadn-primary-gray/5 border-yadn-primary-gray/10 text-yadn-primary-gray placeholder:text-yadn-primary-gray/40 focus:border-yadn-accent-green focus:ring-yadn-accent-green",
-            errors.companyName && "border-red-500"
-          )}
+          className={cn(errors.companyName && "border-destructive")}
         />
         {errors.companyName && (
-          <p className="mt-1 text-xs text-red-500">{errors.companyName}</p>
+          <p className="mt-1 text-xs text-destructive">{errors.companyName}</p>
         )}
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="industry" className="text-yadn-primary-gray/80">
+        <Label htmlFor="industry" className="text-muted-foreground">
           Industry
         </Label>
         <Select
@@ -377,27 +362,20 @@ function CompanyStep({
         >
           <SelectTrigger
             id="industry"
-            className={cn(
-              "bg-yadn-primary-gray/5 border-yadn-primary-gray/10 text-yadn-primary-gray focus:border-yadn-accent-green focus:ring-yadn-accent-green",
-              errors.industry && "border-red-500"
-            )}
+            className={cn(errors.industry && "border-destructive")}
           >
             <SelectValue placeholder="Select Industry" />
           </SelectTrigger>
-          <SelectContent className="bg-[#000A1F] border-yadn-primary-gray/10">
+          <SelectContent>
             {industryOptions.map((option) => (
-              <SelectItem
-                key={option}
-                value={option}
-                className="text-yadn-primary-gray focus:bg-yadn-accent-green/20 focus:text-yadn-primary-gray"
-              >
+              <SelectItem key={option} value={option}>
                 {option}
               </SelectItem>
             ))}
           </SelectContent>
         </Select>
         {errors.industry && (
-          <p className="mt-1 text-xs text-red-500">{errors.industry}</p>
+          <p className="mt-1 text-xs text-destructive">{errors.industry}</p>
         )}
       </div>
 
@@ -411,19 +389,16 @@ function CompanyStep({
             onChange={handleChange}
             onFocus={() => handleFieldFocus("customIndustry")}
             onBlur={() => handleFieldBlur("customIndustry")}
-            className={cn(
-              "bg-yadn-primary-gray/5 border-yadn-primary-gray/10 text-yadn-primary-gray placeholder:text-yadn-primary-gray/40 focus:border-yadn-accent-green focus:ring-yadn-accent-green",
-              errors.customIndustry && "border-red-500"
-            )}
+            className={cn(errors.customIndustry && "border-destructive")}
           />
           {errors.customIndustry && (
-            <p className="mt-1 text-xs text-red-500">{errors.customIndustry}</p>
+            <p className="mt-1 text-xs text-destructive">{errors.customIndustry}</p>
           )}
         </div>
       )}
 
       <div className="space-y-2">
-        <Label htmlFor="position" className="text-yadn-primary-gray/80">
+        <Label htmlFor="position" className="text-muted-foreground">
           Position
         </Label>
         <Select
@@ -442,27 +417,20 @@ function CompanyStep({
         >
           <SelectTrigger
             id="position"
-            className={cn(
-              "bg-yadn-primary-gray/5 border-yadn-primary-gray/10 text-yadn-primary-gray focus:border-yadn-accent-green focus:ring-yadn-accent-green",
-              errors.position && "border-red-500"
-            )}
+            className={cn(errors.position && "border-destructive")}
           >
             <SelectValue placeholder="Select Position" />
           </SelectTrigger>
-          <SelectContent className="bg-[#000A1F] border-yadn-primary-gray/10">
+          <SelectContent>
             {positionOptions.map((option) => (
-              <SelectItem
-                key={option}
-                value={option}
-                className="text-yadn-primary-gray focus:bg-yadn-accent-green/20 focus:text-yadn-primary-gray"
-              >
+              <SelectItem key={option} value={option}>
                 {option}
               </SelectItem>
             ))}
           </SelectContent>
         </Select>
         {errors.position && (
-          <p className="mt-1 text-xs text-red-500">{errors.position}</p>
+          <p className="mt-1 text-xs text-destructive">{errors.position}</p>
         )}
       </div>
 
@@ -476,19 +444,16 @@ function CompanyStep({
             onChange={handleChange}
             onFocus={() => handleFieldFocus("customPosition")}
             onBlur={() => handleFieldBlur("customPosition")}
-            className={cn(
-              "bg-yadn-primary-gray/5 border-yadn-primary-gray/10 text-yadn-primary-gray placeholder:text-yadn-primary-gray/40 focus:border-yadn-accent-green focus:ring-yadn-accent-green",
-              errors.customPosition && "border-red-500"
-            )}
+            className={cn(errors.customPosition && "border-destructive")}
           />
           {errors.customPosition && (
-            <p className="mt-1 text-xs text-red-500">{errors.customPosition}</p>
+            <p className="mt-1 text-xs text-destructive">{errors.customPosition}</p>
           )}
         </div>
       )}
 
       <div className="space-y-2">
-        <Label htmlFor="companySize" className="text-yadn-primary-gray/80">
+        <Label htmlFor="companySize" className="text-muted-foreground">
           Company Size
         </Label>
         <Select
@@ -507,27 +472,20 @@ function CompanyStep({
         >
           <SelectTrigger
             id="companySize"
-            className={cn(
-              "bg-yadn-primary-gray/5 border-yadn-primary-gray/10 text-yadn-primary-gray focus:border-yadn-accent-green focus:ring-yadn-accent-green",
-              errors.companySize && "border-red-500"
-            )}
+            className={cn(errors.companySize && "border-destructive")}
           >
             <SelectValue placeholder="Select Company Size" />
           </SelectTrigger>
-          <SelectContent className="bg-[#000A1F] border-yadn-primary-gray/10">
+          <SelectContent>
             {companySizeOptions.map((option) => (
-              <SelectItem
-                key={option}
-                value={option}
-                className="text-yadn-primary-gray focus:bg-yadn-accent-green/20 focus:text-yadn-primary-gray"
-              >
+              <SelectItem key={option} value={option}>
                 {option}
               </SelectItem>
             ))}
           </SelectContent>
         </Select>
         {errors.companySize && (
-          <p className="mt-1 text-xs text-red-500">{errors.companySize}</p>
+          <p className="mt-1 text-xs text-destructive">{errors.companySize}</p>
         )}
       </div>
 
@@ -541,13 +499,10 @@ function CompanyStep({
             onChange={handleChange}
             onFocus={() => handleFieldFocus("customCompanySize")}
             onBlur={() => handleFieldBlur("customCompanySize")}
-            className={cn(
-              "bg-yadn-primary-gray/5 border-yadn-primary-gray/10 text-yadn-primary-gray placeholder:text-yadn-primary-gray/40 focus:border-yadn-accent-green focus:ring-yadn-accent-green",
-              errors.customCompanySize && "border-red-500"
-            )}
+            className={cn(errors.customCompanySize && "border-destructive")}
           />
           {errors.customCompanySize && (
-            <p className="mt-1 text-xs text-red-500">
+            <p className="mt-1 text-xs text-destructive">
               {errors.customCompanySize}
             </p>
           )}
@@ -615,17 +570,13 @@ function PaymentStep({
   return (
     <>
       <div className="space-y-4">
-        <Label className="text-yadn-primary-gray/80">Promo Code (Optional)</Label>
+        <Label className="text-muted-foreground">Promo Code (Optional)</Label>
 
         <div>
             <div className="mt-4 flex justify-center">
               <div className="inline-block">
                 <table
-                  className={cn(
-                    "bg-yadn-accent-green rounded-lg shadow-md",
-                    promoStatus?.isValid && "bg-yadn-accent-green",
-                    promoStatus?.isValid === false && "bg-yadn-accent-green/80"
-                  )}
+                  className="bg-muted rounded-lg border border-border"
                   cellPadding="0"
                   cellSpacing="0"
                   style={{ margin: "0 auto" }}
@@ -641,7 +592,7 @@ function PaymentStep({
                       >
                         <div
                           style={{
-                            border: "2px solid #000A1F",
+                            border: "2px solid hsl(var(--border))",
                             padding: "15px 20px",
                             backgroundColor: "transparent",
                             position: "relative",
@@ -676,10 +627,10 @@ function PaymentStep({
                                 key={index}
                                 className="flex flex-col items-center w-8"
                               >
-                                <div className="text-[#000A1F] text-2xl font-bold h-8 flex items-center justify-center">
+                                <div className="text-foreground text-2xl font-bold h-8 flex items-center justify-center">
                                   {formData.promoCode[index] || ""}
                                 </div>
-                                <div className="h-0.5 w-full bg-[#000A1F]"></div>
+                                <div className="h-0.5 w-full bg-border"></div>
                               </div>
                             ))}
                           </div>
@@ -690,8 +641,8 @@ function PaymentStep({
                             className={cn(
                               "mt-2 text-xs font-medium",
                               promoStatus.isValid
-                                ? "text-[#000A1F]"
-                                : "text-red-700"
+                                ? "text-signal"
+                                : "text-destructive"
                             )}
                           >
                             {promoStatus.isValid ? (
@@ -706,7 +657,7 @@ function PaymentStep({
                         )}
 
                         {formSubmitted && errors.promoCode && !promoStatus && (
-                          <p className="mt-2 text-xs text-red-700 font-medium">
+                          <p className="mt-2 text-xs text-destructive font-medium">
                             {errors.promoCode}
                           </p>
                         )}
@@ -717,7 +668,7 @@ function PaymentStep({
               </div>
             </div>
 
-            <p className="text-center text-xs text-yadn-primary-gray/60 mt-4">
+            <p className="text-center text-xs text-muted-foreground mt-4">
               Enter your promo code (optional)
             </p>
           </div>
@@ -730,15 +681,14 @@ function PaymentStep({
           checked={formData.agreeToTerms}
           onCheckedChange={handleTermsChange}
           className={cn(
-            "border-yadn-primary-gray/30 data-[state=checked]:bg-yadn-accent-green data-[state=checked]:border-yadn-accent-green",
-            formSubmitted && errors.agreeToTerms && "border-red-500"
+            formSubmitted && errors.agreeToTerms && "border-destructive"
           )}
         />
-        <label htmlFor="terms" className="text-sm text-yadn-primary-gray/80">
+        <label htmlFor="terms" className="text-sm text-muted-foreground">
           I agree to the{" "}
           <Link
             href="/terms"
-            className="text-yadn-accent-green hover:underline"
+            className="text-signal hover:underline"
             onClick={() => {
               tracker.trackInteraction(InteractionEvent.LINK_CLICK, {
                 element_type: "link",
@@ -752,7 +702,7 @@ function PaymentStep({
           and{" "}
           <Link
             href="/privacy"
-            className="text-yadn-accent-green hover:underline"
+            className="text-signal hover:underline"
             onClick={() => {
               tracker.trackInteraction(InteractionEvent.LINK_CLICK, {
                 element_type: "link",
@@ -766,11 +716,11 @@ function PaymentStep({
         </label>
       </div>
       {formSubmitted && errors.agreeToTerms && (
-        <p className="mt-1 text-xs text-red-500">{errors.agreeToTerms}</p>
+        <p className="mt-1 text-xs text-destructive">{errors.agreeToTerms}</p>
       )}
 
       {errors.submit && (
-        <div className="p-3 rounded-md bg-red-500/10 border border-red-500/30 text-red-500 text-sm">
+        <div className="p-3 rounded-md bg-destructive/10 border border-destructive/30 text-destructive text-sm">
           {errors.submit}
         </div>
       )}
@@ -1460,12 +1410,12 @@ export default function SignupForm({ googleData }: SignupFormProps) {
                 className={cn(
                   "w-10 h-10 rounded-full flex items-center justify-center text-sm font-medium",
                   currentStep === step
-                    ? "bg-yadn-accent-green text-[#000A1F]"
+                    ? "bg-yadn-accent-green text-white"
                     : currentStep > step
-                      ? "bg-yadn-accent-green text-[#000A1F]"
-                      : "bg-yadn-primary-gray/10 text-yadn-primary-gray/60",
+                      ? "bg-yadn-accent-green text-white"
+                      : "bg-muted text-muted-foreground",
                   formData.googleAuth && step === 1
-                    ? "bg-yadn-accent-green text-[#000A1F]"
+                    ? "bg-yadn-accent-green text-white"
                     : ""
                 )}
               >
@@ -1475,7 +1425,7 @@ export default function SignupForm({ googleData }: SignupFormProps) {
                   step
                 )}
               </div>
-              <span className="mt-2 text-xs text-yadn-primary-gray/60">
+              <span className="mt-2 text-xs text-muted-foreground">
                 {step === 1 ? "Account" : step === 2 ? "Company" : "Payment"}
               </span>
             </div>
@@ -1483,10 +1433,10 @@ export default function SignupForm({ googleData }: SignupFormProps) {
         </div>
         <div className="mt-2 grid grid-cols-2 gap-2">
           <div
-            className={`h-1 ${currentStep > 1 || formData.googleAuth ? "bg-yadn-accent-green" : "bg-yadn-primary-gray/10"}`}
+            className={`h-1 ${currentStep > 1 || formData.googleAuth ? "bg-yadn-accent-green" : "bg-muted"}`}
           ></div>
           <div
-            className={`h-1 ${currentStep > 2 ? "bg-yadn-accent-green" : "bg-yadn-primary-gray/10"}`}
+            className={`h-1 ${currentStep > 2 ? "bg-yadn-accent-green" : "bg-muted"}`}
           ></div>
         </div>
       </div>
@@ -1533,14 +1483,13 @@ export default function SignupForm({ googleData }: SignupFormProps) {
               type="button"
               onClick={handlePrevStep}
               variant="outline"
-              className="border-yadn-primary-gray/10 text-yadn-primary-gray hover:bg-yadn-primary-gray/5 hover:text-yadn-primary-gray bg-transparent"
             >
               <ArrowLeft className="mr-2 h-4 w-4" /> Back
             </Button>
           ) : (
             <Link
               href="/auth/login"
-              className="flex items-center text-yadn-primary-gray/60 hover:text-yadn-primary-gray text-sm"
+              className="flex items-center text-muted-foreground hover:text-foreground text-sm"
               onClick={() => {
                 tracker.trackInteraction(InteractionEvent.LINK_CLICK, {
                   element_type: "link",
@@ -1557,14 +1506,16 @@ export default function SignupForm({ googleData }: SignupFormProps) {
             <Button
               type="button"
               onClick={handleNextStep}
-              className="bg-yadn-accent-green hover:bg-yadn-accent-green/90 text-[#000A1F] font-medium"
+              variant="signal"
+              className="font-medium"
             >
               Next <ArrowRight className="ml-2 h-4 w-4" />
             </Button>
           ) : (
             <Button
               type="submit"
-              className="bg-yadn-accent-green hover:bg-yadn-accent-green/90 text-[#000A1F] font-medium"
+              variant="signal"
+              className="font-medium"
               disabled={
                 !formData.agreeToTerms ||
                 (formData.promoCode.length > 0 && formData.promoCode.length < 8) ||

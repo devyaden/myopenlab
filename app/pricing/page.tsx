@@ -16,6 +16,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Check, Loader2, CreditCard, Shield, Lock } from "lucide-react";
 import { supabase } from "@/lib/supabase/client";
 import { useUser } from "@/lib/contexts/userContext";
+import { cn } from "@/lib/utils";
 import toast from "react-hot-toast";
 
 interface StripePlan {
@@ -237,7 +238,7 @@ export default function PricingPage() {
 
   if (!user || loadingPlans) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-white">
+      <div className="min-h-screen bg-background">
         <div className="container mx-auto px-4 py-16">
           <div className="mb-16 flex flex-col items-center gap-3">
             <Skeleton className="h-10 w-96 max-w-full" />
@@ -247,7 +248,7 @@ export default function PricingPage() {
             {[0, 1].map((i) => (
               <div
                 key={i}
-                className="rounded-xl border-2 border-gray-100 p-8"
+                className="rounded-xl border border-border bg-card p-8"
               >
                 <Skeleton className="h-6 w-32" />
                 <Skeleton className="mt-4 h-10 w-40" />
@@ -267,17 +268,17 @@ export default function PricingPage() {
 
   return (
     <SidebarProvider>
-      <div className="flex flex-col h-screen w-screen bg-white">
+      <div className="flex flex-col h-screen w-screen bg-background">
         <HeaderSidebar />
 
-        <div className="flex-1 overflow-auto bg-gradient-to-br from-gray-50 to-white">
+        <div className="flex-1 overflow-auto bg-background">
           <div className="container mx-auto px-4 py-16">
             {/* Page Title */}
             <div className="text-center mb-16">
-              <h1 className="text-5xl font-bold mb-4 text-gray-900">
+              <h1 className="text-5xl font-bold mb-4 text-foreground">
                 Pricing that grows with your playbooks
               </h1>
-              <p className="text-xl text-gray-600 max-w-2xl mx-auto">
+              <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
                 Unlimited playbooks and an AI co-pilot that knows how your company
                 works. Pick the plan that fits your team.
               </p>
@@ -287,51 +288,53 @@ export default function PricingPage() {
             <div className="grid md:grid-cols-2 gap-6 max-w-4xl mx-auto mb-16">
               {plans.map((plan) => {
                 const isActive = plan.planType === currentPlan;
+                const isRecommended = !isActive && plan.popular;
                 return (
                   <div
                     key={plan.planType}
-                    className={`relative rounded-xl border-2 transition-all duration-200 ${
+                    className={cn(
+                      "relative rounded-xl border bg-card p-6 flex flex-col transition-all duration-200",
                       isActive
-                        ? "border-yadn-accent-green bg-gradient-to-br from-yadn-accent-green/5 to-yadn-accent-green/10 shadow-lg ring-2 ring-yadn-accent-green/20"
-                        : plan.popular
-                        ? "border-yadn-accent-green/40 bg-white hover:border-yadn-accent-green/60 hover:shadow-md"
-                        : "border-gray-200 bg-white hover:border-gray-300 hover:shadow-sm"
-                    } p-6 flex flex-col`}
+                        ? "border-signal ring-2 ring-signal/20 shadow-lg"
+                        : isRecommended
+                        ? "border-signal hover:shadow-md"
+                        : "border-border hover:border-foreground/20 hover:shadow-sm"
+                    )}
                   >
                     {isActive && (
                       <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-yadn-accent-green text-white px-4 py-1 rounded-full text-xs font-bold shadow-md">
-                        CURRENT PLAN
+                        Your current plan
                       </div>
                     )}
-                    {!isActive && plan.popular && (
+                    {isRecommended && (
                       <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-yadn-accent-green text-white px-4 py-1 rounded-full text-xs font-bold shadow-md">
-                        MOST POPULAR
+                        Recommended
                       </div>
                     )}
-                    {!isActive && plan.badge && !plan.popular && (
-                      <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-blue-500 text-white px-4 py-1 rounded-full text-xs font-bold shadow-md">
+                    {!isActive && !isRecommended && plan.badge && (
+                      <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-signal text-white px-4 py-1 rounded-full text-xs font-bold shadow-md">
                         {plan.badge}
                       </div>
                     )}
 
                     <div className="mb-4">
-                      <h3 className="text-2xl font-bold mb-1 text-gray-900">
+                      <h3 className="text-2xl font-bold mb-1 text-foreground">
                         {plan.name}
                       </h3>
-                      <p className="text-gray-600 text-xs">{plan.description}</p>
+                      <p className="text-muted-foreground text-xs">{plan.description}</p>
                     </div>
 
                     <div className="mb-6">
                       <div className="flex items-baseline">
-                        <span className="text-4xl font-bold text-gray-900">
+                        <span className="text-4xl font-bold text-foreground">
                           {plan.price}
                         </span>
-                        <span className="text-gray-600 ml-1 text-base">
+                        <span className="text-muted-foreground ml-1 text-base">
                           {plan.period}
                         </span>
                       </div>
                       {plan.planType === "yearly" && (
-                        <p className="text-xs text-yadn-accent-green font-semibold mt-1">
+                        <p className="text-xs text-signal font-semibold mt-1">
                           Billed annually at £48
                         </p>
                       )}
@@ -341,13 +344,14 @@ export default function PricingPage() {
                       {plan.features.map((feature: string, index: number) => (
                         <li key={index} className="flex items-start">
                           <Check
-                            className={`w-4 h-4 mr-2 flex-shrink-0 mt-0.5 ${
-                              isActive || plan.popular
-                                ? "text-yadn-accent-green"
-                                : "text-gray-500"
-                            }`}
+                            className={cn(
+                              "w-4 h-4 mr-2 flex-shrink-0 mt-0.5",
+                              isActive || isRecommended
+                                ? "text-signal"
+                                : "text-muted-foreground"
+                            )}
                           />
-                          <span className="text-gray-700 text-sm">{feature}</span>
+                          <span className="text-foreground text-sm">{feature}</span>
                         </li>
                       ))}
                     </ul>
@@ -355,16 +359,12 @@ export default function PricingPage() {
                     <Button
                       onClick={() => handlePlanClick(plan)}
                       disabled={loading !== null || isActive}
-                      className={`w-full py-4 text-base font-semibold transition-all duration-200 ${
-                        isActive
-                          ? "bg-gray-400 cursor-not-allowed text-white"
-                          : plan.popular
-                          ? "bg-yadn-accent-green hover:bg-yadn-accent-green/90 text-white shadow-md"
-                          : "bg-gray-900 hover:bg-gray-700 text-white"
-                      }`}
+                      variant={isActive ? "secondary" : "signal"}
+                      size="lg"
+                      className="w-full text-base font-semibold"
                     >
                       {isActive ? (
-                        "Current Plan"
+                        "Current plan"
                       ) : loading === plan.planType ? (
                         <span className="flex items-center justify-center">
                           <Loader2 className="w-4 h-4 mr-2 animate-spin" />
@@ -381,11 +381,11 @@ export default function PricingPage() {
 
             {/* Contact Us */}
             <div className="mt-16 text-center">
-              <p className="text-gray-600">
+              <p className="text-muted-foreground">
                 Need help choosing?{" "}
                 <a
                   href="mailto:support@yadn.com"
-                  className="text-yadn-accent-green hover:underline font-semibold"
+                  className="text-signal hover:underline font-semibold"
                 >
                   Contact us
                 </a>
@@ -394,52 +394,52 @@ export default function PricingPage() {
 
             {/* Payment Confirmation Modal */}
             <Dialog open={showModal} onOpenChange={setShowModal}>
-              <DialogContent className="sm:max-w-lg bg-white border-2 border-gray-200">
+              <DialogContent className="sm:max-w-lg">
                 <DialogHeader>
-                  <DialogTitle className="text-3xl font-bold text-gray-900 flex items-center gap-3">
-                    <CreditCard className="w-8 h-8 text-yadn-accent-green" />
-                    Confirm Your Subscription
+                  <DialogTitle className="text-2xl font-bold text-foreground flex items-center gap-3">
+                    <CreditCard className="w-7 h-7 text-signal" />
+                    Confirm your subscription
                   </DialogTitle>
-                  <DialogDescription className="text-gray-600 text-base mt-2">
-                    Review your plan details before proceeding to payment
+                  <DialogDescription className="text-muted-foreground text-base mt-2">
+                    Review your plan before you continue to secure checkout.
                   </DialogDescription>
                 </DialogHeader>
 
                 {selectedPlan && (
                   <div className="space-y-6 py-4">
                     {/* Plan Details */}
-                    <div className="bg-gray-50 border border-gray-200 rounded-xl p-6 space-y-4">
+                    <div className="bg-muted border border-border rounded-xl p-6 space-y-4">
                       <div className="flex items-center justify-between">
-                        <h3 className="text-2xl font-bold text-gray-900">
+                        <h3 className="text-2xl font-bold text-foreground">
                           {selectedPlan.name}
                         </h3>
                         {selectedPlan.badge && (
-                          <span className="bg-blue-500 text-white px-3 py-1 rounded-full text-xs font-bold">
+                          <span className="bg-signal text-white px-3 py-1 rounded-full text-xs font-bold">
                             {selectedPlan.badge}
                           </span>
                         )}
                       </div>
 
                       <div className="flex items-baseline gap-2">
-                        <span className="text-4xl font-bold text-gray-900">
+                        <span className="text-4xl font-bold text-foreground">
                           {selectedPlan.price}
                         </span>
-                        <span className="text-gray-600 text-lg">
+                        <span className="text-muted-foreground text-lg">
                           {selectedPlan.period}
                         </span>
                       </div>
 
                       {selectedPlan.planType === "yearly" && (
-                        <p className="text-sm text-yadn-accent-green font-semibold">
-                          Billed annually at £48 - Save £12/year
+                        <p className="text-sm text-signal font-semibold">
+                          Billed annually at £48 — save £12 a year
                         </p>
                       )}
 
                       <div className="pt-4 space-y-3">
                         {selectedPlan.features.map((feature: string, index: number) => (
                           <div key={index} className="flex items-start gap-3">
-                            <Check className="w-5 h-5 text-yadn-accent-green flex-shrink-0 mt-0.5" />
-                            <span className="text-gray-700">{feature}</span>
+                            <Check className="w-5 h-5 text-signal flex-shrink-0 mt-0.5" />
+                            <span className="text-foreground">{feature}</span>
                           </div>
                         ))}
                       </div>
@@ -447,20 +447,20 @@ export default function PricingPage() {
 
                     {/* Security Badges */}
                     <div className="space-y-3">
-                      <div className="flex items-center gap-3 text-gray-700">
-                        <Shield className="w-5 h-5 text-yadn-accent-green" />
+                      <div className="flex items-center gap-3 text-muted-foreground">
+                        <Shield className="w-5 h-5 text-signal" />
                         <span className="text-sm">
                           Secure payment powered by Stripe
                         </span>
                       </div>
-                      <div className="flex items-center gap-3 text-gray-700">
-                        <Lock className="w-5 h-5 text-yadn-accent-green" />
+                      <div className="flex items-center gap-3 text-muted-foreground">
+                        <Lock className="w-5 h-5 text-signal" />
                         <span className="text-sm">
-                          Your data is encrypted and secure
+                          Your card details are encrypted end to end
                         </span>
                       </div>
-                      <div className="flex items-center gap-3 text-gray-700">
-                        <Check className="w-5 h-5 text-yadn-accent-green" />
+                      <div className="flex items-center gap-3 text-muted-foreground">
+                        <Check className="w-5 h-5 text-signal" />
                         <span className="text-sm">
                           14-day money-back guarantee
                         </span>
@@ -473,14 +473,17 @@ export default function PricingPage() {
                         onClick={() => setShowModal(false)}
                         disabled={loading !== null}
                         variant="outline"
-                        className="flex-1 py-6 text-base font-semibold bg-white border-2 border-gray-300 text-gray-900 hover:bg-gray-50 hover:border-gray-400"
+                        size="lg"
+                        className="flex-1 text-base font-semibold"
                       >
                         Cancel
                       </Button>
                       <Button
                         onClick={handleConfirmPayment}
                         disabled={loading !== null}
-                        className="flex-1 py-6 text-base font-semibold bg-yadn-accent-green hover:bg-yadn-accent-green/90 text-white shadow-lg shadow-yadn-accent-green/30"
+                        variant="signal"
+                        size="lg"
+                        className="flex-1 text-base font-semibold"
                       >
                         {loading ? (
                           <span className="flex items-center justify-center gap-2">
@@ -490,7 +493,7 @@ export default function PricingPage() {
                         ) : (
                           <span className="flex items-center justify-center gap-2">
                             <CreditCard className="w-5 h-5" />
-                            Proceed to Payment
+                            Continue to payment
                           </span>
                         )}
                       </Button>

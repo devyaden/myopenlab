@@ -54,7 +54,6 @@ import {
   Underline,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-import { ViewModeSwitcher } from "../canvas-new/view-mode-switcher";
 
 interface EditorToolbarProps {
   editorState: {
@@ -631,7 +630,7 @@ export default function EditorToolbar({
                       {textColors.map((color) => (
                         <button
                           key={color}
-                          className="h-6 w-6 rounded-md border border-gray-200"
+                          className="h-6 w-6 rounded-md border border-border"
                           style={{ backgroundColor: color }}
                           onClick={() => onSetTextColor(color)}
                           aria-label={`Text color: ${color}`}
@@ -644,7 +643,7 @@ export default function EditorToolbar({
                       {highlightColors.map((color) => (
                         <button
                           key={color}
-                          className="h-6 w-6 rounded-md border border-gray-200"
+                          className="h-6 w-6 rounded-md border border-border"
                           style={{ backgroundColor: color }}
                           onClick={() => onSetHighlightColor(color)}
                           aria-label={`Highlight color: ${color}`}
@@ -898,15 +897,6 @@ export default function EditorToolbar({
           </>
         )}
 
-        {canvasType === CANVAS_TYPE.HYBRID && (
-          <div className="flex items-center ml-auto">
-            <ViewModeSwitcher
-              viewMode={viewMode}
-              onViewModeChange={onViewModeChange}
-              canvasType={canvasType}
-            />
-          </div>
-        )}
       </div>
     </div>
   );

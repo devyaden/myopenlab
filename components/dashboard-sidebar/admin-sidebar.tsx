@@ -86,18 +86,18 @@ export function AdminSidebar() {
   const isActive = (path: string) => pathname === path;
 
   return (
-    <Sidebar className="border-r border-gray-200 bg-white w-64">
-      <SidebarHeader className="p-4 bg-white pt-24">
+    <Sidebar className="border-r border-border bg-card w-64">
+      <SidebarHeader className="p-4 bg-card pt-24">
         <Link
           href="/user-panel"
-          className="flex items-center text-sm font-medium border py-2 rounded-md px-3  hover:bg-gray-100"
+          className="flex items-center text-sm font-medium border py-2 rounded-md px-3  hover:bg-accent"
         >
           <ChevronLeft className="h-4 w-4 mr-1" />
           Back To User Panel
         </Link>
       </SidebarHeader>
 
-      <SidebarContent className="px-3 py-2 bg-white">
+      <SidebarContent className="px-3 py-2 bg-card">
         {/* Main menu section */}
         <div className="space-y-1">
           {mainMenuItems.map((item, index) => (
@@ -106,13 +106,13 @@ export function AdminSidebar() {
               href={item.path}
               className={`flex items-center px-3 py-2 rounded-md ${
                 isActive(item.path)
-                  ? "text-gray-700 font-medium"
-                  : "text-gray-500 hover:bg-gray-100"
+                  ? "text-foreground font-medium"
+                  : "text-muted-foreground hover:bg-accent"
               }`}
             >
               <item.icon
                 className={`h-5 w-5 mr-3 ${
-                  isActive(item.path) ? "text-gray-500" : "text-gray-400"
+                  isActive(item.path) ? "text-muted-foreground" : "text-muted-foreground"
                 }`}
               />
               <span
@@ -126,7 +126,7 @@ export function AdminSidebar() {
 
         {/* Subscription management section */}
         <div className="mt-6">
-          <h3 className="px-3 text-xs font-medium uppercase tracking-wider text-gray-500">
+          <h3 className="px-3 text-xs font-medium uppercase tracking-wider text-muted-foreground">
             SUBSCRIPTION MANAGEMENT
           </h3>
 
@@ -137,13 +137,13 @@ export function AdminSidebar() {
                 href={item.path}
                 className={`flex items-center px-3 py-2 rounded-md ${
                   isActive(item.path)
-                    ? "text-gray-700 font-medium"
-                    : "text-gray-500 hover:bg-gray-100"
+                    ? "text-foreground font-medium"
+                    : "text-muted-foreground hover:bg-accent"
                 }`}
               >
                 <item.icon
                   className={`h-5 w-5 mr-3 ${
-                    isActive(item.path) ? "text-gray-500" : "text-gray-400"
+                    isActive(item.path) ? "text-muted-foreground" : "text-muted-foreground"
                   }`}
                 />
                 <span
@@ -199,9 +199,9 @@ export function AdminSidebar() {
         <div className="absolute bottom-4 left-0 w-full px-3">
           <Link
             href={footerItem.path}
-            className="flex items-center px-3 py-2 text-gray-500 rounded-md hover:bg-gray-100"
+            className="flex items-center px-3 py-2 text-muted-foreground rounded-md hover:bg-accent"
           >
-            <footerItem.icon className="h-5 w-5 mr-3 text-gray-400" />
+            <footerItem.icon className="h-5 w-5 mr-3 text-muted-foreground" />
             <span className="text-sm">{footerItem.title}</span>
           </Link>
         </div>

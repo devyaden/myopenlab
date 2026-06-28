@@ -189,10 +189,10 @@ export function PromoCodeSignup() {
               placeholder="your.email@example.com"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className={errors.email ? "border-red-500" : ""}
+              className={errors.email ? "border-destructive" : ""}
             />
             {errors.email && (
-              <p className="text-sm text-red-500">{errors.email}</p>
+              <p className="text-sm text-destructive">{errors.email}</p>
             )}
           </div>
 
@@ -203,10 +203,10 @@ export function PromoCodeSignup() {
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className={errors.password ? "border-red-500" : ""}
+              className={errors.password ? "border-destructive" : ""}
             />
             {errors.password && (
-              <p className="text-sm text-red-500">{errors.password}</p>
+              <p className="text-sm text-destructive">{errors.password}</p>
             )}
           </div>
 
@@ -217,10 +217,10 @@ export function PromoCodeSignup() {
               placeholder="Enter your promo code"
               value={promoCode}
               onChange={(e) => setPromoCode(e.target.value.toUpperCase())}
-              className={`uppercase ${errors.promoCode ? "border-red-500" : ""}`}
+              className={`uppercase ${errors.promoCode ? "border-destructive" : ""}`}
             />
             {errors.promoCode && (
-              <p className="text-sm text-red-500">{errors.promoCode}</p>
+              <p className="text-sm text-destructive">{errors.promoCode}</p>
             )}
           </div>
 
@@ -230,7 +230,7 @@ export function PromoCodeSignup() {
         </form>
       </CardContent>
       <CardFooter className="flex justify-center">
-        <p className="text-sm text-gray-500">
+        <p className="text-sm text-muted-foreground">
           Already have an account?{" "}
           <a href="/login" className="text-blue-600 hover:underline">
             Log in

@@ -1,0 +1,199 @@
+/* ──────────────────────────────────────────────────────────────────────────
+   ATLAS DESIGN SYSTEM v1 — Unified token layer (single source of truth)
+   Light + dark are first-class twins. The shadcn variables (--background,
+   --primary, …) are REMAPPED to the Atlas palette so every existing
+   token-based component inherits the new look with no rewrite; the new
+   --atlas-* / --color-* tokens power the new Atlas primitives.
+   Convention preserved: shadcn vars are HSL triplets consumed as hsl(var(--x)).
+   Contrast: all text meets WCAG 2.2 AA (4.5:1) in both themes.
+   ────────────────────────────────────────────────────────────────────────── */
+
+@layer base {
+  :root {
+    /* ── shadcn-compat surface/ink (remapped to Atlas LIGHT) ── */
+    --background: 220 20% 97%;          /* app paper #F6F7F9 */
+    --foreground: 216 19% 11%;          /* ink #161A20 */
+    --card: 0 0% 100%;                  /* surface #FFFFFF */
+    --card-foreground: 216 19% 11%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 216 19% 11%;
+    --primary: 174 80% 27%;             /* signal teal #0E7C71 */
+    --primary-foreground: 0 0% 100%;
+    --secondary: 220 20% 95%;
+    --secondary-foreground: 216 19% 11%;
+    --muted: 220 18% 95%;
+    --muted-foreground: 217 11% 40%;    /* muted-ink #5B6472 */
+    --accent: 168 43% 93%;              /* signal tint #E6F5F2 */
+    --accent-foreground: 174 83% 20%;
+    --destructive: 3 72% 44%;           /* danger #C2281F (AA text) */
+    --destructive-foreground: 0 0% 100%;
+    --border: 217 17% 91%;              /* hairline #E3E6EB */
+    --input: 217 17% 91%;
+    --ring: 174 80% 27%;                /* focus = signal */
+    --radius: 0.625rem;                 /* 10px (md) */
+
+    /* categorical chart palette (Atlas-aligned) */
+    --chart-1: 174 80% 27%;   /* teal */
+    --chart-2: 38 90% 46%;    /* amber */
+    --chart-3: 212 32% 34%;   /* info slate */
+    --chart-4: 3 72% 44%;     /* danger */
+    --chart-5: 265 40% 50%;   /* violet */
+
+    /* sidebar (Atlas) */
+    --sidebar-background: 0 0% 100%;
+    --sidebar-foreground: 216 19% 11%;
+    --sidebar-primary: 174 80% 27%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 168 43% 93%;
+    --sidebar-accent-foreground: 174 83% 20%;
+    --sidebar-border: 217 17% 91%;
+    --sidebar-ring: 174 80% 27%;
+
+    /* ── Atlas semantic tokens (HSL triplets; new components) ── */
+    --signal: 174 80% 27%;
+    --signal-hover: 174 83% 23%;
+    --signal-bright: 173 80% 40%;       /* "live/connected" accents only */
+    --signal-solid: 174 80% 27%;        /* primary-action FILL — carries white text at AA in BOTH themes */
+    --signal-tint: 168 43% 93%;
+    --attention: 38 90% 46%;            /* markers / large fills (3:1 UI) */
+    --attention-text: 37 90% 38%;       /* amber TEXT (4.5:1) */
+    --attention-tint: 41 79% 92%;
+    --danger: 3 72% 44%;
+    --danger-tint: 0 69% 95%;
+    --info: 212 32% 34%;
+    --ink: 216 19% 11%;
+    --muted-ink: 217 11% 40%;
+    --faint-ink: 216 12% 59%;
+    --hairline: 217 17% 91%;
+    --paper: 220 20% 97%;
+    --surface: 0 0% 100%;
+
+    /* code chips (mono identity) */
+    --code-bg: 220 18% 95%;
+    --code-text: 216 19% 11%;
+  }
+
+  .dark {
+    --background: 218 25% 6%;           /* #0C0F14 */
+    --foreground: 218 21% 93%;          /* #E8EBF0 */
+    --card: 215 22% 11%;               /* surface #151A21 */
+    --card-foreground: 218 21% 93%;
+    --popover: 218 23% 14%;            /* raised #1B212B */
+    --popover-foreground: 218 21% 93%;
+    --primary: 173 77% 43%;            /* signal #19C2AD */
+    --primary-foreground: 218 25% 6%;
+    --secondary: 218 23% 14%;
+    --secondary-foreground: 218 21% 93%;
+    --muted: 215 22% 13%;
+    --muted-foreground: 218 14% 65%;
+    --accent: 176 47% 11%;             /* signal tint dark #0F2A28 */
+    --accent-foreground: 173 77% 60%;
+    --destructive: 0 84% 69%;          /* fill #F26D6D */
+    --destructive-foreground: 0 0% 100%;
+    --border: 218 18% 20%;             /* hairline #2A313D */
+    --input: 218 18% 20%;
+    --ring: 173 77% 43%;
+
+    --chart-1: 173 77% 43%;
+    --chart-2: 39 87% 59%;
+    --chart-3: 209 40% 60%;
+    --chart-4: 0 84% 69%;
+    --chart-5: 265 55% 68%;
+
+    --sidebar-background: 215 22% 11%;
+    --sidebar-foreground: 218 21% 93%;
+    --sidebar-primary: 173 77% 43%;
+    --sidebar-primary-foreground: 218 25% 6%;
+    --sidebar-accent: 176 47% 11%;
+    --sidebar-accent-foreground: 173 77% 60%;
+    --sidebar-border: 218 18% 20%;
+    --sidebar-ring: 173 77% 43%;
+
+    --signal: 173 77% 43%;
+    --signal-hover: 173 78% 37%;
+    --signal-bright: 173 80% 50%;
+    --signal-solid: 174 80% 27%;        /* same deep teal as light → white text stays AA on dark too */
+    --signal-tint: 176 47% 11%;
+    --attention: 39 87% 59%;
+    --attention-text: 39 87% 59%;
+    --attention-tint: 43 47% 12%;
+    --danger: 0 84% 69%;               /* fill */
+    --danger-tint: 0 40% 18%;
+    --info: 209 40% 60%;
+    --ink: 218 21% 93%;
+    --muted-ink: 218 14% 65%;
+    --faint-ink: 209 11% 47%;
+    --hairline: 218 18% 20%;
+    --paper: 218 25% 6%;
+    --surface: 215 22% 11%;
+
+    --code-bg: 218 23% 16%;
+    --code-text: 218 21% 93%;
+  }
+
+  /* Exploration Mode now uses the Atlas DARK palette (one design language) so
+     "The Map" no longer feels like a separate app. Kept as a scoped skin so it
+     works regardless of the global light/dark theme. */
+  [data-mode="exploration"] {
+    --background: 218 25% 6%;
+    --foreground: 218 21% 93%;
+    --card: 215 22% 11%;
+    --card-foreground: 218 21% 93%;
+    --popover: 218 23% 14%;
+    --popover-foreground: 218 21% 93%;
+    --primary: 173 77% 43%;
+    --primary-foreground: 218 25% 6%;
+    --secondary: 218 23% 14%;
+    --secondary-foreground: 218 21% 93%;
+    --muted: 215 22% 13%;
+    --muted-foreground: 218 14% 65%;
+    --accent: 176 47% 11%;
+    --accent-foreground: 173 77% 60%;
+    --destructive: 0 84% 69%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 218 18% 20%;
+    --input: 218 18% 20%;
+    --ring: 173 77% 43%;
+    --signal: 173 77% 43%;
+    --signal-bright: 173 80% 50%;
+    --attention: 39 87% 59%;
+    --code-bg: 218 23% 16%;
+    --code-text: 218 21% 93%;
+  }
+
+  :root {
+    /* ── Non-color tokens (4px space scale · radius · elevation · motion) ── */
+    --space-1: 4px;  --space-2: 8px;  --space-3: 12px; --space-4: 16px;
+    --space-6: 24px; --space-8: 32px; --space-12: 48px; --space-16: 64px;
+
+    --radius-sm: 6px; --radius-md: 10px; --radius-lg: 14px; --radius-full: 9999px;
+
+    --shadow-sm: 0 1px 2px rgba(16, 24, 40, 0.06);
+    --shadow-md: 0 4px 12px rgba(16, 24, 40, 0.10);
+    --shadow-lg: 0 12px 32px rgba(16, 24, 40, 0.16);
+
+    --duration-micro: 150ms;
+    --duration-menu: 220ms;
+    --duration-iris: 420ms;
+    --ease-standard: cubic-bezier(0.4, 0, 0.2, 1);
+
+    /* type scale */
+    --text-caption: 0.75rem; --text-sm: 0.875rem; --text-base: 1rem;
+    --text-lead: 1.125rem; --text-h3: 1.375rem; --text-h2: 1.75rem;
+    --text-h1: 2.25rem; --text-display: 2.875rem;
+  }
+
+  .dark {
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.30);
+    --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.40);
+    --shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.50);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    :root {
+      --duration-micro: 0ms;
+      --duration-menu: 0ms;
+      --duration-iris: 0ms;
+    }
+  }
+}

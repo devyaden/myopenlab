@@ -167,7 +167,6 @@ export default function SignInForm() {
                 type="email"
                 placeholder="Email"
                 error={errors.email ? errors.email.message : undefined}
-                className="bg-yadn-primary-gray/5 border-yadn-primary-gray/10 text-yadn-primary-gray placeholder:text-yadn-primary-gray/40 focus:border-yadn-acctext-yadn-accent-green focus:ring-yadn-acctext-yadn-accent-green"
                 disabled={isLoading}
                 onFocus={() => handleFieldFocus("email")}
                 onBlur={() => handleFieldBlur("email")}
@@ -188,7 +187,7 @@ export default function SignInForm() {
                 placeholder="Password"
                 error={errors.password ? errors.password.message : undefined}
                 showPasswordToggle
-                className="bg-yadn-primary-gray/5 border-yadn-primary-gray/10 text-yadn-primary-gray placeholder:text-yadn-primary-gray/40 focus:border-yadn-acctext-yadn-accent-green focus:ring-yadn-acctext-yadn-accent-green pr-10"
+                className="pr-10"
                 disabled={isLoading}
                 onFocus={() => handleFieldFocus("password")}
                 onBlur={() => handleFieldBlur("password")}
@@ -204,12 +203,11 @@ export default function SignInForm() {
               id="remember-me"
               checked={rememberMe}
               onCheckedChange={handleRememberMeChange}
-              className="border-yadn-primary-gray/30 data-[state=checked]:bg-yadn-acctext-yadn-accent-green data-[state=checked]:border-yadn-acctext-yadn-accent-green"
               disabled={isLoading}
             />
             <label
               htmlFor="remember-me"
-              className="text-sm text-yadn-primary-gray/80"
+              className="text-sm text-muted-foreground"
             >
               Keep me logged in
             </label>
@@ -217,7 +215,7 @@ export default function SignInForm() {
 
           <Link
             href="/forgot-password"
-            className="text-sm text-yadn-accent-green hover:underline"
+            className="text-sm text-signal hover:underline"
             tabIndex={isLoading ? -1 : 0}
             aria-disabled={isLoading}
             onClick={handleForgotPasswordClick}
@@ -229,8 +227,9 @@ export default function SignInForm() {
         {/* Sign In Button */}
         <Button
           type="submit"
+          variant="signal"
           disabled={isLoading}
-          className="w-full bg-yadn-accent-green hover:bg-yadn-acc text-yadn-accent-green/90 text-[#000A1F] font-medium py-6"
+          className="h-11 w-full text-base"
           onClick={() => {
             tracker.trackInteraction(InteractionEvent.BUTTON_CLICK, {
               element_type: "button",
@@ -252,12 +251,12 @@ export default function SignInForm() {
 
       {/* Sign Up Link */}
       <div className="text-center text-sm">
-        <span className="text-yadn-primary-gray/60">
+        <span className="text-muted-foreground">
           Don&apos;t have an account?
         </span>{" "}
         <Link
           href="/auth/signup"
-          className="text-yadn-accent-green hover:underline font-medium"
+          className="text-signal hover:underline font-medium"
           tabIndex={isLoading ? -1 : 0}
           aria-disabled={isLoading}
           onClick={handleSignupLinkClick}

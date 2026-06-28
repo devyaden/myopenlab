@@ -48,7 +48,7 @@ export function PresenceAvatars({
         ))}
       </div>
       {extra > 0 && (
-        <span className="ml-1 text-xs text-gray-500">+{extra}</span>
+        <span className="ml-1 text-xs text-muted-foreground">+{extra}</span>
       )}
     </div>
   );

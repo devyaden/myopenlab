@@ -1,7 +1,10 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
+import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
+import { TeachingEmptyState } from "@/components/ui/teaching-empty-state";
 import { useAgentStore } from "@/lib/store/useAgent";
 import { useCanvasStore } from "@/lib/store/useCanvas";
 import { useDocumentStore } from "@/components/editor/hooks/useDocument";
@@ -32,6 +35,10 @@ import {
   Sparkles,
   Check,
   ArrowUpRight,
+  Pencil,
+  Link2,
+  Users,
+  AlertTriangle,
 } from "lucide-react";
 
 interface Proposal {
@@ -131,11 +138,47 @@ function DiffRows({ added, removed }: { added: string[]; removed: string[] }) {
         </li>
       ))}
       {added.map((t, i) => (
-        <li key={`a${i}`} className="text-green-600">
+        <li key={`a${i}`} className="text-signal">
           + {t}
         </li>
       ))}
     </ul>
+  );
+}
+
+// A scannable type badge (icon + label + color) so a user can tell at a glance
+// what a proposal does: create = "New" (signal), edit/patch = "Edit" (attention),
+// link = "Link" (muted), directory = "Directory" (signal/people).
+function ProposalTypeBadge({ proposal }: { proposal: Proposal }) {
+  const t = useT();
+  let Icon = Plus;
+  let label = t("agent.proposal.badge.new");
+  let tone = "border-signal/30 bg-signal/10 text-signal";
+
+  if (proposal.target === "directory") {
+    Icon = Users;
+    label = t("agent.proposal.badge.directory");
+    tone = "border-signal/30 bg-signal/10 text-signal";
+  } else if (proposal.kind === "link") {
+    Icon = Link2;
+    label = t("agent.proposal.badge.link");
+    tone = "border-border bg-muted text-muted-foreground";
+  } else if (proposal.kind === "patch" || proposal.kind === "update") {
+    Icon = Pencil;
+    label = t("agent.proposal.badge.edit");
+    tone = "border-attention/40 bg-attention-tint text-attention-text";
+  }
+
+  return (
+    <span
+      className={cn(
+        "inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-semibold",
+        tone
+      )}
+    >
+      <Icon size={11} />
+      {label}
+    </span>
   );
 }
 
@@ -164,7 +207,7 @@ function ProposalPreview({
       // the user can view the new artifact and come back to apply the rest.
       <Link
         href={playbookHref(proposal.appliedCanvasId, proposal.appliedType)}
-        className="flex items-center gap-1 text-xs font-medium text-primary hover:underline"
+        className="flex items-center gap-1 text-xs font-medium text-signal hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-background"
       >
         {t("agent.proposal.open")} <ArrowUpRight size={12} />
       </Link>
@@ -172,11 +215,13 @@ function ProposalPreview({
 
   const statusBadge =
     proposal.status === "applied" ? (
-      <span className="flex items-center gap-1 text-xs text-green-600">
+      <span className="flex items-center gap-1 text-xs font-medium text-signal">
         <Check size={13} /> {t("agent.proposal.applied")}
       </span>
     ) : proposal.status === "failed" ? (
-      <span className="text-xs text-destructive">{t("agent.proposal.failed")}</span>
+      <span className="flex items-center gap-1 text-xs font-medium text-destructive">
+        <AlertTriangle size={13} /> {t("agent.proposal.failed")}
+      </span>
     ) : proposal.status === "discarded" ? (
       <span className="text-xs text-muted-foreground">
         {t("agent.proposal.discarded")}
@@ -193,11 +238,13 @@ function ProposalPreview({
   // Apply when pending; Retry when a previous apply failed.
   const footer =
     proposal.status === "pending" || proposal.status === "failed" ? (
-      <div className="flex justify-end gap-2 border-t px-3 py-2">
-        <button
+      <div className="flex justify-end gap-2 border-t border-border px-3 py-2">
+        <Button
+          variant="signal"
+          size="sm"
           onClick={onApply}
           disabled={applying || disabled}
-          className="flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:opacity-90 disabled:opacity-60"
+          className="h-8 px-3 text-xs"
         >
           {applying ? (
             <Loader2 size={13} className="animate-spin" />
@@ -207,22 +254,35 @@ function ProposalPreview({
           {proposal.status === "failed"
             ? t("agent.proposal.retry")
             : t("agent.proposal.apply")}
-        </button>
+        </Button>
       </div>
     ) : null;
+
+  // Shared card chrome: a scannable header (type badge + plain-language title) and
+  // the card shell, so every proposal kind looks like a member of one family.
+  const cardClass =
+    "overflow-hidden rounded-lg border border-border bg-card shadow-atlas-sm";
+  const Header = ({ title }: { title: ReactNode }) => (
+    <div className="flex items-center justify-between gap-2 border-b border-border bg-muted/40 px-3 py-2">
+      <div className="flex min-w-0 items-center gap-2">
+        <ProposalTypeBadge proposal={proposal} />
+        <span className="truncate text-xs font-medium text-foreground">
+          {title}
+        </span>
+      </div>
+      {headerRight}
+    </div>
+  );
 
   // ── Link proposal (a typed cross-reference) ────────────────────────────────
   if (isLink) {
     const r = proposal.reference;
     const to = r?.toCode || r?.toCanvas || "target";
     return (
-      <div className="rounded-lg border bg-background">
-        <div className="flex items-center justify-between border-b px-3 py-2">
-          <span className="text-xs font-medium">{t("agent.proposal.newLink")}</span>
-          {headerRight}
-        </div>
+      <div className={cardClass}>
+        <Header title={t("agent.proposal.newLink")} />
         <div className="px-3 py-2 text-xs">
-          <span className="font-mono text-green-600">
+          <span className="font-mono text-signal">
             ＋ {r?.fromNode ? "step → " : "this → "}
             {to}
           </span>
@@ -242,15 +302,12 @@ function ProposalPreview({
       after.map(blockLabel)
     );
     return (
-      <div className="rounded-lg border bg-background">
-        <div className="flex items-center justify-between border-b px-3 py-2">
-          <span className="text-xs font-medium">{t("agent.proposal.editDocument")}</span>
-          {headerRight}
-        </div>
+      <div className={cardClass}>
+        <Header title={t("agent.proposal.editDocument")} />
         <div className="max-h-[220px] overflow-y-auto px-3 py-2">
           <DiffRows added={added} removed={removed} />
         </div>
-        <div className="border-t px-3 py-1 text-[10px] text-muted-foreground">
+        <div className="border-t border-border px-3 py-1 text-[10px] text-muted-foreground">
           {proposal.ops?.length ?? 0} op{(proposal.ops?.length ?? 0) === 1 ? "" : "s"}
         </div>
         {footer}
@@ -265,11 +322,8 @@ function ProposalPreview({
     const label = (n: any) => String(n?.data?.label ?? n?.label ?? "(row)");
     const { added, removed } = multisetDiff(before.map(label), after.map(label));
     return (
-      <div className="rounded-lg border bg-background">
-        <div className="flex items-center justify-between border-b px-3 py-2">
-          <span className="text-xs font-medium">{t("agent.proposal.editDirectory")}</span>
-          {headerRight}
-        </div>
+      <div className={cardClass}>
+        <Header title={t("agent.proposal.editDirectory")} />
         <div className="max-h-[220px] overflow-y-auto px-3 py-2">
           <DiffRows added={added} removed={removed} />
         </div>
@@ -299,12 +353,9 @@ function ProposalPreview({
       targetHandle: e.targetHandle || "d",
     }));
     return (
-      <div className="rounded-lg border bg-background">
-        <div className="flex items-center justify-between border-b px-3 py-2">
-          <span className="text-xs font-medium">{t("agent.proposal.editFlow")}</span>
-          {headerRight}
-        </div>
-        <div className="h-[180px] w-full">
+      <div className={cardClass}>
+        <Header title={t("agent.proposal.editFlow")} />
+        <div className="h-[180px] w-full bg-background">
           <ReactFlow
             nodes={nodes}
             edges={edges}
@@ -321,7 +372,7 @@ function ProposalPreview({
           </ReactFlow>
         </div>
         {(added.length > 0 || removed.length > 0) && (
-          <div className="max-h-[120px] overflow-y-auto border-t px-3 py-2">
+          <div className="max-h-[120px] overflow-y-auto border-t border-border px-3 py-2">
             <DiffRows added={added} removed={removed} />
           </div>
         )}
@@ -333,20 +384,17 @@ function ProposalPreview({
   if (isDirectory) {
     const people = proposal.people ?? [];
     return (
-      <div className="rounded-lg border bg-background">
-        <div className="flex items-center justify-between border-b px-3 py-2">
-          <span className="text-xs font-medium">
-            {t("agent.proposal.newDirectory", {
-              kind: proposal.directory_kind ?? "person",
-              name: proposal.name ?? "Directory",
-            })}
-          </span>
-          {headerRight}
-        </div>
+      <div className={cardClass}>
+        <Header
+          title={t("agent.proposal.newDirectory", {
+            kind: proposal.directory_kind ?? "person",
+            name: proposal.name ?? "Directory",
+          })}
+        />
         <div className="max-h-[220px] overflow-y-auto px-3 py-2">
           {people.length === 0 ? (
             <p className="text-xs text-muted-foreground">
-              An empty directory (you can add rows after).
+              Starts empty — you can add rows after.
             </p>
           ) : (
             <ul className="space-y-0.5 text-xs text-muted-foreground">
@@ -359,7 +407,7 @@ function ProposalPreview({
             </ul>
           )}
         </div>
-        <div className="border-t px-3 py-1 text-[10px] text-muted-foreground">
+        <div className="border-t border-border px-3 py-1 text-[10px] text-muted-foreground">
           {people.length} row{people.length === 1 ? "" : "s"}
         </div>
         {footer}
@@ -371,21 +419,20 @@ function ProposalPreview({
     const summary = blocksToPlainText(proposal.body ?? [], 600);
     const blockCount = (proposal.body ?? []).length;
     return (
-      <div className="rounded-lg border bg-background">
-        <div className="flex items-center justify-between border-b px-3 py-2">
-          <span className="text-xs font-medium">
-            {proposal.kind === "create"
+      <div className={cardClass}>
+        <Header
+          title={
+            proposal.kind === "create"
               ? t("agent.proposal.newDocument", { name: proposal.name ?? "Untitled" })
-              : t("agent.proposal.updateDocument")}
-          </span>
-          {headerRight}
-        </div>
+              : t("agent.proposal.updateDocument")
+          }
+        />
         <div className="max-h-[220px] overflow-y-auto px-3 py-2">
           <pre className="whitespace-pre-wrap break-words font-sans text-xs leading-relaxed text-muted-foreground">
-            {summary || "(empty document)"}
+            {summary || "Empty document."}
           </pre>
         </div>
-        <div className="border-t px-3 py-1 text-[10px] text-muted-foreground">
+        <div className="border-t border-border px-3 py-1 text-[10px] text-muted-foreground">
           {blockCount} block{blockCount === 1 ? "" : "s"}
         </div>
         {footer}
@@ -405,16 +452,15 @@ function ProposalPreview({
     targetHandle: e.targetHandle || "d",
   }));
   return (
-    <div className="rounded-lg border bg-background">
-      <div className="flex items-center justify-between border-b px-3 py-2">
-        <span className="text-xs font-medium">
-          {proposal.kind === "create"
+    <div className={cardClass}>
+      <Header
+        title={
+          proposal.kind === "create"
             ? t("agent.proposal.newPlaybook", { name: proposal.name ?? "Untitled" })
-            : t("agent.proposal.updatePlaybook")}
-        </span>
-        {headerRight}
-      </div>
-      <div className="h-[200px] w-full">
+            : t("agent.proposal.updatePlaybook")
+        }
+      />
+      <div className="h-[200px] w-full bg-background">
         <ReactFlow
           nodes={nodes}
           edges={edges}
@@ -430,22 +476,7 @@ function ProposalPreview({
           <Background />
         </ReactFlow>
       </div>
-      {proposal.status === "pending" && (
-        <div className="flex justify-end gap-2 border-t px-3 py-2">
-          <button
-            onClick={onApply}
-            disabled={applying}
-            className="flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:opacity-90 disabled:opacity-60"
-          >
-            {applying ? (
-              <Loader2 size={13} className="animate-spin" />
-            ) : (
-              <Check size={13} />
-            )}
-            {t("agent.proposal.apply")}
-          </button>
-        </div>
-      )}
+      {footer}
     </div>
   );
 }
@@ -1074,11 +1105,15 @@ export function AgentChat() {
   if (!isOpen) return null;
 
   return (
-    <aside className="fixed right-0 top-0 z-50 flex h-screen w-full max-w-[440px] flex-col border-l bg-background shadow-2xl rtl:left-0 rtl:right-auto rtl:border-l-0 rtl:border-r">
-      <div className="flex items-center justify-between border-b px-4 py-3">
+    <aside className="fixed right-0 top-0 z-50 flex h-screen w-full max-w-[440px] flex-col border-l border-border bg-background shadow-atlas-lg rtl:left-0 rtl:right-auto rtl:border-l-0 rtl:border-r">
+      <div className="flex items-center justify-between border-b border-border px-4 py-3">
         <div className="flex items-center gap-2">
-          <Sparkles size={18} className="text-primary" />
-          <span className="font-semibold">{t("agent.title")}</span>
+          <span className="flex h-7 w-7 items-center justify-center rounded-full bg-signal-tint text-signal">
+            <Sparkles size={16} />
+          </span>
+          <span className="font-display font-semibold text-foreground">
+            {t("agent.title")}
+          </span>
         </div>
         <div className="flex items-center gap-1">
           <button
@@ -1086,21 +1121,21 @@ export function AgentChat() {
               setShowHistory((s) => !s);
               if (!showHistory) loadConversations();
             }}
-            className="rounded-md p-1.5 text-muted-foreground hover:bg-muted"
+            className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             title={t("agent.history")}
           >
             <History size={17} />
           </button>
           <button
             onClick={startNewChat}
-            className="rounded-md p-1.5 text-muted-foreground hover:bg-muted"
+            className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             title={t("agent.newChat")}
           >
             <Plus size={17} />
           </button>
           <button
             onClick={close}
-            className="rounded-md p-1.5 text-muted-foreground hover:bg-muted"
+            className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             title={t("agent.close")}
           >
             <X size={17} />
@@ -1109,7 +1144,7 @@ export function AgentChat() {
       </div>
 
       {showHistory && (
-        <div className="max-h-48 overflow-y-auto border-b bg-muted/30">
+        <div className="max-h-48 overflow-y-auto border-b border-border bg-muted/30">
           {conversations.length === 0 ? (
             <p className="px-4 py-3 text-sm text-muted-foreground">
               {t("agent.noConversations")}
@@ -1119,7 +1154,7 @@ export function AgentChat() {
               <button
                 key={c.id}
                 onClick={() => openConversation(c.id)}
-                className="block w-full truncate px-4 py-2 text-left text-sm hover:bg-muted"
+                className="block w-full truncate px-4 py-2 text-left text-sm text-foreground transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rtl:text-right"
               >
                 {c.title || t("agent.untitled")}
               </button>
@@ -1130,13 +1165,14 @@ export function AgentChat() {
 
       <div ref={scrollRef} className="flex-1 space-y-4 overflow-y-auto p-4">
         {messages.length === 0 && !streaming && (
-          <div className="mt-8 text-sm text-muted-foreground">
-            <Sparkles size={28} className="mx-auto mb-3 text-primary/60" />
-            <p className="text-center font-medium text-foreground">
-              {t("agent.empty.title")}
-            </p>
-            <p className="mt-1 text-center">{t("agent.empty.hint")}</p>
-            <div className="mx-auto mt-3 flex max-w-[320px] flex-col gap-1.5">
+          <div>
+            <TeachingEmptyState
+              compact
+              icon={<Sparkles size={20} />}
+              title={t("agent.empty.title")}
+              description={t("agent.empty.hint")}
+            />
+            <div className="mx-auto flex max-w-[320px] flex-col gap-1.5">
               {(["list", "create", "edit"] as const).map((k) => {
                 const ex = t(`agent.examples.${k}`);
                 return (
@@ -1146,7 +1182,7 @@ export function AgentChat() {
                       void send(ex, pendingIntent ?? undefined);
                       setPendingIntent(null);
                     }}
-                    className="rounded-md border bg-background px-3 py-2 text-left text-xs text-foreground hover:bg-muted"
+                    className="rounded-md border border-border bg-card px-3 py-2 text-left text-xs text-foreground transition-colors hover:border-signal/40 hover:bg-signal/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rtl:text-right"
                   >
                     {ex}
                   </button>
@@ -1164,25 +1200,35 @@ export function AgentChat() {
 
         {messages.map((m, i) => (
           <div key={i} className="space-y-2">
-            <div
-              className={
-                m.role === "user"
-                  ? "ml-auto w-fit max-w-[85%] rounded-2xl rounded-br-sm bg-primary px-3 py-2 text-sm text-primary-foreground rtl:ml-0 rtl:mr-auto"
-                  : "w-fit max-w-[90%] text-sm leading-relaxed text-foreground whitespace-pre-wrap"
-              }
-            >
-              {m.text}
-            </div>
+            {m.role === "user" ? (
+              <div className="ml-auto w-fit max-w-[85%] whitespace-pre-wrap rounded-2xl rounded-br-sm bg-signal/10 px-3 py-2 text-sm text-foreground rtl:ml-0 rtl:mr-auto rtl:rounded-br-2xl rtl:rounded-bl-sm">
+                {m.text}
+              </div>
+            ) : (
+              <div className="flex gap-2">
+                <span
+                  className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-signal-tint text-signal"
+                  aria-hidden
+                >
+                  <Sparkles size={11} />
+                </span>
+                <div className="w-fit max-w-[90%] whitespace-pre-wrap text-sm leading-relaxed text-foreground">
+                  {m.text}
+                </div>
+              </div>
+            )}
             {m.proposals && m.proposals.length > 1 && (() => {
               const pendingCount = m.proposals.filter(
                 (p) => p.status === "pending" || p.status === "failed"
               ).length;
               if (pendingCount < 2) return null;
               return (
-                <button
+                <Button
+                  variant="signal"
+                  size="sm"
                   onClick={() => applyAll(i, m.proposals!)}
                   disabled={applyingAll || applyingId !== null}
-                  className="flex items-center gap-1.5 rounded-md border border-primary bg-primary/5 px-3 py-1.5 text-xs font-medium text-primary hover:bg-primary/10 disabled:opacity-60"
+                  className="h-8 px-3 text-xs"
                 >
                   {applyingAll ? (
                     <Loader2 size={13} className="animate-spin" />
@@ -1190,7 +1236,7 @@ export function AgentChat() {
                     <Check size={13} />
                   )}
                   {t("agent.proposal.applyAll", { count: pendingCount })}
-                </button>
+                </Button>
               );
             })()}
             {m.proposals?.map((p) => (
@@ -1206,64 +1252,108 @@ export function AgentChat() {
         ))}
 
         {streaming && (
-          <div className="space-y-1">
-            {toolActivity && (
-              <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                <Loader2 size={12} className="animate-spin" />
-                {t(toolLabelKey(toolActivity))}
-              </div>
-            )}
-            <div className="whitespace-pre-wrap text-sm leading-relaxed text-foreground">
-              {liveText || (
-                <span className="text-muted-foreground">{t("agent.thinking")}</span>
+          <div className="flex gap-2">
+            <span
+              className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-signal-tint text-signal"
+              aria-hidden
+            >
+              <Sparkles size={11} />
+            </span>
+            <div className="space-y-1">
+              {toolActivity && (
+                <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                  <Loader2 size={12} className="animate-spin" />
+                  {t(toolLabelKey(toolActivity))}
+                </div>
               )}
+              <div className="whitespace-pre-wrap text-sm leading-relaxed text-foreground">
+                {liveText || (
+                  <span className="text-muted-foreground">{t("agent.thinking")}</span>
+                )}
+              </div>
             </div>
           </div>
         )}
       </div>
 
-      <div className="border-t p-3">
-        {usageMeter && usageMeter.contextCap > 0 && (
-          <div className="mb-2 space-y-1">
-            <div className="flex items-center justify-between text-[10px] text-muted-foreground">
-              <span>
-                {Math.round(
-                  (usageMeter.contextTokens / usageMeter.contextCap) * 100
-                )}
-                % context
-              </span>
-              {usageMeter.dailyLimit > 0 && (
-                <span>
-                  {Math.round(
-                    (usageMeter.daily / usageMeter.dailyLimit) * 100
+      <div className="border-t border-border p-3">
+        {usageMeter &&
+          (usageMeter.dailyLimit > 0 || usageMeter.contextCap > 0) &&
+          (() => {
+            // The actionable limit is the daily AI budget; fall back to the
+            // context window when no daily limit is configured.
+            const hasDaily = usageMeter.dailyLimit > 0;
+            const pct = hasDaily
+              ? Math.min(
+                  100,
+                  Math.round((usageMeter.daily / usageMeter.dailyLimit) * 100)
+                )
+              : Math.min(
+                  100,
+                  Math.round(
+                    (usageMeter.contextTokens / usageMeter.contextCap) * 100
+                  )
+                );
+            const near = pct >= 80;
+            const contextPct =
+              usageMeter.contextCap > 0
+                ? Math.round(
+                    (usageMeter.contextTokens / usageMeter.contextCap) * 100
+                  )
+                : null;
+            return (
+              <div className="mb-2.5 space-y-1">
+                <div className="flex items-center justify-between text-[11px]">
+                  <span
+                    className={cn(
+                      "font-medium",
+                      near ? "text-attention-text" : "text-muted-foreground"
+                    )}
+                  >
+                    {near && (
+                      <AlertTriangle
+                        size={11}
+                        className="mr-1 inline align-[-1px]"
+                      />
+                    )}
+                    {near
+                      ? t("agent.budget.near")
+                      : t("agent.budget.label", { percent: pct })}
+                  </span>
+                  {contextPct !== null && (
+                    <span className="text-muted-foreground tabular-nums">
+                      {contextPct}% context
+                    </span>
                   )}
-                  % daily tokens
-                </span>
-              )}
-            </div>
-            <div className="h-1 w-full overflow-hidden rounded-full bg-muted">
-              <div
-                className={`h-full ${
-                  usageMeter.contextTokens / usageMeter.contextCap > 0.8
-                    ? "bg-destructive"
-                    : "bg-primary"
-                }`}
-                style={{
-                  width: `${Math.min(100, Math.round((usageMeter.contextTokens / usageMeter.contextCap) * 100))}%`,
-                }}
-              />
-            </div>
-          </div>
-        )}
+                </div>
+                <div
+                  className="h-1.5 w-full overflow-hidden rounded-full bg-muted"
+                  role="progressbar"
+                  aria-valuenow={pct}
+                  aria-valuemin={0}
+                  aria-valuemax={100}
+                  aria-label={t("agent.budget.label", { percent: pct })}
+                >
+                  <div
+                    className={cn(
+                      "h-full rounded-full transition-[width] duration-menu",
+                      near ? "bg-attention" : "bg-signal"
+                    )}
+                    style={{ width: `${pct}%` }}
+                  />
+                </div>
+              </div>
+            );
+          })()}
         {!streaming &&
           messages.length > 0 &&
           messages[messages.length - 1].role === "assistant" && (
             <button
               onClick={() => send("continue")}
-              className="mb-2 flex items-center gap-1.5 rounded-md border bg-muted/40 px-3 py-1.5 text-xs font-medium text-foreground hover:bg-muted"
+              className="mb-2 flex items-center gap-1.5 rounded-md border border-border bg-muted/40 px-3 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               title={t("agent.continueBuilding")}
             >
-              <Sparkles size={13} className="text-primary" />
+              <Sparkles size={13} className="text-signal" />
               {t("agent.continueBuilding")}
             </button>
           )}
@@ -1310,8 +1400,8 @@ export function AgentChat() {
           <button
             onClick={() => fileRef.current?.click()}
             disabled={uploading}
-            className="rounded-md p-2 text-muted-foreground hover:bg-muted disabled:opacity-50"
-            title="Attach file"
+            className="rounded-md p-2 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
+            title={t("agent.attach")}
           >
             {uploading ? (
               <Loader2 size={18} className="animate-spin" />
@@ -1331,16 +1421,18 @@ export function AgentChat() {
             }}
             placeholder={t("agent.placeholder")}
             rows={1}
-            className="flex-1 resize-none rounded-md border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
+            className="flex-1 resize-none rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-background"
           />
-          <button
+          <Button
+            variant="signal"
+            size="icon"
             onClick={submit}
             disabled={streaming || !input.trim()}
-            className="rounded-md bg-primary p-2 text-primary-foreground hover:opacity-90 disabled:opacity-50"
+            className="h-10 w-10 shrink-0"
             title={t("agent.askAi")}
           >
             <Send size={18} />
-          </button>
+          </Button>
         </div>
       </div>
     </aside>

@@ -143,7 +143,7 @@ export function EditSubscriptionModal({
         <div className="space-y-4 py-2">
           <div className="space-y-2">
             <Label htmlFor="title">
-              Title <span className="text-red-500">*</span>
+              Title <span className="text-destructive">*</span>
             </Label>
             <Input
               id="title"
@@ -153,7 +153,7 @@ export function EditSubscriptionModal({
               className={errors.title ? "border-red-500" : ""}
             />
             {errors.title && (
-              <span className="text-sm text-red-500">{errors.title}</span>
+              <span className="text-sm text-destructive">{errors.title}</span>
             )}
           </div>
 
@@ -171,7 +171,7 @@ export function EditSubscriptionModal({
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="price">
-                Price ($) <span className="text-red-500">*</span>
+                Price ($) <span className="text-destructive">*</span>
               </Label>
               <Input
                 id="price"
@@ -184,12 +184,12 @@ export function EditSubscriptionModal({
                 className={errors.price ? "border-red-500" : ""}
               />
               {errors.price && (
-                <span className="text-sm text-red-500">{errors.price}</span>
+                <span className="text-sm text-destructive">{errors.price}</span>
               )}
             </div>
             <div className="space-y-2">
               <Label htmlFor="duration">
-                Duration (days) <span className="text-red-500">*</span>
+                Duration (days) <span className="text-destructive">*</span>
               </Label>
               <Input
                 id="duration"
@@ -202,7 +202,7 @@ export function EditSubscriptionModal({
                 className={errors.duration ? "border-red-500" : ""}
               />
               {errors.duration && (
-                <span className="text-sm text-red-500">{errors.duration}</span>
+                <span className="text-sm text-destructive">{errors.duration}</span>
               )}
             </div>
           </div>
@@ -210,7 +210,7 @@ export function EditSubscriptionModal({
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <Label htmlFor="features">
-                Features <span className="text-red-500">*</span>
+                Features <span className="text-destructive">*</span>
               </Label>
               <Button
                 type="button"
@@ -222,7 +222,7 @@ export function EditSubscriptionModal({
               </Button>
             </div>
             {errors.features && (
-              <span className="text-sm text-red-500">{errors.features}</span>
+              <span className="text-sm text-destructive">{errors.features}</span>
             )}
             <div className="space-y-2">
               {features.map((feature, index) => (

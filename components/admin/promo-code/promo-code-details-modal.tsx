@@ -150,7 +150,7 @@ export function PromoCodeDetailsModal({
                 <div>
                   <h3 className="text-sm font-medium">Code</h3>
                   <div className="flex items-center gap-2 mt-1">
-                    <code className="px-2 py-1 bg-gray-100 rounded text-sm">
+                    <code className="px-2 py-1 bg-muted rounded text-sm">
                       {promoCode.code}
                     </code>
                     <Button
@@ -220,7 +220,7 @@ export function PromoCodeDetailsModal({
                     <h3 className="text-sm font-medium">Allowed Domains</h3>
                     <div className="mt-2 space-y-1">
                       {promoCode.allowed_domains.length === 0 ? (
-                        <p className="text-sm text-gray-500">
+                        <p className="text-sm text-muted-foreground">
                           No domains specified
                         </p>
                       ) : (
@@ -237,7 +237,7 @@ export function PromoCodeDetailsModal({
                     <h3 className="text-sm font-medium">Allowed Emails</h3>
                     <div className="mt-2 space-y-1">
                       {promoCode.allowed_emails.length === 0 ? (
-                        <p className="text-sm text-gray-500">
+                        <p className="text-sm text-muted-foreground">
                           No emails specified
                         </p>
                       ) : (
@@ -264,11 +264,11 @@ export function PromoCodeDetailsModal({
             </CardHeader>
             <CardContent>
               {loading ? (
-                <p className="text-sm text-gray-500">
+                <p className="text-sm text-muted-foreground">
                   Loading user subscriptions...
                 </p>
               ) : userSubscriptions.length === 0 ? (
-                <p className="text-sm text-gray-500">
+                <p className="text-sm text-muted-foreground">
                   No users have used this promo code yet.
                 </p>
               ) : (

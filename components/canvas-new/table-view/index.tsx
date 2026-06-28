@@ -83,7 +83,6 @@ import type { Edge, Node } from "reactflow";
 import * as z from "zod";
 import { Checkbox } from "../../ui/checkbox";
 import { AddColumnSidebar } from "../add-column-sidebar";
-import { ViewModeSwitcher } from "../view-mode-switcher";
 import { ImportDialog } from "./import-dialog";
 import SortableTableRow from "./sortable-table-row";
 import {
@@ -2228,9 +2227,9 @@ const TableView = forwardRef<
 
     return (
       <>
-        <div className="w-full bg-white">
-          <div className="flex items-center justify-between px-8 py-2 border-b border-gray-100">
-            <div className="text-base text-gray-700 font-medium"></div>
+        <div className="w-full bg-card">
+          <div className="flex items-center justify-between px-8 py-2 border-b border-border">
+            <div className="text-base text-muted-foreground font-medium"></div>
             <div className="flex items-center gap-2 min-h-10">
               {(selectedNodes.length > 0 ||
                 sortField ||
@@ -2239,7 +2238,7 @@ const TableView = forwardRef<
                   {sortField && (
                     <Button
                       variant="outline"
-                      className="text-red-600 font-medium text-sm hover:bg-red-50 ml-2 rounded-md"
+                      className="text-destructive font-medium text-sm hover:bg-destructive/10 ml-2 rounded-md"
                       onClick={() => {
                         setSortField(null);
                         setSortDirection(null);
@@ -2252,7 +2251,7 @@ const TableView = forwardRef<
                   {filterGroups.length > 0 && (
                     <Button
                       variant="outline"
-                      className="text-red-600 font-medium text-sm hover:bg-red-50 ml-2 rounded-md"
+                      className="text-destructive font-medium text-sm hover:bg-destructive/10 ml-2 rounded-md"
                       onClick={clearAllFilters}
                     >
                       <FilterX className="h-4 w-4 mr-2" />
@@ -2263,7 +2262,7 @@ const TableView = forwardRef<
                     <>
                       <Button
                         variant="outline"
-                        className="text-gray-500 font-medium text-sm hover:bg-gray-50 ml-2 rounded-md"
+                        className="text-muted-foreground font-medium text-sm hover:bg-accent ml-2 rounded-md"
                         onClick={() => setDeleteSelectedDialogOpen(true)}
                         disabled={selectedNodes.length === 0 || readOnly}
                       >
@@ -2273,7 +2272,7 @@ const TableView = forwardRef<
 
                       <Button
                         variant="outline"
-                        className="text-gray-500 font-medium text-sm hover:bg-gray-50 ml-2 rounded-md"
+                        className="text-muted-foreground font-medium text-sm hover:bg-accent ml-2 rounded-md"
                         onClick={handleDuplicateSelected}
                         disabled={selectedNodes.length === 0 || readOnly}
                       >
@@ -2290,7 +2289,7 @@ const TableView = forwardRef<
                   {/* ADD THIS NEW IMPORT BUTTON */}
                   <Button
                     variant="outline"
-                    className="font-medium text-sm hover:bg-gray-50 ml-2 rounded-md bg-yadn-accent-green/10 hover:bg-yadn-accent-green/20 text-yadn-accent-green border-yadn-accent-green/20"
+                    className="font-medium text-sm hover:bg-accent ml-2 rounded-md bg-yadn-accent-green/10 hover:bg-yadn-accent-green/20 text-yadn-accent-green border-yadn-accent-green/20"
                     onClick={() => setImportModalOpen(true)}
                   >
                     <Upload className="h-4 w-4 mr-2" />
@@ -2299,13 +2298,13 @@ const TableView = forwardRef<
 
                   <Button
                     variant={filterGroups.length > 0 ? "default" : "outline"}
-                    className={`text-sm hover:bg-gray-50 ml-2 rounded-md ${filterGroups.length > 0 ? "bg-blue-50 text-blue-700 hover:bg-blue-100 border-blue-200" : "text-gray-500"}`}
+                    className={`text-sm hover:bg-accent ml-2 rounded-md ${filterGroups.length > 0 ? "bg-signal/10 text-signal hover:bg-signal/20 border-signal/30" : "text-muted-foreground"}`}
                     onClick={() => {
                       setFilterDialogOpen(true);
                     }}
                   >
                     <Filter
-                      className={`h-4 w-4 mr-2 ${filterGroups.length > 0 ? "text-blue-700" : ""}`}
+                      className={`h-4 w-4 mr-2 ${filterGroups.length > 0 ? "text-signal" : ""}`}
                     />
                     Filter{" "}
                     {filterGroups.length > 0 ? `(${filterGroups.length})` : ""}
@@ -2313,11 +2312,11 @@ const TableView = forwardRef<
 
                   <Button
                     variant={sortField ? "default" : "outline"}
-                    className={`text-sm hover:bg-gray-50 ml-2 rounded-md ${sortField ? "bg-blue-50 text-blue-700 hover:bg-blue-100 border-blue-200" : "text-gray-500"}`}
+                    className={`text-sm hover:bg-accent ml-2 rounded-md ${sortField ? "bg-signal/10 text-signal hover:bg-signal/20 border-signal/30" : "text-muted-foreground"}`}
                     onClick={() => setShowFilterUI(!showFilterUI)}
                   >
                     <SlidersHorizontal
-                      className={`h-4 w-4 mr-2 ${sortField ? "text-blue-700" : ""}`}
+                      className={`h-4 w-4 mr-2 ${sortField ? "text-signal" : ""}`}
                     />
                     Sort {sortField ? `(${sortField})` : ""}
                   </Button>
@@ -2328,10 +2327,10 @@ const TableView = forwardRef<
                     <DropdownMenuTrigger asChild>
                       <Button
                         variant={activeViewId ? "default" : "outline"}
-                        className={`text-sm hover:bg-gray-50 ml-2 rounded-md ${activeViewId ? "bg-blue-50 text-blue-700 hover:bg-blue-100 border-blue-200" : "text-gray-500"}`}
+                        className={`text-sm hover:bg-accent ml-2 rounded-md ${activeViewId ? "bg-signal/10 text-signal hover:bg-signal/20 border-signal/30" : "text-muted-foreground"}`}
                       >
                         <LayoutList
-                          className={`h-4 w-4 mr-2 ${activeViewId ? "text-blue-700" : ""}`}
+                          className={`h-4 w-4 mr-2 ${activeViewId ? "text-signal" : ""}`}
                         />
                         {activeViewName ? `View: ${activeViewName}` : "Views"}
                       </Button>
@@ -2349,7 +2348,7 @@ const TableView = forwardRef<
                           className="flex items-center gap-2"
                         >
                           {activeViewId === v.id ? (
-                            <Check className="h-3.5 w-3.5 text-blue-600" />
+                            <Check className="h-3.5 w-3.5 text-signal" />
                           ) : (
                             <span className="w-3.5" />
                           )}
@@ -2361,7 +2360,7 @@ const TableView = forwardRef<
                               e.stopPropagation();
                               deleteView(v.id);
                             }}
-                            className="text-gray-400 hover:text-red-600"
+                            className="text-muted-foreground hover:text-destructive"
                             title="Delete view"
                           >
                             <Trash2 className="h-3.5 w-3.5" />
@@ -2382,23 +2381,12 @@ const TableView = forwardRef<
                 </>
               )}
 
-              {canvasType === "hybrid" && (
-                <>
-                  <div className="ml-auto flex items-center">
-                    <ViewModeSwitcher
-                      viewMode={viewMode}
-                      onViewModeChange={onViewModeChange}
-                      canvasType={canvasType}
-                    />
-                  </div>
-                </>
-              )}
             </div>
           </div>
         </div>
 
-        <div className="p-4 mx-auto bg-gray-50 min-h-full flex max-w-[95vw]">
-          <div className="rounded-lg border bg-white overflow-hidden flex-1 ">
+        <div className="p-4 mx-auto bg-muted min-h-full flex max-w-[95vw]">
+          <div className="rounded-lg border bg-card overflow-hidden flex-1 ">
             <div className="overflow-x-auto w-full  !px-0 ">
               {/* Add max-w-screen */}
               <div
@@ -2418,13 +2406,13 @@ const TableView = forwardRef<
                       position: "relative",
                     }}
                   >
-                    <TableHeader className="p-0 bg-gray-50 ">
+                    <TableHeader className="p-0 bg-muted ">
                       <TableRow className="group">
                         <TableHead
-                          className={`sticky left-0 z-20 bg-white border-r border-gray-200 w-16 text-left pl-2 ${
+                          className={`sticky left-0 z-20 bg-card border-r border-border w-16 text-left pl-2 ${
                             selectedNodes.length > 0
-                              ? "bg-blue-50"
-                              : "bg-gray-50"
+                              ? "bg-signal/10"
+                              : "bg-muted"
                           }`}
                         >
                           {!readOnly && (
@@ -2471,7 +2459,7 @@ const TableView = forwardRef<
                                 ref={(el) => {
                                   columnRefs.current[column.title] = el;
                                 }}
-                                className={`border-r border-gray-200 text-center group ${
+                                className={`border-r border-border text-center group ${
                                   frozenColumns.has(column.title)
                                     ? "sticky left-16 z-10"
                                     : "relative"
@@ -2483,7 +2471,7 @@ const TableView = forwardRef<
                                 }}
                               >
                                 <div
-                                  className="absolute right-0 top-0 w-1 h-full cursor-col-resize hover:bg-blue-500 bg-transparent"
+                                  className="absolute right-0 top-0 w-1 h-full cursor-col-resize hover:bg-signal bg-transparent"
                                   onMouseDown={() =>
                                     startResizing(column.title)
                                   }
@@ -2538,7 +2526,7 @@ const TableView = forwardRef<
                                           <span>{column.title}</span>
                                           <div className="opacity-0 group-hover:opacity-100 transition-opacity ml-2">
                                             {sortField === column.title && (
-                                              <span className="text-gray-500">
+                                              <span className="text-muted-foreground">
                                                 {sortDirection === "asc" ? (
                                                   <ChevronUp className="h-4 w-4" />
                                                 ) : (
@@ -2562,7 +2550,7 @@ const TableView = forwardRef<
                                             setSortField(null);
                                             setSortDirection(null);
                                           }}
-                                          className="text-red-600 font-medium gap-2"
+                                          className="text-destructive font-medium gap-2"
                                         >
                                           <X className="h-4 w-4" />
                                           Clear sorting
@@ -2630,7 +2618,7 @@ const TableView = forwardRef<
                                     {!isDefaultColumn(column.title) &&
                                       !readOnly && (
                                         <DropdownMenuItem
-                                          className="text-red-600"
+                                          className="text-destructive"
                                           onClick={() =>
                                             setDeleteColumnDialog(column.title)
                                           }
@@ -2645,11 +2633,11 @@ const TableView = forwardRef<
                           })}
 
                         <TableHead
+                          className="bg-card"
                           style={{
                             position: "sticky",
                             right: 0,
                             zIndex: 30,
-                            backgroundColor: "#fff",
                             boxShadow: "-2px 0 2px -1px rgba(0,0,0,0.1)",
                           }}
                         >
@@ -2707,7 +2695,7 @@ const TableView = forwardRef<
                                     {columns.map((column) => (
                                       <div
                                         key={column.title}
-                                        className="flex items-center justify-between py-2 border-b border-gray-100"
+                                        className="flex items-center justify-between py-2 border-b border-border"
                                       >
                                         <div className="flex items-center">
                                           <span>{column.title}</span>
@@ -2720,7 +2708,7 @@ const TableView = forwardRef<
                                                 className="tooltip"
                                                 aria-label="Sortable"
                                               >
-                                                <SlidersHorizontal className="h-3 w-3 text-gray-400" />
+                                                <SlidersHorizontal className="h-3 w-3 text-muted-foreground" />
                                               </span>
                                             )}
                                             {!["Rollup", "Relation"].includes(
@@ -2730,7 +2718,7 @@ const TableView = forwardRef<
                                                 className="tooltip"
                                                 aria-label="Filterable"
                                               >
-                                                <Filter className="h-3 w-3 text-gray-400" />
+                                                <Filter className="h-3 w-3 text-muted-foreground" />
                                               </span>
                                             )}
                                           </div>
@@ -2772,16 +2760,16 @@ const TableView = forwardRef<
                 </DndContext>
               </div>
             </div>
-            <div className="p-4 border-t sticky bottom-0 bg-white">
+            <div className="p-4 border-t sticky bottom-0 bg-card">
               {!readOnly && (
                 <div
                   className="flex items-center cursor-pointer"
                   onClick={addNewRow}
                 >
-                  <div className="w-6 h-6 flex items-center justify-center rounded-full border border-gray-300 mr-2">
-                    <Plus className="h-3.5 w-3.5 text-gray-600" />
+                  <div className="w-6 h-6 flex items-center justify-center rounded-full border border-border mr-2">
+                    <Plus className="h-3.5 w-3.5 text-muted-foreground" />
                   </div>
-                  <span className="text-sm text-gray-600">Add New Note</span>
+                  <span className="text-sm text-muted-foreground">Add New Note</span>
                 </div>
               )}
             </div>
@@ -2895,7 +2883,7 @@ const TableView = forwardRef<
                   filterGroups.map((group, groupIndex) => (
                     <div
                       key={group.id}
-                      className="border border-gray-200 rounded-md p-4 space-y-4"
+                      className="border border-border rounded-md p-4 space-y-4"
                     >
                       {group.filters.map((filter, filterIndex) => {
                         const columnType = getColumnTypeForFilter(
@@ -3099,7 +3087,7 @@ const TableView = forwardRef<
                           <Button
                             variant="ghost"
                             size="sm"
-                            className="text-red-600 hover:text-red-700"
+                            className="text-destructive hover:text-destructive/90"
                             onClick={() => removeFilterGroup(group.id)}
                           >
                             Remove group
@@ -3107,7 +3095,7 @@ const TableView = forwardRef<
                         )}
 
                         {groupIndex < filterGroups.length - 1 && (
-                          <div className="w-full text-center text-sm text-gray-500 mt-2">
+                          <div className="w-full text-center text-sm text-muted-foreground mt-2">
                             {group.conjunction === "AND" ? "AND" : "OR"}
                           </div>
                         )}
@@ -3132,7 +3120,7 @@ const TableView = forwardRef<
                 ) : (
                   // Empty state
                   <div className="text-center py-8">
-                    <div className="text-gray-400 mb-4">
+                    <div className="text-muted-foreground mb-4">
                       <Filter className="h-8 w-8 mx-auto mb-2" />
                       <p>No filters applied</p>
                     </div>
@@ -3197,7 +3185,7 @@ const TableView = forwardRef<
 
           {/* Sort UI Dropdown */}
           {showFilterUI && (
-            <div className="absolute top-20 right-10 z-50 bg-white border border-gray-200 rounded-md shadow-lg p-4 min-w-[300px] space-y-4">
+            <div className="absolute top-20 right-10 z-50 bg-card border border-border rounded-md shadow-lg p-4 min-w-[300px] space-y-4">
               <div className="flex justify-between items-center">
                 <h3 className="font-medium">Sort</h3>
                 <Button

@@ -532,7 +532,7 @@ function ReactFlowNodeView({
           disabled={isLoading}
         >
           {isLoading ? (
-            <p className="text-black">Refreshing...</p>
+            <p className="text-foreground">Refreshing...</p>
           ) : (
             <svg
               xmlns="http://www.w3.org/2000/svg"
@@ -552,13 +552,13 @@ function ReactFlowNodeView({
       )}
 
       {useRealTimeData && lastUpdated && (
-        <div className="absolute bottom-1 right-2 text-xs text-gray-400">
+        <div className="absolute bottom-1 right-2 text-xs text-muted-foreground">
           Updated: {getRelativeTimeString(lastUpdated)}
         </div>
       )}
 
       {error && (
-        <div className="absolute bottom-2 left-2 bg-red-100 text-xs text-red-600 px-2 py-1 rounded z-10">
+        <div className="absolute bottom-2 left-2 bg-destructive/10 text-xs text-destructive px-2 py-1 rounded z-10">
           Error: {error}
         </div>
       )}

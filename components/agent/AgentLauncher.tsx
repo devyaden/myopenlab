@@ -25,7 +25,7 @@ export function AgentLauncher() {
         completeStep(ONBOARDING_STEP_IDS.tryAskAi);
         open();
       }}
-      className="fixed bottom-4 right-4 z-40 flex items-center gap-2 rounded-full bg-primary px-4 py-3 text-primary-foreground shadow-lg transition-opacity hover:opacity-90 rtl:left-4 rtl:right-auto"
+      className="fixed bottom-4 right-4 z-40 flex items-center gap-2 rounded-full bg-yadn-accent-green px-4 py-3 text-white shadow-atlas-lg transition-colors hover:bg-yadn-accent-green/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background rtl:left-4 rtl:right-auto"
       aria-label={t("agent.askAi")}
     >
       <Sparkles size={18} />

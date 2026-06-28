@@ -30,7 +30,7 @@ export function ViewModeSwitcher({
 
   return (
     <div
-      className="bg-gray-100 p-1 rounded-lg flex"
+      className="bg-muted p-1 rounded-lg flex"
       data-onboarding={ANCHORS.surfaceSwitcher}
     >
       {(isHybrid || isTable) && (
@@ -38,7 +38,7 @@ export function ViewModeSwitcher({
           variant="ghost"
           size="sm"
           className={`h-9 w-9 p-0 rounded-md ${
-            viewMode === VIEW_MODE.table ? "bg-white shadow-sm" : ""
+            viewMode === VIEW_MODE.table ? "bg-card shadow-sm" : ""
           }`}
           onClick={() => handleViewModeChange("table")}
           aria-label="Table view"
@@ -57,7 +57,7 @@ export function ViewModeSwitcher({
           variant="ghost"
           size="sm"
           className={`h-9 w-9 p-0 rounded-md ${
-            viewMode === VIEW_MODE.canvas ? "bg-white shadow-sm" : ""
+            viewMode === VIEW_MODE.canvas ? "bg-card shadow-sm" : ""
           }`}
           onClick={() => handleViewModeChange("canvas")}
           aria-label="Canvas view"
@@ -76,7 +76,7 @@ export function ViewModeSwitcher({
           variant="ghost"
           size="sm"
           className={`h-9 w-9 p-0 rounded-md ${
-            viewMode === VIEW_MODE.document ? "bg-white shadow-sm" : ""
+            viewMode === VIEW_MODE.document ? "bg-card shadow-sm" : ""
           }`}
           onClick={() => handleViewModeChange("document")}
           aria-label="Document view"

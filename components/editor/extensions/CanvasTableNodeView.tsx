@@ -930,9 +930,9 @@ export default function CanvasTableNodeView({
         ref={wrapperRef}
         onClick={handleClick}
       >
-        <div className="p-4 border border-gray-300 rounded-md text-center text-gray-500 h-full flex items-center justify-center">
+        <div className="p-4 border border-border rounded-md text-center text-muted-foreground h-full flex items-center justify-center">
           <div>
-            <div className="animate-spin h-5 w-5 border-2 border-gray-300 border-t-blue-500 rounded-full mx-auto mb-2"></div>
+            <div className="animate-spin h-5 w-5 border-2 border-border border-t-signal rounded-full mx-auto mb-2"></div>
             Loading table data...
           </div>
         </div>
@@ -957,7 +957,7 @@ export default function CanvasTableNodeView({
         ref={wrapperRef}
         onClick={handleClick}
       >
-        <div className="p-4 border border-red-300 rounded-md text-center text-red-500 bg-red-50 h-full flex items-center justify-center">
+        <div className="p-4 border border-destructive/30 rounded-md text-center text-destructive bg-destructive/10 h-full flex items-center justify-center">
           <div>
             <div className="mb-2">⚠️ Error loading table</div>
             <div className="text-sm mb-2">{error}</div>
@@ -966,7 +966,7 @@ export default function CanvasTableNodeView({
                 e.stopPropagation();
                 loadTableData(true);
               }}
-              className="px-3 py-1 bg-red-500 text-white rounded text-sm hover:bg-red-600"
+              className="px-3 py-1 bg-destructive text-white rounded text-sm hover:bg-destructive/90"
             >
               Retry
             </button>
@@ -999,7 +999,7 @@ export default function CanvasTableNodeView({
       {hasValidData ? (
         <div
           className={`relative rounded-md shadow-sm h-full ${
-            isSelected ? "border-blue-500 border-2" : "border border-gray-300"
+            isSelected ? "border-signal border-2" : "border border-border"
           } overflow-hidden`}
           ref={tableRef}
           style={{
@@ -1119,15 +1119,15 @@ export default function CanvasTableNodeView({
                   }}
                 >
                   <thead
-                    className={`${needsVerticalScroll ? "sticky top-0" : "flex-shrink-0 sticky top-0"} z-5 bg-white`}
+                    className={`${needsVerticalScroll ? "sticky top-0" : "flex-shrink-0 sticky top-0"} z-5 bg-card`}
                   >
                     <tr
-                      className={`bg-gray-50 border-b-2 border-gray-300 ${needsVerticalScroll ? "" : "flex"}`}
+                      className={`bg-muted border-b-2 border-border ${needsVerticalScroll ? "" : "flex"}`}
                     >
                       {tableData[0]?.map((header, colIndex) => (
                         <th
                           key={`header-${colIndex}`}
-                          className={`border-r border-gray-300 px-3 py-3 text-sm font-bold text-gray-800 bg-gray-50 border-b border-gray-300 ${
+                          className={`border-r border-border px-3 py-3 text-sm font-bold text-foreground bg-muted border-b border-border ${
                             savedConfig.isRTL ? "text-right" : "text-left"
                           }`}
                           style={
@@ -1168,13 +1168,13 @@ export default function CanvasTableNodeView({
                     </tr>
                   </thead>
                   <tbody
-                    className={`${needsVerticalScroll ? "" : "flex-1 flex flex-col"} bg-white`}
+                    className={`${needsVerticalScroll ? "" : "flex-1 flex flex-col"} bg-card`}
                   >
                     {tableData.slice(1).map((row, rowIndex) => (
                       <tr
                         key={`row-${rowIndex + 1}`}
-                        className={`border-b border-gray-200 hover:bg-gray-50 transition-colors ${needsVerticalScroll ? "" : "flex flex-1"} ${
-                          rowIndex % 2 === 0 ? "bg-white" : "bg-gray-25"
+                        className={`border-b border-border hover:bg-accent transition-colors ${needsVerticalScroll ? "" : "flex flex-1"} ${
+                          rowIndex % 2 === 0 ? "bg-card" : "bg-muted/50"
                         }`}
                         style={
                           needsVerticalScroll
@@ -1185,7 +1185,7 @@ export default function CanvasTableNodeView({
                         {row.map((cell, colIndex) => (
                           <td
                             key={`cell-${rowIndex + 1}-${colIndex}`}
-                            className={`border-r border-gray-200 px-3 py-2 text-sm text-gray-700 align-top ${
+                            className={`border-r border-border px-3 py-2 text-sm text-muted-foreground align-top ${
                               savedConfig.isRTL ? "text-right" : "text-left"
                             }`}
                             style={
@@ -1387,12 +1387,12 @@ export default function CanvasTableNodeView({
         </div>
       ) : (
         <div
-          className="p-4 border border-gray-300 rounded-md text-center text-gray-500 h-full flex items-center justify-center"
+          className="p-4 border border-border rounded-md text-center text-muted-foreground h-full flex items-center justify-center"
           style={{ direction: savedConfig.isRTL ? "rtl" : "ltr" }}
         >
           <div>
             <svg
-              className="w-12 h-12 mx-auto mb-2 text-gray-400"
+              className="w-12 h-12 mx-auto mb-2 text-muted-foreground"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -1480,7 +1480,7 @@ export default function CanvasTableNodeView({
       {/* Context Menu */}
       {contextMenu.visible && (
         <div
-          className="fixed z-50 bg-white border border-gray-200 shadow-lg rounded-md py-1 min-w-[200px]"
+          className="fixed z-50 bg-card border border-border shadow-lg rounded-md py-1 min-w-[200px]"
           style={{
             left: contextMenu.x,
             top: contextMenu.y,
@@ -1488,13 +1488,13 @@ export default function CanvasTableNodeView({
           }}
           onClick={(e) => e.stopPropagation()}
         >
-          <div className="px-3 py-2 text-sm text-gray-500 border-b border-gray-100">
+          <div className="px-3 py-2 text-sm text-muted-foreground border-b border-border">
             Table Options
           </div>
 
           <button
             onClick={forceRefresh}
-            className="w-full text-left px-3 py-2 text-sm hover:bg-gray-100 flex items-center"
+            className="w-full text-left px-3 py-2 text-sm hover:bg-accent flex items-center"
             disabled={!savedConfig.isDynamic}
           >
             <svg
@@ -1526,7 +1526,7 @@ export default function CanvasTableNodeView({
                 setTimeout(() => document.body.removeChild(feedback), 2000);
               });
             }}
-            className="w-full text-left px-3 py-2 text-sm hover:bg-gray-100 flex items-center"
+            className="w-full text-left px-3 py-2 text-sm hover:bg-accent flex items-center"
           >
             <svg
               className="w-4 h-4 mr-2"
@@ -1558,7 +1558,7 @@ export default function CanvasTableNodeView({
               URL.revokeObjectURL(url);
               setContextMenu({ visible: false, x: 0, y: 0 });
             }}
-            className="w-full text-left px-3 py-2 text-sm hover:bg-gray-100 flex items-center"
+            className="w-full text-left px-3 py-2 text-sm hover:bg-accent flex items-center"
           >
             <svg
               className="w-4 h-4 mr-2"
@@ -1576,11 +1576,11 @@ export default function CanvasTableNodeView({
             Export CSV
           </button>
 
-          <div className="border-t border-gray-200 my-1"></div>
+          <div className="border-t border-border my-1"></div>
 
           <button
             onClick={toggleDynamicUpdates}
-            className="w-full text-left px-3 py-2 text-sm hover:bg-gray-100 flex items-center"
+            className="w-full text-left px-3 py-2 text-sm hover:bg-accent flex items-center"
           >
             <div
               className={`w-2 h-2 rounded-full mr-2 ${savedConfig.isDynamic ? "bg-green-500" : "bg-gray-400"}`}
@@ -1591,7 +1591,7 @@ export default function CanvasTableNodeView({
           {/* NEW: RTL Toggle in Context Menu */}
           <button
             onClick={toggleRTL}
-            className="w-full text-left px-3 py-2 text-sm hover:bg-gray-100 flex items-center"
+            className="w-full text-left px-3 py-2 text-sm hover:bg-accent flex items-center"
           >
             <div
               className={`w-2 h-2 rounded-full mr-2 ${savedConfig.isRTL ? "bg-purple-500" : "bg-gray-400"}`}
@@ -1602,7 +1602,7 @@ export default function CanvasTableNodeView({
           {savedConfig.isDynamic && (
             <button
               onClick={resetToStatic}
-              className="w-full text-left px-3 py-2 text-sm hover:bg-gray-100 text-orange-600 flex items-center"
+              className="w-full text-left px-3 py-2 text-sm hover:bg-accent text-attention-text flex items-center"
             >
               <svg
                 className="w-4 h-4 mr-2"
@@ -1621,7 +1621,7 @@ export default function CanvasTableNodeView({
             </button>
           )}
 
-          <div className="px-3 py-2 text-xs text-gray-400 border-t border-gray-100">
+          <div className="px-3 py-2 text-xs text-muted-foreground border-t border-border">
             {savedConfig.isDynamic ? (
               <>
                 <div>🟢 Live table - auto-updates every 30s</div>

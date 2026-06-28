@@ -301,7 +301,7 @@ export default function PageSettingsDialog({
               width={Math.max(previewW, 60)}
               height={Math.max(previewH, 80)}
               viewBox={`0 0 ${previewW} ${previewH}`}
-              className="border bg-white shadow-sm"
+              className="border bg-card shadow-sm"
               aria-hidden
             >
               <rect

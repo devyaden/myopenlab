@@ -7,7 +7,9 @@ import {
   GitBranch,
   Table as TableIcon,
   File as FileIcon,
+  Sparkles,
 } from "lucide-react";
+import { useAgentStore } from "@/lib/store/useAgent";
 import {
   CommandDialog,
   CommandEmpty,
@@ -135,6 +137,18 @@ export function CommandPalette() {
       <CommandInput placeholder="Search playbooks, tables, documents… (name or code)" />
       <CommandList>
         <CommandEmpty>{loading ? "Loading…" : "No matches found."}</CommandEmpty>
+        <CommandGroup heading="Actions">
+          <CommandItem
+            value="ask ai assistant agent create build help"
+            onSelect={() => {
+              setOpen(false);
+              useAgentStore.getState().open();
+            }}
+          >
+            <Sparkles className="text-signal" />
+            <span className="flex-1">Ask the AI assistant to build or change something</span>
+          </CommandItem>
+        </CommandGroup>
         {groups.named.map(([folder, items]) => (
           <CommandGroup key={folder} heading={folder}>
             {items.map(renderItem)}

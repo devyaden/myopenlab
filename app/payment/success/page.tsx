@@ -41,36 +41,45 @@ function PaymentSuccessContent() {
   }, [searchParams]);
 
   return (
-    <div className="min-h-screen bg-white flex items-center justify-center p-4">
-      <div className="max-w-md w-full text-center space-y-6">
+    <div className="flex min-h-screen items-center justify-center bg-background p-4">
+      <div className="w-full max-w-md space-y-6 text-center">
         <div className="flex justify-center">
-          <div className="bg-green-100 rounded-full p-4">
-            <CheckCircle className="w-16 h-16 text-green-600" />
+          <div className="rounded-full bg-signal-tint p-4">
+            <CheckCircle className="size-16 text-signal" />
           </div>
         </div>
 
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">
-            Payment Successful!
+        <div className="space-y-2">
+          <h1 className="font-display text-3xl font-bold tracking-tight text-foreground">
+            You're all set
           </h1>
-          <p className="text-gray-600">
-            Your subscription is now active
+          <p className="text-muted-foreground">
+            Your payment went through and your subscription is now active.
           </p>
         </div>
 
+        {error && (
+          <div className="rounded-lg border border-attention/30 bg-attention-tint p-4 text-left text-sm text-attention-text">
+            We couldn't finish activating your subscription automatically. If
+            you don't see your new plan in a few minutes, contact support and
+            we'll sort it out right away.
+          </div>
+        )}
+
         <div className="space-y-3">
           <Button
+            variant="signal"
             onClick={() => router.push("/protected")}
-            className="w-full bg-yadn-accent-green hover:bg-yadn-accent-green/90 text-white"
+            className="w-full"
           >
-            Go to Dashboard
+            Go to your workspace
           </Button>
           <Button
             onClick={() => router.push("/protected/profile")}
             variant="outline"
             className="w-full"
           >
-            View Subscription
+            View subscription
           </Button>
         </div>
       </div>
@@ -80,7 +89,13 @@ function PaymentSuccessContent() {
 
 export default function PaymentSuccessPage() {
   return (
-    <Suspense fallback={<div className="min-h-screen bg-white flex items-center justify-center">Loading...</div>}>
+    <Suspense
+      fallback={
+        <div className="flex min-h-screen items-center justify-center bg-background text-muted-foreground">
+          Loading…
+        </div>
+      }
+    >
       <PaymentSuccessContent />
     </Suspense>
   );

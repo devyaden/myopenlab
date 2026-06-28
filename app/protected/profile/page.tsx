@@ -12,15 +12,8 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import { RedeemPromoCode } from "@/components/subscription/redeem-promo-code";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useUser } from "@/lib/contexts/userContext";
@@ -392,8 +385,8 @@ export default function ProfilePage() {
 
   if (!user) {
     return (
-      <div className="flex items-center justify-center min-h-screen w-screen">
-        <Loader2 className="h-8 w-8 animate-spin text-yadn-accent-green" />
+      <div className="flex items-center justify-center min-h-screen w-screen bg-background">
+        <Loader2 className="h-8 w-8 animate-spin text-signal" />
       </div>
     );
   }
@@ -405,58 +398,62 @@ export default function ProfilePage() {
           variant="ghost"
           size="icon"
           onClick={handleGoBack}
-          className="mr-4 hover:bg-gray-100"
+          aria-label="Go back"
+          className="mr-4"
         >
-          <ArrowLeft className="h-8 w-8 text-yadn-primary-text" />
+          <ArrowLeft className="h-5 w-5 text-foreground" />
         </Button>
-        <h1 className="text-3xl font-bold text-yadn-primary-text">
-          Profile Settings
+        <h1 className="font-display text-3xl font-bold text-foreground">
+          Profile &amp; account
         </h1>
       </div>
-
-      {/* <h1 className="text-3xl font-bold text-yadn-primary-text mb-6">
-        Profile Settings
-      </h1> */}
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {/* Profile Picture Card */}
         <Card className="md:col-span-1">
           <CardHeader>
-            <CardTitle>Profile Picture</CardTitle>
-            <CardDescription>Update your profile photo</CardDescription>
+            <CardTitle className="font-display">Profile photo</CardTitle>
+            <CardDescription>
+              This appears next to your name across the workspace.
+            </CardDescription>
           </CardHeader>
           <CardContent className="flex flex-col items-center">
             <div className="relative mb-4">
-              <Avatar className="h-32 w-32 border-4 border-white shadow-md">
+              <Avatar className="h-32 w-32 border-4 border-card shadow-md ring-1 ring-border">
                 <AvatarImage
                   src={avatarUrl || "/placeholder.svg?height=128&width=128"}
                   alt={user.name || "User"}
                 />
-                <AvatarFallback className="bg-yadn-accent-green text-white text-2xl">
+                <AvatarFallback className="bg-signal text-signal-foreground text-2xl">
                   {user.name?.charAt(0) || user.username?.charAt(0) || "U"}
                 </AvatarFallback>
               </Avatar>
               <label
                 htmlFor="avatar-upload"
-                className="absolute bottom-0 right-0 bg-yadn-accent-green text-white p-2 rounded-full cursor-pointer shadow-md hover:bg-yadn-accent-green/90 transition-colors"
+                title="Upload a new photo"
+                className="absolute bottom-0 right-0 bg-signal text-signal-foreground p-2 rounded-full cursor-pointer shadow-md hover:bg-signal-hover transition-colors focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2 focus-within:ring-offset-card"
               >
                 {uploadingImage ? (
                   <Loader2 className="h-5 w-5 animate-spin" />
                 ) : (
                   <Camera className="h-5 w-5" />
                 )}
+                <span className="sr-only">Upload a new profile photo</span>
               </label>
               <input
                 type="file"
                 id="avatar-upload"
-                accept="image/*"
+                accept="image/png, image/jpeg"
                 onChange={uploadAvatar}
-                className="hidden"
+                className="sr-only"
                 disabled={uploadingImage}
               />
             </div>
-            <p className="text-sm text-gray-500 text-center mt-2">
-              Click the camera icon to upload a new photo
+            <p className="text-sm text-muted-foreground text-center mt-2">
+              Tap the camera to choose a new photo.
+            </p>
+            <p className="text-xs text-muted-foreground text-center mt-1">
+              JPG or PNG, up to 5&nbsp;MB.
             </p>
           </CardContent>
         </Card>
@@ -464,8 +461,10 @@ export default function ProfilePage() {
         {/* Profile Settings Tabs */}
         <Card className="md:col-span-2">
           <CardHeader>
-            <CardTitle>Account Settings</CardTitle>
-            <CardDescription>Manage your account information</CardDescription>
+            <CardTitle className="font-display">Account settings</CardTitle>
+            <CardDescription>
+              Update your details, password, and plan.
+            </CardDescription>
           </CardHeader>
           <CardContent>
             <Tabs
@@ -474,7 +473,7 @@ export default function ProfilePage() {
               onValueChange={setActiveTab}
             >
               <TabsList className="grid w-full grid-cols-3 mb-6">
-                <TabsTrigger value="profile">Profile Details</TabsTrigger>
+                <TabsTrigger value="profile">Profile</TabsTrigger>
                 <TabsTrigger value="password">Password</TabsTrigger>
                 <TabsTrigger value="subscription">Subscription</TabsTrigger>
               </TabsList>
@@ -483,41 +482,50 @@ export default function ProfilePage() {
               <TabsContent value="profile">
                 <form onSubmit={profileForm.handleSubmit(onProfileSubmit)}>
                   <div className="space-y-4">
-                    <h3 className="text-lg font-medium">
-                      Personal Information
+                    <h3 className="font-display text-lg font-semibold text-foreground">
+                      Personal information
                     </h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <InputWithIcon
                         label="Full Name"
                         {...profileForm.register("name")}
-                        icon={<UserIcon className="h-4 w-4 text-gray-500" />}
+                        icon={<UserIcon className="h-4 w-4 text-muted-foreground" />}
                         error={profileForm.formState.errors.name?.message}
                       />
                       <InputWithIcon
                         label="Username"
                         {...profileForm.register("username")}
-                        icon={<UserIcon className="h-4 w-4 text-gray-500" />}
+                        icon={<UserIcon className="h-4 w-4 text-muted-foreground" />}
                         error={profileForm.formState.errors.username?.message}
                       />
                     </div>
                     <InputWithIcon
-                      label="Email Address"
+                      label="Email address"
                       type="email"
                       {...profileForm.register("email")}
-                      icon={<Mail className="h-4 w-4 text-gray-500" />}
+                      icon={<Mail className="h-4 w-4 text-muted-foreground" />}
                       error={profileForm.formState.errors.email?.message}
                     />
+                    <p className="text-xs text-muted-foreground">
+                      If you change this, we&apos;ll email the new address to
+                      confirm it before it takes effect.
+                    </p>
 
                     <Separator className="my-6" />
 
-                    <h3 className="text-lg font-medium">Company Information</h3>
+                    <h3 className="font-display text-lg font-semibold text-foreground">
+                      Company information
+                    </h3>
+                    <p className="text-sm text-muted-foreground">
+                      Optional &mdash; helps us tailor your workspace.
+                    </p>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <InputWithIcon
-                        label="Company Name"
+                        label="Company name"
                         {...profileForm.register("company_name")}
                       />
                       <InputWithIcon
-                        label="Company Email"
+                        label="Company email"
                         type="email"
                         {...profileForm.register("company_email")}
                         error={
@@ -527,34 +535,34 @@ export default function ProfilePage() {
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <InputWithIcon
-                        label="Industry/Sector"
+                        label="Industry or sector"
                         {...profileForm.register("company_sector")}
                       />
                       <InputWithIcon
-                        label="Company Size"
+                        label="Company size"
                         {...profileForm.register("company_size")}
                       />
                     </div>
                     <InputWithIcon
-                      label="Your Position"
+                      label="Your role"
                       {...profileForm.register("user_position")}
                     />
 
                     <div className="pt-4">
                       <Button
                         type="submit"
-                        className="bg-yadn-accent-green hover:bg-yadn-accent-green/90 text-white"
+                        variant="signal"
                         disabled={profileForm.formState.isSubmitting}
                       >
                         {profileForm.formState.isSubmitting ? (
                           <>
                             <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                            Saving...
+                            Saving…
                           </>
                         ) : (
                           <>
                             <Check className="mr-2 h-4 w-4" />
-                            Save Changes
+                            Save changes
                           </>
                         )}
                       </Button>
@@ -567,30 +575,39 @@ export default function ProfilePage() {
               <TabsContent value="password">
                 <form onSubmit={passwordForm.handleSubmit(onPasswordSubmit)}>
                   <div className="space-y-4">
-                    <h3 className="text-lg font-medium">Change Password</h3>
+                    <h3 className="font-display text-lg font-semibold text-foreground">
+                      Change password
+                    </h3>
+                    <p className="text-sm text-muted-foreground">
+                      Enter your current password, then choose a new one of at
+                      least 6 characters.
+                    </p>
                     <InputWithIcon
-                      label="Current Password"
+                      label="Current password"
                       type="password"
+                      autoComplete="current-password"
                       {...passwordForm.register("currentPassword")}
-                      icon={<Lock className="h-4 w-4 text-gray-500" />}
+                      icon={<Lock className="h-4 w-4 text-muted-foreground" />}
                       showPasswordToggle
                       error={
                         passwordForm.formState.errors.currentPassword?.message
                       }
                     />
                     <InputWithIcon
-                      label="New Password"
+                      label="New password"
                       type="password"
+                      autoComplete="new-password"
                       {...passwordForm.register("newPassword")}
-                      icon={<Lock className="h-4 w-4 text-gray-500" />}
+                      icon={<Lock className="h-4 w-4 text-muted-foreground" />}
                       showPasswordToggle
                       error={passwordForm.formState.errors.newPassword?.message}
                     />
                     <InputWithIcon
-                      label="Confirm New Password"
+                      label="Confirm new password"
                       type="password"
+                      autoComplete="new-password"
                       {...passwordForm.register("confirmPassword")}
-                      icon={<Lock className="h-4 w-4 text-gray-500" />}
+                      icon={<Lock className="h-4 w-4 text-muted-foreground" />}
                       showPasswordToggle
                       error={
                         passwordForm.formState.errors.confirmPassword?.message
@@ -600,18 +617,18 @@ export default function ProfilePage() {
                     <div className="pt-4">
                       <Button
                         type="submit"
-                        className="bg-yadn-accent-green hover:bg-yadn-accent-green/90 text-white"
+                        variant="signal"
                         disabled={passwordForm.formState.isSubmitting}
                       >
                         {passwordForm.formState.isSubmitting ? (
                           <>
                             <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                            Updating...
+                            Updating…
                           </>
                         ) : (
                           <>
                             <Check className="mr-2 h-4 w-4" />
-                            Update Password
+                            Update password
                           </>
                         )}
                       </Button>
@@ -625,93 +642,93 @@ export default function ProfilePage() {
                 <div className="space-y-6">
                   {loadingSubscription ? (
                     <div className="flex items-center justify-center py-12">
-                      <Loader2 className="h-8 w-8 animate-spin text-yadn-accent-green" />
+                      <Loader2 className="h-8 w-8 animate-spin text-signal" />
                     </div>
                   ) : subscription ? (
                     <div className="space-y-6">
                       {/* Current Plan Card */}
-                      <div className="bg-gradient-to-br from-yadn-accent-green/5 to-yadn-accent-green/10 border-2 border-yadn-accent-green/20 rounded-xl p-6 shadow-sm">
+                      <div className="bg-signal-tint border-2 border-signal/20 rounded-xl p-6 shadow-sm">
                         <div className="flex items-start justify-between mb-6">
                           <div className="flex-1">
                             <div className="flex items-center gap-3 mb-2">
-                              <h4 className="text-xl font-bold text-yadn-primary-text">
+                              <h4 className="font-display text-xl font-bold text-foreground">
                                 {subscription.planName || "Pro Plan"}
                               </h4>
-                              <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800 border border-green-200">
+                              <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-signal/10 text-signal border border-signal/20">
                                 Active
                               </span>
                             </div>
-                            <p className="text-sm text-gray-600">
-                              Your current subscription plan
+                            <p className="text-sm text-muted-foreground">
+                              Your current plan
                             </p>
                           </div>
                           <div className="text-right">
                             {subscription.promo_code_id ? (
                               <div className="flex flex-col items-end">
-                                <span className="text-lg font-bold text-yadn-accent-green">
-                                  Promo Code
+                                <span className="text-lg font-bold text-signal">
+                                  Promo code
                                 </span>
-                                <span className="text-xs text-gray-600">
+                                <span className="text-xs text-muted-foreground">
                                   Free via promo
                                 </span>
                               </div>
                             ) : subscription.stripePrice ? (
                               <div className="flex items-baseline gap-1">
-                                <span className="text-3xl font-bold text-yadn-accent-green">
+                                <span className="text-3xl font-bold text-signal">
                                   {subscription.stripeCurrency}{Math.round(subscription.stripePrice)}
                                 </span>
-                                <span className="text-sm text-gray-600">
+                                <span className="text-sm text-muted-foreground">
                                   /{subscription.stripeInterval}
                                 </span>
                               </div>
                             ) : (
-                              <span className="text-lg font-bold text-yadn-accent-green">
+                              <span className="text-lg font-bold text-signal">
                                 Free
                               </span>
                             )}
                           </div>
                         </div>
 
-                        <div className="grid grid-cols-2 gap-4 pt-4 border-t border-yadn-accent-green/20">
+                        <div className="grid grid-cols-2 gap-4 pt-4 border-t border-signal/20">
                           <div className="space-y-1">
-                            <p className="text-xs text-gray-500 uppercase tracking-wide">
+                            <p className="text-xs text-muted-foreground uppercase tracking-wide">
                               Started
                             </p>
-                            <p className="text-sm font-semibold text-yadn-primary-text">
-                              {subscription.start_date ? new Date(subscription.start_date).toLocaleDateString() : 'N/A'}
+                            <p className="text-sm font-semibold text-foreground">
+                              {subscription.start_date ? new Date(subscription.start_date).toLocaleDateString() : "—"}
                             </p>
                           </div>
                           <div className="space-y-1">
-                            <p className="text-xs text-gray-500 uppercase tracking-wide">
-                              Next Billing
+                            <p className="text-xs text-muted-foreground uppercase tracking-wide">
+                              Next billing
                             </p>
-                            <p className="text-sm font-semibold text-yadn-primary-text">
-                              {subscription.end_date ? new Date(subscription.end_date).toLocaleDateString() : 'N/A'}
+                            <p className="text-sm font-semibold text-foreground">
+                              {subscription.end_date ? new Date(subscription.end_date).toLocaleDateString() : "—"}
                             </p>
                           </div>
                         </div>
 
                         {/* Features */}
-                        <div className="mt-6 pt-6 border-t border-yadn-accent-green/20">
-                          <p className="text-sm font-medium text-gray-700 mb-3">
+                        <div className="mt-6 pt-6 border-t border-signal/20">
+                          <p className="text-sm font-medium text-muted-foreground mb-3">
                             Your plan includes:
                           </p>
                           <div className="grid grid-cols-2 gap-3">
                             <div className="flex items-center gap-2">
-                              <Check className="h-4 w-4 text-yadn-accent-green flex-shrink-0" />
-                              <span className="text-sm text-gray-700">Unlimited diagrams</span>
+                              <Check className="h-4 w-4 text-signal flex-shrink-0" />
+                              <span className="text-sm text-muted-foreground">Unlimited diagrams</span>
                             </div>
                             <div className="flex items-center gap-2">
-                              <Check className="h-4 w-4 text-yadn-accent-green flex-shrink-0" />
-                              <span className="text-sm text-gray-700">Unlimited AI requests</span>
+                              <Check className="h-4 w-4 text-signal flex-shrink-0" />
+                              <span className="text-sm text-muted-foreground">Unlimited AI requests</span>
                             </div>
                             <div className="flex items-center gap-2">
-                              <Check className="h-4 w-4 text-yadn-accent-green flex-shrink-0" />
-                              <span className="text-sm text-gray-700">All diagram types</span>
+                              <Check className="h-4 w-4 text-signal flex-shrink-0" />
+                              <span className="text-sm text-muted-foreground">All diagram types</span>
                             </div>
                             <div className="flex items-center gap-2">
-                              <Check className="h-4 w-4 text-yadn-accent-green flex-shrink-0" />
-                              <span className="text-sm text-gray-700">Priority support</span>
+                              <Check className="h-4 w-4 text-signal flex-shrink-0" />
+                              <span className="text-sm text-muted-foreground">Priority support</span>
                             </div>
                           </div>
                         </div>
@@ -719,25 +736,27 @@ export default function ProfilePage() {
 
                       {/* Cancel Section - Only show for paid subscriptions (not promo codes) */}
                       {!subscription.promo_code_id && (
-                        <div className="border border-gray-200 rounded-xl p-6 bg-white shadow-sm">
+                        <div className="border border-border rounded-xl p-6 bg-card shadow-sm">
                           <div className="flex items-start gap-4">
-                            <div className="flex-shrink-0 w-10 h-10 bg-red-100 rounded-full flex items-center justify-center">
-                              <AlertCircle className="h-5 w-5 text-red-600" />
+                            <div className="flex-shrink-0 w-10 h-10 bg-destructive/10 rounded-full flex items-center justify-center">
+                              <AlertCircle className="h-5 w-5 text-destructive" />
                             </div>
                             <div className="flex-1">
-                              <h4 className="font-semibold text-gray-900 mb-2">
-                                Cancel Subscription
+                              <h4 className="font-display font-semibold text-foreground mb-2">
+                                Cancel subscription
                               </h4>
-                              <p className="text-sm text-gray-600 mb-4">
-                                You'll be downgraded to the free plan at the end of your current billing period and lose access to premium features.
+                              <p className="text-sm text-muted-foreground mb-4">
+                                You&apos;ll stay on your current plan until the
+                                end of this billing period, then move to the free
+                                plan. You can resubscribe any time.
                               </p>
                               <Button
                                 variant="outline"
-                                className="border-red-300 text-red-700 hover:bg-red-50 hover:text-red-800 hover:border-red-400"
+                                className="border-destructive/30 text-destructive hover:bg-destructive/10 hover:text-destructive hover:border-destructive/40"
                                 onClick={() => setShowCancelDialog(true)}
                                 disabled={cancelingSubscription}
                               >
-                                Cancel Subscription
+                                Cancel subscription
                               </Button>
                             </div>
                           </div>
@@ -749,46 +768,48 @@ export default function ProfilePage() {
                   ) : (
                     <div className="py-8">
                       {/* Free Plan Card */}
-                      <div className="border-2 border-dashed border-gray-300 rounded-xl p-8 text-center bg-gray-50">
+                      <div className="border-2 border-dashed border-border rounded-xl p-8 text-center bg-muted">
                         <div className="max-w-md mx-auto">
-                          <div className="w-16 h-16 bg-gray-200 rounded-full flex items-center justify-center mx-auto mb-4">
-                            <CreditCard className="h-8 w-8 text-gray-400" />
+                          <div className="w-16 h-16 bg-signal-tint text-signal rounded-full flex items-center justify-center mx-auto mb-4">
+                            <CreditCard className="h-8 w-8" />
                           </div>
-                          <h4 className="text-lg font-semibold text-gray-900 mb-2">
-                            Free Plan
+                          <h4 className="font-display text-lg font-semibold text-foreground mb-2">
+                            Free plan
                           </h4>
-                          <p className="text-sm text-gray-600 mb-6">
-                            You're currently using the free plan
+                          <p className="text-sm text-muted-foreground mb-6">
+                            You&apos;re on the free plan. Upgrade for unlimited
+                            playbooks and AI.
                           </p>
 
                           {/* Free Plan Features */}
-                          <div className="bg-white border border-gray-200 rounded-lg p-4 mb-6 text-left">
-                            <p className="text-xs font-semibold text-gray-700 uppercase tracking-wide mb-3">
-                              Free Plan Includes
+                          <div className="bg-card border border-border rounded-lg p-4 mb-6 text-left">
+                            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">
+                              What&apos;s included
                             </p>
                             <div className="space-y-2">
                               <div className="flex items-center gap-2">
-                                <Check className="h-4 w-4 text-gray-400 flex-shrink-0" />
-                                <span className="text-sm text-gray-700">1 diagram</span>
+                                <Check className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                                <span className="text-sm text-muted-foreground">1 diagram</span>
                               </div>
                               <div className="flex items-center gap-2">
-                                <Check className="h-4 w-4 text-gray-400 flex-shrink-0" />
-                                <span className="text-sm text-gray-700">5 AI requests per month</span>
+                                <Check className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                                <span className="text-sm text-muted-foreground">5 AI requests per month</span>
                               </div>
                               <div className="flex items-center gap-2">
-                                <Check className="h-4 w-4 text-gray-400 flex-shrink-0" />
-                                <span className="text-sm text-gray-700">Basic diagram types</span>
+                                <Check className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                                <span className="text-sm text-muted-foreground">Basic diagram types</span>
                               </div>
                               <div className="flex items-center gap-2">
-                                <Check className="h-4 w-4 text-gray-400 flex-shrink-0" />
-                                <span className="text-sm text-gray-700">Export as PNG/SVG</span>
+                                <Check className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                                <span className="text-sm text-muted-foreground">Export as PNG or SVG</span>
                               </div>
                             </div>
                           </div>
 
                           <Button
+                            variant="signal"
                             onClick={() => router.push("/pricing")}
-                            className="bg-yadn-accent-green hover:bg-yadn-accent-green/90 text-white w-full"
+                            className="w-full"
                           >
                             Upgrade to Pro
                           </Button>
@@ -808,62 +829,24 @@ export default function ProfilePage() {
       </div>
 
       {/* Cancel Subscription Dialog */}
-      <Dialog open={showCancelDialog} onOpenChange={setShowCancelDialog}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Cancel Subscription</DialogTitle>
-            <DialogDescription>
-              Are you sure you want to cancel your subscription? You will lose access to premium features immediately.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="py-4">
-            <p className="text-sm text-gray-600">
-              After canceling, you'll be downgraded to the free plan with:
-            </p>
-            <ul className="mt-3 space-y-2 text-sm text-gray-700">
-              <li className="flex items-center gap-2">
-                <span className="text-red-500">•</span>
-                Limited to 1 diagram
-              </li>
-              <li className="flex items-center gap-2">
-                <span className="text-red-500">•</span>
-                Only 5 AI requests per month
-              </li>
-              <li className="flex items-center gap-2">
-                <span className="text-red-500">•</span>
-                No PDF export
-              </li>
-              <li className="flex items-center gap-2">
-                <span className="text-red-500">•</span>
-                No advanced shapes
-              </li>
-            </ul>
-          </div>
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setShowCancelDialog(false)}
-              disabled={cancelingSubscription}
-            >
-              Keep Subscription
-            </Button>
-            <Button
-              variant="destructive"
-              onClick={handleCancelSubscription}
-              disabled={cancelingSubscription}
-            >
-              {cancelingSubscription ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Canceling...
-                </>
-              ) : (
-                "Yes, Cancel"
-              )}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <ConfirmDialog
+        open={showCancelDialog}
+        onOpenChange={setShowCancelDialog}
+        title="Cancel subscription?"
+        description="You'll keep your current plan until the end of this billing period, then move to the free plan."
+        blastRadiusLabel="On the free plan you'll be limited to:"
+        blastRadius={[
+          "1 diagram",
+          "5 AI requests per month",
+          "No PDF export",
+          "No advanced shapes",
+        ]}
+        destructive
+        loading={cancelingSubscription}
+        confirmLabel="Yes, cancel subscription"
+        cancelLabel="Keep subscription"
+        onConfirm={handleCancelSubscription}
+      />
     </div>
   );
 }

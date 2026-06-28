@@ -74,7 +74,7 @@ const Swatch = ({
       className={`h-6 w-6 rounded border transition ${
         active
           ? "ring-2 ring-offset-1 ring-[#09BC8A] border-[#09BC8A]"
-          : "border-gray-200 hover:border-gray-400"
+          : "border-border hover:border-border"
       }`}
       style={
         isTransparent
@@ -138,7 +138,7 @@ export function ColorPickerPopover({
           aria-label={label || `${slot} color`}
           title={label || `${slot} color`}
           className={`flex items-center justify-center h-9 w-10 border rounded-md overflow-hidden ${
-            disabled ? "opacity-50 cursor-not-allowed" : "hover:border-gray-400"
+            disabled ? "opacity-50 cursor-not-allowed" : "hover:border-border"
           }`}
         >
           <span
@@ -214,7 +214,7 @@ export function ColorPickerPopover({
                     : "#000000"
                 }
                 onChange={(e) => setDraft(e.target.value)}
-                className="h-8 w-10 rounded border border-gray-200 cursor-pointer"
+                className="h-8 w-10 rounded border border-border cursor-pointer"
               />
               <input
                 type="text"
@@ -230,14 +230,14 @@ export function ColorPickerPopover({
                   }
                 }}
                 placeholder="#000000"
-                className="flex-1 h-8 px-2 text-sm rounded border border-gray-200 outline-none focus:border-gray-400"
+                className="flex-1 h-8 px-2 text-sm rounded border border-border outline-none focus:border-border"
               />
               <button
                 type="button"
                 onClick={() => {
                   if (/^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(draft)) commit(draft);
                 }}
-                className="h-8 px-3 text-sm rounded border border-gray-200 hover:bg-gray-50"
+                className="h-8 px-3 text-sm rounded border border-border hover:bg-accent"
               >
                 Apply
               </button>
@@ -249,7 +249,7 @@ export function ColorPickerPopover({
               <button
                 type="button"
                 onClick={eyedropper}
-                className="flex items-center gap-1.5 h-8 px-2 text-sm rounded border border-gray-200 hover:bg-gray-50"
+                className="flex items-center gap-1.5 h-8 px-2 text-sm rounded border border-border hover:bg-accent"
                 title="Pick color from screen"
               >
                 <Pipette className="h-3.5 w-3.5" />
@@ -260,7 +260,7 @@ export function ColorPickerPopover({
               <button
                 type="button"
                 onClick={() => commit("transparent")}
-                className="flex items-center gap-1.5 h-8 px-2 text-sm rounded border border-gray-200 hover:bg-gray-50 ml-auto"
+                className="flex items-center gap-1.5 h-8 px-2 text-sm rounded border border-border hover:bg-accent ml-auto"
                 title="No color"
               >
                 <X className="h-3.5 w-3.5" />

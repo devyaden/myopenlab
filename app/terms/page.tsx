@@ -1,27 +1,26 @@
 import Navbar from "@/components/landing/navbar";
 import Footer from "@/components/landing/footer";
+import { Button } from "@/components/ui/button";
+import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 
 export default function TermsOfService() {
   return (
-    <main className="min-h-screen text-yadn-foreground bg-yadn-background">
+    <main className="min-h-screen bg-background text-foreground">
       <Navbar />
 
       <section className="pt-32 pb-20 md:pt-40 md:pb-32">
         <div className="container mx-auto px-4 md:px-6">
-          <div className="max-w-3xl mx-auto">
-            <h1 className="text-3xl md:text-4xl font-bold mb-8">
+          <div className="mx-auto max-w-2xl">
+            <h1 className="font-display text-3xl font-bold tracking-tight md:text-4xl">
               Terms of Service
             </h1>
+            <p className="mt-3 text-sm text-muted-foreground">
+              Last updated May 11, 2025
+            </p>
 
-            <div className="prose prose-invert max-w-none">
-              <p className="text-yadn-foreground/70">
-                Last Updated: May 11, 2025
-              </p>
-
-              <h2 className="text-2xl font-semibold mt-8 mb-4">
-                1. Introduction
-              </h2>
+            <div className="prose prose-neutral dark:prose-invert mt-10 max-w-none prose-headings:font-display prose-headings:font-semibold prose-headings:text-foreground prose-p:text-muted-foreground prose-li:text-muted-foreground prose-strong:text-foreground prose-a:text-signal hover:prose-a:text-signal-bright">
+              <h2>1. Introduction</h2>
               <p>
                 Welcome to Olab ("we," "our," or "us"). By accessing or using
                 our website, applications, or services (collectively, the
@@ -29,18 +28,14 @@ export default function TermsOfService() {
                 ("Terms"). Please read these Terms carefully.
               </p>
 
-              <h2 className="text-2xl font-semibold mt-8 mb-4">
-                2. Acceptance of Terms
-              </h2>
+              <h2>2. Acceptance of Terms</h2>
               <p>
                 By accessing or using our Services, you agree to be bound by
                 these Terms and our Privacy Policy. If you do not agree to these
                 Terms, you may not access or use our Services.
               </p>
 
-              <h2 className="text-2xl font-semibold mt-8 mb-4">
-                3. Changes to Terms
-              </h2>
+              <h2>3. Changes to Terms</h2>
               <p>
                 We reserve the right to modify these Terms at any time. We will
                 provide notice of any material changes by posting the updated
@@ -49,9 +44,7 @@ export default function TermsOfService() {
                 your acceptance of the new Terms.
               </p>
 
-              <h2 className="text-2xl font-semibold mt-8 mb-4">
-                4. Account Registration
-              </h2>
+              <h2>4. Account Registration</h2>
               <p>
                 To use certain features of our Services, you may need to
                 register for an account. You agree to provide accurate, current,
@@ -65,9 +58,7 @@ export default function TermsOfService() {
                 immediately of any unauthorized use of your account.
               </p>
 
-              <h2 className="text-2xl font-semibold mt-8 mb-4">
-                5. User Content
-              </h2>
+              <h2>5. User Content</h2>
               <p>
                 Our Services allow you to create, upload, store, and share
                 content, including diagrams, documents, and other materials
@@ -83,11 +74,9 @@ export default function TermsOfService() {
                 violate the rights of any third party or any applicable law.
               </p>
 
-              <h2 className="text-2xl font-semibold mt-8 mb-4">
-                6. Prohibited Conduct
-              </h2>
+              <h2>6. Prohibited Conduct</h2>
               <p>You agree not to:</p>
-              <ul className="list-disc pl-6 space-y-2 text-yadn-foreground/70">
+              <ul>
                 <li>
                   Use the Services in any way that violates any applicable law
                   or regulation
@@ -116,9 +105,7 @@ export default function TermsOfService() {
                 </li>
               </ul>
 
-              <h2 className="text-2xl font-semibold mt-8 mb-4">
-                7. Intellectual Property
-              </h2>
+              <h2>7. Intellectual Property</h2>
               <p>
                 The Services and all content, features, and functionality
                 thereof, including but not limited to all information, software,
@@ -129,9 +116,7 @@ export default function TermsOfService() {
                 laws.
               </p>
 
-              <h2 className="text-2xl font-semibold mt-8 mb-4">
-                8. Subscription and Payments
-              </h2>
+              <h2>8. Subscription and Payments</h2>
               <p>
                 Some of our Services require payment of fees. You agree to pay
                 all fees in accordance with the fees, charges, and billing terms
@@ -145,9 +130,7 @@ export default function TermsOfService() {
                 any unused portion of your subscription.
               </p>
 
-              <h2 className="text-2xl font-semibold mt-8 mb-4">
-                9. Termination
-              </h2>
+              <h2>9. Termination</h2>
               <p>
                 We may terminate or suspend your access to all or part of the
                 Services, with or without notice, for any conduct that we, in
@@ -156,9 +139,7 @@ export default function TermsOfService() {
                 other reason.
               </p>
 
-              <h2 className="text-2xl font-semibold mt-8 mb-4">
-                10. Disclaimer of Warranties
-              </h2>
+              <h2>10. Disclaimer of Warranties</h2>
               <p>
                 THE SERVICES ARE PROVIDED "AS IS" AND "AS AVAILABLE" WITHOUT
                 WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED, INCLUDING,
@@ -166,9 +147,7 @@ export default function TermsOfService() {
                 FITNESS FOR A PARTICULAR PURPOSE, OR NON-INFRINGEMENT.
               </p>
 
-              <h2 className="text-2xl font-semibold mt-8 mb-4">
-                11. Limitation of Liability
-              </h2>
+              <h2>11. Limitation of Liability</h2>
               <p>
                 IN NO EVENT WILL WE, OUR AFFILIATES, OR THEIR LICENSORS, SERVICE
                 PROVIDERS, EMPLOYEES, AGENTS, OFFICERS, OR DIRECTORS BE LIABLE
@@ -178,9 +157,7 @@ export default function TermsOfService() {
                 PUNITIVE DAMAGES.
               </p>
 
-              <h2 className="text-2xl font-semibold mt-8 mb-4">
-                12. Governing Law
-              </h2>
+              <h2>12. Governing Law</h2>
               <p>
                 These Terms and any dispute arising out of or related to these
                 Terms or the Services shall be governed by and construed in
@@ -188,14 +165,12 @@ export default function TermsOfService() {
                 effect to any choice or conflict of law provision or rule.
               </p>
 
-              <h2 className="text-2xl font-semibold mt-8 mb-4">
-                13. Contact Information
-              </h2>
+              <h2>13. Contact Information</h2>
               <p>
                 If you have any questions about these Terms, please contact us
                 at:
               </p>
-              <p className="mt-2">
+              <p>
                 Email: legal@Olab.com
                 <br />
                 Address: 123 Innovation Street, Tech City, TC 12345
@@ -203,12 +178,12 @@ export default function TermsOfService() {
             </div>
 
             <div className="mt-12 flex justify-center">
-              <Link
-                href="/"
-                className="px-6 py-2 bg-yadn-accent-green text-background rounded-md hover:bg-yadn-accent-green/90 transition-colors"
-              >
-                Return to Home
-              </Link>
+              <Button asChild variant="outline">
+                <Link href="/">
+                  <ArrowLeft className="size-4" />
+                  Back to home
+                </Link>
+              </Button>
             </div>
           </div>
         </div>

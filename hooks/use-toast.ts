@@ -5,8 +5,10 @@ import * as React from "react";
 
 import type { ToastActionElement, ToastProps } from "@/components/ui/toast";
 
-const TOAST_LIMIT = 1;
-const TOAST_REMOVE_DELAY = 1000000;
+// Atlas: allow a small stack of toasts, and clear dismissed toasts from memory
+// promptly (the previous 1,000,000ms ≈ 16min leaked every dismissed toast).
+const TOAST_LIMIT = 3;
+const TOAST_REMOVE_DELAY = 4000;
 
 type ToasterToast = ToastProps & {
   id: string;

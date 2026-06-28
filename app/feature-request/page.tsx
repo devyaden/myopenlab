@@ -6,7 +6,12 @@ import { useState } from "react";
 import Navbar from "@/components/landing/navbar";
 import Footer from "@/components/landing/footer";
 import AnimateOnScroll from "@/components/landing/animate-on-scroll";
-import { Send, CheckCircle, AlertCircle } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { TeachingEmptyState } from "@/components/ui/teaching-empty-state";
+import { Send, Lightbulb, AlertCircle } from "lucide-react";
+
+const inputClasses =
+  "w-full rounded-md border border-input bg-background px-4 py-2 text-foreground placeholder:text-muted-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background";
 
 export default function FeatureRequest() {
   const [formData, setFormData] = useState({
@@ -51,29 +56,31 @@ export default function FeatureRequest() {
         priority: "medium",
       });
     } catch (err) {
-      setError("There was an error submitting your request. Please try again.");
+      setError(
+        "We couldn't submit your request. Please check your connection and try again."
+      );
     } finally {
       setIsSubmitting(false);
     }
   };
 
   return (
-    <main className="min-h-screen text-yadn-foreground bg-yadn-background">
+    <main className="min-h-screen bg-background text-foreground">
       <Navbar />
 
-      <section className="pt-32 pb-20 md:pt-40 md:pb-32 relative overflow-hidden">
-        <div className="absolute inset-0 z-0">
-          <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-b from-yadn-accent-green/5 to-transparent"></div>
-          <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] rounded-full bg-yadn-accent-green/5 blur-3xl"></div>
+      <section className="relative overflow-hidden pt-32 pb-20 md:pt-40 md:pb-32">
+        <div className="absolute inset-0 z-0" aria-hidden>
+          <div className="absolute left-0 top-0 h-full w-full bg-gradient-to-b from-signal/5 to-transparent"></div>
+          <div className="absolute left-1/2 top-1/2 h-[600px] w-[600px] -translate-x-1/2 -translate-y-1/2 transform rounded-full bg-signal/5 blur-3xl"></div>
         </div>
 
-        <div className="container mx-auto px-4 md:px-6 relative z-10">
-          <div className="max-w-4xl mx-auto text-center">
+        <div className="container relative z-10 mx-auto px-4 md:px-6">
+          <div className="mx-auto max-w-4xl text-center">
             <AnimateOnScroll>
-              <h1 className="text-4xl md:text-6xl font-bold mb-6">
-                Request a <span className="gradient-text">Feature</span>
+              <h1 className="font-display text-4xl font-bold tracking-tight md:text-6xl">
+                Request a <span className="gradient-text">feature</span>
               </h1>
-              <p className="text-xl md:text-2xl text-yadn-foreground/80 mb-8 max-w-2xl mx-auto">
+              <p className="mx-auto mt-6 max-w-2xl text-xl text-muted-foreground md:text-2xl">
                 Help shape the future of Olab by suggesting features that would
                 make your experience better.
               </p>
@@ -83,54 +90,46 @@ export default function FeatureRequest() {
       </section>
 
       {/* Feature Request Form Section */}
-      <section className="py-20 md:py-32 bg-yadn-background/80">
+      <section className="bg-muted/40 py-20 md:py-32">
         <div className="container mx-auto px-4 md:px-6">
-          <div className="max-w-3xl mx-auto">
+          <div className="mx-auto max-w-3xl">
             <AnimateOnScroll>
-              <div className="bg-yadn-background/50 border border-yadn-foreground/10 rounded-xl p-6 md:p-8 shadow-lg">
+              <div className="rounded-xl border border-border bg-card p-6 shadow-atlas-md md:p-8">
                 {isSubmitted ? (
-                  <div className="text-center py-8">
-                    <div className="w-16 h-16 bg-yadn-accent-green/10 rounded-full flex items-center justify-center mx-auto mb-6">
-                      <CheckCircle
-                        size={32}
-                        className="text-yadn-accent-green"
-                      />
-                    </div>
-                    <h2 className="text-2xl font-bold mb-4">
-                      Feature Request Submitted!
-                    </h2>
-                    <p className="text-yadn-foreground/70 mb-8">
-                      Thank you for your suggestion! We've received your feature
-                      request and our team will review it soon.
-                    </p>
-                    <button
-                      onClick={() => setIsSubmitted(false)}
-                      className="px-6 py-2 bg-yadn-accent-green text-yadn-background rounded-md hover:bg-yadn-accent-green/90 transition-colors"
-                    >
-                      Submit Another Request
-                    </button>
-                  </div>
+                  <TeachingEmptyState
+                    icon={<Lightbulb className="size-6" />}
+                    title="Thanks — we got your request"
+                    description="Our product team reviews every suggestion. We'll be in touch by email if we need more detail."
+                    action={{
+                      label: "Submit another request",
+                      onClick: () => setIsSubmitted(false),
+                    }}
+                  />
                 ) : (
                   <>
-                    <h2 className="text-2xl font-bold mb-6">
-                      Submit Your Feature Request
+                    <h2 className="font-display text-2xl font-bold">
+                      Submit your feature request
                     </h2>
 
                     {error && (
-                      <div className="mb-6 p-4 bg-red-500/10 border border-red-500/30 rounded-lg flex items-center">
-                        <AlertCircle size={20} className="text-red-500 mr-3" />
-                        <p className="text-red-500">{error}</p>
+                      <div className="mt-6 flex items-start gap-3 rounded-lg border border-destructive/30 bg-destructive/10 p-4">
+                        <AlertCircle
+                          size={20}
+                          className="mt-0.5 flex-shrink-0 text-destructive"
+                          aria-hidden
+                        />
+                        <p className="text-sm text-destructive">{error}</p>
                       </div>
                     )}
 
-                    <form onSubmit={handleSubmit} className="space-y-6">
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <form onSubmit={handleSubmit} className="mt-6 space-y-6">
+                      <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
                         <div>
                           <label
                             htmlFor="name"
-                            className="block text-sm font-medium mb-1"
+                            className="mb-1 block text-sm font-medium"
                           >
-                            Your Name
+                            Your name
                           </label>
                           <input
                             type="text"
@@ -138,16 +137,16 @@ export default function FeatureRequest() {
                             name="name"
                             value={formData.name}
                             onChange={handleChange}
-                            className="w-full px-4 py-2 bg-yadn-background/50 border border-yadn-foreground/20 rounded-md focus:outline-none focus:ring-2 focus:ring-yadn-accent-green/50"
+                            className={inputClasses}
                             required
                           />
                         </div>
                         <div>
                           <label
                             htmlFor="email"
-                            className="block text-sm font-medium mb-1"
+                            className="mb-1 block text-sm font-medium"
                           >
-                            Email Address
+                            Email address
                           </label>
                           <input
                             type="email"
@@ -155,7 +154,7 @@ export default function FeatureRequest() {
                             name="email"
                             value={formData.email}
                             onChange={handleChange}
-                            className="w-full px-4 py-2 bg-yadn-background/50 border border-yadn-foreground/20 rounded-md focus:outline-none focus:ring-2 focus:ring-yadn-accent-green/50"
+                            className={inputClasses}
                             required
                           />
                         </div>
@@ -164,9 +163,9 @@ export default function FeatureRequest() {
                       <div>
                         <label
                           htmlFor="featureTitle"
-                          className="block text-sm font-medium mb-1"
+                          className="mb-1 block text-sm font-medium"
                         >
-                          Feature Title
+                          Feature title
                         </label>
                         <input
                           type="text"
@@ -175,7 +174,7 @@ export default function FeatureRequest() {
                           value={formData.featureTitle}
                           onChange={handleChange}
                           placeholder="A short, descriptive title for your feature idea"
-                          className="w-full px-4 py-2 bg-yadn-background/50 border border-yadn-foreground/20 rounded-md focus:outline-none focus:ring-2 focus:ring-yadn-accent-green/50"
+                          className={inputClasses}
                           required
                         />
                       </div>
@@ -183,9 +182,9 @@ export default function FeatureRequest() {
                       <div>
                         <label
                           htmlFor="featureDescription"
-                          className="block text-sm font-medium mb-1"
+                          className="mb-1 block text-sm font-medium"
                         >
-                          Feature Description
+                          Feature description
                         </label>
                         <textarea
                           id="featureDescription"
@@ -193,8 +192,8 @@ export default function FeatureRequest() {
                           value={formData.featureDescription}
                           onChange={handleChange}
                           rows={5}
-                          placeholder="Describe your feature idea in detail. What would it do? How would it work?"
-                          className="w-full px-4 py-2 bg-yadn-background/50 border border-yadn-foreground/20 rounded-md focus:outline-none focus:ring-2 focus:ring-yadn-accent-green/50"
+                          placeholder="Describe your idea in detail. What would it do? How would it work?"
+                          className={inputClasses}
                           required
                         ></textarea>
                       </div>
@@ -202,9 +201,9 @@ export default function FeatureRequest() {
                       <div>
                         <label
                           htmlFor="useCase"
-                          className="block text-sm font-medium mb-1"
+                          className="mb-1 block text-sm font-medium"
                         >
-                          Use Case
+                          Use case
                         </label>
                         <textarea
                           id="useCase"
@@ -213,7 +212,7 @@ export default function FeatureRequest() {
                           onChange={handleChange}
                           rows={3}
                           placeholder="How would this feature help you? What problem would it solve?"
-                          className="w-full px-4 py-2 bg-yadn-background/50 border border-yadn-foreground/20 rounded-md focus:outline-none focus:ring-2 focus:ring-yadn-accent-green/50"
+                          className={inputClasses}
                           required
                         ></textarea>
                       </div>
@@ -221,46 +220,46 @@ export default function FeatureRequest() {
                       <div>
                         <label
                           htmlFor="priority"
-                          className="block text-sm font-medium mb-1"
+                          className="mb-1 block text-sm font-medium"
                         >
-                          Priority Level
+                          Priority level
                         </label>
                         <select
                           id="priority"
                           name="priority"
                           value={formData.priority}
                           onChange={handleChange}
-                          className="w-full px-4 py-2 bg-yadn-background/50 border border-yadn-foreground/20 rounded-md focus:outline-none focus:ring-2 focus:ring-yadn-accent-green/50"
+                          className={inputClasses}
                         >
                           <option value="low">
-                            Low - Would be nice to have
+                            Low — would be nice to have
                           </option>
                           <option value="medium">
-                            Medium - Would improve my workflow
+                            Medium — would improve my workflow
                           </option>
                           <option value="high">
-                            High - Would significantly improve my experience
+                            High — would significantly improve my experience
                           </option>
                           <option value="critical">
-                            Critical - Currently blocking my work
+                            Critical — currently blocking my work
                           </option>
                         </select>
                       </div>
 
-                      <button
+                      <Button
                         type="submit"
+                        variant="signal"
                         disabled={isSubmitting}
-                        className="w-full px-4 py-3 bg-yadn-accent-green text-yadn-background rounded-md hover:bg-yadn-accent-green/90 transition-colors font-medium flex items-center justify-center disabled:opacity-70"
+                        className="w-full"
                       >
                         {isSubmitting ? (
-                          "Submitting..."
+                          "Submitting…"
                         ) : (
                           <>
-                            Submit Feature Request{" "}
-                            <Send size={16} className="ml-2" />
+                            Submit feature request <Send size={16} />
                           </>
                         )}
-                      </button>
+                      </Button>
                     </form>
                   </>
                 )}
@@ -269,44 +268,38 @@ export default function FeatureRequest() {
 
             <AnimateOnScroll>
               <div className="mt-16 text-center">
-                <h3 className="text-xl font-semibold mb-4">
-                  How We Process Feature Requests
+                <h3 className="font-display text-xl font-semibold">
+                  How we process feature requests
                 </h3>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mt-8">
-                  <div className="bg-yadn-background/50 border border-yadn-foreground/10 rounded-xl p-6">
-                    <div className="w-12 h-12 bg-yadn-accent-green/10 rounded-full flex items-center justify-center mx-auto mb-4">
-                      <span className="text-yadn-accent-green text-xl font-bold">
-                        1
-                      </span>
+                <div className="mt-8 grid grid-cols-1 gap-8 md:grid-cols-3">
+                  <div className="rounded-xl border border-border bg-card p-6">
+                    <div className="mx-auto mb-4 flex size-12 items-center justify-center rounded-full bg-signal-tint">
+                      <span className="text-xl font-bold text-signal">1</span>
                     </div>
-                    <h4 className="text-lg font-medium mb-2">Review</h4>
-                    <p className="text-yadn-foreground/70">
+                    <h4 className="text-lg font-medium">Review</h4>
+                    <p className="mt-2 text-muted-foreground">
                       Our product team reviews all feature requests to
                       understand user needs.
                     </p>
                   </div>
 
-                  <div className="bg-yadn-background/50 border border-yadn-foreground/10 rounded-xl p-6">
-                    <div className="w-12 h-12 bg-yadn-accent-green/10 rounded-full flex items-center justify-center mx-auto mb-4">
-                      <span className="text-yadn-accent-green text-xl font-bold">
-                        2
-                      </span>
+                  <div className="rounded-xl border border-border bg-card p-6">
+                    <div className="mx-auto mb-4 flex size-12 items-center justify-center rounded-full bg-signal-tint">
+                      <span className="text-xl font-bold text-signal">2</span>
                     </div>
-                    <h4 className="text-lg font-medium mb-2">Prioritize</h4>
-                    <p className="text-yadn-foreground/70">
+                    <h4 className="text-lg font-medium">Prioritize</h4>
+                    <p className="mt-2 text-muted-foreground">
                       We prioritize features based on user impact and technical
                       feasibility.
                     </p>
                   </div>
 
-                  <div className="bg-yadn-background/50 border border-yadn-foreground/10 rounded-xl p-6">
-                    <div className="w-12 h-12 bg-yadn-accent-green/10 rounded-full flex items-center justify-center mx-auto mb-4">
-                      <span className="text-yadn-accent-green text-xl font-bold">
-                        3
-                      </span>
+                  <div className="rounded-xl border border-border bg-card p-6">
+                    <div className="mx-auto mb-4 flex size-12 items-center justify-center rounded-full bg-signal-tint">
+                      <span className="text-xl font-bold text-signal">3</span>
                     </div>
-                    <h4 className="text-lg font-medium mb-2">Implement</h4>
-                    <p className="text-yadn-foreground/70">
+                    <h4 className="text-lg font-medium">Implement</h4>
+                    <p className="mt-2 text-muted-foreground">
                       Selected features are added to our roadmap and developed
                       in upcoming releases.
                     </p>

@@ -267,7 +267,7 @@ export const renderShapePreview = (shape: string, size = 24) => {
   }
 
   // Fallback for shapes not defined
-  return <div className="w-6 h-6 border border-gray-400"></div>;
+  return <div className="w-6 h-6 border border-border"></div>;
 };
 
 // Render a line for the sidebar preview
@@ -326,6 +326,6 @@ export const renderLinePreview = (type: string, size = 24) => {
         </svg>
       );
     default:
-      return <div className="w-6 h-6 border border-gray-400"></div>;
+      return <div className="w-6 h-6 border border-border"></div>;
   }
 };

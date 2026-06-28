@@ -140,35 +140,35 @@ const getPropertyIcon = (propertyName: string, propertyType: PropertyType) => {
   const name = propertyName.toLowerCase();
 
   if (name === "status" || name.includes("status"))
-    return <ListTodo className="h-4 w-4 text-gray-500" />;
+    return <ListTodo className="h-4 w-4 text-muted-foreground" />;
   if (name === "priority" || name.includes("priority"))
-    return <Flag className="h-4 w-4 text-gray-500" />;
+    return <Flag className="h-4 w-4 text-muted-foreground" />;
   if (name === "assign" || name.includes("assign") || name === "assignee")
-    return <Users className="h-4 w-4 text-gray-500" />;
+    return <Users className="h-4 w-4 text-muted-foreground" />;
   if (name === "date" || name.includes("date") || name === "due")
-    return <CalendarIcon className="h-4 w-4 text-gray-500" />;
+    return <CalendarIcon className="h-4 w-4 text-muted-foreground" />;
   if (name === "created" || name.includes("created"))
-    return <Clock className="h-4 w-4 text-gray-500" />;
+    return <Clock className="h-4 w-4 text-muted-foreground" />;
   if (name === "sprint" || name.includes("sprint"))
-    return <ListTodo className="h-4 w-4 text-gray-500" />;
+    return <ListTodo className="h-4 w-4 text-muted-foreground" />;
   if (name === "day" || name.includes("day"))
-    return <CalendarIcon className="h-4 w-4 text-gray-500" />;
+    return <CalendarIcon className="h-4 w-4 text-muted-foreground" />;
 
   // Default icons based on type
   switch (propertyType) {
     case "date":
-      return <CalendarIcon className="h-4 w-4 text-gray-500" />;
+      return <CalendarIcon className="h-4 w-4 text-muted-foreground" />;
     case "checkbox":
-      return <Check className="h-4 w-4 text-gray-500" />;
+      return <Check className="h-4 w-4 text-muted-foreground" />;
     case "select":
     case "multiselect":
-      return <ListTodo className="h-4 w-4 text-gray-500" />;
+      return <ListTodo className="h-4 w-4 text-muted-foreground" />;
     case "relation":
-      return <Users className="h-4 w-4 text-gray-500" />;
+      return <Users className="h-4 w-4 text-muted-foreground" />;
     case "rollup":
-      return <ListTodo className="h-4 w-4 text-gray-500" />;
+      return <ListTodo className="h-4 w-4 text-muted-foreground" />;
     default:
-      return <ListTodo className="h-4 w-4 text-gray-500" />;
+      return <ListTodo className="h-4 w-4 text-muted-foreground" />;
   }
 };
 
@@ -1125,7 +1125,7 @@ export function NodePropertiesSidebar({
           {refs.map((item, itemIndex) => (
             <span
               key={item.edgeId || item.id || itemIndex}
-              className="group text-xs text-[#003F91] bg-[#5DA9E9]/15 hover:bg-[#5DA9E9]/30 transition-colors rounded-md pl-2 pr-1 py-1 flex items-center gap-1"
+              className="group text-xs text-signal bg-signal/15 hover:bg-signal/30 transition-colors rounded-md pl-2 pr-1 py-1 flex items-center gap-1"
             >
               <button
                 type="button"
@@ -1144,7 +1144,7 @@ export function NodePropertiesSidebar({
                     onRemoveEdge(item.edgeId as string);
                   }}
                   title="Remove connection"
-                  className="opacity-0 group-hover:opacity-100 text-[#003F91]/60 hover:text-red-600 transition-all"
+                  className="opacity-0 group-hover:opacity-100 text-signal/60 hover:text-destructive transition-all"
                 >
                   <X className="h-3 w-3" />
                 </button>
@@ -1162,7 +1162,7 @@ export function NodePropertiesSidebar({
               <PopoverTrigger asChild>
                 <button
                   type="button"
-                  className="text-xs text-gray-500 hover:text-[#09BC8A] flex items-center gap-0.5 px-2 py-1 border border-dashed border-gray-300 hover:border-[#09BC8A]/50 rounded-md transition-colors"
+                  className="text-xs text-muted-foreground hover:text-signal flex items-center gap-0.5 px-2 py-1 border border-dashed border-border hover:border-signal/50 rounded-md transition-colors"
                 >
                   <Plus className="h-3 w-3" />
                   Connect
@@ -1181,7 +1181,7 @@ export function NodePropertiesSidebar({
                           onSelect={() => handlePick(n.id)}
                           className="text-sm"
                         >
-                          <File className="h-3 w-3 mr-2 text-[#5DA9E9]" />
+                          <File className="h-3 w-3 mr-2 text-signal" />
                           {n.data?.label || n.id}
                         </CommandItem>
                       ))}
@@ -1206,7 +1206,7 @@ export function NodePropertiesSidebar({
                 property.value.map((item: any, itemIndex: number) => (
                   <span
                     key={itemIndex}
-                    className="text-xs text-gray-600 bg-gray-100 rounded-md px-2 py-1"
+                    className="text-xs text-muted-foreground bg-muted rounded-md px-2 py-1"
                     title={`From: ${item.label || "Unknown source"}`}
                   >
                     {typeof item === "object" && item !== null
@@ -1217,7 +1217,7 @@ export function NodePropertiesSidebar({
                   </span>
                 ))
               ) : (
-                <span className="text-gray-400 text-sm">—</span>
+                <span className="text-muted-foreground text-sm">—</span>
               )}
             </div>
           ) : property.type === "relation" ? (
@@ -1226,18 +1226,18 @@ export function NodePropertiesSidebar({
                 property.value.map((item: any, itemIndex: number) => (
                   <span
                     key={itemIndex}
-                    className="text-xs text-gray-600 bg-blue-50 rounded-md px-2 py-1 flex items-center gap-1"
+                    className="text-xs text-gray-600 bg-signal/10 rounded-md px-2 py-1 flex items-center gap-1"
                   >
                     <File className="h-3 w-3" />
                     {item.label || item.id || String(item)}
                   </span>
                 ))
               ) : (
-                <span className="text-gray-400 text-sm">—</span>
+                <span className="text-muted-foreground text-sm">—</span>
               )}
             </div>
           ) : (
-            <span style={valueStyle} className="text-sm text-gray-500">
+            <span style={valueStyle} className="text-sm text-muted-foreground">
               {Array.isArray(property.value)
                 ? property.value.join(", ")
                 : property.value !== undefined && property.value !== null
@@ -1267,7 +1267,7 @@ export function NodePropertiesSidebar({
                   setEditingPropertyValue(null);
                 }
               }}
-              className="min-h-[80px] px-2 py-1 text-sm border border-gray-300 rounded-md focus:border-[#09BC8A] focus:ring-[#09BC8A]/20 focus:outline-none resize-y"
+              className="min-h-[80px] px-2 py-1 text-sm border border-border rounded-md focus:border-signal focus:ring-signal/20 focus:outline-none resize-y"
               placeholder="Enter long text... (Ctrl+Enter to save)"
               autoFocus
             />
@@ -1287,7 +1287,7 @@ export function NodePropertiesSidebar({
                   setEditingPropertyValue(null);
                 }
               }}
-              className="h-8 px-2 py-1 text-sm focus-visible:ring-1 focus:border-[#09BC8A] focus:ring-[#09BC8A]/20"
+              className="h-8 px-2 py-1 text-sm focus-visible:ring-1 focus:border-signal focus:ring-signal/20"
               placeholder="https://example.com"
               autoFocus
             />
@@ -1307,7 +1307,7 @@ export function NodePropertiesSidebar({
                   setEditingPropertyValue(null);
                 }
               }}
-              className="h-8 px-2 py-1 text-sm focus-visible:ring-1 focus:border-[#09BC8A] focus:ring-[#09BC8A]/20"
+              className="h-8 px-2 py-1 text-sm focus-visible:ring-1 focus:border-signal focus:ring-signal/20"
               autoFocus
             />
           );
@@ -1326,7 +1326,7 @@ export function NodePropertiesSidebar({
                   setEditingPropertyValue(null);
                 }
               }}
-              className="h-8 px-2 py-1 text-sm focus-visible:ring-1 focus:border-[#09BC8A] focus:ring-[#09BC8A]/20"
+              className="h-8 px-2 py-1 text-sm focus-visible:ring-1 focus:border-signal focus:ring-signal/20"
               autoFocus
             />
           );
@@ -1337,7 +1337,7 @@ export function NodePropertiesSidebar({
                 <PopoverTrigger asChild>
                   <Button
                     variant="outline"
-                    className="w-full justify-start text-left font-normal h-8 hover:border-[#09BC8A] focus:border-[#09BC8A] focus:ring-[#09BC8A]/20"
+                    className="w-full justify-start text-left font-normal h-8 hover:border-signal focus:border-signal focus:ring-signal/20"
                   >
                     {selectedDate ? (
                       format(selectedDate, "PPP")
@@ -1391,7 +1391,7 @@ export function NodePropertiesSidebar({
                   handleUpdatePropertyValue(index, tempPropertyValue);
                   setEditingPropertyValue(null);
                 }}
-                className="h-8 px-2 py-1 text-sm focus-visible:ring-1 focus:border-[#09BC8A] focus:ring-[#09BC8A]/20"
+                className="h-8 px-2 py-1 text-sm focus-visible:ring-1 focus:border-signal focus:ring-signal/20"
                 placeholder="#09BC8A"
               />
             </div>
@@ -1410,17 +1410,17 @@ export function NodePropertiesSidebar({
               onCheckedChange={(checked) =>
                 handleUpdatePropertyValue(index, checked)
               }
-              className="data-[state=checked]:bg-[#09BC8A]"
+              className="data-[state=checked]:bg-signal"
             />
           </div>
         );
       case "date":
         return (
           <div
-            className="cursor-pointer hover:bg-gray-50 px-2 py-1 rounded w-full transition-colors"
+            className="cursor-pointer hover:bg-accent px-2 py-1 rounded w-full transition-colors"
             onClick={() => startEditingPropertyValue(index)}
           >
-            <span className="text-sm text-gray-700">
+            <span className="text-sm text-muted-foreground">
               {property.value
                 ? format(new Date(property.value), "PPP")
                 : "Click to set date"}
@@ -1430,7 +1430,7 @@ export function NodePropertiesSidebar({
       case "url":
         return (
           <div
-            className="cursor-pointer hover:bg-gray-50 px-2 py-1 rounded w-full transition-colors"
+            className="cursor-pointer hover:bg-accent px-2 py-1 rounded w-full transition-colors"
             onClick={() => startEditingPropertyValue(index)}
           >
             {property.value ? (
@@ -1438,23 +1438,23 @@ export function NodePropertiesSidebar({
                 href={property.value}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-[#5DA9E9] hover:text-[#003F91] underline text-sm break-all"
+                className="text-signal hover:text-signal-bright underline text-sm break-all"
                 onClick={(e) => e.stopPropagation()}
               >
                 {property.value}
               </a>
             ) : (
-              <span className="text-gray-400 text-sm">Click to add URL</span>
+              <span className="text-muted-foreground text-sm">Click to add URL</span>
             )}
           </div>
         );
       case "longtext":
         return (
           <div
-            className="cursor-pointer hover:bg-gray-50 px-2 py-1 rounded w-full transition-colors"
+            className="cursor-pointer hover:bg-accent px-2 py-1 rounded w-full transition-colors"
             onClick={() => startEditingPropertyValue(index)}
           >
-            <div className="text-sm text-gray-700 max-h-20 overflow-y-auto">
+            <div className="text-sm text-muted-foreground max-h-20 overflow-y-auto">
               {property.value ? (
                 <div className="whitespace-pre-wrap break-words">
                   {String(property.value).length > 100
@@ -1462,7 +1462,7 @@ export function NodePropertiesSidebar({
                     : String(property.value)}
                 </div>
               ) : (
-                <span className="text-gray-400">Click to add long text</span>
+                <span className="text-muted-foreground">Click to add long text</span>
               )}
             </div>
           </div>
@@ -1473,7 +1473,7 @@ export function NodePropertiesSidebar({
             value={String(property.value)}
             onValueChange={(value) => handleUpdatePropertyValue(index, value)}
           >
-            <SelectTrigger className="h-8 min-w-[120px] border-none bg-transparent hover:bg-gray-50 focus:ring-0 px-2 focus:border-[#09BC8A]">
+            <SelectTrigger className="h-8 min-w-[120px] border-none bg-transparent hover:bg-accent focus:ring-0 px-2 focus:border-signal">
               <span style={valueStyle}>
                 {property.value || "Select an option"}
               </span>
@@ -1491,8 +1491,8 @@ export function NodePropertiesSidebar({
         return (
           <div className="w-full">
             {editingPropertyValue === index ? (
-              <div className="space-y-2 p-3 border border-[#09BC8A] rounded-md bg-gray-50">
-                <div className="text-xs font-medium text-gray-600 mb-2">
+              <div className="space-y-2 p-3 border border-signal rounded-md bg-muted">
+                <div className="text-xs font-medium text-muted-foreground mb-2">
                   Select multiple options:
                 </div>
                 {property.options && property.options.length > 0 ? (
@@ -1528,14 +1528,14 @@ export function NodePropertiesSidebar({
                             };
                             setProperties(updatedProperties);
                           }}
-                          className="rounded border-gray-300 text-[#09BC8A] focus:ring-[#09BC8A]/20"
+                          className="rounded border-border text-signal focus:ring-signal/20"
                         />
-                        <span className="text-sm text-gray-700">{option}</span>
+                        <span className="text-sm text-muted-foreground">{option}</span>
                       </label>
                     ))}
                   </div>
                 ) : (
-                  <div className="text-sm text-gray-500 italic">
+                  <div className="text-sm text-muted-foreground italic">
                     No options available. Add options first in the column
                     settings.
                   </div>
@@ -1555,7 +1555,7 @@ export function NodePropertiesSidebar({
                       handleUpdatePropertyValue(index, property.value);
                       setEditingPropertyValue(null);
                     }}
-                    className="bg-[#09BC8A] hover:bg-[#08a378] text-white border-0 text-xs"
+                    className="bg-signal hover:bg-signal-hover text-white border-0 text-xs"
                   >
                     Save
                   </Button>
@@ -1563,7 +1563,7 @@ export function NodePropertiesSidebar({
               </div>
             ) : (
               <div
-                className="flex flex-wrap gap-1 cursor-pointer hover:bg-gray-50 px-2 py-1 rounded w-full transition-colors min-h-[32px] items-center"
+                className="flex flex-wrap gap-1 cursor-pointer hover:bg-accent px-2 py-1 rounded w-full transition-colors min-h-[32px] items-center"
                 onClick={() => startEditingPropertyValue(index)}
               >
                 {Array.isArray(property.value) && property.value.length > 0 ? (
@@ -1576,7 +1576,7 @@ export function NodePropertiesSidebar({
                     </span>
                   ))
                 ) : (
-                  <span className="text-gray-400 text-sm">
+                  <span className="text-muted-foreground text-sm">
                     {property.options && property.options.length > 0
                       ? "Click to select options"
                       : "No options available"}
@@ -1590,15 +1590,15 @@ export function NodePropertiesSidebar({
         return (
           <div className="flex items-center gap-2 w-full">
             <div
-              className="w-6 h-6 rounded-full border-2 border-gray-200 shadow-sm cursor-pointer"
+              className="w-6 h-6 rounded-full border-2 border-border shadow-sm cursor-pointer"
               style={{ backgroundColor: property.value || "#09BC8A" }}
               onClick={() => startEditingPropertyValue(index)}
             ></div>
             <div
-              className="cursor-pointer hover:bg-gray-50 px-2 py-1 rounded flex-grow transition-colors"
+              className="cursor-pointer hover:bg-accent px-2 py-1 rounded flex-grow transition-colors"
               onClick={() => startEditingPropertyValue(index)}
             >
-              <span className="text-sm text-gray-700 font-mono">
+              <span className="text-sm text-muted-foreground font-mono">
                 {property.value || "#09BC8A"}
               </span>
             </div>
@@ -1607,19 +1607,19 @@ export function NodePropertiesSidebar({
       case "email":
         return (
           <div
-            className="cursor-pointer hover:bg-gray-50 px-2 py-1 rounded w-full transition-colors"
+            className="cursor-pointer hover:bg-accent px-2 py-1 rounded w-full transition-colors"
             onClick={() => startEditingPropertyValue(index)}
           >
             {property.value ? (
               <a
                 href={`mailto:${property.value}`}
-                className="text-[#5DA9E9] hover:text-[#003F91] underline text-sm"
+                className="text-signal hover:text-signal-bright underline text-sm"
                 onClick={(e) => e.stopPropagation()}
               >
                 {property.value}
               </a>
             ) : (
-              <span className="text-gray-400 text-sm">Click to add email</span>
+              <span className="text-muted-foreground text-sm">Click to add email</span>
             )}
           </div>
         );
@@ -1631,7 +1631,7 @@ export function NodePropertiesSidebar({
                 ? property.value.map((item: any, itemIndex: number) => (
                     <span
                       key={itemIndex}
-                      className="text-xs text-[#003F91] bg-[#5DA9E9]/10 rounded-md px-2 py-1 border border-[#5DA9E9]/20 flex items-center gap-1 group"
+                      className="text-xs text-signal bg-signal/10 rounded-md px-2 py-1 border border-signal/20 flex items-center gap-1 group"
                     >
                       <File className="h-3 w-3" />
                       {item.label || item.id || String(item)}
@@ -1643,7 +1643,7 @@ export function NodePropertiesSidebar({
                           );
                           handleUpdatePropertyValue(index, newValue);
                         }}
-                        className="ml-1 opacity-0 group-hover:opacity-100 text-red-500 hover:text-red-700 transition-all"
+                        className="ml-1 opacity-0 group-hover:opacity-100 text-destructive hover:text-destructive transition-all"
                       >
                         <X className="h-3 w-3" />
                       </button>
@@ -1660,7 +1660,7 @@ export function NodePropertiesSidebar({
               property.value.map((item: any, itemIndex: number) => (
                 <span
                   key={itemIndex}
-                  className="text-xs text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-md px-2 py-1 border transition-colors cursor-default"
+                  className="text-xs text-muted-foreground bg-muted hover:bg-accent rounded-md px-2 py-1 border transition-colors cursor-default"
                   title={`From: ${item.label || "Unknown source"}`}
                 >
                   {typeof item === "object" && item !== null
@@ -1671,7 +1671,7 @@ export function NodePropertiesSidebar({
                 </span>
               ))
             ) : (
-              <span className="text-gray-400 text-sm px-1 italic">
+              <span className="text-muted-foreground text-sm px-1 italic">
                 No rollup data available
               </span>
             )}
@@ -1680,19 +1680,19 @@ export function NodePropertiesSidebar({
       default:
         return (
           <div
-            className="cursor-pointer hover:bg-gray-50 px-2 py-1 rounded w-full overflow-hidden text-ellipsis transition-colors"
+            className="cursor-pointer hover:bg-accent px-2 py-1 rounded w-full overflow-hidden text-ellipsis transition-colors"
             onClick={() => startEditingPropertyValue(index)}
           >
             <span
               style={valueStyle}
-              className="block truncate text-sm text-gray-700"
+              className="block truncate text-sm text-muted-foreground"
             >
               {Array.isArray(property.value) ? (
                 property.value.join(", ")
               ) : property.value !== undefined && property.value !== null ? (
                 String(property.value)
               ) : (
-                <span className="text-gray-400">Click to edit</span>
+                <span className="text-muted-foreground">Click to edit</span>
               )}
             </span>
           </div>
@@ -1703,18 +1703,18 @@ export function NodePropertiesSidebar({
   return (
     <div
       className="fixed right-0 top-[calc(4vh+84px)] bottom-0 z-50 w-96
-      animate-slide-in-right 
-      bg-white border-l border-gray-200 
-      flex flex-col 
-      shadow-lg"
+      animate-slide-in-right
+      bg-card border-l border-border
+      flex flex-col
+      shadow-atlas-lg"
     >
-      <div className="flex items-center justify-between p-4 border-b border-gray-100">
+      <div className="flex items-center justify-between p-4 border-b border-border">
         <Input
           value={title}
           onChange={(e) => setTitle(e.target.value)}
           onBlur={handleSaveTitle}
           onKeyDown={(e) => e.key === "Enter" && handleSaveTitle()}
-          className="!text-3xl !font-bold border-none focus-visible:ring-0 px-0 h-auto focus:border-[#09BC8A] placeholder:text-gray-300"
+          className="!text-3xl !font-bold border-none focus-visible:ring-0 px-0 h-auto focus:border-signal placeholder:text-muted-foreground"
           placeholder="Untitled"
         />
       </div>
@@ -1725,12 +1725,12 @@ export function NodePropertiesSidebar({
           {properties.map((property, index) => (
             <div
               key={`${property.name}-${index}`}
-              className={`flex items-center gap-4 py-1.5 hover:bg-gray-50 rounded-md group relative ${
+              className={`flex items-center gap-4 py-1.5 hover:bg-accent rounded-md group relative ${
                 isPropertyHidden(property) ? "opacity-40" : ""
               }`}
             >
               {/* Property name with inline editing */}
-              <div className="flex items-center gap-2 text-gray-500 min-w-[120px] w-[120px] max-w-[120px] overflow-hidden">
+              <div className="flex items-center gap-2 text-muted-foreground min-w-[120px] w-[120px] max-w-[120px] overflow-hidden">
                 {getPropertyIcon(property.name, property?.type)}
 
                 {editingPropertyName === index ? (
@@ -1744,14 +1744,14 @@ export function NodePropertiesSidebar({
                         setEditingPropertyName(null);
                       }
                     }}
-                    className="h-7 px-1 py-0 text-sm focus-visible:ring-1 focus:border-[#09BC8A] focus:ring-[#09BC8A]/20"
+                    className="h-7 px-1 py-0 text-sm focus-visible:ring-1 focus:border-signal focus:ring-signal/20"
                     autoFocus
                   />
                 ) : (
                   <span
-                    className={`text-gray-600 truncate block ${
+                    className={`text-muted-foreground truncate block ${
                       property.isEditable
-                        ? "cursor-pointer hover:text-[#09BC8A] hover:underline transition-colors"
+                        ? "cursor-pointer hover:text-signal hover:underline transition-colors"
                         : "cursor-default"
                     }`}
                     onClick={() =>
@@ -1768,7 +1768,7 @@ export function NodePropertiesSidebar({
               <div className="flex-grow overflow-hidden">
                 {renderPropertyValue(property, index)}
                 {validationErrors[property.name] && (
-                  <div className="text-xs text-red-500 mt-1 px-2">
+                  <div className="text-xs text-destructive mt-1 px-2">
                     {validationErrors[property.name]}
                   </div>
                 )}
@@ -1781,7 +1781,7 @@ export function NodePropertiesSidebar({
                     <Button
                       variant="ghost"
                       size="icon"
-                      className="h-7 w-7 hover:bg-[#09BC8A]/10 hover:text-[#09BC8A]"
+                      className="h-7 w-7 hover:bg-signal/10 hover:text-signal"
                     >
                       <MoreHorizontal className="h-4 w-4" />
                     </Button>
@@ -1842,7 +1842,7 @@ export function NodePropertiesSidebar({
                         <DropdownMenuSeparator />
                         <DropdownMenuItem
                           onClick={() => handleRemoveProperty(index)}
-                          className="text-red-500 focus:text-red-500"
+                          className="text-destructive focus:text-destructive"
                         >
                           <X className="h-4 w-4 mr-2" />
                           Delete property
@@ -1857,7 +1857,7 @@ export function NodePropertiesSidebar({
 
           {/* Add New Property Button */}
           <button
-            className="flex items-center gap-2 text-gray-400 hover:text-[#09BC8A] py-3 w-full mt-4 transition-colors duration-200 border-2 border-dashed border-gray-200 hover:border-[#09BC8A]/30 rounded-lg justify-center bg-gray-50/50 hover:bg-[#09BC8A]/5"
+            className="flex items-center gap-2 text-muted-foreground hover:text-signal py-3 w-full mt-4 transition-colors duration-200 border-2 border-dashed border-border hover:border-signal/30 rounded-lg justify-center bg-muted/50 hover:bg-signal/5"
             onClick={() => setShowPropertyTypeSelect(true)}
           >
             <Plus className="h-4 w-4" />
@@ -1867,16 +1867,16 @@ export function NodePropertiesSidebar({
 
         {/* Add Property Form */}
         {showPropertyTypeSelect && (
-          <div className="bg-white rounded-lg border-2 border-[#09BC8A]/20 p-4 mt-4 shadow-sm">
+          <div className="bg-card rounded-lg border-2 border-signal/20 p-4 mt-4 shadow-sm">
             <div className="mb-3">
               <Input
                 value={newPropertyName}
                 onChange={(e) => setNewPropertyName(e.target.value)}
                 placeholder="Property name"
-                className={`w-full focus:border-[#09BC8A] focus:ring-[#09BC8A]/20 ${validationErrors.newProperty ? "border-red-500" : ""}`}
+                className={`w-full focus:border-signal focus:ring-signal/20 ${validationErrors.newProperty ? "border-destructive" : ""}`}
               />
               {validationErrors.newProperty && (
-                <div className="text-xs text-red-500 mt-1">
+                <div className="text-xs text-destructive mt-1">
                   {validationErrors.newProperty}
                 </div>
               )}
@@ -1886,7 +1886,7 @@ export function NodePropertiesSidebar({
               value={newPropertyType}
               onValueChange={(value: PropertyType) => setNewPropertyType(value)}
             >
-              <SelectTrigger className="bg-white border-gray-300 mb-3 focus:outline-none focus:border-[#09BC8A] focus:ring-[#09BC8A]/20">
+              <SelectTrigger className="bg-card border-border mb-3 focus:outline-none focus:border-signal focus:ring-signal/20">
                 <SelectValue placeholder="Select type" />
               </SelectTrigger>
               <SelectContent>
@@ -1906,7 +1906,7 @@ export function NodePropertiesSidebar({
             {/* Show options editor when select type is chosen */}
             {(newPropertyType === "select" ||
               newPropertyType === "multiselect") && (
-              <div className="mt-3 mb-3 border rounded-md p-2 bg-gray-50">
+              <div className="mt-3 mb-3 border rounded-md p-2 bg-muted">
                 <div className="text-sm font-medium mb-2">Define options</div>
                 <div className="space-y-2 mb-3 max-h-40 overflow-y-auto">
                   {newPropertyOptions.map((option, i) => (
@@ -1931,7 +1931,7 @@ export function NodePropertiesSidebar({
                         }}
                         className="h-7 w-7"
                       >
-                        <X className="h-3.5 w-3.5 text-gray-400" />
+                        <X className="h-3.5 w-3.5 text-muted-foreground" />
                       </Button>
                     </div>
                   ))}
@@ -1966,7 +1966,7 @@ export function NodePropertiesSidebar({
                       }
                     }}
                     disabled={!newOptionInput.trim()}
-                    className="h-8 bg-[#09BC8A] hover:bg-[#08a378] text-white border-0"
+                    className="h-8 bg-signal hover:bg-signal-hover text-white border-0"
                   >
                     Add
                   </Button>
@@ -1988,7 +1988,7 @@ export function NodePropertiesSidebar({
                     setValidationErrors(rest);
                   }
                 }}
-                className="border-gray-300 hover:bg-gray-50"
+                className="border-border hover:bg-accent"
               >
                 Cancel
               </Button>
@@ -2001,7 +2001,7 @@ export function NodePropertiesSidebar({
                     newPropertyType === "multiselect") &&
                     newPropertyOptions.length === 0)
                 }
-                className="bg-[#09BC8A] hover:bg-[#08a378] text-white border-0"
+                className="bg-signal hover:bg-signal-hover text-white border-0"
               >
                 Add
               </Button>
@@ -2011,16 +2011,16 @@ export function NodePropertiesSidebar({
 
         {/* Options Editor Dialog */}
         {editingOptions && (
-          <div className="bg-white rounded-lg border-2 border-[#5DA9E9]/20 p-4 mt-4 shadow-sm">
+          <div className="bg-card rounded-lg border-2 border-signal/20 p-4 mt-4 shadow-sm">
             <div className="flex justify-between items-center mb-3">
-              <div className="font-medium text-[#003F91]">
+              <div className="font-medium text-signal">
                 Edit {editingOptions.propertyName} options
               </div>
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={() => setEditingOptions(null)}
-                className="hover:bg-gray-100"
+                className="hover:bg-accent"
               >
                 <X className="h-4 w-4" />
               </Button>
@@ -2073,7 +2073,7 @@ export function NodePropertiesSidebar({
                     onClick={() => handleRemoveOption(i)}
                     className="h-8 w-8"
                   >
-                    <X className="h-4 w-4 text-gray-400" />
+                    <X className="h-4 w-4 text-muted-foreground" />
                   </Button>
                 </div>
               ))}
@@ -2090,7 +2090,7 @@ export function NodePropertiesSidebar({
                 size="sm"
                 onClick={handleAddOption}
                 disabled={!newOption.trim()}
-                className="bg-[#09BC8A] hover:bg-[#08a378] text-white border-0"
+                className="bg-signal hover:bg-signal-hover text-white border-0"
               >
                 Add
               </Button>

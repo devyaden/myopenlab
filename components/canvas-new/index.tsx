@@ -3,6 +3,9 @@
 import { useIsMobile } from "@/hooks/use-mobile";
 import DocumentEditor from "@/components/editor";
 import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { useAgentStore } from "@/lib/store/useAgent";
+import { Sparkles, Workflow } from "lucide-react";
 import {
   alignNodes,
   distributeNodes,
@@ -34,7 +37,6 @@ import { VIEW_MODE } from "./table-view/table.types";
 import { Toolbar } from "./toolbar";
 import { UMLEditor } from "./uml-editor";
 import { VerticalNav } from "./vertical-nav";
-import { ViewModeSwitcher } from "./view-mode-switcher";
 
 interface NodeStyle {
   fontFamily: string;
@@ -1722,7 +1724,7 @@ export default function CanvasNew({ canvasId }: FigmaInterfaceProps) {
       {viewMode === "canvas" || viewMode === "table" ? (
         <ReactFlowProvider>
           <>
-            <div className="h-screen bg-white flex flex-col w-screen">
+            <div className="h-screen bg-card flex flex-col w-screen">
               <Header
                 currentState={currentState}
                 projectName={projectName}
@@ -1742,6 +1744,7 @@ export default function CanvasNew({ canvasId }: FigmaInterfaceProps) {
                 onVisibilityChange={handleVisibilityChange}
                 isOwner={isOwner}
                 viewMode={viewMode}
+                onViewModeChange={handleViewModeChange}
                 exportToCSV={exportToCSVFn}
                 exportToExcel={exportToExcelFn}
                 propExportAsPDF={documentRef.current?.exportAsPDF}
@@ -1750,17 +1753,6 @@ export default function CanvasNew({ canvasId }: FigmaInterfaceProps) {
                 toggleMiniMap={miniMapRef}
                 currentFolder={currentFolder}
               />
-
-              {/* Add view mode switcher for read-only mode */}
-              {isReadOnly && viewMode === VIEW_MODE.canvas && (
-                <div className="flex justify-end p-2 border-b">
-                  <ViewModeSwitcher
-                    viewMode={viewMode}
-                    onViewModeChange={handleViewModeChange}
-                    canvasType={canvas_type}
-                  />
-                </div>
-              )}
 
               {/* conditional rendering based on canvas type */}
 
@@ -1927,6 +1919,42 @@ export default function CanvasNew({ canvasId }: FigmaInterfaceProps) {
                       readOnly={isReadOnly}
                       onMiniMapToggleRef={handleMiniMapToggleRef}
                     />
+                    {/* Foolproof empty canvas: a beginner never stares at a blank
+                        screen — guide them to AI or the shapes panel. */}
+                    {isLoaded &&
+                      !isReadOnly &&
+                      canvas_type === CANVAS_TYPE.HYBRID &&
+                      viewMode === VIEW_MODE.canvas &&
+                      currentState.nodes.length === 0 && (
+                        <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center p-6">
+                          <div className="pointer-events-auto w-full max-w-sm rounded-xl border border-border bg-card/95 p-6 text-center shadow-atlas-md backdrop-blur">
+                            <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-signal/10 text-signal">
+                              <Workflow className="h-6 w-6" />
+                            </div>
+                            <h3 className="font-display text-lg font-semibold text-foreground">
+                              This playbook is empty
+                            </h3>
+                            <p className="mx-auto mt-1 max-w-xs text-sm text-muted-foreground">
+                              Map your process as a flow — let AI draft it, or open
+                              the shapes panel and drag your first step onto the canvas.
+                            </p>
+                            <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
+                              <Button
+                                variant="signal"
+                                onClick={() => useAgentStore.getState().open()}
+                              >
+                                <Sparkles className="h-4 w-4" /> Ask AI to draft it
+                              </Button>
+                              <Button
+                                variant="outline"
+                                onClick={() => setIsSidebarOpen(true)}
+                              >
+                                Open shapes
+                              </Button>
+                            </div>
+                          </div>
+                        </div>
+                      )}
                   </div>
                 </div>
               </div>

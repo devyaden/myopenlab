@@ -1,18 +1,40 @@
 import ClientLayout from "./client-layout";
 import "./globals.css";
 import { PostHogProvider } from "../components/PostHogProvider";
-import { Quicksand, Rubik } from "next/font/google";
+import {
+  Schibsted_Grotesk,
+  Hanken_Grotesk,
+  Geist_Mono,
+  IBM_Plex_Sans_Arabic,
+} from "next/font/google";
 import { cookies } from "next/headers";
 import { LOCALE_COOKIE, dirFor, normalizeLocale } from "@/lib/i18n/config";
 
-const quicksand = Quicksand({
+// Atlas typefaces. Display = signage/wayfinding character; Body = humanist sans;
+// Mono = code "coordinates"; Arabic = full RTL face.
+const display = Schibsted_Grotesk({
   subsets: ["latin"],
-  variable: "--font-quicksand",
+  variable: "--font-display",
+  display: "swap",
 });
 
-const rubik = Rubik({
+const body = Hanken_Grotesk({
+  subsets: ["latin"],
+  variable: "--font-body",
+  display: "swap",
+});
+
+const mono = Geist_Mono({
+  subsets: ["latin"],
+  variable: "--font-mono",
+  display: "swap",
+});
+
+const arabic = IBM_Plex_Sans_Arabic({
   subsets: ["arabic"],
-  variable: "--font-rubik",
+  weight: ["400", "500", "600", "700"],
+  variable: "--font-arabic",
+  display: "swap",
 });
 
 const defaultUrl = process.env.VERCEL_URL
@@ -61,7 +83,7 @@ export default async function RootLayout({
   return (
     <html
       lang={locale}
-      className={`${quicksand.variable} ${rubik.variable}`}
+      className={`${display.variable} ${body.variable} ${mono.variable} ${arabic.variable}`}
       suppressHydrationWarning
       dir={dirFor(locale)}
     >

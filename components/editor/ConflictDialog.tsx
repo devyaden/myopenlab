@@ -25,12 +25,12 @@ export function ConflictDialog({
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 p-4">
-      <div className="flex max-h-[85vh] w-full max-w-2xl flex-col overflow-hidden rounded-lg bg-white shadow-xl">
+      <div className="flex max-h-[85vh] w-full max-w-2xl flex-col overflow-hidden rounded-lg bg-card shadow-xl">
         <div className="border-b px-6 py-4">
-          <h2 className="text-lg font-semibold text-gray-900">
+          <h2 className="text-lg font-semibold text-foreground">
             This document changed elsewhere
           </h2>
-          <p className="mt-1 text-sm text-gray-600">
+          <p className="mt-1 text-sm text-muted-foreground">
             Someone (or another tab/the AI) saved a newer version while you were
             editing. Choose which to keep — the other version is saved to a local
             backup, so nothing is lost.
@@ -38,22 +38,22 @@ export function ConflictDialog({
         </div>
 
         {showDiff && (
-          <div className="grid grid-cols-2 gap-px overflow-auto border-b bg-gray-200">
-            <div className="bg-white p-4">
+          <div className="grid grid-cols-2 gap-px overflow-auto border-b bg-border">
+            <div className="bg-card p-4">
               <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-blue-600">
                 Your version
               </div>
               <div
-                className="prose prose-sm max-w-none text-gray-800"
+                className="prose prose-sm max-w-none text-foreground"
                 dangerouslySetInnerHTML={{ __html: mineHtml }}
               />
             </div>
-            <div className="bg-white p-4">
+            <div className="bg-card p-4">
               <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-emerald-600">
                 Their version
               </div>
               <div
-                className="prose prose-sm max-w-none text-gray-800"
+                className="prose prose-sm max-w-none text-foreground"
                 dangerouslySetInnerHTML={{ __html: theirsHtml }}
               />
             </div>
@@ -64,7 +64,7 @@ export function ConflictDialog({
           <button
             type="button"
             onClick={() => setShowDiff((v) => !v)}
-            className="text-sm font-medium text-gray-600 hover:text-gray-900"
+            className="text-sm font-medium text-muted-foreground hover:text-foreground"
           >
             {showDiff ? "Hide comparison" : "View comparison"}
           </button>
@@ -72,7 +72,7 @@ export function ConflictDialog({
             <button
               type="button"
               onClick={onClose}
-              className="rounded px-3 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100"
+              className="rounded px-3 py-2 text-sm font-medium text-muted-foreground hover:bg-accent"
             >
               Decide later
             </button>

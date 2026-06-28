@@ -222,12 +222,12 @@ const SortableTableRow: React.FC<{
                   ? editedValue.map((value: string, index: number) => (
                       <div
                         key={index}
-                        className="flex items-center bg-gray-100 rounded-md px-2 py-1 text-sm"
+                        className="flex items-center bg-muted rounded-md px-2 py-1 text-sm"
                       >
                         <span>{value}</span>
                         <button
                           type="button"
-                          className="ml-1 text-gray-500 hover:text-gray-700"
+                          className="ml-1 text-muted-foreground hover:text-foreground"
                           onClick={(e) => {
                             e.stopPropagation();
                             const newValues = [...editedValue];
@@ -370,7 +370,7 @@ const SortableTableRow: React.FC<{
             cellValue.map((item: any, index: number) => (
               <span
                 key={index}
-                className="text-sm text-gray-600 bg-gray-100 rounded-md px-2 py-1"
+                className="text-sm text-muted-foreground bg-muted rounded-md px-2 py-1"
               >
                 {typeof item.value !== "undefined"
                   ? typeof item.value === "object"
@@ -380,7 +380,7 @@ const SortableTableRow: React.FC<{
               </span>
             ))
           ) : (
-            <span className="text-gray-400 px-1">—</span>
+            <span className="text-muted-foreground px-1">—</span>
           )}
         </div>
       );
@@ -391,12 +391,12 @@ const SortableTableRow: React.FC<{
         <div className="flex flex-wrap max-w-full">
           {Array.isArray(cellValue) && cellValue.length > 0 ? (
             cellValue.map((item: any, index: number) => (
-              <p key={index} className="text-sm text-gray-600 flex mr-3">
+              <p key={index} className="text-sm text-muted-foreground flex mr-3">
                 <File className="h-4 w-4 mr-1" /> {item.label}
               </p>
             ))
           ) : (
-            <span className="text-gray-400 flex items-center">
+            <span className="text-muted-foreground flex items-center">
               <Plus className="h-4 w-4 mr-1" /> Add
             </span>
           )}
@@ -417,19 +417,19 @@ const SortableTableRow: React.FC<{
                 }}
               >
                 {isExpanded ? (
-                  <ChevronDown className="h-4 w-4 text-gray-600" />
+                  <ChevronDown className="h-4 w-4 text-muted-foreground" />
                 ) : (
-                  <ChevronRight className="h-4 w-4 text-gray-600" />
+                  <ChevronRight className="h-4 w-4 text-muted-foreground" />
                 )}
               </div>
             )}
-            {cellValue || <span className="text-gray-400"></span>}
+            {cellValue || <span className="text-muted-foreground"></span>}
           </div>
         )}
         {dataKey === "shape" &&
-          (cellValue || <span className="text-gray-400"></span>)}
+          (cellValue || <span className="text-muted-foreground"></span>)}
         {dataKey === "id" &&
-          (cellValue || <span className="text-gray-400"></span>)}
+          (cellValue || <span className="text-muted-foreground"></span>)}
         {!["label", "shape", "id"].includes(dataKey) && (
           <>
             {column?.type === "Checkbox" ? (
@@ -450,14 +450,14 @@ const SortableTableRow: React.FC<{
                     {cellValue.map((item: any, index: number) => (
                       <p
                         key={index}
-                        className="text-sm text-gray-600 flex mr-3"
+                        className="text-sm text-muted-foreground flex mr-3"
                       >
                         <File className="h-4 w-4 mr-1" /> {item.label}
                       </p>
                     ))}
                   </div>
                 ) : (
-                  <span className="text-gray-400 flex items-center">
+                  <span className="text-muted-foreground flex items-center">
                     <Plus className="h-4 w-4 mr-1" /> Add
                   </span>
                 )}
@@ -468,13 +468,13 @@ const SortableTableRow: React.FC<{
                   cellValue.map((value: string, index: number) => (
                     <span
                       key={index}
-                      className="text-sm text-gray-600 bg-gray-100 rounded-md px-2 py-1"
+                      className="text-sm text-muted-foreground bg-muted rounded-md px-2 py-1"
                     >
                       {value}
                     </span>
                   ))
                 ) : (
-                  <span className="text-gray-400"></span>
+                  <span className="text-muted-foreground"></span>
                 )}
               </div>
             ) : column?.type === "Date" ||
@@ -483,7 +483,7 @@ const SortableTableRow: React.FC<{
               cellValue && !isNaN(new Date(cellValue).getTime()) ? (
                 format(new Date(cellValue), "PPP")
               ) : (
-                <span className="text-gray-400"></span>
+                <span className="text-muted-foreground"></span>
               )
             ) : column?.type === "Long Text" ? (
               <div
@@ -494,7 +494,7 @@ const SortableTableRow: React.FC<{
                 }}
               >
                 <p className="line-clamp-3">
-                  {cellValue || <span className="text-gray-400"></span>}
+                  {cellValue || <span className="text-muted-foreground"></span>}
                 </p>
               </div>
             ) : column?.type === "Rollup" ? (
@@ -506,7 +506,7 @@ const SortableTableRow: React.FC<{
                     {cellValue.map((item: any, index: number) => (
                       <span
                         key={index}
-                        className="text-sm text-gray-600 bg-slate-100 rounded-md px-2 py-1 m-1"
+                        className="text-sm text-muted-foreground bg-muted rounded-md px-2 py-1 m-1"
                       >
                         {typeof item.value !== "undefined"
                           ? typeof item.value === "object"
@@ -517,13 +517,13 @@ const SortableTableRow: React.FC<{
                     ))}
                   </div>
                 ) : (
-                  <span className="text-gray-400">—</span>
+                  <span className="text-muted-foreground">—</span>
                 )}
               </>
             ) : Array.isArray(cellValue) ? (
               cellValue.join(", ")
             ) : (
-              cellValue || <span className="text-gray-400"></span>
+              cellValue || <span className="text-muted-foreground"></span>
             )}
           </>
         )}
@@ -550,9 +550,9 @@ const SortableTableRow: React.FC<{
       ref={setNodeRef}
       style={style}
       {...attributes}
-      className={`group hover:bg-gray-50 ${isSelected ? "bg-gray-50" : "bg-white"} border-b border-gray-200`}
+      className={`group hover:bg-accent ${isSelected ? "bg-muted" : "bg-card"} border-b border-border`}
     >
-      <TableCell className="sticky left-0 bg-gray-50 z-10 p-0 border-r border-gray-200 w-10">
+      <TableCell className="sticky left-0 bg-muted z-10 p-0 border-r border-border w-10">
         <div className="flex">
           {!readOnly && (
             <>
@@ -573,9 +573,9 @@ const SortableTableRow: React.FC<{
               <div
                 {...listeners}
                 {...attributes}
-                className="cursor-move h-full hover:bg-gray-100 p-2 opacity-0 group-hover:opacity-100 transition-opacity"
+                className="cursor-move h-full hover:bg-accent p-2 opacity-0 group-hover:opacity-100 transition-opacity"
               >
-                <GripVertical className="h-5 w-5 text-gray-400" />
+                <GripVertical className="h-5 w-5 text-muted-foreground" />
               </div>
             </>
           )}
@@ -598,9 +598,9 @@ const SortableTableRow: React.FC<{
                 minWidth: `${columnWidths[column.title] || 200}px`,
                 maxWidth: `${columnWidths[column.title] || 200}px`,
               }}
-              className={`relative p-0 text-gray-700 overflow-hidden border-r border-gray-200 ${
+              className={`relative p-0 text-muted-foreground overflow-hidden border-r border-border ${
                 frozenColumns.has(column.title)
-                  ? "sticky left-0 bg-gray-50 z-10"
+                  ? "sticky left-0 bg-muted z-10"
                   : nonEditableItems.includes(column.title)
                     ? "cursor-not-allowed"
                     : ""
@@ -651,19 +651,20 @@ const SortableTableRow: React.FC<{
         })}
 
       <TableCell
-        className="p-2 bg-white border-l border-gray-200 "
+        className={`p-2 border-l border-border ${
+          isSelected ? "bg-muted" : "bg-card"
+        }`}
         style={{
           position: "sticky",
           right: 0,
           zIndex: 20,
-          backgroundColor: isSelected ? "#f9fafb" : "#fff",
           boxShadow: "-2px 0 2px -1px rgba(0,0,0,0.1)",
         }}
       >
         {!readOnly && (
           <div className="opacity-0 group-hover:opacity-100 transition-opacity">
             <DropdownMenu>
-              <DropdownMenuTrigger className="p-2 h-full w-full flex items-center justify-center hover:bg-gray-100">
+              <DropdownMenuTrigger className="p-2 h-full w-full flex items-center justify-center hover:bg-accent">
                 <MoreHorizontal className="h-4 w-4" />
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
@@ -704,7 +705,7 @@ const SortableTableRow: React.FC<{
 
                 <DropdownMenuItem
                   onClick={() => handleDeleteClick(node)}
-                  className="text-red-600"
+                  className="text-destructive"
                 >
                   Delete
                 </DropdownMenuItem>

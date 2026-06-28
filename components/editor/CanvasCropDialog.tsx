@@ -309,7 +309,7 @@ function FlowWithCropping({
 
   return (
     <div
-      className="relative h-[500px] border border-gray-200 rounded-md overflow-hidden bg-gray-50"
+      className="relative h-[500px] border border-border rounded-md overflow-hidden bg-muted"
       ref={viewportRef}
       onMouseDown={handleMouseDown}
       onMouseMove={handleMouseMove}
@@ -332,7 +332,7 @@ function FlowWithCropping({
           <Background gap={12} size={1} />
           {instructionsVisible && (
             <Panel position="top-center" className="crop-instructions">
-              <div className="bg-white/90 backdrop-blur-sm p-3 rounded-lg shadow-sm text-sm flex items-center gap-2">
+              <div className="bg-background/90 backdrop-blur-sm p-3 rounded-lg shadow-sm text-sm flex items-center gap-2">
                 <Info className="h-4 w-4 text-blue-500" />
                 <span>Drag the blue box to position the crop area</span>
               </div>
@@ -531,7 +531,7 @@ export default function CanvasCropDialog({
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger asChild>
-                <Info className="h-4 w-4 text-gray-400" />
+                <Info className="h-4 w-4 text-muted-foreground" />
               </TooltipTrigger>
               <TooltipContent>
                 <p className="max-w-xs text-xs">

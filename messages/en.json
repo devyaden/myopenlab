@@ -8,6 +8,7 @@
     "newChat": "New chat",
     "history": "History",
     "close": "Close",
+    "attach": "Attach a file",
     "placeholder": "Ask or instruct the agent…",
     "thinking": "Thinking…",
     "continueBuilding": "Continue building",
@@ -32,7 +33,17 @@
       "create": "Create a hiring process",
       "edit": "Add an approval step to vendor onboarding"
     },
+    "budget": {
+      "label": "{percent}% of today's AI budget",
+      "near": "Almost out of today's AI budget"
+    },
     "proposal": {
+      "badge": {
+        "new": "New",
+        "edit": "Edit",
+        "link": "Link",
+        "directory": "Directory"
+      },
       "newPlaybook": "New playbook: {name}",
       "updatePlaybook": "Update to this playbook",
       "editFlow": "Edit to this flow",

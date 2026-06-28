@@ -27,10 +27,18 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { ANCHORS } from "@/components/onboarding/onboarding-steps";
-import { generateUntitledName } from "@/lib/utils";
+import { cn, generateUntitledName } from "@/lib/utils";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Wand2, Lock, Crown, LayoutTemplate, Users } from "lucide-react";
-import { useEffect, useState } from "react";
+import {
+  Wand2,
+  Crown,
+  LayoutTemplate,
+  Users,
+  GitBranch,
+  Table as TableIcon,
+  Loader2,
+} from "lucide-react";
+import { useEffect, useState, type ReactNode } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "react-hot-toast";
 import * as z from "zod";
@@ -416,189 +424,91 @@ export function CreateNewModal({
     if (step === "select" && type === "canvas") {
       // Check limits for HYBRID canvas only - tables are always free and unlimited
       const canCreateHybrid = canCreateCanvas ? canCreateCanvas(CANVAS_TYPE.HYBRID) : true;
+      const aiLocked = !!(canUseAI && !canUseAI());
 
       return (
-        <div
-          className="grid grid-cols-2 gap-4 py-4"
-          data-onboarding={ANCHORS.createTiles}
-        >
-          <div
-            className={`relative flex flex-col items-center justify-center p-6 rounded-lg transition-colors ${
-              !canCreateHybrid
-                ? "bg-gray-50 border-2 border-gray-200 cursor-pointer opacity-75"
-                : "bg-gray-50 hover:bg-gray-100 cursor-pointer"
-            }`}
-            onClick={() => {
-              if (!canCreateHybrid && onCanvasLimitReached) {
-                onCanvasLimitReached();
-                handleClose();
-              } else if (canCreateHybrid) {
-                handleTypeSelect(CANVAS_TYPE.HYBRID);
-              }
-            }}
-          >
-            {!canCreateHybrid && (
-              <div className="absolute top-2 right-2">
-                <Lock className="h-4 w-4 text-gray-400" />
-              </div>
-            )}
-            <div className="mb-4">
-              <svg
-                width="24"
-                height="24"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                className={!canCreateHybrid ? "text-gray-400" : "text-gray-600"}
-              >
-                <rect x="3" y="3" width="18" height="18" rx="2" />
-                <path d="M9 3v18M3 9h18" />
-              </svg>
-            </div>
-            <span className={`font-medium text-center ${!canCreateHybrid ? "text-gray-500" : ""}`}>
-              New Playbook
-            </span>
-            <span className={`text-xs text-center mt-1 ${!canCreateHybrid ? "text-gray-400" : "text-muted-foreground"}`}>
-              {!canCreateHybrid ? (
-                <span className="flex items-center gap-1 text-orange-600 font-medium">
-                  <Crown className="h-3 w-3" />
-                  Upgrade to Pro
-                </span>
-              ) : (
-                "A playbook is your space for process maps and diagrams"
-              )}
-            </span>
-          </div>
-
-          {/* Create Table - Always enabled, no validation */}
-          <div
-            className="flex flex-col items-center justify-center p-6 bg-gray-50 rounded-lg hover:bg-gray-100 cursor-pointer transition-colors onboarding-table-option"
-            onClick={() => handleTypeSelect(CANVAS_TYPE.TABLE)}
-          >
-            <div className="mb-4">
-              <svg
-                width="24"
-                height="24"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                className="text-gray-600"
-              >
-                <rect x="3" y="3" width="18" height="18" rx="2" />
-                <line x1="3" y1="9" x2="21" y2="9" />
-                <line x1="3" y1="15" x2="21" y2="15" />
-                <line x1="9" y1="3" x2="9" y2="21" />
-                <line x1="15" y1="3" x2="15" y2="21" />
-              </svg>
-            </div>
-            <span className="font-medium text-center">Create Table</span>
-            <span className="text-xs text-center text-muted-foreground mt-1">
-              Table will be the visual Table to Add Values into The Table
-            </span>
-          </div>
-
-          {/* Process page (Operating Model) — a March-style composite document */}
-          <div
-            className={`flex flex-col items-center justify-center p-6 bg-gray-50 rounded-lg transition-colors ${
-              creatingProcessPage
-                ? "opacity-75 cursor-wait"
-                : "hover:bg-gray-100 cursor-pointer"
-            }`}
-            onClick={() => {
-              if (!creatingProcessPage) handleCreateProcessPage();
-            }}
-          >
-            <div className="mb-4">
-              <LayoutTemplate className="h-6 w-6 text-gray-600" />
-            </div>
-            <span className="font-medium text-center">Process Page</span>
-            <span className="text-xs text-center text-muted-foreground mt-1">
-              {creatingProcessPage
-                ? "Creating…"
-                : "An operating-model page: flow + Activities/RACI/Deliverables + reference cards"}
-            </span>
-          </div>
-
-          {/* People Directory — a roster @person / RACI / approvers resolve to */}
-          <div
-            className={`flex flex-col items-center justify-center p-6 bg-gray-50 rounded-lg transition-colors ${
-              creatingDirectory
-                ? "opacity-75 cursor-wait"
-                : "hover:bg-gray-100 cursor-pointer"
-            }`}
-            onClick={() => {
-              if (!creatingDirectory) handleCreateDirectory();
-            }}
-          >
-            <div className="mb-4">
-              <Users className="h-6 w-6 text-gray-600" />
-            </div>
-            <span className="font-medium text-center">People Directory</span>
-            <span className="text-xs text-center text-muted-foreground mt-1">
-              {creatingDirectory
-                ? "Creating…"
-                : "A roster of people that @person, RACI cells & approvers resolve to"}
-            </span>
-          </div>
-
-          {/* Document editor disabled per requirements */}
-          {/* <div
-            className="flex flex-col items-center justify-center p-6 bg-gray-50 rounded-lg hover:bg-gray-100 cursor-pointer transition-colors onboarding-document-option"
-            onClick={() => handleTypeSelect(CANVAS_TYPE.DOCUMENT)}
-          >
-            <div className="mb-4">
-              <svg
-                width="24"
-                height="24"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                className="text-gray-600"
-              >
-                <rect x="3" y="3" width="18" height="18" rx="2" />
-                <line x1="8" y1="10" x2="16" y2="10" />
-                <line x1="8" y1="14" x2="16" y2="14" />
-                <line x1="8" y1="18" x2="12" y2="18" />
-              </svg>
-            </div>
-            <span className="font-medium text-center">Create Document</span>
-            <span className="text-xs text-center text-muted-foreground mt-1">
-              Document will be the visual document to add content
-            </span>
-          </div> */}
-
-          <div
-            className={`relative flex flex-col items-center justify-center p-6 rounded-lg transition-all onboarding-ai-option ${
-              canUseAI && !canUseAI()
-                ? "bg-gray-50 border-2 border-gray-200 cursor-not-allowed opacity-75"
-                : "bg-gradient-to-br from-yadn-accent-green/10 to-yadn-accent-blue/10 border-2 border-yadn-accent-green/20 hover:border-yadn-accent-green/40 cursor-pointer"
-            }`}
+        <div className="space-y-4 py-2" data-onboarding={ANCHORS.createTiles}>
+          {/* The easiest path for a beginner: describe it, let AI draft it. */}
+          <button
+            type="button"
             onClick={handleOpenAIDialog}
-          >
-            {canUseAI && !canUseAI() && (
-              <div className="absolute top-2 right-2">
-                <Lock className="h-4 w-4 text-gray-400" />
-              </div>
+            disabled={aiLocked}
+            className={cn(
+              "onboarding-ai-option flex w-full items-center gap-4 rounded-lg border p-4 text-start transition-colors",
+              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
+              aiLocked
+                ? "cursor-not-allowed border-border bg-muted opacity-80"
+                : "border-signal/30 bg-signal/5 hover:border-signal/50 hover:bg-signal/10"
             )}
-            <div className="mb-4">
-              <Wand2 className={`h-6 w-6 ${canUseAI && !canUseAI() ? "text-gray-400" : "text-yadn-accent-green"}`} />
-            </div>
-            <span className={`font-medium text-center ${canUseAI && !canUseAI() ? "text-gray-500" : "text-yadn-accent-green"}`}>
-              Generate with AI
+          >
+            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-signal/15 text-signal">
+              <Wand2 className="h-5 w-5" />
             </span>
-            <span className="text-xs text-center text-gray-600 mt-1">
-              {canUseAI && !canUseAI() ? (
-                <span className="flex items-center gap-1 text-orange-600">
-                  <Crown className="h-3 w-3" />
-                  Upgrade to Pro
-                </span>
-              ) : (
-                "Let AI generate a diagram based on your requirements"
-              )}
+            <span className="min-w-0 flex-1">
+              <span className="flex items-center gap-2 font-medium">
+                Generate with AI
+                {aiLocked ? (
+                  <span className="flex items-center gap-1 text-[11px] font-medium text-attention-text">
+                    <Crown className="h-3 w-3" /> Pro
+                  </span>
+                ) : (
+                  <span className="rounded-full bg-signal/15 px-2 py-0.5 text-[11px] font-medium text-signal">
+                    Easiest
+                  </span>
+                )}
+              </span>
+              <span className="mt-0.5 block text-sm text-muted-foreground">
+                Describe what your team does and AI drafts your first playbook.
+              </span>
             </span>
+          </button>
+
+          <div className="flex items-center gap-3 text-xs text-muted-foreground">
+            <span className="h-px flex-1 bg-border" />
+            or start it yourself
+            <span className="h-px flex-1 bg-border" />
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <TypeTile
+              icon={<GitBranch className="h-5 w-5" />}
+              title="Playbook"
+              description="Map a process as an editable flow diagram."
+              locked={!canCreateHybrid}
+              onClick={() => {
+                if (!canCreateHybrid) {
+                  onCanvasLimitReached?.();
+                  handleClose();
+                } else {
+                  handleTypeSelect(CANVAS_TYPE.HYBRID);
+                }
+              }}
+            />
+            <TypeTile
+              icon={<TableIcon className="h-5 w-5" />}
+              title="Table"
+              description="Track activities, owners and RACI, like a spreadsheet."
+              className="onboarding-table-option"
+              onClick={() => handleTypeSelect(CANVAS_TYPE.TABLE)}
+            />
+            <TypeTile
+              icon={<LayoutTemplate className="h-5 w-5" />}
+              title="Process Page"
+              description="A ready-made operating-model page: flow, tables and policies."
+              busy={creatingProcessPage}
+              onClick={() => {
+                if (!creatingProcessPage) handleCreateProcessPage();
+              }}
+            />
+            <TypeTile
+              icon={<Users className="h-5 w-5" />}
+              title="People Directory"
+              description="A list of your people to assign owners and approvers."
+              busy={creatingDirectory}
+              onClick={() => {
+                if (!creatingDirectory) handleCreateDirectory();
+              }}
+            />
           </div>
         </div>
       );
@@ -721,7 +631,7 @@ export function CreateNewModal({
     return (
       <div className="grid grid-cols-2 gap-4 py-4">
         <div
-          className="flex flex-col items-center justify-center p-6 bg-gray-50 rounded-lg hover:bg-gray-100 cursor-pointer transition-colors"
+          className="flex flex-col items-center justify-center p-6 bg-muted rounded-lg hover:bg-accent cursor-pointer transition-colors"
           onClick={() => {
             setStep("form");
             canvasForm.reset();
@@ -735,7 +645,7 @@ export function CreateNewModal({
               fill="none"
               stroke="currentColor"
               strokeWidth="2"
-              className="text-gray-600"
+              className="text-muted-foreground"
             >
               <rect x="3" y="3" width="18" height="18" rx="2" />
               <path d="M9 3v18M3 9h18" />
@@ -745,7 +655,7 @@ export function CreateNewModal({
         </div>
 
         <div
-          className="flex flex-col items-center justify-center p-6 bg-gray-50 rounded-lg hover:bg-gray-100 cursor-pointer transition-colors"
+          className="flex flex-col items-center justify-center p-6 bg-muted rounded-lg hover:bg-accent cursor-pointer transition-colors"
           onClick={() => {
             setStep("form");
             folderForm.reset();
@@ -759,7 +669,7 @@ export function CreateNewModal({
               fill="none"
               stroke="currentColor"
               strokeWidth="2"
-              className="text-gray-600"
+              className="text-muted-foreground"
             >
               <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
             </svg>
@@ -801,5 +711,52 @@ export function CreateNewModal({
         onGenerateCanvas={handleGenerateCanvas}
       />
     </>
+  );
+}
+
+/** A consistent, foolproof "what can I make" tile: icon + plain title + one-line
+ *  explanation of what you DO with it. Handles Pro-locked and in-flight states. */
+function TypeTile({
+  icon,
+  title,
+  description,
+  onClick,
+  locked = false,
+  busy = false,
+  className,
+}: {
+  icon: ReactNode;
+  title: string;
+  description: string;
+  onClick: () => void;
+  locked?: boolean;
+  busy?: boolean;
+  className?: string;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-busy={busy || undefined}
+      className={cn(
+        "group relative flex flex-col items-start gap-3 rounded-lg border border-border bg-card p-4 text-start transition-colors",
+        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
+        busy ? "cursor-wait opacity-80" : "hover:border-signal/50 hover:bg-accent",
+        className
+      )}
+    >
+      {locked && (
+        <span className="absolute end-2 top-2 flex items-center gap-1 rounded-full bg-attention-tint px-1.5 py-0.5 text-[10px] font-medium text-attention-text">
+          <Crown className="h-3 w-3" /> Pro
+        </span>
+      )}
+      <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-signal/10 text-signal">
+        {busy ? <Loader2 className="h-5 w-5 animate-spin" /> : icon}
+      </span>
+      <span className="font-medium">{title}</span>
+      <span className="text-sm text-muted-foreground">
+        {busy ? "Creating…" : description}
+      </span>
+    </button>
   );
 }

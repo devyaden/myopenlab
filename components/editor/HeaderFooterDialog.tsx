@@ -286,14 +286,14 @@ export default function HeaderFooterDialog({
                     className={`border rounded-md p-2 cursor-pointer transition-all ${
                       config.style === style.id
                         ? "ring-2 ring-primary border-primary"
-                        : "hover:border-gray-400"
+                        : "hover:border-border"
                     }`}
                     onClick={() =>
                       setConfig({ ...config, style: style.id as any })
                     }
                   >
                     <div className="font-medium text-sm">{style.name}</div>
-                    <div className="text-xs text-gray-500">
+                    <div className="text-xs text-muted-foreground">
                       {style.description}
                     </div>
                   </div>

@@ -65,7 +65,7 @@ export function ImportModal({ isOpen, onClose, onImport }: ImportModalProps) {
               onChange={handleFileChange}
               className="border rounded p-2"
             />
-            {error && <p className="text-red-500 text-sm">{error}</p>}
+            {error && <p className="text-destructive text-sm">{error}</p>}
           </div>
         </div>
         <div className="flex justify-end gap-2">

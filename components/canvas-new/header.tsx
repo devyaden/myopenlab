@@ -41,13 +41,14 @@ import type React from "react";
 import { useEffect, useState } from "react";
 import { toast } from "react-hot-toast";
 import { LoadingSpinner } from "../loading-spinner";
-import {
-  SaveStatusIndicator,
-  type SaveStatus,
-} from "../editor/SaveStatusIndicator";
+import { type SaveStatus } from "../editor/SaveStatusIndicator";
 import { ImportModal } from "./import-modal";
 import { ShareModal } from "./share-modal";
 import { BacklinksPanel } from "../refs/BacklinksPanel";
+import { MapButton } from "../explore/MapButton";
+import { CodeChip } from "@/components/ui/code-chip";
+import { StatusChrome } from "../editor-shell/StatusChrome";
+import { ViewModeSwitcher } from "./view-mode-switcher";
 import { VIEW_MODE, ViewMode } from "./table-view/table.types";
 
 const MAX_TITLE_LENGTH = 50;
@@ -68,6 +69,7 @@ interface HeaderProps {
   onVisibilityChange: (visibility: string) => Promise<void>;
   isOwner: boolean;
   viewMode?: ViewMode;
+  onViewModeChange?: (viewMode: "canvas" | "table" | "document") => void;
   exportToCSV?: () => void;
   exportToExcel?: () => void;
   exportAsJSON?: () => void;
@@ -94,6 +96,7 @@ export function Header({
   onVisibilityChange,
   isOwner,
   viewMode = VIEW_MODE.canvas,
+  onViewModeChange,
   exportToCSV,
   exportToExcel,
   exportAsJSON: propExportAsJSON,
@@ -302,43 +305,61 @@ export function Header({
   useEffect(() => {}, [viewMode, exportAsJSON, exportAsPDF]);
 
   return (
-    <div className="border-b border-gray-200 py-2 ">
-      <div className="flex items-center px-4 ">
+    <div className="border-b border-border bg-card py-2">
+      <div className="relative flex items-center px-4 ">
         <div className="flex items-center gap-4 ">
           <Button
             variant="ghost"
             size="sm"
-            className="gap-2 text-gray-600 md:hidden"
+            className="gap-2 text-muted-foreground md:hidden"
           >
             <Menu className="h-4 w-4" />
           </Button>
 
-          {/* Breadcrumbs navigation */}
-          <nav className="hidden md:flex items-center">
-            <div className="flex items-center mr-3">
+          {/* The Locator — breadcrumb-as-coordinates with a "you are here" marker.
+              Answers "where am I?" on every editor surface. */}
+          <nav
+            className="hidden md:flex items-center gap-1.5 text-sm"
+            aria-label="Location"
+          >
+            <div className="mr-1 flex items-center">
               <Image
                 width={30}
                 height={30}
                 src="/assets/global/app-logo.svg"
-                alt="Cionay Logo"
-                className="h-5 w-auto"
+                alt="Olab"
+                className="h-5 w-auto dark:hidden"
+              />
+              <Image
+                width={30}
+                height={30}
+                src="/assets/global/app-logo-white.svg"
+                alt="Olab"
+                className="hidden h-5 w-auto dark:block"
               />
             </div>
             <Link
               href="/protected"
-              className="flex items-center text-sm text-gray-600 hover:text-gray-900"
+              title="Home"
+              className="flex items-center rounded p-1 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
             >
-              <Home className="h-5 w-5 mr-1" />
+              <Home className="h-4 w-4" />
             </Link>
-            <ChevronRight className="h-5 w-5 mx-2 text-gray-400" />
+            <ChevronRight className="h-4 w-4 text-faint-ink rtl:rotate-180" />
             <Link
               href={`/protected/folder/${currentFolder?.id || "root"}`}
-              className="text-base text-gray-600 hover:text-gray-900"
+              className="rounded px-1 py-0.5 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
             >
               {currentFolder?.name || "Root"}
             </Link>
-            <ChevronRight className="h-5 w-5 mx-2 text-gray-400" />
-            <div className="flex items-center">
+            <ChevronRight className="h-4 w-4 text-faint-ink rtl:rotate-180" />
+            <div className="flex items-center gap-1.5">
+              {/* you-are-here marker */}
+              <span
+                className="h-1.5 w-1.5 shrink-0 rounded-full bg-attention"
+                aria-hidden
+                title="You are here"
+              />
               {isEditing ? (
                 <input
                   type="text"
@@ -350,15 +371,16 @@ export function Header({
                     setTitleError(false);
                   }}
                   autoFocus
-                  className={`text-base font-medium bg-transparent border-none outline-none ${
-                    titleError ? "border-red-500 border-b-2" : ""
-                  } text-gray-900 focus:ring-0 focus:border-b-2 focus:border-blue-500`}
+                  className={`text-base font-medium bg-transparent border-none outline-none text-foreground focus:ring-0 focus:border-b-2 focus:border-signal ${
+                    titleError ? "border-destructive border-b-2" : ""
+                  }`}
                   maxLength={MAX_TITLE_LENGTH}
                 />
               ) : isOwner ? (
                 <span
-                  className="text-base font-medium text-gray-900 cursor-pointer hover:underline"
+                  className="text-base font-medium text-foreground cursor-pointer hover:underline"
                   onDoubleClick={handleTitleDoubleClick}
+                  title="Double-click to rename"
                 >
                   {projectName}
                 </span>
@@ -366,26 +388,25 @@ export function Header({
                 <TooltipProvider>
                   <Tooltip>
                     <TooltipTrigger>
-                      <span className="text-sm font-medium text-gray-900 cursor-default">
+                      <span className="text-base font-medium text-foreground cursor-default">
                         {projectName}
                       </span>
                     </TooltipTrigger>
                     <TooltipContent>
-                      <p>View-only mode: Title cannot be edited</p>
+                      <p>View-only mode: title cannot be edited</p>
                     </TooltipContent>
                   </Tooltip>
                 </TooltipProvider>
               )}
               {code && (
-                <span
-                  className="ml-2 rounded bg-muted px-1.5 py-0.5 font-mono text-[11px] font-medium text-muted-foreground"
-                  title="Operating-model code (stable, unique in your workspace)"
-                >
-                  {code}
-                </span>
+                <CodeChip
+                  code={code}
+                  className="ml-1"
+                  title="Operating-model code — stable, unique in your workspace"
+                />
               )}
               {titleError && (
-                <span className="text-red-500 text-xs ml-1">
+                <span className="text-destructive text-xs ml-1">
                   Title too long
                 </span>
               )}
@@ -393,7 +414,22 @@ export function Header({
           </nav>
         </div>
 
+        {/* Surface-switcher — Flow / Table / Document are three views of one
+            artifact, in the same place on every editor surface. */}
+        {onViewModeChange && canvasType === CANVAS_TYPE.HYBRID && (
+          <div className="absolute left-1/2 hidden -translate-x-1/2 md:block">
+            <ViewModeSwitcher
+              viewMode={viewMode}
+              onViewModeChange={onViewModeChange}
+              canvasType={canvasType}
+            />
+          </div>
+        )}
+
         <div className="ml-auto flex items-center gap-2 h-10 ">
+          {/* The Map — wayfinding entry from the editor chrome (read-only, for everyone). */}
+          <MapButton />
+
           {/* Owner-gated: the cross-reference graph (/api/refs) is scoped to the
               owner's user_id, so a non-owner viewer would only ever see an empty
               panel. (Viewer-visible backlinks would need owner-scoped reads.) */}
@@ -401,16 +437,19 @@ export function Header({
             <BacklinksPanel canvasId={canvasId} code={code} />
           )}
 
+          {/* StatusChrome — save state + AI budget (owner) + presence (everyone),
+              one cohesive cluster shared across all three editor surfaces. */}
+          <StatusChrome
+            saveStatus={saveStatus}
+            lastSaved={lastSaved}
+            canvasId={canvasId}
+            user={user ? { id: user.id, email: user.email } : null}
+            isOwner={isOwner}
+            className="mr-1"
+          />
+
           {isOwner && (
             <>
-              {saveStatus && (
-                <SaveStatusIndicator
-                  status={saveStatus}
-                  lastSaved={lastSaved}
-                  className="mr-1"
-                />
-              )}
-
               <Button
                 variant="outline"
                 size="sm"
@@ -444,7 +483,7 @@ export function Header({
                   <span className="font-medium">Share</span>
                 </button>
                 <button
-                  className="bg-white hover:bg-gray-50 border border-yadn-accent-green/20 px-3 flex items-center justify-center"
+                  className="bg-card hover:bg-accent border border-yadn-accent-green/20 px-3 flex items-center justify-center"
                   onClick={handleShareDialogOpen}
                 >
                   <Link2 className="w-5 h-5 text-yadn-accent-green" />
@@ -492,7 +531,7 @@ export function Header({
                     className="flex flex-col items-center justify-center gap-2 h-20 p-4"
                     onClick={() => exportAsImage("png")}
                   >
-                    <FileImage className="h-8 w-8 text-gray-600" />
+                    <FileImage className="h-8 w-8 text-muted-foreground" />
                     <span className="text-sm">PNG</span>
                   </Button>
                   <Button
@@ -500,7 +539,7 @@ export function Header({
                     className="flex flex-col items-center justify-center gap-2 h-20 p-4"
                     onClick={() => exportAsImage("jpeg")}
                   >
-                    <FileImage className="h-8 w-8 text-gray-600" />
+                    <FileImage className="h-8 w-8 text-muted-foreground" />
                     <span className="text-sm">JPEG</span>
                   </Button>
                   <Button
@@ -508,7 +547,7 @@ export function Header({
                     className="flex flex-col items-center justify-center gap-2 h-20 p-4"
                     onClick={() => exportAsImage("svg")}
                   >
-                    <FileImage className="h-8 w-8 text-gray-600" />
+                    <FileImage className="h-8 w-8 text-muted-foreground" />
                     <span className="text-sm">SVG</span>
                   </Button>
                   <Button
@@ -525,10 +564,10 @@ export function Header({
                     disabled={exportLimits && !exportLimits[SubscriptionFeatureFlag.ALLOW_EXPORT_PDF]}
                   >
                     {exportLimits && !exportLimits[SubscriptionFeatureFlag.ALLOW_EXPORT_PDF] && (
-                      <Lock className="absolute top-2 right-2 h-4 w-4 text-orange-600" />
+                      <Lock className="absolute top-2 right-2 h-4 w-4 text-attention-text" />
                     )}
-                    <FileText className={`h-8 w-8 ${exportLimits && !exportLimits[SubscriptionFeatureFlag.ALLOW_EXPORT_PDF] ? "text-gray-400" : "text-gray-600"}`} />
-                    <span className={`text-sm ${exportLimits && !exportLimits[SubscriptionFeatureFlag.ALLOW_EXPORT_PDF] ? "text-gray-400" : ""}`}>
+                    <FileText className={`h-8 w-8 ${exportLimits && !exportLimits[SubscriptionFeatureFlag.ALLOW_EXPORT_PDF] ? "text-faint-ink" : "text-muted-foreground"}`} />
+                    <span className={`text-sm ${exportLimits && !exportLimits[SubscriptionFeatureFlag.ALLOW_EXPORT_PDF] ? "text-faint-ink" : ""}`}>
                       PDF {exportLimits && !exportLimits[SubscriptionFeatureFlag.ALLOW_EXPORT_PDF] && "(Pro)"}
                     </span>
                   </Button>
@@ -546,7 +585,7 @@ export function Header({
                     onClick={handleExportCSV}
                     disabled={!exportToCSV}
                   >
-                    <FileSpreadsheet className="h-8 w-8 text-gray-600" />
+                    <FileSpreadsheet className="h-8 w-8 text-muted-foreground" />
                     <span className="text-sm">CSV</span>
                   </Button>
                   <Button
@@ -555,7 +594,7 @@ export function Header({
                     onClick={handleExportExcel}
                     disabled={!exportToExcel}
                   >
-                    <FileSpreadsheet className="h-8 w-8 text-gray-600" />
+                    <FileSpreadsheet className="h-8 w-8 text-muted-foreground" />
                     <span className="text-sm">Excel</span>
                   </Button>
                 </div>
@@ -580,10 +619,10 @@ export function Header({
                     disabled={exportLimits && !exportLimits[SubscriptionFeatureFlag.ALLOW_EXPORT_PDF]}
                   >
                     {exportLimits && !exportLimits[SubscriptionFeatureFlag.ALLOW_EXPORT_PDF] && (
-                      <Lock className="absolute top-2 right-2 h-4 w-4 text-orange-600" />
+                      <Lock className="absolute top-2 right-2 h-4 w-4 text-attention-text" />
                     )}
-                    <FileText className={`h-8 w-8 ${exportLimits && !exportLimits[SubscriptionFeatureFlag.ALLOW_EXPORT_PDF] ? "text-gray-400" : "text-gray-600"}`} />
-                    <span className={`text-sm ${exportLimits && !exportLimits[SubscriptionFeatureFlag.ALLOW_EXPORT_PDF] ? "text-gray-400" : ""}`}>
+                    <FileText className={`h-8 w-8 ${exportLimits && !exportLimits[SubscriptionFeatureFlag.ALLOW_EXPORT_PDF] ? "text-faint-ink" : "text-muted-foreground"}`} />
+                    <span className={`text-sm ${exportLimits && !exportLimits[SubscriptionFeatureFlag.ALLOW_EXPORT_PDF] ? "text-faint-ink" : ""}`}>
                       PDF {exportLimits && !exportLimits[SubscriptionFeatureFlag.ALLOW_EXPORT_PDF] && "(Pro)"}
                     </span>
                   </Button>
@@ -599,7 +638,7 @@ export function Header({
                   className="flex flex-col items-center justify-center gap-2 h-20 p-4"
                   onClick={exportAsJSON}
                 >
-                  <FileJson className="h-8 w-8 text-gray-600" />
+                  <FileJson className="h-8 w-8 text-muted-foreground" />
                   <span className="text-sm">JSON</span>
                 </Button>
               </div>

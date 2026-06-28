@@ -217,7 +217,7 @@ export function Sidebar({
           type: "image",
           component: (
             <div className="w-8 h-8 border-2 border-black flex items-center justify-center">
-              <div className="w-5 h-5 bg-gray-300"></div>
+              <div className="w-5 h-5 bg-muted"></div>
             </div>
           ),
         },
@@ -370,14 +370,14 @@ export function Sidebar({
     <aside
       ref={sidebarRef}
       className={cn(
-        "border-r border-gray-200 bg-white fixed md:static transition-all duration-300 ease-in-out z-10",
+        "border-r border-border bg-card fixed md:static transition-all duration-300 ease-in-out z-10",
         isVisible ? "w-72 translate-x-0" : "w-0 -translate-x-full md:w-0"
       )}
     >
       {isVisible && (
         <div className="flex flex-col h-full">
           {/* Fixed Header */}
-          <header className="sticky top-0 bg-white z-10 px-4 py-3 border-b border-gray-200">
+          <header className="sticky top-0 bg-card z-10 px-4 py-3 border-b border-border">
             {isSearching ? (
               <div className="flex items-center gap-2 w-full">
                 <input
@@ -386,7 +386,7 @@ export function Sidebar({
                   placeholder="Search shapes..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full text-sm border border-gray-200 rounded-md px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  className="w-full text-sm border border-border rounded-md px-2 py-1 focus:outline-none focus:ring-1 focus:ring-signal"
                 />
                 <Button
                   variant="ghost"
@@ -420,7 +420,7 @@ export function Sidebar({
                 starredCategories.has(cat.title)
               ) && (
                 <>
-                  <div className="px-4 py-3 text-base text-gray-600 font-semibold">
+                  <div className="px-4 py-3 text-base text-muted-foreground font-semibold">
                     Favorites
                   </div>
                   {sortedCategories
@@ -432,12 +432,12 @@ export function Sidebar({
                         onOpenChange={() => toggleItem(category.title)}
                       >
                         <CollapsibleTrigger asChild>
-                          <div className="flex items-center justify-between px-4 hover:bg-gray-100/80 cursor-pointer py-3 border-t border-gray-100">
+                          <div className="flex items-center justify-between px-4 hover:bg-accent cursor-pointer py-3 border-t border-border">
                             <div className="flex items-center gap-2">
-                              <span className="text-base text-gray-700">
+                              <span className="text-base text-muted-foreground">
                                 {category.title}
                               </span>
-                              <span className="text-sm text-gray-500">
+                              <span className="text-sm text-muted-foreground">
                                 ({category.shapes.length})
                               </span>
                             </div>
@@ -475,7 +475,7 @@ export function Sidebar({
                                 <div
                                   key={shape.name}
                                   className={`flex flex-col items-center justify-center py-2 rounded px-2 relative ${
-                                    isLocked ? "cursor-not-allowed opacity-60" : "cursor-move hover:bg-gray-100"
+                                    isLocked ? "cursor-not-allowed opacity-60" : "cursor-move hover:bg-accent"
                                   }`}
                                   draggable={!isLocked}
                                   onDragStart={(e) => {
@@ -484,7 +484,7 @@ export function Sidebar({
                                   onClick={() => handleShapeClick(shape?.type, category.title)}
                                 >
                                   {isLocked && (
-                                    <Lock className="absolute top-1 right-1 h-3 w-3 text-orange-600" />
+                                    <Lock className="absolute top-1 right-1 h-3 w-3 text-attention-text" />
                                   )}
                                   <div className="flex items-center justify-center h-10">
                                     {shape.component}
@@ -507,7 +507,7 @@ export function Sidebar({
                 (cat) => !starredCategories.has(cat.title)
               ) && (
                 <>
-                  <div className="px-4 py-3 text-base text-gray-600 border-t border-gray-100 font-semibold">
+                  <div className="px-4 py-3 text-base text-muted-foreground border-t border-border font-semibold">
                     All Categories
                   </div>
                   {sortedCategories
@@ -520,13 +520,13 @@ export function Sidebar({
                       >
                         <CollapsibleTrigger asChild>
                           <div
-                            className={`flex items-center justify-between px-4 hover:bg-gray-100/80 cursor-pointer py-3 border-t border-gray-100 shape-category-title-${index}`}
+                            className={`flex items-center justify-between px-4 hover:bg-accent cursor-pointer py-3 border-t border-border shape-category-title-${index}`}
                           >
                             <div className={`flex items-center gap-2`}>
-                              <span className="text-base text-gray-700">
+                              <span className="text-base text-muted-foreground">
                                 {category.title}
                               </span>
-                              <span className="text-sm text-gray-500">
+                              <span className="text-sm text-muted-foreground">
                                 ({category.shapes.length})
                               </span>
                             </div>
@@ -564,7 +564,7 @@ export function Sidebar({
                                 <div
                                   key={shape.name}
                                   className={`flex flex-col items-center justify-center py-2 rounded px-2 relative ${
-                                    isLocked ? "cursor-not-allowed opacity-60" : "cursor-move hover:bg-gray-100"
+                                    isLocked ? "cursor-not-allowed opacity-60" : "cursor-move hover:bg-accent"
                                   }`}
                                   draggable={!isLocked}
                                   onDragStart={(e) => {
@@ -573,7 +573,7 @@ export function Sidebar({
                                   onClick={() => handleShapeClick(shape?.type, category.title)}
                                 >
                                   {isLocked && (
-                                    <Lock className="absolute top-1 right-1 h-3 w-3 text-orange-600" />
+                                    <Lock className="absolute top-1 right-1 h-3 w-3 text-attention-text" />
                                   )}
                                   <div className="flex items-center justify-center h-10">
                                     {shape.component}
@@ -592,10 +592,10 @@ export function Sidebar({
               )}
 
               {filteredCategories.length === 0 && (
-                <div className="flex flex-col items-center justify-center py-10 text-gray-500">
+                <div className="flex flex-col items-center justify-center py-10 text-muted-foreground">
                   <Search className="h-10 w-10 mb-2 opacity-50" />
                   <p className="text-sm">No shapes found</p>
-                  <p className="text-xs text-gray-400">
+                  <p className="text-xs text-muted-foreground">
                     Try a different search term
                   </p>
                 </div>

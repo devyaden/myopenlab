@@ -51,14 +51,14 @@ export function RedeemPromoCode({ onRedeemed }: RedeemPromoCodeProps) {
   };
 
   return (
-    <div className="border border-gray-200 rounded-xl p-6 bg-white shadow-sm">
+    <div className="border border-border rounded-xl p-6 bg-card shadow-sm">
       <div className="flex items-start gap-4">
-        <div className="flex-shrink-0 w-10 h-10 bg-yadn-accent-green/10 rounded-full flex items-center justify-center">
-          <Ticket className="h-5 w-5 text-yadn-accent-green" />
+        <div className="flex-shrink-0 w-10 h-10 bg-signal/10 rounded-full flex items-center justify-center">
+          <Ticket className="h-5 w-5 text-signal" />
         </div>
         <div className="flex-1">
-          <h4 className="font-semibold text-gray-900 mb-1">Have a promo code?</h4>
-          <p className="text-sm text-gray-600 mb-4">
+          <h4 className="font-semibold text-foreground mb-1">Have a promo code?</h4>
+          <p className="text-sm text-muted-foreground mb-4">
             Redeem a code to unlock or extend your plan. Additional codes stack
             onto your current expiry date.
           </p>
@@ -79,9 +79,10 @@ export function RedeemPromoCode({ onRedeemed }: RedeemPromoCodeProps) {
             />
             <Button
               type="button"
+              variant="signal"
               onClick={handleApply}
               disabled={loading || !code.trim()}
-              className="bg-yadn-accent-green hover:bg-yadn-accent-green/90 text-white sm:w-32"
+              className="sm:w-32"
             >
               {loading ? (
                 <>

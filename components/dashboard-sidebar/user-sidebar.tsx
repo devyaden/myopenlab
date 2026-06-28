@@ -211,10 +211,10 @@ export function UserSidebar() {
 
   return (
     <Sidebar
-      className="border-r border-gray-100 bg-white w-64"
+      className="border-r border-border bg-card w-64"
       collapsible="offcanvas"
     >
-      <SidebarHeader className="p-4 bg-white pt-4 md:pt-24">
+      <SidebarHeader className="p-4 bg-card pt-4 md:pt-24">
         <Button
           className="w-full bg-yadn-accent-green hover:bg-yadn-accent-green/80 text-white rounded-md py-2 px-4 text-sm font-medium flex items-center justify-center"
           onClick={() => setCreateNewModalType("canvas")}
@@ -224,7 +224,7 @@ export function UserSidebar() {
         </Button>
       </SidebarHeader>
 
-      <SidebarContent className="px-2 bg-white">
+      <SidebarContent className="px-2 bg-card">
         {/* <div className="space-y-1 mt-2">
           <Link
             href="/dashboard"
@@ -292,7 +292,7 @@ export function UserSidebar() {
         
         <div>
           <div className="flex items-center justify-between px-3 py-2">
-            <h2 className="text-sm font-medium text-gray-900">Folders</h2>
+            <h2 className="text-sm font-medium text-foreground">Folders</h2>
           </div>
 
           {/* Root folder to display items without a folder_id */}
@@ -304,29 +304,29 @@ export function UserSidebar() {
               );
             }}
           >
-            <div className="flex items-center justify-between w-full px-3 py-2 rounded-md group hover:bg-gray-100">
+            <div className="flex items-center justify-between w-full px-3 py-2 rounded-md group hover:bg-accent">
               <CollapsibleTrigger asChild>
-                <button className="flex items-center flex-grow text-sm text-gray-700">
+                <button className="flex items-center flex-grow text-sm text-muted-foreground">
                   <ChevronRight
-                    className={`mr-2 h-4 w-4 text-gray-500 transition-transform duration-200 ${
+                    className={`mr-2 h-4 w-4 text-muted-foreground transition-transform duration-200 ${
                       openFolders.includes("root") ? "transform rotate-90" : ""
                     }`}
                   />
-                  <Folder className="mr-2 h-4 w-4 text-gray-500" />
+                  <Folder className="mr-2 h-4 w-4 text-muted-foreground" />
                   Root
                 </button>
               </CollapsibleTrigger>
             </div>
             <CollapsibleContent>
               {rootCanvases.length === 0 ? (
-                <div className="pl-10 pr-3 py-1 text-xs text-gray-500">
+                <div className="pl-10 pr-3 py-1 text-xs text-muted-foreground">
                   No files in root folder
                 </div>
               ) : (
                 rootCanvases.map((canvas: Canvas) => (
                   <div
                     key={canvas.id}
-                    className="flex items-center justify-between w-full px-3 py-1 rounded-md group hover:bg-gray-100 pl-6 pr-4"
+                    className="flex items-center justify-between w-full px-3 py-1 rounded-md group hover:bg-accent pl-6 pr-4"
                   >
                     <Link
                       href={
@@ -334,9 +334,9 @@ export function UserSidebar() {
                           ? `/protected/document-editor/${canvas.id}`
                           : `/protected/playbook/${canvas.id}`
                       }
-                      className="flex items-center flex-grow text-sm text-gray-700"
+                      className="flex items-center flex-grow text-sm text-muted-foreground"
                     >
-                      <FileText className="mr-2 h-4 w-4 text-gray-500" />
+                      <FileText className="mr-2 h-4 w-4 text-muted-foreground" />
                       {canvas.name}
                     </Link>
                     <DropdownMenu>
@@ -346,7 +346,7 @@ export function UserSidebar() {
                           size="sm"
                           className="h-6 w-6 p-0 opacity-0 group-hover:opacity-100"
                         >
-                          <MoreVertical className="h-4 w-4 text-gray-500" />
+                          <MoreVertical className="h-4 w-4 text-muted-foreground" />
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
@@ -374,7 +374,7 @@ export function UserSidebar() {
 
           {folders.length === 0 ? (
             <div className="flex flex-col items-center justify-center p-6 text-center">
-              <p className="text-gray-500 text-sm mb-2">No folders yet</p>
+              <p className="text-muted-foreground text-sm mb-2">No folders yet</p>
               <Button
                 onClick={() => setCreateNewModalType("folder")}
                 variant="outline"
@@ -398,17 +398,17 @@ export function UserSidebar() {
                   );
                 }}
               >
-                <div className="flex items-center justify-between w-full px-3 py-2 rounded-md group hover:bg-gray-100">
+                <div className="flex items-center justify-between w-full px-3 py-2 rounded-md group hover:bg-accent">
                   <CollapsibleTrigger asChild>
-                    <button className="flex items-center flex-grow text-sm text-gray-700">
+                    <button className="flex items-center flex-grow text-sm text-muted-foreground">
                       <ChevronRight
-                        className={`mr-2 h-4 w-4 text-gray-500 transition-transform duration-200 ${
+                        className={`mr-2 h-4 w-4 text-muted-foreground transition-transform duration-200 ${
                           openFolders.includes(folder.id)
                             ? "transform rotate-90"
                             : ""
                         }`}
                       />
-                      <Folder className="mr-2 h-4 w-4 text-gray-500" />
+                      <Folder className="mr-2 h-4 w-4 text-muted-foreground" />
                       {folder.name}
                     </button>
                   </CollapsibleTrigger>
@@ -419,7 +419,7 @@ export function UserSidebar() {
                         size="sm"
                         className="h-6 w-6 p-0 opacity-0 group-hover:opacity-100"
                       >
-                        <MoreVertical className="h-4 w-4 text-gray-500" />
+                        <MoreVertical className="h-4 w-4 text-muted-foreground" />
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
@@ -442,14 +442,14 @@ export function UserSidebar() {
                 </div>
                 <CollapsibleContent>
                   {folder.canvases?.length === 0 ? (
-                    <div className="pl-10 pr-3 py-1 text-xs text-gray-500">
+                    <div className="pl-10 pr-3 py-1 text-xs text-muted-foreground">
                       No files in this folder
                     </div>
                   ) : (
                     folder.canvases?.map((canvas: Canvas) => (
                       <div
                         key={canvas.id}
-                        className="flex items-center justify-between w-full px-3 py-1 rounded-md group hover:bg-gray-100 pl-6 pr-4"
+                        className="flex items-center justify-between w-full px-3 py-1 rounded-md group hover:bg-accent pl-6 pr-4"
                       >
                         <Link
                           href={
@@ -457,9 +457,9 @@ export function UserSidebar() {
                               ? `/protected/document-editor/${canvas.id}`
                               : `/protected/playbook/${canvas.id}`
                           }
-                          className="flex items-center flex-grow text-sm text-gray-700"
+                          className="flex items-center flex-grow text-sm text-muted-foreground"
                         >
-                          <FileText className="mr-2 h-4 w-4 text-gray-500" />
+                          <FileText className="mr-2 h-4 w-4 text-muted-foreground" />
                           {canvas.name}
                         </Link>
                         <DropdownMenu>
@@ -469,7 +469,7 @@ export function UserSidebar() {
                               size="sm"
                               className="h-6 w-6 p-0 opacity-0 group-hover:opacity-100"
                             >
-                              <MoreVertical className="h-4 w-4 text-gray-500" />
+                              <MoreVertical className="h-4 w-4 text-muted-foreground" />
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
@@ -494,7 +494,7 @@ export function UserSidebar() {
                   )}
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                      <button className="flex items-center text-sm text-gray-500 px-3 py-1 pl-7 hover:bg-gray-100 rounded-md w-full">
+                      <button className="flex items-center text-sm text-muted-foreground px-3 py-1 pl-7 hover:bg-accent rounded-md w-full">
                         <Plus className="mr-1 h-3 w-3" />
                         Add File
                       </button>

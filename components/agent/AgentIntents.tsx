@@ -41,9 +41,9 @@ export function AgentIntents({
             onClick={() => onPick(intent)}
             disabled={disabled}
             title={t(`agent.intents.${intent}Tip`)}
-            className="flex items-center gap-1.5 rounded-full border bg-background px-2.5 py-1 text-xs font-medium text-foreground hover:bg-muted disabled:opacity-50"
+            className="flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1.5 text-xs font-medium text-foreground transition-colors hover:border-signal/40 hover:bg-signal/10 hover:text-signal focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-background disabled:opacity-50"
           >
-            <Icon size={13} className="text-primary" />
+            <Icon size={13} className="text-signal" />
             {t(`agent.intents.${intent}`)}
           </button>
         );

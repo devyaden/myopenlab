@@ -88,7 +88,7 @@ export function ImageManagerDialog({
             <div className="text-sm text-yadn-primary-text">
               Image slots used: {images.length}/10
             </div>
-            <div className="w-48 h-2 bg-gray-200 rounded-full overflow-hidden">
+            <div className="w-48 h-2 bg-muted rounded-full overflow-hidden">
               <div
                 className={`h-full ${
                   images.length >= 8
@@ -138,7 +138,7 @@ export function ImageManagerDialog({
           value={activeTab}
           onValueChange={setActiveTab}
         >
-          <div className="px-6 border-b border-yadn-primary-gray bg-white flex-shrink-0">
+          <div className="px-6 border-b border-yadn-primary-gray bg-card flex-shrink-0">
             <TabsList className="w-auto h-11 bg-transparent">
               <TabsTrigger
                 value="all"
@@ -157,7 +157,7 @@ export function ImageManagerDialog({
 
           <TabsContent
             value="all"
-            className="flex-1 overflow-y-auto p-6 pt-4 bg-white h-[300px]"
+            className="flex-1 overflow-y-auto p-6 pt-4 bg-card h-[300px]"
           >
             {sortedImages.length === 0 ? (
               <div className="flex flex-col items-center justify-center h-full py-12 text-yadn-dark-gray text-center">
@@ -203,7 +203,7 @@ export function ImageManagerDialog({
 
           <TabsContent
             value="recent"
-            className="flex-1 overflow-y-auto p-6 pt-4 bg-white h-[300px]"
+            className="flex-1 overflow-y-auto p-6 pt-4 bg-card h-[300px]"
           >
             {recentImages.length === 0 ? (
               <div className="flex flex-col items-center justify-center h-full py-12 text-yadn-dark-gray text-center">
