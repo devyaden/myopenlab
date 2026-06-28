@@ -1708,7 +1708,7 @@ export function NodePropertiesSidebar({
       flex flex-col
       shadow-atlas-lg"
     >
-      <div className="flex items-center justify-between p-4 border-b border-border">
+      <div className="flex items-center justify-between gap-2 p-4 border-b border-border">
         <Input
           value={title}
           onChange={(e) => setTitle(e.target.value)}
@@ -1717,6 +1717,15 @@ export function NodePropertiesSidebar({
           className="!text-3xl !font-bold border-none focus-visible:ring-0 px-0 h-auto focus:border-signal placeholder:text-muted-foreground"
           placeholder="Untitled"
         />
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={onClose}
+          className="h-7 w-7 shrink-0"
+          aria-label="Close panel"
+        >
+          <X className="h-4 w-4" />
+        </Button>
       </div>
 
       <div className="px-4 space-y-4 flex-1 overflow-y-auto pb-20">

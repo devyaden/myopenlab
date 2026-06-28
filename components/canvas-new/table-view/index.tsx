@@ -2405,6 +2405,7 @@ const TableView = forwardRef<
                   onDragEnd={handleDragEnd}
                 >
                   <Table
+                    aria-label="Playbook table"
                     style={{
                       minWidth: "max-content",
                       position: "relative",
@@ -2460,6 +2461,7 @@ const TableView = forwardRef<
                             return (
                               <TableHead
                                 key={column.title}
+                                scope="col"
                                 ref={(el) => {
                                   columnRefs.current[column.title] = el;
                                 }}
