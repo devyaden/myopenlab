@@ -16,7 +16,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { ToolbarSeparator } from "../editor-shell/Toolbar";
+import { ToolbarGroup, ToolbarSeparator } from "../editor-shell/Toolbar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Toggle } from "@/components/ui/toggle";
 import { CANVAS_TYPE } from "@/types/store";
@@ -349,31 +349,35 @@ export default function EditorToolbar({
       <div
         role="toolbar"
         aria-label="Formatting"
-        className="toolbar-inner flex flex-wrap items-center gap-1 md:gap-2"
+        className="toolbar-inner flex items-center gap-1 overflow-x-auto md:gap-2"
       >
         {isOwner && (
           <>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => editor?.chain().focus().undo().run()}
-              disabled={!editor?.can().undo()}
-              aria-label="Undo"
-            >
-              <CornerUpLeft className="h-3 w-3" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => editor?.chain().focus().redo().run()}
-              disabled={!editor?.can().redo()}
-              aria-label="Redo"
-            >
-              <CornerUpRight className="h-3 w-3 " />
-            </Button>
+            <ToolbarGroup label="History">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => editor?.chain().focus().undo().run()}
+                disabled={!editor?.can().undo()}
+                aria-label="Undo"
+              >
+                <CornerUpLeft className="h-3 w-3" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => editor?.chain().focus().redo().run()}
+                disabled={!editor?.can().redo()}
+                aria-label="Redo"
+              >
+                <CornerUpRight className="h-3 w-3 " />
+              </Button>
+            </ToolbarGroup>
 
             <ToolbarSeparator className="h-8" />
 
+            {/* Format — block type, font, size, styles, colour, alignment, lists */}
+            <ToolbarGroup label="Format">
             <div className="flex items-center gap-2">
               {/* Document style dropdown */}
               <DropdownMenu>
@@ -729,9 +733,12 @@ export default function EditorToolbar({
             >
               <ListChecks className="h-4 w-4" />
             </Toggle> */}
+            </ToolbarGroup>
 
             <ToolbarSeparator className="h-8" />
 
+            {/* Insert — primitives + live embeds (playbooks, tables, references) */}
+            <ToolbarGroup label="Insert">
             {/* Insert dropdown */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -881,6 +888,7 @@ export default function EditorToolbar({
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
+            </ToolbarGroup>
 
             <ToolbarSeparator className="h-8" />
 
@@ -896,8 +904,6 @@ export default function EditorToolbar({
                 <span className="hidden sm:inline">Page setup</span>
               </Button>
             )}
-
-            <ToolbarSeparator className="h-8" />
           </>
         )}
 

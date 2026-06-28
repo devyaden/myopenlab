@@ -7,7 +7,12 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
-import { ToolbarRoot, ToolbarSeparator } from "../editor-shell/Toolbar";
+import {
+  ToolbarRoot,
+  ToolbarSeparator,
+  ToolbarGroup,
+  ToolbarSpacer,
+} from "../editor-shell/Toolbar";
 import { SHAPES } from "@/lib/types/flow-table.types";
 import { ColorPickerPopover } from "./color-picker-popover";
 import {
@@ -36,6 +41,7 @@ import {
   Group,
   Italic,
   Lock,
+  MoreHorizontal,
   Trash2,
   Underline,
   Unlink,
@@ -434,7 +440,7 @@ export const Toolbar = React.memo(function Toolbar({
   };
   return (
     <ToolbarRoot className="gap-2 p-2">
-      <div className="flex items-center gap-2 border rounded-lg h-9">
+      <ToolbarGroup label="History" className="h-9 gap-2 rounded-lg border">
         <Button variant="ghost" size="sm" onClick={onUndo} disabled={!canUndo}>
           <CornerUpLeft className="h-3 w-3" />
         </Button>
@@ -442,10 +448,14 @@ export const Toolbar = React.memo(function Toolbar({
         <Button variant="ghost" size="sm" onClick={onRedo} disabled={!canRedo}>
           <CornerUpRight className="h-3 w-3 " />
         </Button>
-      </div>
+      </ToolbarGroup>
 
-      {/* font selction dropdown */}
-      <div className="flex items-center gap-2">
+      <ToolbarSeparator className="hidden sm:block" />
+
+      {/* Format — text + shape/edge styling */}
+      <ToolbarGroup label="Format" className="gap-2">
+        {/* font selction dropdown */}
+        <div className="flex items-center gap-2">
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button
@@ -776,41 +786,13 @@ export const Toolbar = React.memo(function Toolbar({
           </DropdownMenu>
         )}
       </div>
-
-      <div className="flex items-center gap-2">
-        <Button
-          variant="outline"
-          size="sm"
-          className="rounded-lg"
-          onClick={onCopy}
-          disabled={isStyleDisabled}
-        >
-          <Copy className="h-4 w-4" />
-        </Button>
-        <Button
-          variant="outline"
-          size="sm"
-          className="rounded-lg"
-          onClick={onPaste}
-        >
-          <Clipboard className="h-4 w-4" />
-        </Button>
-        <Button
-          variant="outline"
-          size="sm"
-          className="rounded-lg"
-          onClick={onDelete}
-          disabled={selectedNodes.length === 0 && !selectedEdge}
-        >
-          <Trash2 className="h-4 w-4" />
-        </Button>
-      </div>
+      </ToolbarGroup>
 
       <ToolbarSeparator className="hidden sm:block" />
 
-      {/* Arrange / align / distribute / z-order. Gated on having at least
-          one node selected; align needs >=2, distribute needs >=3. */}
-      <div className="flex items-center gap-2">
+      {/* Arrange — align / distribute / z-order / grouping. Gated on having at
+          least one node selected; align needs >=2, distribute needs >=3. */}
+      <ToolbarGroup label="Arrange" className="gap-2">
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button
@@ -925,22 +907,6 @@ export const Toolbar = React.memo(function Toolbar({
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
-      </div>
-
-      <ToolbarSeparator className="hidden sm:block" />
-      <div className="flex items-center gap-2">
-        {/* <Button variant="outline" size="sm" className="rounded-lg">
-          <Link className="h-4 w-4" />
-        </Button> */}
-        <Button
-          variant="outline"
-          size="sm"
-          className="rounded-lg"
-          onClick={onLock}
-          disabled={isStyleDisabled}
-        >
-          <Lock className="h-4 w-4" />
-        </Button>
 
         {selectedNodeHasParent && (
           <Button
@@ -962,13 +928,54 @@ export const Toolbar = React.memo(function Toolbar({
             size="sm"
             className="rounded-lg gap-2"
             onClick={handleMultiNodeGrouping}
-            title="Detach from parent"
+            title="Group selection"
           >
             <Group className="h-4 w-4" />
             Group
           </Button>
         )}
-      </div>
+      </ToolbarGroup>
+
+      <ToolbarSpacer />
+
+      {/* More — secondary actions kept out of the way. */}
+      <ToolbarGroup label="More">
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              variant="outline"
+              size="sm"
+              className="rounded-lg"
+              title="More actions"
+            >
+              <MoreHorizontal className="h-4 w-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem onSelect={() => onCopy()} disabled={isStyleDisabled}>
+              <Copy className="mr-2 h-4 w-4" />
+              Copy
+            </DropdownMenuItem>
+            <DropdownMenuItem onSelect={() => onPaste()}>
+              <Clipboard className="mr-2 h-4 w-4" />
+              Paste
+            </DropdownMenuItem>
+            <DropdownMenuItem onSelect={() => onLock()} disabled={isStyleDisabled}>
+              <Lock className="mr-2 h-4 w-4" />
+              Lock
+            </DropdownMenuItem>
+            <Separator className="my-1" />
+            <DropdownMenuItem
+              onSelect={() => onDelete()}
+              disabled={selectedNodes.length === 0 && !selectedEdge}
+              className="text-destructive focus:text-destructive"
+            >
+              <Trash2 className="mr-2 h-4 w-4" />
+              Delete
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </ToolbarGroup>
     </ToolbarRoot>
   );
 });
