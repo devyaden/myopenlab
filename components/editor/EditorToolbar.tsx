@@ -16,7 +16,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Separator } from "@/components/ui/separator";
+import { ToolbarSeparator } from "../editor-shell/Toolbar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Toggle } from "@/components/ui/toggle";
 import { CANVAS_TYPE } from "@/types/store";
@@ -346,7 +346,11 @@ export default function EditorToolbar({
 
   return (
     <div className="editor-toolbar sticky z-20">
-      <div className="toolbar-inner flex flex-wrap items-center gap-1 md:gap-2">
+      <div
+        role="toolbar"
+        aria-label="Formatting"
+        className="toolbar-inner flex flex-wrap items-center gap-1 md:gap-2"
+      >
         {isOwner && (
           <>
             <Button
@@ -368,7 +372,7 @@ export default function EditorToolbar({
               <CornerUpRight className="h-3 w-3 " />
             </Button>
 
-            <Separator orientation="vertical" className="h-8" />
+            <ToolbarSeparator className="h-8" />
 
             <div className="flex items-center gap-2">
               {/* Document style dropdown */}
@@ -460,7 +464,7 @@ export default function EditorToolbar({
               </DropdownMenu>
             </div>
 
-            <Separator orientation="vertical" className="h-8" />
+            <ToolbarSeparator className="h-8" />
 
             {/* Font size controls */}
             <div className="flex items-center">
@@ -495,7 +499,7 @@ export default function EditorToolbar({
               </Button>
             </div>
 
-            <Separator orientation="vertical" className="h-8" />
+            <ToolbarSeparator className="h-8" />
 
             {/* Text formatting */}
             <Toggle
@@ -528,7 +532,7 @@ export default function EditorToolbar({
               <Underline className="h-4 w-4" />
             </Toggle>
 
-            <Separator orientation="vertical" className="h-8" />
+            <ToolbarSeparator className="h-8" />
 
             {/* Text Direction */}
             <DropdownMenu>
@@ -695,7 +699,7 @@ export default function EditorToolbar({
               </DropdownMenuContent>
             </DropdownMenu>
 
-            <Separator orientation="vertical" className="h-8" />
+            <ToolbarSeparator className="h-8" />
 
             {/* Lists */}
             <Toggle
@@ -726,7 +730,7 @@ export default function EditorToolbar({
               <ListChecks className="h-4 w-4" />
             </Toggle> */}
 
-            <Separator orientation="vertical" className="h-8" />
+            <ToolbarSeparator className="h-8" />
 
             {/* Insert dropdown */}
             <DropdownMenu>
@@ -851,7 +855,7 @@ export default function EditorToolbar({
               </DropdownMenuContent>
             </DropdownMenu>
 
-            <Separator orientation="vertical" className="h-8" />
+            <ToolbarSeparator className="h-8" />
 
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -878,7 +882,7 @@ export default function EditorToolbar({
               </DropdownMenuContent>
             </DropdownMenu>
 
-            <Separator orientation="vertical" className="h-8" />
+            <ToolbarSeparator className="h-8" />
 
             {onOpenPageSettings && (
               <Button
@@ -893,7 +897,7 @@ export default function EditorToolbar({
               </Button>
             )}
 
-            <Separator orientation="vertical" className="h-8" />
+            <ToolbarSeparator className="h-8" />
           </>
         )}
 

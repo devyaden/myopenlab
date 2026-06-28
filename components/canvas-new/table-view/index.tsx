@@ -2228,7 +2228,11 @@ const TableView = forwardRef<
     return (
       <>
         <div className="w-full bg-card">
-          <div className="flex items-center justify-between px-8 py-2 border-b border-border">
+          <div
+            role="toolbar"
+            aria-label="Table actions"
+            className="flex items-center justify-between px-8 py-2 border-b border-border"
+          >
             <div className="text-base text-muted-foreground font-medium"></div>
             <div className="flex items-center gap-2 min-h-10">
               {(selectedNodes.length > 0 ||
