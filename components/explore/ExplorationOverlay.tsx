@@ -2,9 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { X } from "lucide-react";
 import { useExplorationStore } from "@/lib/store/useExploration";
-import { useT } from "@/lib/i18n/LocaleProvider";
 import { ExplorationApp } from "./ExplorationApp";
 import { triggerExplore, supportsViewTransitions } from "./iris";
 
@@ -15,7 +13,6 @@ import { triggerExplore, supportsViewTransitions } from "./iris";
  * the protected layout level so it covers any route and survives navigation.
  */
 export function ExplorationOverlay() {
-  const t = useT();
   const active = useExplorationStore((s) => s.active);
   const origin = useExplorationStore((s) => s.origin);
   const [mounted, setMounted] = useState(false);
@@ -47,18 +44,13 @@ export function ExplorationOverlay() {
   // the server — render nothing until mounted so the markup matches.
   if (!mounted) return null;
 
+  // The close affordance lives in the Map's top strip; the overlay supplies the
+  // animated iris exit. Esc also exits (handled above).
   const surface = (
-    <>
-      <button
-        onClick={() => triggerExplore(origin)}
-        className="absolute right-4 top-4 z-10 rounded-full border border-border bg-card/80 p-2 text-muted-foreground backdrop-blur hover:bg-muted rtl:left-4 rtl:right-auto"
-        title={t("explore.exit")}
-        aria-label={t("explore.exit")}
-      >
-        <X size={18} />
-      </button>
-      <ExplorationApp variant="overlay" />
-    </>
+    <ExplorationApp
+      variant="overlay"
+      onClose={() => triggerExplore(origin)}
+    />
   );
 
   // Fallback (no View Transitions): framer-motion clip-path reveal. AnimatePresence

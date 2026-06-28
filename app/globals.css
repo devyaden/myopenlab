@@ -116,3 +116,23 @@
   from { clip-path: circle(160vmax at var(--explore-x, 50%) var(--explore-y, 50%)); }
   to { clip-path: circle(0 at var(--explore-x, 50%) var(--explore-y, 50%)); }
 }
+
+/* Theme ReactFlow's default zoom/fit controls to the Atlas surface in light AND
+   dark (the library ships hardcoded white). Scoped under `.react-flow` so it
+   out-specifies ReactFlow's own stylesheet regardless of import order. Applies to
+   The Map and any embedded flow preview. */
+.react-flow .react-flow__controls {
+  box-shadow: var(--shadow-md);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+.react-flow .react-flow__controls-button {
+  background: hsl(var(--card));
+  border-bottom: 1px solid hsl(var(--border));
+}
+.react-flow .react-flow__controls-button:hover {
+  background: hsl(var(--accent));
+}
+.react-flow .react-flow__controls-button svg {
+  fill: hsl(var(--foreground));
+}

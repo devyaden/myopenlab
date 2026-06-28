@@ -49,6 +49,9 @@ interface GovernanceBrowserProps {
   /** Graph node id to focus (set when the user clicks a source chip in the chat). */
   focusId: string | null;
   onPick: (ctx: ExploreContext) => void;
+  /** Reports the loaded graph to the shell (for the find pane + status counts),
+   *  so the Map fetches the graph once instead of twice. */
+  onData?: (nodes: GraphNode[], edgeCount: number) => void;
 }
 
 // ── Shared chart model ───────────────────────────────────────────────────────
@@ -76,15 +79,16 @@ interface ChartData {
   hasHierarchy?: boolean;
 }
 
-// Colors keyed by node group, tuned for the dark exploration skin.
+// Colors keyed by node group, driven by Atlas categorical node tokens so the Map
+// reads correctly in both light and dark themes (border = the hue, bg = 16% tint).
 const GROUP_STYLE: Record<string, { bg: string; border: string }> = {
-  person: { bg: "rgba(16,185,129,0.16)", border: "#10b981" },
-  role: { bg: "rgba(139,92,246,0.16)", border: "#8b5cf6" },
-  document: { bg: "rgba(59,130,246,0.16)", border: "#3b82f6" },
-  table: { bg: "rgba(245,158,11,0.16)", border: "#f59e0b" },
-  hybrid: { bg: "rgba(56,189,248,0.16)", border: "#38bdf8" },
-  canvas: { bg: "rgba(148,163,184,0.16)", border: "#94a3b8" },
-  code: { bg: "rgba(244,63,94,0.14)", border: "#f43f5e" },
+  person: { bg: "hsl(var(--node-person) / 0.16)", border: "hsl(var(--node-person))" },
+  role: { bg: "hsl(var(--node-role) / 0.16)", border: "hsl(var(--node-role))" },
+  document: { bg: "hsl(var(--node-document) / 0.16)", border: "hsl(var(--node-document))" },
+  table: { bg: "hsl(var(--node-table) / 0.16)", border: "hsl(var(--node-table))" },
+  hybrid: { bg: "hsl(var(--node-hybrid) / 0.16)", border: "hsl(var(--node-hybrid))" },
+  canvas: { bg: "hsl(var(--node-canvas) / 0.16)", border: "hsl(var(--node-canvas))" },
+  code: { bg: "hsl(var(--node-code) / 0.14)", border: "hsl(var(--node-code))" },
 };
 
 function groupToKind(group: string): ExploreContext["kind"] {
@@ -339,12 +343,20 @@ function ChartPane({
 }) {
   const [rf, setRf] = useState<ReactFlowInstance | null>(null);
 
+  // Only treat a selection as "active" for dimming/edges when the node is
+  // actually in this view — otherwise launching the Map focused on an artifact
+  // that has no cross-references would fade the entire graph.
+  const selectionActive = useMemo(
+    () => selectedId != null && base.nodes.some((n) => n.id === selectedId),
+    [selectedId, base.nodes]
+  );
+
   const rfNodes: Node[] = useMemo(
     () =>
       base.nodes.map((n) => {
         const style = GROUP_STYLE[n.group] ?? GROUP_STYLE.canvas;
         const sel = selectedId === n.id;
-        const dim = selectedId != null && !sel;
+        const dim = selectionActive && !sel;
         return {
           id: n.id,
           position: n.position,
@@ -354,8 +366,8 @@ function ChartPane({
           style: {
             width: n.width,
             background: style.bg,
-            color: "#e8ecf4",
-            border: `1.5px solid ${sel ? "#ffffff" : style.border}`,
+            color: "hsl(var(--foreground))",
+            border: `1.5px solid ${sel ? "hsl(var(--foreground))" : style.border}`,
             boxShadow: sel ? `0 0 0 3px ${style.border}` : "none",
             borderRadius: 10,
             padding: "8px 10px",
@@ -366,22 +378,24 @@ function ChartPane({
           },
         };
       }),
-    [base.nodes, selectedId]
+    [base.nodes, selectedId, selectionActive]
   );
 
   const rfEdges: Edge[] = useMemo(
     () =>
       base.edges.map((e) => {
         const connected =
-          selectedId == null || e.source === selectedId || e.target === selectedId;
-        const stroke = connected ? "#7c8aa5" : "#39435a";
+          !selectionActive || e.source === selectedId || e.target === selectedId;
+        const stroke = connected
+          ? "hsl(var(--muted-foreground))"
+          : "hsl(var(--border))";
         return {
           id: e.id,
           source: e.source,
           target: e.target,
           label: humanizeType(e.type),
-          labelStyle: { fill: "#9aa6bd", fontSize: 9 },
-          labelBgStyle: { fill: "rgba(20,26,40,0.85)" },
+          labelStyle: { fill: "hsl(var(--muted-foreground))", fontSize: 9 },
+          labelBgStyle: { fill: "hsl(var(--card))" },
           style: {
             stroke,
             strokeWidth: connected ? 1.6 : 1,
@@ -391,18 +405,23 @@ function ChartPane({
           markerEnd: { type: MarkerType.ArrowClosed, color: stroke },
         };
       }),
-    [base.edges, selectedId]
+    [base.edges, selectedId, selectionActive]
   );
 
   useEffect(() => {
     if (!rf) return;
-    if (selectedId != null) {
-      const n = base.nodes.find((x) => x.id === selectedId);
-      if (n) rf.setCenter(n.position.x + n.width / 2, n.position.y + 26, { zoom: 1.5, duration: 500 });
+    const n = selectionActive
+      ? base.nodes.find((x) => x.id === selectedId)
+      : null;
+    if (n) {
+      rf.setCenter(n.position.x + n.width / 2, n.position.y + 26, {
+        zoom: 1.5,
+        duration: 500,
+      });
     } else {
       rf.fitView({ duration: 500, padding: 0.2 });
     }
-  }, [rf, selectedId, base.nodes]);
+  }, [rf, selectedId, selectionActive, base.nodes]);
 
   return (
     <ReactFlow
@@ -418,7 +437,7 @@ function ChartPane({
       nodesConnectable={false}
       elementsSelectable
     >
-      <Background color="#2a3346" gap={20} />
+      <Background color="hsl(var(--border))" gap={20} />
       <Controls showInteractive={false} />
     </ReactFlow>
   );
@@ -559,7 +578,11 @@ function DetailCard({
 }
 
 // ── Main browser ─────────────────────────────────────────────────────────────
-export function GovernanceBrowser({ focusId, onPick }: GovernanceBrowserProps) {
+export function GovernanceBrowser({
+  focusId,
+  onPick,
+  onData,
+}: GovernanceBrowserProps) {
   const t = useT();
   const router = useRouter();
   const exitExplore = useExplorationStore((s) => s.exit);
@@ -570,15 +593,22 @@ export function GovernanceBrowser({ focusId, onPick }: GovernanceBrowserProps) {
 
   useEffect(() => {
     let cancelled = false;
+    // Include the launch artifact so the Map can focus it even if it has no refs.
+    const graphUrl = focusId
+      ? `/api/explore/graph?focus=${encodeURIComponent(focusId)}`
+      : "/api/explore/graph";
     Promise.all([
-      fetch("/api/explore/graph").then((r) => (r.ok ? r.json() : { nodes: [], edges: [] })),
+      fetch(graphUrl).then((r) => (r.ok ? r.json() : { nodes: [], edges: [] })),
       fetch("/api/explore/directory").then((r) => (r.ok ? r.json() : { directories: [] })),
     ])
       .then(([g, d]) => {
         if (cancelled) return;
-        setGraph({ nodes: g.nodes ?? [], edges: g.edges ?? [] });
+        const gNodes: GraphNode[] = g.nodes ?? [];
+        const gEdges: GraphEdge[] = g.edges ?? [];
+        setGraph({ nodes: gNodes, edges: gEdges });
         setDirectories(d.directories ?? []);
-        if ((g.edges ?? []).length === 0) setTab("people");
+        if (gEdges.length === 0) setTab("people");
+        onData?.(gNodes, gEdges.length);
       })
       .catch(() => {
         if (cancelled) return;
@@ -588,6 +618,8 @@ export function GovernanceBrowser({ focusId, onPick }: GovernanceBrowserProps) {
     return () => {
       cancelled = true;
     };
+    // Fetch once on mount with the launch focus; later selections reuse the graph.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const processData = useMemo(() => buildProcessChart(graph), [graph]);

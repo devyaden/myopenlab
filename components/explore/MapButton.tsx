@@ -12,8 +12,17 @@ import { cn } from "@/lib/utils";
  * header chrome (not just the app-wide floating button). Hidden while the Map is
  * already open (the overlay carries its own exit).
  */
-export function MapButton({ className }: { className?: string }) {
+export function MapButton({
+  className,
+  focus,
+}: {
+  className?: string;
+  /** The artifact this button sits on — the Map opens focused on it ("you are
+   *  here"), grounding the graph + governance Q&A on the current playbook/table/doc. */
+  focus?: { id: string; label: string; code?: string | null };
+}) {
   const active = useExplorationStore((s) => s.active);
+  const setContext = useExplorationStore((s) => s.setContext);
   if (active) return null;
 
   return (
@@ -21,6 +30,14 @@ export function MapButton({ className }: { className?: string }) {
       type="button"
       onClick={(e) => {
         const r = e.currentTarget.getBoundingClientRect();
+        if (focus) {
+          setContext({
+            kind: "canvas",
+            id: focus.id,
+            label: focus.label,
+            code: focus.code ?? null,
+          });
+        }
         triggerExplore({ x: r.left + r.width / 2, y: r.top + r.height / 2 });
       }}
       title="Open the Map — see how everything connects"

@@ -427,8 +427,9 @@ export function Header({
         )}
 
         <div className="ml-auto flex items-center gap-2 h-10 ">
-          {/* The Map — wayfinding entry from the editor chrome (read-only, for everyone). */}
-          <MapButton />
+          {/* The Map — wayfinding entry from the editor chrome (read-only, for
+              everyone). Opens focused on THIS artifact (you-are-here). */}
+          <MapButton focus={{ id: canvasId, label: projectName, code }} />
 
           {/* Owner-gated: the cross-reference graph (/api/refs) is scoped to the
               owner's user_id, so a non-owner viewer would only ever see an empty

@@ -24,12 +24,15 @@ export interface GraphEdge {
   type: string;
 }
 
-export async function GET() {
+export async function GET(req: Request) {
   const access = await requireExploreAccess();
   if (!access.ok) {
     return NextResponse.json({ error: access.error }, { status: access.status });
   }
   const { supabase, user, scope } = access;
+  // The artifact the Map was launched from — included as a node even if it has no
+  // references yet, so "you are here" always has something to focus in the graph.
+  const focusId = new URL(req.url).searchParams.get("focus");
 
   const [{ data: refRows }, { data: canvasRows }] = await Promise.all([
     supabase.from("reference").select("*").eq("user_id", user.id),
@@ -121,6 +124,10 @@ export async function GET() {
     const source = ensureCanvas(r.from_canvas);
     edges.push({ id: r.id, source, target, type: r.type });
   }
+
+  // Ensure the launched artifact is present (so the Map can focus it even when it
+  // has no cross-references yet) — but only if it's a real, in-scope canvas.
+  if (focusId && byId.has(focusId) && inScope(focusId)) ensureCanvas(focusId);
 
   return NextResponse.json({ nodes: Array.from(nodes.values()), edges });
 }

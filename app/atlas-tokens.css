@@ -71,6 +71,16 @@
     /* code chips (mono identity) */
     --code-bg: 220 18% 95%;
     --code-text: 216 19% 11%;
+
+    /* The Map — categorical node-type colors (light). Data-viz hues that stay
+       distinct across themes; nodes use the hue for the border + a 16% tint bg. */
+    --node-person: 160 84% 33%;
+    --node-role: 258 75% 56%;
+    --node-document: 217 84% 52%;
+    --node-table: 33 92% 44%;
+    --node-hybrid: 192 84% 38%;
+    --node-canvas: 215 16% 46%;
+    --node-code: 350 78% 50%;
   }
 
   .dark {
@@ -129,37 +139,20 @@
 
     --code-bg: 218 23% 16%;
     --code-text: 218 21% 93%;
+
+    /* The Map — categorical node-type colors (dark): a touch brighter so they
+       read against the dark canvas. */
+    --node-person: 160 70% 45%;
+    --node-role: 258 90% 72%;
+    --node-document: 217 91% 66%;
+    --node-table: 38 92% 56%;
+    --node-hybrid: 199 89% 60%;
+    --node-canvas: 215 18% 62%;
+    --node-code: 350 89% 66%;
   }
 
-  /* Exploration Mode now uses the Atlas DARK palette (one design language) so
-     "The Map" no longer feels like a separate app. Kept as a scoped skin so it
-     works regardless of the global light/dark theme. */
-  [data-mode="exploration"] {
-    --background: 218 25% 6%;
-    --foreground: 218 21% 93%;
-    --card: 215 22% 11%;
-    --card-foreground: 218 21% 93%;
-    --popover: 218 23% 14%;
-    --popover-foreground: 218 21% 93%;
-    --primary: 173 77% 43%;
-    --primary-foreground: 218 25% 6%;
-    --secondary: 218 23% 14%;
-    --secondary-foreground: 218 21% 93%;
-    --muted: 215 22% 13%;
-    --muted-foreground: 218 14% 65%;
-    --accent: 176 47% 11%;
-    --accent-foreground: 173 77% 60%;
-    --destructive: 0 84% 69%;
-    --destructive-foreground: 0 0% 100%;
-    --border: 218 18% 20%;
-    --input: 218 18% 20%;
-    --ring: 173 77% 43%;
-    --signal: 173 77% 43%;
-    --signal-bright: 173 80% 50%;
-    --attention: 39 87% 59%;
-    --code-bg: 218 23% 16%;
-    --code-text: 218 21% 93%;
-  }
+  /* (The legacy forced-dark "exploration" skin was removed — The Map now follows
+     the app's light/dark Atlas theme like every other surface.) */
 
   :root {
     /* ── Non-color tokens (4px space scale · radius · elevation · motion) ── */
