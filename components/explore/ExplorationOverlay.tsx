@@ -65,10 +65,17 @@ export function ExplorationOverlay() {
           <motion.div
             key="exploration-surface"
             className="exploration-surface fixed inset-0 z-[60] bg-background"
-            initial={origin ? { clipPath: `circle(0px at ${ox}px ${oy}px)` } : false}
-            animate={{ clipPath: `circle(160vmax at ${ox}px ${oy}px)` }}
-            exit={{ clipPath: `circle(0px at ${ox}px ${oy}px)` }}
-            transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
+            initial={
+              origin
+                ? { clipPath: `circle(0px at ${ox}px ${oy}px)`, opacity: 0.4 }
+                : false
+            }
+            animate={{
+              clipPath: `circle(160vmax at ${ox}px ${oy}px)`,
+              opacity: 1,
+            }}
+            exit={{ clipPath: `circle(0px at ${ox}px ${oy}px)`, opacity: 0.4 }}
+            transition={{ duration: 0.56, ease: [0.65, 0, 0.35, 1] }}
           >
             {surface}
           </motion.div>

@@ -14,7 +14,6 @@ import { GovernanceBrowser } from "./GovernanceBrowser";
 import { MapLegend } from "./MapLegend";
 import { MapSearchPane, type MapNode } from "./MapSearchPane";
 
-const LEGEND_DISMISSED_KEY = "atlas-map-legend-dismissed";
 
 /**
  * The Map — the Atlas wayfinding & governance surface. One unified, light/dark
@@ -43,8 +42,9 @@ export function ExplorationApp({
   const [focusId, setFocusId] = useState<string | null>(
     () => context?.id ?? null
   );
-  const [chatOpen, setChatOpen] = useState(true);
-  const [searchOpen, setSearchOpen] = useState(true);
+  // Calm by default — the graph is the hero; Find, Ask and Legend open on demand.
+  const [chatOpen, setChatOpen] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
   const [legendOpen, setLegendOpen] = useState(false);
   // Find-pane data + status counts, reported by the graph (one fetch, not two).
   const [nodes, setNodes] = useState<MapNode[]>([]);
@@ -58,22 +58,7 @@ export function ExplorationApp({
     []
   );
 
-  // The legend auto-opens once (teach what the colours mean), then stays dismissed.
-  useEffect(() => {
-    try {
-      if (!localStorage.getItem(LEGEND_DISMISSED_KEY)) setLegendOpen(true);
-    } catch {
-      /* ignore */
-    }
-  }, []);
-  const closeLegend = useCallback(() => {
-    setLegendOpen(false);
-    try {
-      localStorage.setItem(LEGEND_DISMISSED_KEY, "1");
-    } catch {
-      /* ignore */
-    }
-  }, []);
+  const closeLegend = useCallback(() => setLegendOpen(false), []);
 
   const handlePick = useCallback(
     (ctx: ExploreContext) => {
@@ -168,11 +153,13 @@ export function ExplorationApp({
           <span className="mr-1 hidden text-xs tabular-nums text-muted-foreground md:inline">
             {nodes.length} artifacts · {edgeCount} links
           </span>
-          {!searchOpen && (
-            <Button variant="ghost" size="sm" onClick={() => setSearchOpen(true)}>
-              <Search className="mr-1.5 h-4 w-4" /> Find
-            </Button>
-          )}
+          <Button
+            variant={searchOpen ? "secondary" : "ghost"}
+            size="sm"
+            onClick={() => setSearchOpen((v) => !v)}
+          >
+            <Search className="mr-1.5 h-4 w-4" /> Find
+          </Button>
           <Button
             variant={legendOpen ? "secondary" : "ghost"}
             size="sm"
