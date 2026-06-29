@@ -11,7 +11,9 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { SidebarProvider } from "@/components/ui/sidebar";
-import { HeaderSidebar } from "@/components/header-dashboard";
+import { AppShell } from "@/components/shell/AppShell";
+import { CommandPalette } from "@/components/command-palette/CommandPalette";
+import { ExplorationOverlay } from "@/components/explore/ExplorationOverlay";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Check, Loader2, CreditCard, Shield, Lock } from "lucide-react";
 import { supabase } from "@/lib/supabase/client";
@@ -47,6 +49,24 @@ interface StripePlan {
     intervalCount: number | null;
     customUnitLabel: string | null;
   } | null;
+}
+
+/**
+ * Pricing is an authenticated in-app surface, so it wears the same Atlas chrome as
+ * the rest of the app: the LibrarySidebar + TopBar (via AppShell), the ⌘K command
+ * palette, and The Map overlay — the supporting pieces the /protected layout would
+ * otherwise provide. Replaces the legacy dark header-dashboard.
+ */
+function PricingShell({ children }: { children: React.ReactNode }) {
+  return (
+    <>
+      <SidebarProvider>
+        <AppShell>{children}</AppShell>
+      </SidebarProvider>
+      <CommandPalette />
+      <ExplorationOverlay />
+    </>
+  );
 }
 
 export default function PricingPage() {
@@ -238,7 +258,7 @@ export default function PricingPage() {
 
   if (!user || loadingPlans) {
     return (
-      <div className="min-h-screen bg-background">
+      <PricingShell>
         <div className="container mx-auto px-4 py-16">
           <div className="mb-16 flex flex-col items-center gap-3">
             <Skeleton className="h-10 w-96 max-w-full" />
@@ -262,16 +282,12 @@ export default function PricingPage() {
             ))}
           </div>
         </div>
-      </div>
+      </PricingShell>
     );
   }
 
   return (
-    <SidebarProvider>
-      <div className="flex flex-col h-screen w-screen bg-background">
-        <HeaderSidebar />
-
-        <div className="flex-1 overflow-auto bg-background">
+    <PricingShell>
           <div className="container mx-auto px-4 py-16">
             {/* Page Title */}
             <div className="text-center mb-16">
@@ -302,12 +318,12 @@ export default function PricingPage() {
                     )}
                   >
                     {isActive && (
-                      <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-yadn-accent-green text-white px-4 py-1 rounded-full text-xs font-bold shadow-md">
+                      <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-signal text-white px-4 py-1 rounded-full text-xs font-bold shadow-md">
                         Your current plan
                       </div>
                     )}
                     {isRecommended && (
-                      <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-yadn-accent-green text-white px-4 py-1 rounded-full text-xs font-bold shadow-md">
+                      <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-signal text-white px-4 py-1 rounded-full text-xs font-bold shadow-md">
                         Recommended
                       </div>
                     )}
@@ -503,8 +519,6 @@ export default function PricingPage() {
               </DialogContent>
             </Dialog>
           </div>
-        </div>
-      </div>
-    </SidebarProvider>
+    </PricingShell>
   );
 }
