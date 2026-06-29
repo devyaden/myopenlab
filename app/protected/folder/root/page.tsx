@@ -1,28 +1,16 @@
 "use client";
 
-import { FolderContent } from "@/components/dashboard/folder-content";
-import { RecentDocuments } from "@/components/dashboard/recent-documents";
-import { HeaderSidebar } from "@/components/header-dashboard";
-import { SidebarProvider } from "@/components/ui/sidebar";
-import { useParams } from "next/navigation";
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
 
-export default function FolderPage() {
-  const params = useParams();
-  const folderId = params.id as string;
-
-  return (
-    <SidebarProvider>
-      <div className="flex flex-col h-screen w-screen">
-        <HeaderSidebar />
-
-        <div className="flex flex-1 overflow-hidden relative">
-          <main className="h-full w-full overflow-hidden">
-            <FolderContent folderId="root" />
-          </main>
-
-          <RecentDocuments />
-        </div>
-      </div>
-    </SidebarProvider>
-  );
+/**
+ * The "Root" pseudo-folder is gone — uncategorized artifacts now live directly in
+ * the Library. Redirect any old bookmark to /protected.
+ */
+export default function LegacyRootRedirect() {
+  const router = useRouter();
+  useEffect(() => {
+    router.replace("/protected");
+  }, [router]);
+  return null;
 }

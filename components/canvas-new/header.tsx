@@ -349,10 +349,14 @@ export function Header({
                 artifact name (the "you are here") survives at tighter widths. */}
             <ChevronRight className="hidden h-4 w-4 shrink-0 text-faint-ink lg:block rtl:rotate-180" />
             <Link
-              href={`/protected/folder/${currentFolder?.id || "root"}`}
+              href={
+                currentFolder?.id
+                  ? `/protected/folder/${currentFolder.id}`
+                  : "/protected"
+              }
               className="hidden shrink-0 rounded px-1 py-0.5 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground lg:block"
             >
-              {currentFolder?.name || "Root"}
+              {currentFolder?.name || "Library"}
             </Link>
             <ChevronRight className="h-4 w-4 shrink-0 text-faint-ink rtl:rotate-180" />
             <div className="flex min-w-0 items-center gap-1.5">

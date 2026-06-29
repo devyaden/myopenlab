@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
+import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -81,7 +82,7 @@ export function LibraryHome() {
           const active = (f.key ?? null) === (type ?? null);
           const href = f.key ? `/protected?type=${f.key}` : "/protected";
           return (
-            <a
+            <Link
               key={f.label}
               href={href}
               className={cn(
@@ -92,7 +93,7 @@ export function LibraryHome() {
               )}
             >
               {f.label}
-            </a>
+            </Link>
           );
         })}
       </div>
