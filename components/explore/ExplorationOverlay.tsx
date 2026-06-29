@@ -75,7 +75,7 @@ export function ExplorationOverlay() {
               opacity: 1,
             }}
             exit={{ clipPath: `circle(0px at ${ox}px ${oy}px)`, opacity: 0.4 }}
-            transition={{ duration: 0.56, ease: [0.65, 0, 0.35, 1] }}
+            transition={{ duration: 0.9, ease: [0.65, 0, 0.35, 1] }}
           >
             {surface}
           </motion.div>

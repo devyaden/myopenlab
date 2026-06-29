@@ -101,6 +101,118 @@ function groupToKind(group: string): ExploreContext["kind"] {
   return "canvas";
 }
 
+// Friendly, pluralized names for the filter chips and collapsed-group clusters.
+const GROUP_LABEL: Record<string, string> = {
+  person: "People",
+  role: "Roles",
+  document: "Documents",
+  table: "Tables",
+  hybrid: "Playbooks",
+  canvas: "Canvases",
+  code: "Reference codes",
+};
+const groupLabel = (g: string) => GROUP_LABEL[g] ?? humanizeType(g);
+
+// Collapse a source's same-type children into one cluster chip once they reach
+// this count, so a hub doesn't explode into a wall of look-alike nodes.
+const CLUSTER_THRESHOLD = 4;
+const CLUSTER_PREFIX = "cluster:";
+
+/**
+ * Derive the process graph actually rendered: hide filtered-out groups, then
+ * collapse each source's large same-type child buckets into a single cluster
+ * node (expandable on click). Returns plain graph nodes/edges for the layout.
+ */
+function deriveProcessGraph(
+  graph: { nodes: GraphNode[]; edges: GraphEdge[] } | null,
+  hiddenGroups: Set<string>,
+  expandedClusters: Set<string>,
+  keepIds: (string | null)[] = []
+): { nodes: GraphNode[]; edges: GraphEdge[] } | null {
+  if (!graph) return null;
+  const keep = new Set(keepIds.filter(Boolean) as string[]);
+  const byId = new Map(graph.nodes.map((n) => [n.id, n]));
+
+  // 1. Group filter.
+  const visible = (id: string) => {
+    const n = byId.get(id);
+    return !!n && !hiddenGroups.has(n.group);
+  };
+  let nodes = graph.nodes.filter((n) => !hiddenGroups.has(n.group));
+  const edges = graph.edges.filter((e) => visible(e.source) && visible(e.target));
+
+  // 2. Cluster each source's same-type child buckets that hit the threshold.
+  const clusterNodes: GraphNode[] = [];
+  const clusterEdges: GraphEdge[] = [];
+  const replaced = new Set<string>(); // original source→child edge ids removed
+  const collapsedMembers = new Set<string>();
+  const expandedMembers = new Set<string>();
+
+  const outBySource = new Map<string, GraphEdge[]>();
+  for (const e of edges) {
+    const list = outBySource.get(e.source) ?? [];
+    list.push(e);
+    outBySource.set(e.source, list);
+  }
+
+  for (const [src, outEdges] of Array.from(outBySource)) {
+    const byGroup = new Map<string, GraphEdge[]>();
+    for (const e of outEdges) {
+      const g = byId.get(e.target)?.group ?? "canvas";
+      const list = byGroup.get(g) ?? [];
+      list.push(e);
+      byGroup.set(g, list);
+    }
+    for (const [g, bucket] of Array.from(byGroup)) {
+      if (bucket.length < CLUSTER_THRESHOLD) continue;
+      const clusterId = `${CLUSTER_PREFIX}${src}:${g}`;
+      const expanded = expandedClusters.has(clusterId);
+      clusterNodes.push({
+        id: clusterId,
+        label: `${groupLabel(g)} (${bucket.length})`,
+        code: null,
+        group: g,
+        canvasType: null,
+      });
+      clusterEdges.push({ id: `ce:${clusterId}`, source: src, target: clusterId, type: bucket[0].type });
+      for (const e of bucket) {
+        replaced.add(e.id);
+        if (expanded) {
+          clusterEdges.push({ id: `cm:${clusterId}:${e.target}`, source: clusterId, target: e.target, type: e.type });
+          expandedMembers.add(e.target);
+        } else {
+          collapsedMembers.add(e.target);
+        }
+      }
+    }
+  }
+
+  // Hide a collapsed member unless it's also revealed by an expanded cluster or
+  // explicitly kept (the focused/selected node).
+  const hidden = new Set(
+    Array.from(collapsedMembers).filter((id) => !expandedMembers.has(id) && !keep.has(id))
+  );
+  nodes = nodes.filter((n) => !hidden.has(n.id));
+  const shown = new Set(nodes.map((n) => n.id));
+
+  const finalEdges = edges
+    .filter((e) => !replaced.has(e.id) && shown.has(e.source) && shown.has(e.target))
+    .concat(clusterEdges);
+
+  return { nodes: [...nodes, ...clusterNodes], edges: finalEdges };
+}
+
+/** Drop directories whose person/role group is filtered out. */
+function filterDirectories(
+  directories: Directory[] | null,
+  hiddenGroups: Set<string>
+): Directory[] | null {
+  if (!directories) return null;
+  return directories.filter((d) => !hiddenGroups.has(d.kind === "role" ? "role" : "person"));
+}
+
+const isClusterId = (id: string) => id.startsWith(CLUSTER_PREFIX);
+
 function humanizeType(type: string): string {
   return type
     .split("-")
@@ -349,6 +461,15 @@ const HIDDEN_HANDLE = {
 } as const;
 
 function ChipNode({ data }: any) {
+  const emphasized = data.selected || data.primary;
+  const border = data.cluster
+    ? `1.5px dashed ${data.border}`
+    : `${emphasized ? 2 : 1.5}px solid ${data.selected ? "hsl(var(--foreground))" : data.border}`;
+  const boxShadow = data.selected
+    ? `0 0 0 3px ${data.border}`
+    : data.primary
+      ? `0 0 0 2px ${data.border}`
+      : "none";
   return (
     <>
       <Handle type="target" position={Position.Top} isConnectable={false} style={HIDDEN_HANDLE} />
@@ -357,12 +478,14 @@ function ChipNode({ data }: any) {
           width: data.width,
           background: data.bg,
           color: "hsl(var(--foreground))",
-          border: `1.5px solid ${data.selected ? "hsl(var(--foreground))" : data.border}`,
-          boxShadow: data.selected ? `0 0 0 3px ${data.border}` : "none",
+          border,
+          boxShadow,
           borderRadius: 10,
           padding: "8px 10px",
           fontSize: 11,
+          fontWeight: emphasized || data.cluster ? 600 : 400,
           textAlign: "center",
+          cursor: data.cluster ? "pointer" : "default",
           opacity: data.dim ? 0.2 : 1,
           transition: "opacity 200ms ease",
         }}
@@ -375,11 +498,12 @@ function ChipNode({ data }: any) {
 }
 const EXPLORE_NODE_TYPES = { chip: ChipNode };
 
-// ── Lane-routed smooth-step edge ─────────────────────────────────────────────
-// A many-to-many reference graph collapses into one merged line when every
-// smooth-step edge shares the same horizontal mid-lane. Each edge gets a
-// distinct vertical lane (a centerY offset assigned in ChartPane) so the
-// connectors stay smooth-step but fan into separate, traceable paths.
+// ── Bus-routed smooth-step edge ──────────────────────────────────────────────
+// Edges from the same source share one horizontal "bus" just below that source,
+// then drop vertically into each child — the clean tree/org-chart connector,
+// instead of a comb of stacked lines. Different sources at the same rank are
+// staggered slightly (busLane) so their buses don't overlap.
+const BUS_GAP = 26;
 function LaneEdge({
   id,
   sourceX,
@@ -395,6 +519,11 @@ function LaneEdge({
   labelBgStyle,
   data,
 }: any) {
+  const dy = targetY - sourceY;
+  const desired = BUS_GAP + ((data?.busLane ?? 0) % 5) * 6;
+  // Keep the bend a fixed gap below the source but always between the two ranks;
+  // for very short spans just use the midpoint.
+  const centerY = dy > 24 ? sourceY + Math.min(desired, dy - 12) : (sourceY + targetY) / 2;
   const [path, labelX, labelY] = getSmoothStepPath({
     sourceX,
     sourceY,
@@ -403,7 +532,7 @@ function LaneEdge({
     targetY,
     targetPosition,
     borderRadius: 8,
-    centerY: (sourceY + targetY) / 2 + (data?.laneOffset ?? 0),
+    centerY,
   });
   return (
     <BaseEdge
@@ -427,12 +556,15 @@ function ChartPane({
   base,
   selectedId,
   onSelect,
+  onToggleCluster,
 }: {
   base: ChartData;
   selectedId: string | null;
   onSelect: (id: string | null) => void;
+  onToggleCluster: (id: string) => void;
 }) {
   const [rf, setRf] = useState<ReactFlowInstance | null>(null);
+  const [hoveredEdgeId, setHoveredEdgeId] = useState<string | null>(null);
 
   // Only treat a selection as "active" for dimming/edges when the node is
   // actually in this view — otherwise launching the Map focused on an artifact
@@ -442,24 +574,38 @@ function ChartPane({
     [selectedId, base.nodes]
   );
 
-  // Assign each edge a distinct horizontal lane (centerY offset) so parallel
-  // smooth-step edges don't collapse onto one shared mid-line. Ordered left→
-  // right by the edge's midpoint X; the spread is capped so dense graphs just
-  // compress their lanes rather than overflow into the node rows.
-  const laneOffset = useMemo(() => {
-    const rows = base.edges.map((e) => {
-      const s = base.index.get(e.source);
-      const t = base.index.get(e.target);
-      const mid = ((s?.position.x ?? 0) + (t?.position.x ?? 0)) / 2;
-      return { id: e.id, mid };
-    });
-    rows.sort((a, b) => a.mid - b.mid);
-    const n = rows.length;
-    const gap = Math.min(18, 120 / Math.max(n, 1));
+  // Per-source bus lane: all edges from one node share a horizontal bus; give
+  // each source a small stagger index (ordered left→right) so sibling buses at
+  // the same rank don't sit exactly on top of each other.
+  const sourceLane = useMemo(() => {
+    const sources = Array.from(new Set(base.edges.map((e) => e.source)));
+    sources.sort(
+      (a, b) => (base.index.get(a)?.position.x ?? 0) - (base.index.get(b)?.position.x ?? 0)
+    );
     const map = new Map<string, number>();
-    rows.forEach((r, i) => map.set(r.id, (i - (n - 1) / 2) * gap));
+    sources.forEach((s, i) => map.set(s, i));
     return map;
   }, [base.edges, base.index]);
+
+  // The anchor: highest-degree node, emphasized only in the unselected overview
+  // so the reader has an obvious "start here".
+  const primaryId = useMemo(() => {
+    const deg = new Map<string, number>();
+    for (const e of base.edges) {
+      deg.set(e.source, (deg.get(e.source) ?? 0) + 1);
+      deg.set(e.target, (deg.get(e.target) ?? 0) + 1);
+    }
+    let best: string | null = null;
+    let bestD = -1;
+    for (const n of base.nodes) {
+      const d = deg.get(n.id) ?? 0;
+      if (d > bestD) {
+        bestD = d;
+        best = n.id;
+      }
+    }
+    return bestD > 0 ? best : null;
+  }, [base.nodes, base.edges]);
 
   const rfNodes: Node[] = useMemo(
     () =>
@@ -477,11 +623,13 @@ function ChartPane({
             bg: style.bg,
             border: style.border,
             selected: sel,
+            primary: !selectionActive && n.id === primaryId,
+            cluster: isClusterId(n.id),
             dim,
           },
         };
       }),
-    [base.nodes, selectedId, selectionActive]
+    [base.nodes, selectedId, selectionActive, primaryId]
   );
 
   const rfEdges: Edge[] = useMemo(
@@ -489,31 +637,41 @@ function ChartPane({
       base.edges.map((e) => {
         const connected =
           !selectionActive || e.source === selectedId || e.target === selectedId;
+        const hovered = hoveredEdgeId === e.id;
+        // De-emphasized by default; emphasized on hover or when it touches the
+        // selected node.
+        const emph = hovered || (selectionActive && connected);
         const stroke = connected
-          ? "hsl(var(--muted-foreground))"
+          ? emph
+            ? "hsl(var(--foreground))"
+            : "hsl(var(--muted-foreground))"
           : "hsl(var(--border))";
+        // Tags show in the overview and for the selected node's edges; hidden on
+        // the dimmed edges when a selection narrows focus.
+        const showLabel = !selectionActive || connected;
         return {
           id: e.id,
           source: e.source,
           target: e.target,
           type: "lane",
-          data: { laneOffset: laneOffset.get(e.id) ?? 0 },
-          // Show the relationship label only for edges touching the selected
-          // node — otherwise every label piles into the same mid-band and turns
-          // the overview into a wall of text. Types stay available in the detail card.
-          label: selectionActive && connected ? humanizeType(e.type) : undefined,
-          labelStyle: { fill: "hsl(var(--muted-foreground))", fontSize: 9 },
+          data: { busLane: sourceLane.get(e.source) ?? 0 },
+          label: showLabel ? humanizeType(e.type) : undefined,
+          labelStyle: {
+            fill: emph ? "hsl(var(--foreground))" : "hsl(var(--muted-foreground))",
+            fontSize: emph ? 10 : 9,
+            fontWeight: emph ? 600 : 400,
+          },
           labelBgStyle: { fill: "hsl(var(--card))" },
           style: {
             stroke,
-            strokeWidth: connected ? 1.6 : 1,
+            strokeWidth: emph ? 2.4 : connected ? 1.6 : 1,
             opacity: connected ? 1 : 0.18,
             transition: "opacity 200ms ease",
           },
           markerEnd: { type: MarkerType.ArrowClosed, color: stroke },
         };
       }),
-    [base.edges, selectedId, selectionActive, laneOffset]
+    [base.edges, selectedId, selectionActive, sourceLane, hoveredEdgeId]
   );
 
   useEffect(() => {
@@ -538,8 +696,12 @@ function ChartPane({
       nodeTypes={EXPLORE_NODE_TYPES}
       edgeTypes={EXPLORE_EDGE_TYPES}
       onInit={setRf}
-      onNodeClick={(_, node) => onSelect(node.id)}
+      onNodeClick={(_, node) =>
+        isClusterId(node.id) ? onToggleCluster(node.id) : onSelect(node.id)
+      }
       onPaneClick={() => onSelect(null)}
+      onEdgeMouseEnter={(_, edge) => setHoveredEdgeId(edge.id)}
+      onEdgeMouseLeave={() => setHoveredEdgeId(null)}
       fitView
       minZoom={0.2}
       proOptions={{ hideAttribution: true }}
@@ -700,6 +862,25 @@ export function GovernanceBrowser({
   const [graph, setGraph] = useState<{ nodes: GraphNode[]; edges: GraphEdge[] } | null>(null);
   const [directories, setDirectories] = useState<Directory[] | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  // Types toggled off via the filter chips, and large groups expanded via their
+  // cluster chips. Shared across tabs (group names are namespaced by type).
+  const [hiddenGroups, setHiddenGroups] = useState<Set<string>>(() => new Set());
+  const [expandedClusters, setExpandedClusters] = useState<Set<string>>(() => new Set());
+
+  const toggleGroup = useCallback((g: string) => {
+    setHiddenGroups((prev) => {
+      const next = new Set(prev);
+      next.has(g) ? next.delete(g) : next.add(g);
+      return next;
+    });
+  }, []);
+  const toggleCluster = useCallback((id: string) => {
+    setExpandedClusters((prev) => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -732,8 +913,29 @@ export function GovernanceBrowser({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const processData = useMemo(() => buildProcessChart(graph), [graph]);
-  const peopleData = useMemo(() => buildPeopleChart(directories), [directories]);
+  const processData = useMemo(
+    () =>
+      buildProcessChart(
+        deriveProcessGraph(graph, hiddenGroups, expandedClusters, [focusId, selectedId])
+      ),
+    [graph, hiddenGroups, expandedClusters, focusId, selectedId]
+  );
+  const peopleData = useMemo(
+    () => buildPeopleChart(filterDirectories(directories, hiddenGroups)),
+    [directories, hiddenGroups]
+  );
+
+  // Group → count for the filter chips, from the unfiltered data of the active tab.
+  const groupCounts = useMemo(() => {
+    const counts = new Map<string, number>();
+    const bump = (g: string) => counts.set(g, (counts.get(g) ?? 0) + 1);
+    if (tab === "processes") graph?.nodes.forEach((n) => bump(n.group));
+    else
+      directories?.forEach((d) =>
+        d.rows.forEach(() => bump(d.kind === "role" ? "role" : "person"))
+      );
+    return counts;
+  }, [tab, graph, directories]);
 
   // A chat source-chip click focuses the matching process node.
   useEffect(() => {
@@ -767,6 +969,22 @@ export function GovernanceBrowser({
         </TabButton>
       </div>
 
+      {groupCounts.size > 1 && (
+        <div className="flex flex-wrap items-center gap-1.5 border-b border-border px-3 py-1.5">
+          {Array.from(groupCounts.entries())
+            .sort((a, b) => groupLabel(a[0]).localeCompare(groupLabel(b[0])))
+            .map(([g, count]) => (
+              <FilterChip
+                key={g}
+                group={g}
+                count={count}
+                active={!hiddenGroups.has(g)}
+                onToggle={() => toggleGroup(g)}
+              />
+            ))}
+        </div>
+      )}
+
       <div className="relative flex-1 overflow-hidden">
         {loading ? (
           <div className="flex h-full items-center justify-center text-muted-foreground">
@@ -778,7 +996,13 @@ export function GovernanceBrowser({
           />
         ) : (
           <>
-            <ChartPane key={tab} base={activeBase} selectedId={selectedId} onSelect={setSelectedId} />
+            <ChartPane
+              key={tab}
+              base={activeBase}
+              selectedId={selectedId}
+              onSelect={setSelectedId}
+              onToggleCluster={toggleCluster}
+            />
             {tab === "people" && !peopleData.hasHierarchy && (
               <div className="pointer-events-none absolute inset-x-3 bottom-3 rounded-md border border-border bg-card/90 px-3 py-2 text-center text-[11px] text-muted-foreground backdrop-blur">
                 {t("explore.browser.hierarchyHint")}
@@ -803,6 +1027,43 @@ export function GovernanceBrowser({
         )}
       </div>
     </div>
+  );
+}
+
+function FilterChip({
+  group,
+  count,
+  active,
+  onToggle,
+}: {
+  group: string;
+  count: number;
+  active: boolean;
+  onToggle: () => void;
+}) {
+  const style = GROUP_STYLE[group] ?? GROUP_STYLE.canvas;
+  return (
+    <button
+      onClick={onToggle}
+      aria-pressed={active}
+      className={`flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-[11px] transition-colors ${
+        active
+          ? "border-border bg-card text-foreground"
+          : "border-transparent bg-muted/40 text-muted-foreground line-through"
+      }`}
+    >
+      <span
+        className="h-2.5 w-2.5 shrink-0 rounded-full border"
+        style={{
+          background: active ? style.bg : "transparent",
+          borderColor: style.border,
+          opacity: active ? 1 : 0.5,
+        }}
+        aria-hidden
+      />
+      <span>{groupLabel(group)}</span>
+      <span className="tabular-nums text-muted-foreground">{count}</span>
+    </button>
   );
 }
 
