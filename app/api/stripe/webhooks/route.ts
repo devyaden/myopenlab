@@ -154,25 +154,72 @@ export async function POST(request: NextRequest) {
 
       case "invoice.paid": {
         const invoice = event.data.object as Stripe.Invoice;
-        console.log("Invoice paid:", {
-          invoiceId: invoice.id,
-          subscriptionId: (invoice as any).subscription,
-          customerId: invoice.customer,
-          amountPaid: (invoice as any).amount_paid,
-        });
+        const subId = (invoice as any).subscription as string | null;
+        const customerId = invoice.customer as string | null;
+        const paidAt = (invoice as any).status_transitions?.paid_at as
+          | number
+          | undefined;
+        const periodEnd =
+          ((invoice as any).period_end as number | undefined) ??
+          ((invoice as any).lines?.data?.[0]?.period?.end as number | undefined);
+
+        const update: Record<string, unknown> = {
+          last_invoice_status: "paid",
+          last_invoice_at: new Date(
+            ((paidAt ?? invoice.created) as number) * 1000
+          ).toISOString(),
+          payment_state: "active",
+          updated_at: new Date().toISOString(),
+        };
+        if (periodEnd) {
+          update.current_period_end = new Date(periodEnd * 1000).toISOString();
+        }
+
+        if (subId) {
+          await supabase
+            .from("user_subscription")
+            .update(update)
+            .eq("stripe_subscription_id", subId);
+        } else if (customerId) {
+          await supabase
+            .from("user_subscription")
+            .update(update)
+            .eq("stripe_customer_id", customerId)
+            .eq("is_active", true);
+        }
+        console.log("Invoice paid persisted:", invoice.id);
         break;
       }
 
       case "invoice.payment_failed": {
         const invoice = event.data.object as Stripe.Invoice;
-        console.log("Invoice payment failed:", {
-          invoiceId: invoice.id,
-          subscriptionId: (invoice as any).subscription,
-          customerId: invoice.customer,
-          attemptCount: (invoice as any).attempt_count,
-        });
+        const subId = (invoice as any).subscription as string | null;
+        const customerId = invoice.customer as string | null;
 
-        // User will lose access on next validation check
+        const update: Record<string, unknown> = {
+          last_invoice_status: "payment_failed",
+          last_invoice_at: new Date(
+            (invoice.created as number) * 1000
+          ).toISOString(),
+          // Past due — the user keeps access until the period end / next validation,
+          // but the billing UI can now surface a "payment failed" banner.
+          payment_state: "past_due",
+          updated_at: new Date().toISOString(),
+        };
+
+        if (subId) {
+          await supabase
+            .from("user_subscription")
+            .update(update)
+            .eq("stripe_subscription_id", subId);
+        } else if (customerId) {
+          await supabase
+            .from("user_subscription")
+            .update(update)
+            .eq("stripe_customer_id", customerId)
+            .eq("is_active", true);
+        }
+        console.log("Invoice payment_failed persisted:", invoice.id);
         break;
       }
 

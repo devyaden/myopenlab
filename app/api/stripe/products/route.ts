@@ -1,9 +1,17 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import Stripe from "stripe";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: "2025-09-30.clover",
 });
+
+// 5-minute in-memory cache + last-good fallback: prices change rarely, so serving a
+// slightly stale list is fine, and a Stripe hiccup should never 500 the (revenue-
+// facing) pricing page. `cache` short-circuits Stripe while warm; `lastGood` is the
+// graceful-degradation payload when a refresh fails.
+const PRODUCTS_TTL_MS = 5 * 60 * 1000;
+let cache: { payload: { products: any[] }; expiresAt: number } | null = null;
+let lastGood: { products: any[] } | null = null;
 
 function getCurrencySymbol(currency: string): string {
   const symbols: Record<string, string> = {
@@ -18,7 +26,12 @@ function getCurrencySymbol(currency: string): string {
   return symbols[currency.toLowerCase()] || currency.toUpperCase();
 }
 
-export async function GET(request: NextRequest) {
+export async function GET() {
+  // Serve the warm cache without hitting Stripe.
+  if (cache && Date.now() < cache.expiresAt) {
+    return NextResponse.json(cache.payload);
+  }
+
   try {
     const products = await stripe.products.list({
       active: true,
@@ -95,11 +108,17 @@ export async function GET(request: NextRequest) {
       return aPrice - bPrice;
     });
 
-    return NextResponse.json({
-      products: sortedProducts,
-    });
+    const payload = { products: sortedProducts };
+    cache = { payload, expiresAt: Date.now() + PRODUCTS_TTL_MS };
+    lastGood = payload;
+    return NextResponse.json(payload);
   } catch (error: any) {
     console.error("Error fetching Stripe products:", error);
+    // Stripe hiccup: serve the last good payload (flagged `stale`) rather than 500ing
+    // the pricing page; only hard-fail if we've never had a good response.
+    if (lastGood) {
+      return NextResponse.json({ ...lastGood, stale: true });
+    }
     return NextResponse.json(
       { error: error.message || "Failed to fetch products" },
       { status: 500 }

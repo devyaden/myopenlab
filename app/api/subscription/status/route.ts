@@ -43,8 +43,22 @@ export async function GET(request: NextRequest) {
     // Get feature limits (fresh, after cache clear)
     const limits = await getUserFeatureLimits(user.id);
 
+    // Convenience payment summary from the additive invoice columns (these already
+    // flow through `select *` above; surfaced here so the billing UI doesn't reach
+    // into raw column names). Additive — existing consumers ignore the new key.
+    const sd = subscriptionData as Record<string, any> | null;
+    const payment = sd
+      ? {
+          lastInvoiceStatus: sd.last_invoice_status ?? null,
+          lastInvoiceAt: sd.last_invoice_at ?? null,
+          paymentState: sd.payment_state ?? null,
+          currentPeriodEnd: sd.current_period_end ?? sd.end_date ?? null,
+        }
+      : null;
+
     return NextResponse.json({
       subscription: subscriptionData || null,
+      payment,
       error: subscriptionError?.message || null,
       limits,
       hasPaidPlan: !!subscriptionData,
