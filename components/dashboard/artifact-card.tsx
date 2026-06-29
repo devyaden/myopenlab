@@ -4,6 +4,7 @@ import Link from "next/link";
 import {
   FileText,
   FolderClosed,
+  FolderInput,
   MoreHorizontal,
   Pencil,
   Table2,
@@ -26,6 +27,7 @@ export interface Artifact {
   code?: string | null;
   canvas_type?: string | null;
   folderName?: string | null;
+  folderId?: string | null;
 }
 
 /** Null/legacy canvas_type is a Playbook (hybrid) — centralized here. */
@@ -112,6 +114,18 @@ export function ArtifactCard({ artifact }: { artifact: Artifact }) {
           >
             <Pencil className="mr-2 h-4 w-4" />
             Rename
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            onClick={() =>
+              emit("olab:move-item", {
+                id: artifact.id,
+                name: artifact.name,
+                folderId: artifact.folderId ?? null,
+              })
+            }
+          >
+            <FolderInput className="mr-2 h-4 w-4" />
+            Move to collection
           </DropdownMenuItem>
           <DropdownMenuItem
             className="text-destructive focus:text-destructive"

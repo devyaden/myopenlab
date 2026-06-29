@@ -39,9 +39,19 @@ export function LibraryHome() {
 
   const artifacts = useMemo<Artifact[]>(() => {
     const inFolders = folders.flatMap((f) =>
-      (f.canvases ?? []).map((c: any) => ({ ...c, folderName: f.name }))
+      (f.canvases ?? []).map((c: any) => ({
+        ...c,
+        folderName: f.name,
+        folderId: f.id,
+      }))
     );
-    return [...rootCanvases, ...inFolders] as Artifact[];
+    // Dedupe by id. A move refetches folders + rootCanvases separately, so for one
+    // render the moved artifact can momentarily exist in both lists — folder
+    // membership wins so the card reflects the new collection immediately.
+    const byId = new Map<string, Artifact>();
+    for (const a of rootCanvases as Artifact[]) byId.set(a.id, a);
+    for (const a of inFolders as Artifact[]) byId.set(a.id, a);
+    return Array.from(byId.values());
   }, [folders, rootCanvases]);
 
   const filtered = useMemo(

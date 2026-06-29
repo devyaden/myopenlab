@@ -38,6 +38,7 @@ export function CollectionView({ folderId }: { folderId: string }) {
       ((folder?.canvases ?? []) as any[]).map((c) => ({
         ...c,
         folderName: folder?.name,
+        folderId: folder?.id,
       })),
     [folder]
   );

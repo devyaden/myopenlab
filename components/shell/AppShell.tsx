@@ -2,11 +2,16 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { AlertCircle, X } from "lucide-react";
+import { AlertCircle, Check, FolderInput, Inbox, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Dialog, DialogContent } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { SidebarInset } from "@/components/ui/sidebar";
 import { CreateNewModal } from "@/components/dashboard-sidebar/create-new-modal";
@@ -44,6 +49,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     updateCanvas,
     deleteFolder,
     deleteCanvas,
+    moveCanvas,
     refreshData,
   } = useHomeManagement(user);
 
@@ -66,6 +72,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     id: string;
     name: string;
     kind: ItemKind;
+  } | null>(null);
+  const [move, setMove] = useState<{
+    id: string;
+    name: string;
+    folderId: string | null;
   } | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -194,6 +205,29 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     }
   }, [del, deleteFolder, deleteCanvas, refreshData]);
 
+  // Move an artifact into a collection (or out of one → uncategorized). moveCanvas
+  // only optimistically updates `folders`, never `rootCanvases`, so a refresh after
+  // keeps the Library's merged list correct.
+  const submitMove = useCallback(
+    async (targetFolderId: string | null) => {
+      if (!move || targetFolderId === move.folderId) {
+        setMove(null);
+        return;
+      }
+      setBusy(true);
+      try {
+        await moveCanvas(move.id, targetFolderId);
+        await refreshData();
+        setMove(null);
+      } catch {
+        setError("Couldn't move that. Please try again.");
+      } finally {
+        setBusy(false);
+      }
+    },
+    [move, moveCanvas, refreshData]
+  );
+
   // ── window-event wiring (sidebar / cards trigger CRUD) ─────────────────────
   useEffect(() => {
     const onCreate = (e: Event) => {
@@ -212,13 +246,20 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       const d = (e as CustomEvent).detail;
       if (d?.id) setDel(d);
     };
+    const onMove = (e: Event) => {
+      const d = (e as CustomEvent).detail;
+      if (d?.id)
+        setMove({ id: d.id, name: d.name, folderId: d.folderId ?? null });
+    };
     window.addEventListener("olab:create-new", onCreate);
     window.addEventListener("olab:rename-item", onRename);
     window.addEventListener("olab:delete-item", onDelete);
+    window.addEventListener("olab:move-item", onMove);
     return () => {
       window.removeEventListener("olab:create-new", onCreate);
       window.removeEventListener("olab:rename-item", onRename);
       window.removeEventListener("olab:delete-item", onDelete);
+      window.removeEventListener("olab:move-item", onMove);
     };
   }, []);
 
@@ -288,12 +329,17 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         onOpenChange={(o) => !o && setRename(null)}
       >
         <DialogContent className="sm:max-w-sm">
-          <div className="space-y-3">
-            <Label htmlFor="rename-input" className="text-sm font-medium">
+          <DialogHeader>
+            <DialogTitle className="text-base">
               Rename {rename?.kind === "folder" ? "collection" : "artifact"}
-            </Label>
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
             <Input
               id="rename-input"
+              aria-label={`Rename ${
+                rename?.kind === "folder" ? "collection" : "artifact"
+              }`}
               value={renameValue}
               onChange={(e) => setRenameValue(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && submitRename()}
@@ -312,6 +358,46 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 Save
               </Button>
             </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Move to a collection (or back out → uncategorized) */}
+      <Dialog open={Boolean(move)} onOpenChange={(o) => !o && setMove(null)}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="text-base">Move to collection</DialogTitle>
+            <DialogDescription className="truncate">
+              {move?.name || "Untitled"}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="-mx-1 max-h-72 space-y-0.5 overflow-y-auto px-1">
+              <MoveRow
+                label="No collection"
+                hint="Uncategorized"
+                icon={<Inbox className="h-4 w-4" />}
+                current={(move?.folderId ?? null) === null}
+                disabled={busy}
+                onClick={() => submitMove(null)}
+              />
+              {folders.map((f: any) => (
+                <MoveRow
+                  key={f.id}
+                  label={f.name}
+                  icon={<FolderInput className="h-4 w-4" />}
+                  current={move?.folderId === f.id}
+                  disabled={busy}
+                  onClick={() => submitMove(f.id)}
+                />
+              ))}
+            </div>
+            {folders.length === 0 && (
+              <p className="px-1 text-xs text-muted-foreground">
+                You don&apos;t have any collections yet. Create one from the
+                sidebar to group artifacts.
+              </p>
+            )}
           </div>
         </DialogContent>
       </Dialog>
@@ -340,6 +426,42 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         onConfirm={confirmDelete}
       />
     </>
+  );
+}
+
+/** One destination row in the "Move to collection" dialog. */
+function MoveRow({
+  label,
+  hint,
+  icon,
+  current,
+  disabled,
+  onClick,
+}: {
+  label: string;
+  hint?: string;
+  icon: React.ReactNode;
+  current: boolean;
+  disabled?: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled || current}
+      className="flex w-full items-center gap-2.5 rounded-md px-2.5 py-2 text-left text-sm text-foreground transition-colors hover:bg-accent disabled:cursor-default disabled:hover:bg-transparent"
+    >
+      <span className="shrink-0 text-muted-foreground">{icon}</span>
+      <span className="min-w-0 flex-1 truncate">{label}</span>
+      {current ? (
+        <span className="flex shrink-0 items-center gap-1 text-xs text-muted-foreground">
+          <Check className="h-3.5 w-3.5" /> Current
+        </span>
+      ) : hint ? (
+        <span className="shrink-0 text-xs text-faint-ink">{hint}</span>
+      ) : null}
+    </button>
   );
 }
 
