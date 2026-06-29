@@ -27,7 +27,7 @@ export function CommandBarTrigger({ className }: { className?: string }) {
       aria-label="Find or create anything"
       aria-keyshortcuts="Meta+K Control+K"
       className={cn(
-        "group flex h-9 w-full max-w-md items-center gap-2 rounded-md border border-white/15 bg-white/10 px-3 text-sm text-white/70 transition-colors hover:bg-white/15 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40",
+        "group flex h-9 w-full max-w-md items-center gap-2 rounded-md border border-border bg-muted/60 px-3 text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-background",
         className
       )}
     >
@@ -35,7 +35,7 @@ export function CommandBarTrigger({ className }: { className?: string }) {
       <span className="flex-1 truncate text-start">Find or create anything…</span>
       <kbd
         dir="ltr"
-        className="hidden shrink-0 items-center gap-0.5 rounded border border-white/20 bg-white/10 px-1.5 py-0.5 font-mono text-[10px] font-medium text-white/70 sm:inline-flex"
+        className="hidden shrink-0 items-center gap-0.5 rounded border border-border bg-background px-1.5 py-0.5 font-mono text-[10px] font-medium text-muted-foreground sm:inline-flex"
       >
         {isMac ? "⌘" : "Ctrl"} K
       </kbd>

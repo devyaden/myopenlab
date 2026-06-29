@@ -1,0 +1,346 @@
+"use client";
+
+import { useCallback, useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { AlertCircle, X } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { SidebarInset } from "@/components/ui/sidebar";
+import { CreateNewModal } from "@/components/dashboard-sidebar/create-new-modal";
+import { useUser } from "@/lib/contexts/userContext";
+import { useHomeManagement } from "@/components/dashboard/use-home-management";
+import {
+  getUserFeatureLimits,
+  SubscriptionFeatureFlag,
+} from "@/lib/subscription-features";
+import { CANVAS_TYPE } from "@/types/store";
+import { TopBar } from "./TopBar";
+import { LibrarySidebar } from "./LibrarySidebar";
+
+type ItemKind = "folder" | "canvas";
+
+/**
+ * The Atlas app shell for the Library/Collection surfaces: the left
+ * LibrarySidebar + the TopBar over the page content. It also centralises all
+ * library CRUD (create / rename / delete) so the sidebar, the Library and
+ * Collection views can all trigger it via window events — one CreateNewModal, one
+ * delete confirm, one source of plan-limit truth.
+ *
+ * Events: `olab:create-new` {type?, folderId?}, `olab:rename-item`
+ * {id, name, kind}, `olab:delete-item` {id, name, kind}.
+ */
+export function AppShell({ children }: { children: React.ReactNode }) {
+  const { user } = useUser();
+  const router = useRouter();
+  const {
+    folders,
+    rootCanvases,
+    createFolder,
+    createCanvas,
+    updateFolder,
+    updateCanvas,
+    deleteFolder,
+    deleteCanvas,
+    refreshData,
+  } = useHomeManagement(user);
+
+  const [planLimits, setPlanLimits] = useState<any>(null);
+  const [aiUsage, setAiUsage] = useState<{ used: number; limit: number }>({
+    used: 0,
+    limit: 5,
+  });
+  const [error, setError] = useState<string | null>(null);
+
+  const [createType, setCreateType] = useState<ItemKind | null>(null);
+  const [createFolderId, setCreateFolderId] = useState<string | null>(null);
+  const [rename, setRename] = useState<{
+    id: string;
+    name: string;
+    kind: ItemKind;
+  } | null>(null);
+  const [renameValue, setRenameValue] = useState("");
+  const [del, setDel] = useState<{
+    id: string;
+    name: string;
+    kind: ItemKind;
+  } | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  // ── plan limits + AI usage (free-tier gating) ──────────────────────────────
+  const loadAiUsage = useCallback(async () => {
+    try {
+      const r = await fetch("/api/ai/usage");
+      if (r.ok) {
+        const u = await r.json();
+        setAiUsage({ used: u.used ?? 0, limit: u.limit ?? 5 });
+      }
+    } catch {
+      /* best-effort */
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!user?.id) return;
+    (async () => {
+      try {
+        const r = await fetch("/api/subscription/status");
+        setPlanLimits(
+          r.ok ? (await r.json()).limits : await getUserFeatureLimits(user.id)
+        );
+      } catch {
+        setPlanLimits(await getUserFeatureLimits(user.id));
+      }
+      await loadAiUsage();
+    })();
+  }, [user?.id, loadAiUsage]);
+
+  const hybridCount = () =>
+    rootCanvases.filter(
+      (c: any) => c.canvas_type === "hybrid" || !c.canvas_type
+    ).length;
+  const hasDiagramSlots = () =>
+    planLimits
+      ? hybridCount() < planLimits[SubscriptionFeatureFlag.MAX_DIAGRAMS]
+      : true;
+
+  // ── create / rename / delete ───────────────────────────────────────────────
+  const handleCreateFolder = useCallback(
+    async (name: string) => {
+      if (name.trim() && user?.id) {
+        try {
+          await createFolder(name, user.id);
+          await refreshData();
+        } catch {
+          setError("Couldn't create the collection. Please try again.");
+        }
+      }
+      setCreateType(null);
+    },
+    [createFolder, user?.id, refreshData]
+  );
+
+  const handleCreateCanvas = useCallback(
+    async (
+      name: string,
+      description: string,
+      type: CANVAS_TYPE,
+      folderId?: string | null
+    ) => {
+      setError(null);
+      if (planLimits && type === CANVAS_TYPE.HYBRID && !hasDiagramSlots()) {
+        const max = planLimits[SubscriptionFeatureFlag.MAX_DIAGRAMS];
+        setError(`You've reached your limit of ${max} diagram(s). Upgrade to create more.`);
+        setCreateType(null);
+        router.push("/pricing");
+        return false;
+      }
+      try {
+        const id = await createCanvas(
+          name,
+          description,
+          user?.id as string,
+          folderId as string,
+          type
+        );
+        if (!folderId) await refreshData();
+        if (id) {
+          window.location.href =
+            type === CANVAS_TYPE.DOCUMENT
+              ? `/protected/document-editor/${id}`
+              : `/protected/playbook/${id}`;
+        }
+      } catch {
+        setError("Couldn't create that. Please try again.");
+      }
+      setCreateType(null);
+      setCreateFolderId(null);
+      return true;
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [createCanvas, user?.id, refreshData, planLimits, rootCanvases, router]
+  );
+
+  const submitRename = useCallback(async () => {
+    if (!rename || !renameValue.trim()) return;
+    setBusy(true);
+    try {
+      if (rename.kind === "folder")
+        await updateFolder(rename.id, renameValue.trim());
+      else await updateCanvas(rename.id, renameValue.trim());
+      await refreshData();
+      setRename(null);
+    } catch {
+      setError("Couldn't rename that. Please try again.");
+    } finally {
+      setBusy(false);
+    }
+  }, [rename, renameValue, updateFolder, updateCanvas, refreshData]);
+
+  const confirmDelete = useCallback(async () => {
+    if (!del) return;
+    setBusy(true);
+    try {
+      if (del.kind === "folder") await deleteFolder(del.id);
+      else await deleteCanvas(del.id);
+      await refreshData();
+      setDel(null);
+    } catch {
+      setError("Couldn't delete that. Please try again.");
+    } finally {
+      setBusy(false);
+    }
+  }, [del, deleteFolder, deleteCanvas, refreshData]);
+
+  // ── window-event wiring (sidebar / cards trigger CRUD) ─────────────────────
+  useEffect(() => {
+    const onCreate = (e: Event) => {
+      const d = (e as CustomEvent).detail ?? {};
+      setCreateFolderId(d.folderId ?? null);
+      setCreateType(d.type ?? "canvas");
+    };
+    const onRename = (e: Event) => {
+      const d = (e as CustomEvent).detail;
+      if (d?.id) {
+        setRename(d);
+        setRenameValue(d.name ?? "");
+      }
+    };
+    const onDelete = (e: Event) => {
+      const d = (e as CustomEvent).detail;
+      if (d?.id) setDel(d);
+    };
+    window.addEventListener("olab:create-new", onCreate);
+    window.addEventListener("olab:rename-item", onRename);
+    window.addEventListener("olab:delete-item", onDelete);
+    return () => {
+      window.removeEventListener("olab:create-new", onCreate);
+      window.removeEventListener("olab:rename-item", onRename);
+      window.removeEventListener("olab:delete-item", onDelete);
+    };
+  }, []);
+
+  return (
+    <>
+      <LibrarySidebar />
+      <SidebarInset className="flex h-svh min-w-0 flex-col">
+        <TopBar />
+        <main className="relative min-h-0 flex-1 overflow-y-auto bg-paper">
+          {error && (
+            <div className="pointer-events-auto absolute left-1/2 top-4 z-50 -translate-x-1/2">
+              <div className="flex items-center gap-2 rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive shadow-atlas-md">
+                <AlertCircle className="h-4 w-4 shrink-0" />
+                <span>{error}</span>
+                <button
+                  onClick={() => setError(null)}
+                  className="ml-1 rounded p-0.5 hover:bg-destructive/10"
+                  aria-label="Dismiss"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
+          )}
+          {children}
+        </main>
+      </SidebarInset>
+
+      {/* Create — one modal for the whole shell */}
+      <CreateNewModal
+        isOpen={Boolean(createType)}
+        onClose={() => {
+          setCreateType(null);
+          setCreateFolderId(null);
+          loadAiUsage();
+        }}
+        onCreateFolder={handleCreateFolder}
+        // @ts-ignore — handleCreateCanvas returns Promise<boolean>; modal expects boolean
+        onCreateCanvas={handleCreateCanvas}
+        folders={folders}
+        type={createType}
+        currentFolderId={createFolderId}
+        rootCanvases={rootCanvases}
+        canCreateCanvas={(type?: CANVAS_TYPE) =>
+          type === CANVAS_TYPE.TABLE ? true : hasDiagramSlots()
+        }
+        onCanvasLimitReached={() => {
+          const max = planLimits?.[SubscriptionFeatureFlag.MAX_DIAGRAMS] || 1;
+          setError(`You've reached your limit of ${max} diagram(s). Delete one or upgrade to create more.`);
+          router.push("/pricing");
+        }}
+        canUseAI={() => aiUsage.used < aiUsage.limit && hasDiagramSlots()}
+        onAILimitReached={() => {
+          if (aiUsage.used >= aiUsage.limit) {
+            setError(`You've used all ${aiUsage.limit} AI calls this month. Upgrade to Pro for unlimited AI generation.`);
+          } else if (!hasDiagramSlots()) {
+            const max = planLimits?.[SubscriptionFeatureFlag.MAX_DIAGRAMS] || 1;
+            setError(`You've reached your limit of ${max} diagram(s). Delete one or upgrade to create more.`);
+          }
+          router.push("/pricing");
+        }}
+      />
+
+      {/* Rename */}
+      <Dialog
+        open={Boolean(rename)}
+        onOpenChange={(o) => !o && setRename(null)}
+      >
+        <DialogContent className="sm:max-w-sm">
+          <div className="space-y-3">
+            <Label htmlFor="rename-input" className="text-sm font-medium">
+              Rename {rename?.kind === "folder" ? "collection" : "artifact"}
+            </Label>
+            <Input
+              id="rename-input"
+              value={renameValue}
+              onChange={(e) => setRenameValue(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && submitRename()}
+              maxLength={50}
+              autoFocus
+            />
+            <div className="flex justify-end gap-2 pt-1">
+              <Button variant="outline" onClick={() => setRename(null)}>
+                Cancel
+              </Button>
+              <Button
+                variant="signal"
+                onClick={submitRename}
+                disabled={busy || !renameValue.trim()}
+              >
+                Save
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete — Atlas confirm with consequences */}
+      <ConfirmDialog
+        open={Boolean(del)}
+        onOpenChange={(o) => !o && setDel(null)}
+        destructive
+        loading={busy}
+        title={`Delete ${del?.kind === "folder" ? "collection" : "artifact"}?`}
+        description={
+          del?.kind === "folder" ? (
+            <>
+              Delete <span className="font-medium text-foreground">{del?.name}</span>?
+              Its artifacts won't be deleted — they become uncategorized.
+            </>
+          ) : (
+            <>
+              Delete <span className="font-medium text-foreground">{del?.name}</span>?
+              This can't be undone.
+            </>
+          )
+        }
+        confirmLabel="Delete"
+        onConfirm={confirmDelete}
+      />
+    </>
+  );
+}
+
+export default AppShell;
