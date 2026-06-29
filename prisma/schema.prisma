@@ -96,6 +96,8 @@ model Reference {
   @@index([from_canvas])
   @@index([to_canvas])
   @@index([to_code])
+  @@index([from_canvas, type])
+  @@index([to_canvas, type])
   @@map("reference")
 }
 
@@ -238,6 +240,12 @@ model UserSubscription {
   is_active              Boolean      @default(true)
   created_at             DateTime     @default(now())
   updated_at             DateTime     @default(now()) @updatedAt
+  // Invoice/payment state persisted from Stripe webhooks + surfaced by the
+  // subscription-status route. All additive + nullable.
+  last_invoice_status    String?
+  last_invoice_at        DateTime?
+  payment_state          String?
+  current_period_end     DateTime?
   user                   User         @relation(fields: [user_id], references: [id])
   subscription           Subscription @relation(fields: [subscription_id], references: [id])
   promo_code             PromoCode?   @relation(fields: [promo_code_id], references: [id])
@@ -383,4 +391,21 @@ model ExploreMessage {
 
   @@index([conversation_id, created_at])
   @@map("explore_message")
+}
+
+// Per-user workspace settings (v1: one per user): the workspace name plus the
+// code/function naming conventions and default fonts that Settings → Workspace
+// edits. RLS owner-scoped (auth.uid() = user_id); FK is to auth.users in SQL, so
+// `user_id` is modeled here as a plain field (schema-only — runtime uses Supabase).
+model Workspace {
+  id            String   @id @default(uuid()) @db.Uuid
+  user_id       String   @unique @db.Uuid
+  name          String   @default("My workspace")
+  conventions   Json     @default("{}")
+  default_fonts Json     @default("{}")
+  created_at    DateTime @default(now())
+  updated_at    DateTime @default(now()) @updatedAt
+
+  @@index([user_id])
+  @@map("workspace")
 }
