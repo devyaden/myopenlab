@@ -11,6 +11,7 @@ import {
 import ReactFlow, {
   Background,
   BackgroundVariant,
+  ConnectionLineType,
   MarkerType,
   MiniMap,
   addEdge,
@@ -760,6 +761,7 @@ export function UMLEditor({
             onNodesChange={handleNodesChange}
             onEdgesChange={handleEdgesChange}
             onConnect={handleConnect}
+            connectionLineType={ConnectionLineType.SmoothStep}
             onNodeDragStop={onNodeDragStop}
             onDragOver={onDragOver}
             onDrop={onDrop}

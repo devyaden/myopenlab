@@ -4,9 +4,12 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import ReactFlow, {
   Background,
+  BaseEdge,
   Controls,
+  Handle,
   MarkerType,
   Position,
+  getSmoothStepPath,
   type Edge,
   type Node,
   type ReactFlowInstance,
@@ -136,7 +139,7 @@ function buildProcessChart(graph: { nodes: GraphNode[]; edges: GraphEdge[] } | n
   const positioned = autoLayoutNodes(
     graph.nodes.map((n) => ({ id: n.id, width: 168, height: 46 })),
     graph.edges.map((e) => ({ source: e.source, target: e.target })),
-    { rankdir: "TB", nodesep: 40, ranksep: 90 }
+    { rankdir: "TB", nodesep: 90, ranksep: 170 }
   );
   const nodes: BaseNode[] = positioned.map((p: any) => {
     const m = meta.get(p.id)!;
@@ -208,7 +211,7 @@ function buildPeopleChart(directories: Directory[] | null): ChartData {
   const positioned = autoLayoutNodes(
     rawNodes,
     edges.map((e) => ({ source: e.source, target: e.target })),
-    { rankdir: "TB", nodesep: 50, ranksep: 90 }
+    { rankdir: "TB", nodesep: 80, ranksep: 150 }
   );
   const posById = new Map(positioned.map((p: any) => [p.id, p.position]));
   Array.from(index.values()).forEach((node) => {
@@ -331,6 +334,94 @@ function computeDetail(
   };
 }
 
+// ── Colored chip node ────────────────────────────────────────────────────────
+// A global `.react-flow__node { ... !important }` reset in globals.css strips the
+// wrapper's border/background so the editor's custom nodes can style their own
+// inner element. The Map relies on per-type color, so it must do the same: paint
+// an inner div (immune to that reset) instead of styling the node wrapper.
+const HIDDEN_HANDLE = {
+  opacity: 0,
+  width: 1,
+  height: 1,
+  minWidth: 0,
+  minHeight: 0,
+  border: 0,
+} as const;
+
+function ChipNode({ data }: any) {
+  return (
+    <>
+      <Handle type="target" position={Position.Top} isConnectable={false} style={HIDDEN_HANDLE} />
+      <div
+        style={{
+          width: data.width,
+          background: data.bg,
+          color: "hsl(var(--foreground))",
+          border: `1.5px solid ${data.selected ? "hsl(var(--foreground))" : data.border}`,
+          boxShadow: data.selected ? `0 0 0 3px ${data.border}` : "none",
+          borderRadius: 10,
+          padding: "8px 10px",
+          fontSize: 11,
+          textAlign: "center",
+          opacity: data.dim ? 0.2 : 1,
+          transition: "opacity 200ms ease",
+        }}
+      >
+        {data.label}
+      </div>
+      <Handle type="source" position={Position.Bottom} isConnectable={false} style={HIDDEN_HANDLE} />
+    </>
+  );
+}
+const EXPLORE_NODE_TYPES = { chip: ChipNode };
+
+// ── Lane-routed smooth-step edge ─────────────────────────────────────────────
+// A many-to-many reference graph collapses into one merged line when every
+// smooth-step edge shares the same horizontal mid-lane. Each edge gets a
+// distinct vertical lane (a centerY offset assigned in ChartPane) so the
+// connectors stay smooth-step but fan into separate, traceable paths.
+function LaneEdge({
+  id,
+  sourceX,
+  sourceY,
+  targetX,
+  targetY,
+  sourcePosition,
+  targetPosition,
+  style,
+  markerEnd,
+  label,
+  labelStyle,
+  labelBgStyle,
+  data,
+}: any) {
+  const [path, labelX, labelY] = getSmoothStepPath({
+    sourceX,
+    sourceY,
+    sourcePosition,
+    targetX,
+    targetY,
+    targetPosition,
+    borderRadius: 8,
+    centerY: (sourceY + targetY) / 2 + (data?.laneOffset ?? 0),
+  });
+  return (
+    <BaseEdge
+      id={id}
+      path={path}
+      style={style}
+      markerEnd={markerEnd}
+      labelX={labelX}
+      labelY={labelY}
+      label={label}
+      labelStyle={labelStyle}
+      labelShowBg
+      labelBgStyle={labelBgStyle}
+    />
+  );
+}
+const EXPLORE_EDGE_TYPES = { lane: LaneEdge };
+
 // ── ReactFlow chart with zoom-to-focus + dimming ─────────────────────────────
 function ChartPane({
   base,
@@ -351,6 +442,25 @@ function ChartPane({
     [selectedId, base.nodes]
   );
 
+  // Assign each edge a distinct horizontal lane (centerY offset) so parallel
+  // smooth-step edges don't collapse onto one shared mid-line. Ordered left→
+  // right by the edge's midpoint X; the spread is capped so dense graphs just
+  // compress their lanes rather than overflow into the node rows.
+  const laneOffset = useMemo(() => {
+    const rows = base.edges.map((e) => {
+      const s = base.index.get(e.source);
+      const t = base.index.get(e.target);
+      const mid = ((s?.position.x ?? 0) + (t?.position.x ?? 0)) / 2;
+      return { id: e.id, mid };
+    });
+    rows.sort((a, b) => a.mid - b.mid);
+    const n = rows.length;
+    const gap = Math.min(18, 120 / Math.max(n, 1));
+    const map = new Map<string, number>();
+    rows.forEach((r, i) => map.set(r.id, (i - (n - 1) / 2) * gap));
+    return map;
+  }, [base.edges, base.index]);
+
   const rfNodes: Node[] = useMemo(
     () =>
       base.nodes.map((n) => {
@@ -359,22 +469,15 @@ function ChartPane({
         const dim = selectionActive && !sel;
         return {
           id: n.id,
+          type: "chip",
           position: n.position,
-          data: { label: n.code ? `${n.label}  {${n.code}}` : n.label },
-          sourcePosition: Position.Bottom,
-          targetPosition: Position.Top,
-          style: {
+          data: {
+            label: n.code ? `${n.label}  {${n.code}}` : n.label,
             width: n.width,
-            background: style.bg,
-            color: "hsl(var(--foreground))",
-            border: `1.5px solid ${sel ? "hsl(var(--foreground))" : style.border}`,
-            boxShadow: sel ? `0 0 0 3px ${style.border}` : "none",
-            borderRadius: 10,
-            padding: "8px 10px",
-            fontSize: 11,
-            textAlign: "center" as const,
-            opacity: dim ? 0.2 : 1,
-            transition: "opacity 200ms ease",
+            bg: style.bg,
+            border: style.border,
+            selected: sel,
+            dim,
           },
         };
       }),
@@ -393,7 +496,12 @@ function ChartPane({
           id: e.id,
           source: e.source,
           target: e.target,
-          label: humanizeType(e.type),
+          type: "lane",
+          data: { laneOffset: laneOffset.get(e.id) ?? 0 },
+          // Show the relationship label only for edges touching the selected
+          // node — otherwise every label piles into the same mid-band and turns
+          // the overview into a wall of text. Types stay available in the detail card.
+          label: selectionActive && connected ? humanizeType(e.type) : undefined,
           labelStyle: { fill: "hsl(var(--muted-foreground))", fontSize: 9 },
           labelBgStyle: { fill: "hsl(var(--card))" },
           style: {
@@ -405,7 +513,7 @@ function ChartPane({
           markerEnd: { type: MarkerType.ArrowClosed, color: stroke },
         };
       }),
-    [base.edges, selectedId, selectionActive]
+    [base.edges, selectedId, selectionActive, laneOffset]
   );
 
   useEffect(() => {
@@ -427,6 +535,8 @@ function ChartPane({
     <ReactFlow
       nodes={rfNodes}
       edges={rfEdges}
+      nodeTypes={EXPLORE_NODE_TYPES}
+      edgeTypes={EXPLORE_EDGE_TYPES}
       onInit={setRf}
       onNodeClick={(_, node) => onSelect(node.id)}
       onPaneClick={() => onSelect(null)}

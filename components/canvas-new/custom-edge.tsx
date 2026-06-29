@@ -135,7 +135,7 @@ const CustomEdge = (params: any) => {
     vectorEffect: "non-scaling-stroke",
   };
 
-  const edgeType = style.edgeType || "default";
+  const edgeType = style.edgeType || "smoothstep";
 
   const getEdgePath = (edgeType: string): any => {
     const pathParams = {
