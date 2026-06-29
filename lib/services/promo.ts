@@ -37,6 +37,101 @@ function addMonths(base: Date, months: number): Date {
   return d;
 }
 
+export type ValidateResult =
+  | { valid: true; planName: string; durationMonths: number }
+  | { valid: false; reason: RedeemReason; message: string };
+
+/**
+ * Validate-only promo check for the PRE-AUTH signup flow (no account yet): load the
+ * active code and check expiry, the global max-uses cap, and email/domain
+ * eligibility. It does NOT touch per-user usage (there is no user to count) and does
+ * NOT redeem — redeemPromoCode remains the single write path. Mirrors steps 1–3 + 5
+ * of redeemPromoCode; kept separate so the live redeem path is untouched.
+ */
+export async function validatePromoCode({
+  code,
+  email,
+}: {
+  code: string;
+  email?: string | null;
+}): Promise<ValidateResult> {
+  const normalizedCode = code.trim().toUpperCase();
+  if (!normalizedCode) {
+    return { valid: false, reason: "invalid", message: "Please enter a promo code." };
+  }
+
+  try {
+    const { data: promo, error: promoError } = await supabaseAdmin
+      .from("promo_code")
+      .select("*, subscription:subscription_id (id, title)")
+      .eq("code", normalizedCode)
+      .eq("active", true)
+      .maybeSingle();
+
+    if (promoError || !promo) {
+      return { valid: false, reason: "invalid", message: "Invalid or inactive promo code." };
+    }
+
+    if (new Date(promo.expiry_date) < new Date()) {
+      return { valid: false, reason: "expired", message: "This promo code has expired." };
+    }
+
+    if (promo.max_uses !== null && promo.max_uses !== undefined) {
+      const { count: totalUses } = await supabaseAdmin
+        .from("user_subscription")
+        .select("*", { count: "exact", head: true })
+        .eq("promo_code_id", promo.id);
+      if (totalUses != null && totalUses >= promo.max_uses) {
+        return {
+          valid: false,
+          reason: "maxUsed",
+          message: "This promo code has reached its maximum usage limit.",
+        };
+      }
+    }
+
+    const normalizedEmail = (email || "").toLowerCase();
+    const emailDomain = normalizedEmail.split("@")[1] || "";
+    const hasAllowedEmails =
+      Array.isArray(promo.allowed_emails) && promo.allowed_emails.length > 0;
+    const hasAllowedDomains =
+      promo.is_domain_specific &&
+      Array.isArray(promo.allowed_domains) &&
+      promo.allowed_domains.length > 0;
+
+    if (hasAllowedEmails || hasAllowedDomains) {
+      const emailMatch =
+        hasAllowedEmails &&
+        promo.allowed_emails.some((e: string) => e.toLowerCase() === normalizedEmail);
+      const domainMatch =
+        hasAllowedDomains &&
+        promo.allowed_domains.some((d: string) => d.toLowerCase() === emailDomain);
+      if (!emailMatch && !domainMatch) {
+        return {
+          valid: false,
+          reason: "invalidEmail",
+          message: promo.is_domain_specific
+            ? "This promo code is not valid for your email domain."
+            : "This promo code is not valid for your email.",
+        };
+      }
+    }
+
+    return {
+      valid: true,
+      planName: promo.subscription?.title || "Pro Plan",
+      durationMonths: promo.duration_months ?? 1,
+    };
+  } catch (err) {
+    console.error("[validatePromoCode] error:", err);
+    return {
+      valid: false,
+      reason: "error",
+      message: "Something went wrong validating the promo code.",
+    };
+  }
+}
+
 export async function redeemPromoCode({
   userId,
   userEmail,
