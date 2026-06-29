@@ -306,8 +306,8 @@ export function Header({
 
   return (
     <div className="border-b border-border bg-card py-2">
-      <div className="relative flex items-center px-4 ">
-        <div className="flex items-center gap-4 ">
+      <div className="flex items-center gap-2 px-4">
+        <div className="flex min-w-0 items-center gap-4">
           <Button
             variant="ghost"
             size="sm"
@@ -319,7 +319,7 @@ export function Header({
           {/* The Locator — breadcrumb-as-coordinates with a "you are here" marker.
               Answers "where am I?" on every editor surface. */}
           <nav
-            className="hidden md:flex items-center gap-1.5 text-sm"
+            className="hidden min-w-0 md:flex items-center gap-1.5 text-sm"
             aria-label="Location"
           >
             <div className="mr-1 flex items-center">
@@ -341,19 +341,21 @@ export function Header({
             <Link
               href="/protected"
               title="Home"
-              className="flex items-center rounded p-1 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+              className="flex shrink-0 items-center rounded p-1 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
             >
               <Home className="h-4 w-4" />
             </Link>
-            <ChevronRight className="h-4 w-4 text-faint-ink rtl:rotate-180" />
+            {/* The folder segment is secondary — drop it before the title so the
+                artifact name (the "you are here") survives at tighter widths. */}
+            <ChevronRight className="hidden h-4 w-4 shrink-0 text-faint-ink lg:block rtl:rotate-180" />
             <Link
               href={`/protected/folder/${currentFolder?.id || "root"}`}
-              className="rounded px-1 py-0.5 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+              className="hidden shrink-0 rounded px-1 py-0.5 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground lg:block"
             >
               {currentFolder?.name || "Root"}
             </Link>
-            <ChevronRight className="h-4 w-4 text-faint-ink rtl:rotate-180" />
-            <div className="flex items-center gap-1.5">
+            <ChevronRight className="h-4 w-4 shrink-0 text-faint-ink rtl:rotate-180" />
+            <div className="flex min-w-0 items-center gap-1.5">
               {/* you-are-here marker */}
               <span
                 className="h-1.5 w-1.5 shrink-0 rounded-full bg-attention"
@@ -378,7 +380,7 @@ export function Header({
                 />
               ) : isOwner ? (
                 <span
-                  className="text-base font-medium text-foreground cursor-pointer hover:underline"
+                  className="truncate text-base font-medium text-foreground cursor-pointer hover:underline"
                   onDoubleClick={handleTitleDoubleClick}
                   title="Double-click to rename"
                 >
@@ -417,7 +419,7 @@ export function Header({
         {/* Surface-switcher — Flow / Table / Document are three views of one
             artifact, in the same place on every editor surface. */}
         {onViewModeChange && canvasType === CANVAS_TYPE.HYBRID && (
-          <div className="absolute left-1/2 hidden -translate-x-1/2 md:block">
+          <div className="hidden shrink-0 md:block">
             <ViewModeSwitcher
               viewMode={viewMode}
               onViewModeChange={onViewModeChange}
@@ -426,7 +428,7 @@ export function Header({
           </div>
         )}
 
-        <div className="ml-auto flex items-center gap-2 h-10 ">
+        <div className="ml-auto flex h-10 shrink-0 items-center gap-2">
           {/* The Map — wayfinding entry from the editor chrome (read-only, for
               everyone). Opens focused on THIS artifact (you-are-here). */}
           <MapButton focus={{ id: canvasId, label: projectName, code }} />
