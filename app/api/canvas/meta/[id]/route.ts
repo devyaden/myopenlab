@@ -1,5 +1,9 @@
 import { createClient } from "@/lib/supabase/server";
 import { NextResponse } from "next/server";
+import {
+  listBacklinks,
+  listOutgoingReferences,
+} from "@/lib/refs/resolver";
 
 /**
  * Phase 3: lightweight metadata for a canvas/document, used by document embeds
@@ -56,6 +60,25 @@ export async function GET(
       .maybeSingle();
     if (ownerRow) owner = ownerRow.name || ownerRow.email || null;
 
+    // Opt-in relation counts for The Map ("3 link in · 2 out"). Only for the owner
+    // — references are owner-scoped, so counts on a public canvas you don't own
+    // would be meaningless/empty. Back-compat: the `relations` key is present only
+    // when `?include_relations` is requested (existing callers are unaffected).
+    const sp = new URL(request.url).searchParams;
+    const includeRelations =
+      sp.has("include_relations") && sp.get("include_relations") !== "false";
+    let relations: { backlinks: number; outgoing: number } | null = null;
+    if (includeRelations && canvas.user_id === user.id) {
+      const [backlinks, outgoing] = await Promise.all([
+        listBacklinks(supabase, user.id, {
+          canvasId: canvas.id,
+          code: canvas.code ?? null,
+        }),
+        listOutgoingReferences(supabase, user.id, canvas.id),
+      ]);
+      relations = { backlinks: backlinks.length, outgoing: outgoing.length };
+    }
+
     return NextResponse.json({
       id: canvas.id,
       name: canvas.name,
@@ -64,6 +87,7 @@ export async function GET(
       visibility: canvas.visibility,
       updated_at: canvas.updated_at,
       owner,
+      ...(includeRelations ? { relations } : {}),
     });
   } catch (error) {
     console.error("Error fetching canvas meta:", error);

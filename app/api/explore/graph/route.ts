@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireExploreAccess } from "@/lib/explore/access";
+import { findDanglingReferences } from "@/lib/refs/resolver";
 
 // The owner's cross-reference spine, shaped as a node/edge graph for the
 // governance browser. Nodes are artifacts (playbooks/policies/documents/tables),
@@ -22,6 +23,8 @@ export interface GraphEdge {
   source: string;
   target: string;
   type: string;
+  /** Set only when `?includeDrift=true`: this reference points nowhere (broken). */
+  dangling?: boolean;
 }
 
 export async function GET(req: Request) {
@@ -30,9 +33,12 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: access.error }, { status: access.status });
   }
   const { supabase, user, scope } = access;
+  const params = new URL(req.url).searchParams;
   // The artifact the Map was launched from — included as a node even if it has no
   // references yet, so "you are here" always has something to focus in the graph.
-  const focusId = new URL(req.url).searchParams.get("focus");
+  const focusId = params.get("focus");
+  // Opt-in drift marking: flag each edge whose reference is broken (dangling).
+  const includeDrift = params.get("includeDrift") === "true";
 
   const [{ data: refRows }, { data: canvasRows }] = await Promise.all([
     supabase.from("reference").select("*").eq("user_id", user.id),
@@ -41,6 +47,13 @@ export async function GET(req: Request) {
       .select("id, name, code, canvas_type, directory_kind")
       .eq("user_id", user.id),
   ]);
+
+  // Compute the dangling set once per request (only when asked), then mark edges.
+  let danglingIds: Set<string> | null = null;
+  if (includeDrift) {
+    const dangling = await findDanglingReferences(supabase, user.id);
+    danglingIds = new Set(dangling.map((d) => d.id));
+  }
 
   const refs = (refRows ?? []) as any[];
   const byId = new Map((canvasRows ?? []).map((c: any) => [c.id, c]));
@@ -122,7 +135,9 @@ export async function GET(req: Request) {
     }
     if (!target) continue;
     const source = ensureCanvas(r.from_canvas);
-    edges.push({ id: r.id, source, target, type: r.type });
+    const edge: GraphEdge = { id: r.id, source, target, type: r.type };
+    if (danglingIds) edge.dangling = danglingIds.has(r.id);
+    edges.push(edge);
   }
 
   // Ensure the launched artifact is present (so the Map can focus it even when it
