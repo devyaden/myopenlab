@@ -78,58 +78,10 @@
   .float-animation { animation: none; }
 }
 
-/* ──────────────────────────────────────────────────────────────────────────
-   Exploration Mode ("The Map") iris reveal — token skin lives in atlas-tokens.css.
-   Only the surface carries a view-transition-name so unrelated DOM is untouched.
-   ────────────────────────────────────────────────────────────────────────── */
-.exploration-surface {
-  view-transition-name: exploration-iris;
-}
-
-::view-transition-old(root),
-::view-transition-new(root) {
-  animation: none;
-}
-
-@media (prefers-reduced-motion: no-preference) {
-  html[data-explode-transition="enter"]::view-transition-new(exploration-iris) {
-    /* Smooth ease-in-out reveal with a soft opacity fade so the clip edge is
-       never a hard line — calmer than a hard iris. */
-    animation: explore-iris-in 900ms cubic-bezier(0.65, 0, 0.35, 1);
-  }
-  html[data-explode-transition="enter"]::view-transition-old(exploration-iris) {
-    animation: none;
-  }
-  html[data-explode-transition="exit"]::view-transition-old(exploration-iris) {
-    animation: explore-iris-out 440ms cubic-bezier(0.65, 0, 0.35, 1);
-    z-index: 1;
-  }
-  html[data-explode-transition="exit"]::view-transition-new(exploration-iris) {
-    animation: none;
-  }
-}
-
-@keyframes explore-iris-in {
-  from {
-    clip-path: circle(0 at var(--explore-x, 50%) var(--explore-y, 50%));
-    opacity: 0.4;
-  }
-  to {
-    clip-path: circle(160vmax at var(--explore-x, 50%) var(--explore-y, 50%));
-    opacity: 1;
-  }
-}
-
-@keyframes explore-iris-out {
-  from {
-    clip-path: circle(160vmax at var(--explore-x, 50%) var(--explore-y, 50%));
-    opacity: 1;
-  }
-  to {
-    clip-path: circle(0 at var(--explore-x, 50%) var(--explore-y, 50%));
-    opacity: 0.4;
-  }
-}
+/* Exploration Mode ("The Map") reveal is animated by framer-motion (clip-path on
+   the .exploration-surface element in ExplorationOverlay.tsx), not the View
+   Transitions API — the whole-page snapshot flashed the live DOM back in at
+   teardown. No iris CSS needed here. */
 
 /* Theme ReactFlow's default zoom/fit controls to the Atlas surface in light AND
    dark (the library ships hardcoded white). Scoped under `.react-flow` so it

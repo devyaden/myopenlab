@@ -121,7 +121,11 @@ export function LibrarySidebar() {
               </SidebarMenuItem>
               <SidebarMenuItem>
                 <SidebarMenuButton
-                  onClick={() => triggerExplore()}
+                  onClick={(e) => {
+                    // Start the iris reveal from the button itself.
+                    const r = e.currentTarget.getBoundingClientRect();
+                    triggerExplore({ x: r.left + r.width / 2, y: r.top + r.height / 2 });
+                  }}
                   tooltip="The Map"
                 >
                   <MapIcon />

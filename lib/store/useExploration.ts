@@ -1,7 +1,6 @@
 "use client";
 
 import { create } from "zustand";
-import { persist, createJSONStorage } from "zustand/middleware";
 
 /** An entity the user is focusing the governance chat on (clicked in the browser
  *  or a source chip). The single channel that pivots the chat's grounding. */
@@ -25,26 +24,20 @@ interface ExplorationState {
   setContext: (ctx: ExploreContext | null) => void;
 }
 
-export const useExplorationStore = create<ExplorationState>()(
-  persist(
-    (set, get) => ({
-      active: false,
-      origin: null,
-      context: null,
-      enter: (origin = null) => set({ active: true, origin }),
-      exit: () => set({ active: false, context: null }),
-      toggle: (origin = null) =>
-        get().active
-          ? set({ active: false, context: null })
-          : set({ active: true, origin }),
-      setContext: (context) => set({ context }),
-    }),
-    {
-      name: "exploration-mode",
-      storage: createJSONStorage(() => localStorage),
-      // Persist only the on/off intent (like dark mode) — not the transient
-      // origin/context. Reopening reloads in exploration mode until the user exits.
-      partialize: (s) => ({ active: s.active }),
-    }
-  )
-);
+// In-memory only — the open state is intentionally NOT persisted. Persisting it
+// made the full-screen Map surface re-cover the whole app on every page load and
+// snap in with no animation (there's no click origin / view-transition on a
+// persisted load). A hard reload now returns to the normal app; in-app client
+// navigation still keeps the Map open because React state survives it.
+export const useExplorationStore = create<ExplorationState>()((set, get) => ({
+  active: false,
+  origin: null,
+  context: null,
+  enter: (origin = null) => set({ active: true, origin }),
+  exit: () => set({ active: false, context: null }),
+  toggle: (origin = null) =>
+    get().active
+      ? set({ active: false, context: null })
+      : set({ active: true, origin }),
+  setContext: (context) => set({ context }),
+}));
