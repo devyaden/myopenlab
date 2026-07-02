@@ -28,6 +28,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
+import { buildXlsxBlob } from "@/utils/xlsx-export";
 import {
   Select,
   SelectContent,
@@ -1997,6 +1998,13 @@ const TableView = forwardRef<
       setNewColumnTitle(columnTitle);
     };
 
+    // RFC 4180: quote a field when it contains a comma, quote, or newline,
+    // and double any embedded quotes. Nullish-coalesce so 0/false survive.
+    const escapeCsvField = (raw: unknown): string => {
+      const s = String(raw ?? "");
+      return /[",\r\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+    };
+
     const exportToCSV = () => {
       // Get visible columns
       const visibleColumns = columns.filter(
@@ -2005,7 +2013,9 @@ const TableView = forwardRef<
       );
 
       // Create CSV header
-      const headers = visibleColumns.map((col) => col.title).join(",");
+      const headers = visibleColumns
+        .map((col) => escapeCsvField(col.title))
+        .join(",");
 
       // Create CSV rows
       const rows = flattenHierarchy(sortedHierarchy).map(({ node }) => {
@@ -2065,19 +2075,19 @@ const TableView = forwardRef<
                 }
             }
 
-            // Handle strings with commas
-            return typeof value === "string" && value.includes(",")
-              ? `"${value}"`
-              : value || "";
+            return escapeCsvField(value);
           })
           .join(",");
       });
 
-      // Combine header and rows
-      const csvContent = [headers, ...rows].join("\n");
+      // Combine header and rows (CRLF per RFC 4180)
+      const csvContent = [headers, ...rows].join("\r\n");
 
-      // Create and download file
-      const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+      // Create and download file. The BOM makes Excel decode UTF-8
+      // correctly (without it, non-ASCII text like Arabic is mojibake).
+      const blob = new Blob(["\uFEFF" + csvContent], {
+        type: "text/csv;charset=utf-8;",
+      });
       const link = document.createElement("a");
       const url = URL.createObjectURL(blob);
       link.setAttribute("href", url);
@@ -2085,6 +2095,7 @@ const TableView = forwardRef<
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
+      setTimeout(() => URL.revokeObjectURL(url), 10_000);
     };
 
     const exportToExcel = () => {
@@ -2151,40 +2162,18 @@ const TableView = forwardRef<
               }
           }
 
-          return value || "";
+          return value ?? "";
         });
       });
 
-      // Create HTML table
-      const table = document.createElement("table");
-      const thead = document.createElement("thead");
-      const tbody = document.createElement("tbody");
-
-      // Add headers
-      const headerRow = document.createElement("tr");
-      visibleColumns.forEach((col) => {
-        const th = document.createElement("th");
-        th.textContent = col.title;
-        headerRow.appendChild(th);
-      });
-      thead.appendChild(headerRow);
-      table.appendChild(thead);
-
-      // Add rows
-      rows.forEach((row) => {
-        const tr = document.createElement("tr");
-        row.forEach((cell) => {
-          const td = document.createElement("td");
-          td.textContent = cell;
-          tr.appendChild(td);
-        });
-        tbody.appendChild(tr);
-      });
-      table.appendChild(tbody);
-
-      // Convert to Excel
-      const html = table.outerHTML;
-      const blob = new Blob([html], { type: "application/vnd.ms-excel" });
+      // Build a genuine OOXML workbook. (The previous implementation wrote
+      // an HTML <table> into a file named .xlsx — Excel validates the ZIP
+      // container against the extension and rejected every export as
+      // corrupt.)
+      const blob = buildXlsxBlob(
+        [visibleColumns.map((col) => col.title), ...rows],
+        "Table Export"
+      );
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
@@ -2192,6 +2181,7 @@ const TableView = forwardRef<
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
+      setTimeout(() => URL.revokeObjectURL(url), 10_000);
     };
 
     // Expose exportToCSV and exportToExcel methods to parent components

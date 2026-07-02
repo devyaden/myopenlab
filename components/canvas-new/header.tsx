@@ -16,7 +16,7 @@ import {
 } from "@/components/ui/tooltip";
 import { Folder } from "@/types/sidebar";
 import { CANVAS_TYPE } from "@/types/store";
-import { toJpeg, toPng, toSvg } from "html-to-image";
+import { toJpeg, toPng } from "html-to-image";
 import { jsPDF } from "jspdf";
 import { getUserFeatureLimits, SubscriptionFeatureFlag } from "@/lib/subscription-features";
 import { useUser } from "@/lib/contexts/userContext";
@@ -151,9 +151,33 @@ export function Header({
     }
   };
 
+  // Downloads inherit the raw project title as the filename; an empty or
+  // slash-ridden title yields dotfiles (".png") or mangled names that look
+  // like failed exports. Keep a safe basename with a fallback.
+  const exportFileName = (extension: string) => {
+    const stem = (projectName ?? "")
+      .replace(/[\\/:*?"<>|\u0000-\u001F]/g, "-")
+      .replace(/^\.+/, "")
+      .trim();
+    return `${stem || "playbook"}.${extension}`;
+  };
+
+  // The app can mount several ReactFlow instances (embedded flow previews,
+  // the Map overlay, agent chat previews). Capture the one that is actually
+  // visible instead of whichever happens to come first in the DOM — a
+  // hidden/zero-size match produces blank images and a 0×0 PDF page.
+  const findDiagramElement = (): HTMLElement | null => {
+    const candidates = Array.from(
+      document.querySelectorAll<HTMLElement>(".react-flow")
+    );
+    return (
+      candidates.find((el) => el.offsetWidth > 0 && el.offsetHeight > 0) ?? null
+    );
+  };
+
   const exportAsImage = async (format: "png" | "jpeg" | "svg") => {
     try {
-      const element = document.querySelector(".react-flow") as HTMLElement;
+      const element = findDiagramElement();
       if (!element) {
         toast.error("No diagram found to export");
         return;
@@ -179,14 +203,35 @@ export function Header({
             backgroundColor: "#ffffff",
           });
           break;
-        case "svg":
-          dataUrl = await toSvg(element, { backgroundColor: "#ffffff" });
+        case "svg": {
+          // html-to-image's toSvg wraps the live DOM in <foreignObject>,
+          // which only browser engines render — Illustrator, Inkscape,
+          // Figma and most viewers treat the file as corrupt. Export a
+          // portable SVG instead: rasterize and embed the bitmap.
+          const png = await toPng(element, {
+            quality: 1,
+            backgroundColor: "#ffffff",
+          });
+          const { width, height } = await new Promise<{
+            width: number;
+            height: number;
+          }>((resolve, reject) => {
+            const img = new window.Image();
+            img.onload = () =>
+              resolve({ width: img.naturalWidth, height: img.naturalHeight });
+            img.onerror = () => reject(new Error("Failed to decode capture"));
+            img.src = png;
+          });
+          const svg = `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}"><image width="${width}" height="${height}" href="${png}" xlink:href="${png}"/></svg>`;
+          dataUrl =
+            "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svg);
           break;
+        }
       }
 
       // Create a download link
       const link = document.createElement("a");
-      link.download = `${projectName}.${format}`;
+      link.download = exportFileName(format);
       link.href = dataUrl;
       link.click();
 
@@ -206,11 +251,12 @@ export function Header({
   const exportAsPDF = async () => {
     if (propExportAsPDF) {
       propExportAsPDF();
+      setIsExportModalOpen(false);
       return;
     }
     try {
-      const element = document.querySelector(".react-flow") as HTMLElement;
-      if (!element) {
+      const element = findDiagramElement();
+      if (!element || !element.clientWidth || !element.clientHeight) {
         toast.error("No diagram found to export");
         return;
       }
@@ -240,7 +286,7 @@ export function Header({
         element.clientWidth,
         element.clientHeight
       );
-      pdf.save(`${projectName}.pdf`);
+      pdf.save(exportFileName("pdf"));
 
       // Show miniMap again after export
       toggleMiniMap?.(true);
@@ -258,15 +304,20 @@ export function Header({
   const exportAsJSON = () => {
     if (propExportAsJSON) {
       propExportAsJSON();
+      setIsExportModalOpen(false);
       return;
     }
     try {
+      if (currentState == null) {
+        toast.error("Nothing to export");
+        return;
+      }
       const dataStr = JSON.stringify(currentState, null, 2);
       const dataUri =
         "data:application/json;charset=utf-8," + encodeURIComponent(dataStr);
 
       const link = document.createElement("a");
-      link.download = `${projectName}.json`;
+      link.download = exportFileName("json");
       link.href = dataUri;
       link.click();
 
@@ -526,7 +577,7 @@ export function Header({
       <Dialog open={isExportModalOpen} onOpenChange={setIsExportModalOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Export Canvas</DialogTitle>
+            <DialogTitle>Export</DialogTitle>
           </DialogHeader>
           <div className="grid gap-4 py-4">
             {viewMode === VIEW_MODE.canvas && (

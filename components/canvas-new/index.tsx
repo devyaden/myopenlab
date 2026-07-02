@@ -173,6 +173,20 @@ export default function CanvasNew({ canvasId }: FigmaInterfaceProps) {
   const [viewMode, setViewMode] = useState<"canvas" | "table" | "document">(
     "canvas"
   );
+
+  // canvas_type loads asynchronously with the canvas row. Non-hybrid rows
+  // render their own surface regardless of viewMode (uml-editor.tsx falls
+  // through to TableView for anything that isn't hybrid+canvas), so keep
+  // viewMode in sync — otherwise the header's Export dialog offers diagram
+  // exports on a table (all of which fail: there is no .react-flow) while
+  // CSV/Excel stay unreachable.
+  useEffect(() => {
+    if (canvas_type === CANVAS_TYPE.TABLE) {
+      setViewMode(VIEW_MODE.table);
+    } else if (canvas_type === CANVAS_TYPE.DOCUMENT) {
+      setViewMode(VIEW_MODE.document);
+    }
+  }, [canvas_type]);
   const clipboardRef = useRef<Node[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [folders, setFolders] = useState<

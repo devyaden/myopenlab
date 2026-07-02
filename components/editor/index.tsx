@@ -1607,13 +1607,24 @@ const Editor = (
       });
       const url = URL.createObjectURL(blob);
 
+      // Sanitize the stem: an empty name would yield a hidden ".json"
+      // dotfile, and path characters get browser-dependent mangling.
+      const stem =
+        (name || "document")
+          .replace(/[\\/:*?"<>|\u0000-\u001F]/g, "-")
+          .replace(/\s+/g, "-")
+          .replace(/^\.+/, "")
+          .toLowerCase() || "document";
+
       const a = document.createElement("a");
       a.href = url;
-      a.download = `${name.replace(/\s+/g, "-").toLowerCase()}.json`;
+      a.download = `${stem}.json`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
-      URL.revokeObjectURL(url);
+      // Revoke on a delay: revoking in the same task as the click races the
+      // download in some browsers and yields a 0-byte file.
+      setTimeout(() => URL.revokeObjectURL(url), 10_000);
 
       toast.success("Document exported as JSON");
     } catch (error) {
